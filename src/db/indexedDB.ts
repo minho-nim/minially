@@ -61,7 +61,7 @@ export const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'health', name: '운동/건강', color: '#88B098', isDefault: false },
 ];
 
-export const DEFAULT_PRESETS: Preset[] = [
+const LEGACY_SAMPLE_PRESETS: Preset[] = [
   // 제목 문구 프리셋
   {
     id: 'phrase-title-1',
@@ -176,6 +176,8 @@ export const DEFAULT_PRESETS: Preset[] = [
   },
 ];
 
+export const DEFAULT_PRESETS: Preset[] = [];
+
 export const DEFAULT_SETTINGS: AppSettings = {
   startDayOfWeek: 0, // Sunday
   defaultCategory: 'personal',
@@ -259,12 +261,123 @@ function shiftDateStr(base: string, offsetDays: number): string {
   return `${year}-${month}-${day}`;
 }
 
+// Known IDs plus original content prevent removal of user-created or edited records.
+const LEGACY_SAMPLE_SCHEDULES: Schedule[] = [
+        {
+          id: 'sample-1',
+          title: '주간 업무 우선순위 정하기',
+          date: '2000-01-01',
+          startTime: '09:30',
+          endTime: '10:00',
+          category: 'work',
+          completed: false,
+          memo: '이번 주 주요 릴리스 마일스톤 점검',
+        },
+        {
+          id: 'sample-2',
+          title: '제품 기능 디자인 리뷰',
+          date: '2000-01-01',
+          startTime: '14:00',
+          endTime: '15:00',
+          category: 'work',
+          completed: false,
+          memo: 'UI 간소화 및 플래닛 스타일 빠른 일정 등록 플로우 확인',
+        },
+        {
+          id: 'sample-3',
+          title: '필라테스 레슨',
+          date: '2000-01-01',
+          startTime: '19:00',
+          endTime: '20:00',
+          category: 'health',
+          completed: false,
+          memo: '스트레칭 및 코어 운동',
+        },
+        {
+          id: 'sample-4',
+          title: '스페인어 회화 1챕터',
+          date: '2000-01-01',
+          startTime: '21:00',
+          endTime: '21:40',
+          category: 'study',
+          completed: false,
+          memo: '팟캐스트 듣기 및 핵심 표현 복습',
+        },
+        {
+          id: 'sample-5',
+          title: '친구와 브런치 약속',
+          date: '2000-01-01',
+          startTime: '12:00',
+          endTime: '13:30',
+          category: 'personal',
+          completed: false,
+          memo: '연남동 카페',
+        },
+        {
+          id: 'sample-6',
+          title: '방 정리 및 계절 옷 정리',
+          date: '2000-01-01',
+          startTime: '',
+          endTime: '',
+          category: 'personal',
+          completed: false,
+          memo: '시간 지정 없는 하루 할 일',
+        },
+      ];
+const LEGACY_SAMPLE_TASKS: Task[] = [
+        {
+          id: 'sample-task-1',
+          title: '캘린더 간편 복사 기능 테스트하기',
+          dueDate: '2000-01-01',
+          status: 'todo',
+          priority: 'high',
+          checklist: [
+            { id: 'c1', text: '단일 일정 복사', done: true },
+            { id: 'c2', text: '날짜 전체 일정 복사', done: false },
+          ],
+          memo: 'Planit 스타일 복사 UX 검증',
+        },
+        {
+          id: 'sample-task-2',
+          title: '비타민 및 영양제 구매',
+          dueDate: '2000-01-01',
+          status: 'todo',
+          priority: 'medium',
+          checklist: [],
+          memo: '오메가3, 비타민D',
+        },
+      ];
+
+async function removeUnchangedExamples(db: IDBPDatabase<DayFlowDBSchema>): Promise<void> {
+  const tx = db.transaction(['schedules', 'tasks', 'presets'], 'readwrite');
+  for (const example of LEGACY_SAMPLE_SCHEDULES) {
+    const current = await tx.objectStore('schedules').get(example.id);
+    if (current && (['title', 'startTime', 'endTime', 'category', 'completed', 'memo'] as const).every(key => current[key] === example[key]) && !current.recurrenceRuleId && !current.linkedProjectId) {
+      await tx.objectStore('schedules').delete(example.id);
+    }
+  }
+  for (const example of LEGACY_SAMPLE_TASKS) {
+    const current = await tx.objectStore('tasks').get(example.id);
+    if (current && (['title', 'status', 'priority', 'memo'] as const).every(key => current[key] === example[key]) && JSON.stringify(current.checklist) === JSON.stringify(example.checklist) && !current.projectId) {
+      await tx.objectStore('tasks').delete(example.id);
+    }
+  }
+  for (const example of LEGACY_SAMPLE_PRESETS) {
+    const current = await tx.objectStore('presets').get(example.id);
+    if (current && (['text', 'type'] as const).every(key => current[key] === example[key])) {
+      await tx.objectStore('presets').delete(example.id);
+    }
+  }
+  await tx.done;
+}
+
 /**
  * Initialize and migrate data from localStorage if IndexedDB is empty
  */
 export async function initializeDatabase(): Promise<void> {
   const db = await getDB();
 
+  await removeUnchangedExamples(db);
   const existingSettings = await db.get('appSettings', 'global_settings');
 
   // Check categories
@@ -331,100 +444,6 @@ export async function initializeDatabase(): Promise<void> {
       }
     } catch (err) {
       console.warn('Could not migrate from localStorage:', err);
-    }
-
-    // If still empty, provide clean realistic sample schedules
-    if (migratedSchedules.length === 0) {
-      const today = getTodayDateStr();
-      migratedSchedules = [
-        {
-          id: 'sample-1',
-          title: '주간 업무 우선순위 정하기',
-          date: today,
-          startTime: '09:30',
-          endTime: '10:00',
-          category: 'work',
-          completed: false,
-          memo: '이번 주 주요 릴리스 마일스톤 점검',
-        },
-        {
-          id: 'sample-2',
-          title: '제품 기능 디자인 리뷰',
-          date: today,
-          startTime: '14:00',
-          endTime: '15:00',
-          category: 'work',
-          completed: false,
-          memo: 'UI 간소화 및 플래닛 스타일 빠른 일정 등록 플로우 확인',
-        },
-        {
-          id: 'sample-3',
-          title: '필라테스 레슨',
-          date: today,
-          startTime: '19:00',
-          endTime: '20:00',
-          category: 'health',
-          completed: false,
-          memo: '스트레칭 및 코어 운동',
-        },
-        {
-          id: 'sample-4',
-          title: '스페인어 회화 1챕터',
-          date: shiftDateStr(today, 1),
-          startTime: '21:00',
-          endTime: '21:40',
-          category: 'study',
-          completed: false,
-          memo: '팟캐스트 듣기 및 핵심 표현 복습',
-        },
-        {
-          id: 'sample-5',
-          title: '친구와 브런치 약속',
-          date: shiftDateStr(today, 2),
-          startTime: '12:00',
-          endTime: '13:30',
-          category: 'personal',
-          completed: false,
-          memo: '연남동 카페',
-        },
-        {
-          id: 'sample-6',
-          title: '방 정리 및 계절 옷 정리',
-          date: shiftDateStr(today, 3),
-          startTime: '',
-          endTime: '',
-          category: 'personal',
-          completed: false,
-          memo: '시간 지정 없는 하루 할 일',
-        },
-      ];
-    }
-
-    if (migratedTasks.length === 0) {
-      const today = getTodayDateStr();
-      migratedTasks = [
-        {
-          id: 'sample-task-1',
-          title: '캘린더 간편 복사 기능 테스트하기',
-          dueDate: today,
-          status: 'todo',
-          priority: 'high',
-          checklist: [
-            { id: 'c1', text: '단일 일정 복사', done: true },
-            { id: 'c2', text: '날짜 전체 일정 복사', done: false },
-          ],
-          memo: 'Planit 스타일 복사 UX 검증',
-        },
-        {
-          id: 'sample-task-2',
-          title: '비타민 및 영양제 구매',
-          dueDate: shiftDateStr(today, 2),
-          status: 'todo',
-          priority: 'medium',
-          checklist: [],
-          memo: '오메가3, 비타민D',
-        },
-      ];
     }
 
     const tx = db.transaction(['schedules', 'tasks'], 'readwrite');

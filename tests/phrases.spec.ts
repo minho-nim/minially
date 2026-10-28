@@ -117,7 +117,7 @@ test('즐겨찾기·지정 순서·사용 순서와 빈 목록 유지', async ({
   const b = data.presets.find(p => p.text === '순서 B')!;
   const rowB = modal.locator(`[data-phrase-id="${b.id}"]`);
   await rowB.getByRole('button', { name: '위로 이동' }).click();
-  await expect.poll(async () => (await readData(page)).presets.findIndex(p => p.id === b.id)).toBeLessThan(data.presets.findIndex(p => p.id === a.id));
+  await expect.poll(async () => { const list = (await readData(page)).presets; return list.find(p => p.id === b.id)!.order! < list.find(p => p.id === a.id)!.order!; }).toBe(true);
   await rowB.getByRole('button', { name: '즐겨찾기 등록', exact: true }).click();
   await expect(rowB.getByRole('button', { name: '즐겨찾기 해제', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await modal.getByRole('button', { name: '순서 B', exact: true }).click();
@@ -127,7 +127,7 @@ test('즐겨찾기·지정 순서·사용 순서와 빈 목록 유지', async ({
   await page.reload({ waitUntil: 'domcontentloaded' });
   data = await readData(page);
   expect(data.presets.find(p => p.id === b.id)).toMatchObject({ isFavorite: true, usageCount: 1 });
-  expect(data.presets.findIndex(p => p.id === b.id)).toBeLessThan(data.presets.findIndex(p => p.id === a.id));
+  expect(data.presets.find(p => p.id === b.id)!.order).toBeLessThan(data.presets.find(p => p.id === a.id)!.order!);
   await page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; const db = await import(path); await db.importAllData({ presets: [], schedules: [] }); });
   await page.reload({ waitUntil: 'domcontentloaded' });
   await openSchedule(page);
@@ -250,4 +250,42 @@ test('모바일 설정 관리, 문구 편집·삭제 실패와 재시도, 메모
   await schedule.getByRole('button', { name: '자주 쓰는 문구', exact: true }).first().click();
   modal = page.getByRole('dialog', { name: '자주 쓰는 문구', exact: true });
   await expect(modal.getByRole('button', { name: '일정 제목', exact: true })).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('예시 없는 첫 실행과 기존 예시 정리에서 사용자 데이터 보존', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await openSchedule(page);
+  let data = await readData(page);
+  expect(data.schedules).toEqual([]);
+  expect(data.tasks).toEqual([]);
+  expect(data.presets).toEqual([]);
+  await page.evaluate(async () => {
+    const path = '/src/db/indexedDB.ts';
+    const db = await import(path);
+    await db.importAllData({
+      schedules: [
+        { id: 'sample-1', title: '주간 업무 우선순위 정하기', date: '2026-10-28', startTime: '09:30', endTime: '10:00', category: 'work', completed: false, memo: '이번 주 주요 릴리스 마일스톤 점검' },
+        { id: 'sample-2', title: '사용자가 수정한 일정', date: '2026-10-28', category: 'work', completed: false },
+        { id: 'user-schedule', title: '내 일정', date: '2026-10-28', category: 'personal', completed: false },
+      ],
+      tasks: [
+        { id: 'sample-task-2', title: '비타민 및 영양제 구매', dueDate: '2026-10-30', status: 'todo', priority: 'medium', checklist: [], memo: '오메가3, 비타민D' },
+        { id: 'user-task', title: '내 할 일', status: 'todo', priority: 'high' },
+      ],
+      presets: [
+        { id: 'phrase-title-1', type: 'title', text: '주간 팀 회의 및 업무 공유', isFavorite: true, usageCount: 0, createdAt: 1710000000000, updatedAt: 1710000000000, order: 1 },
+        { id: 'phrase-title-2', type: 'title', text: '내가 고친 문구', isFavorite: false, usageCount: 0, createdAt: 1710000000000, updatedAt: 1710000000001, order: 2 },
+        { id: 'user-phrase', type: 'title', text: '내 문구', isFavorite: false, usageCount: 0, createdAt: 1710000000000, updatedAt: 1710000000000 },
+      ],
+    });
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await openSchedule(page);
+  data = await readData(page);
+  expect(data.schedules.map(s => s.id)).toEqual(['sample-2', 'user-schedule']);
+  expect(data.tasks.map(t => t.id)).toEqual(['user-task']);
+  expect(data.presets.map(p => p.id)).toEqual(['phrase-title-2', 'user-phrase']);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await openSchedule(page);
+  expect(await readData(page)).toEqual(data);
 });
