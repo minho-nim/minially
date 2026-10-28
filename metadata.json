@@ -1,0 +1,6 @@
+{
+  "name": "미니어리 (Minially)",
+  "description": "캘린더, 할 일, 프로젝트를 하나로 잇는 미니멀 로즈 핑크 생산성 플래너",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
