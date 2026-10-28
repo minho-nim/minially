@@ -4,9 +4,9 @@ import {
   ScheduleCategory,
   Preset,
   CategoryItem,
-  RecurrenceFrequency,
   PhraseType,
 } from '../../types';
+import { getQuickPresets, phraseOrder } from '../../utils/phrases';
 import { addMinutesToTime } from '../../utils/storage';
 import {
   X,
@@ -18,7 +18,8 @@ import {
   ChevronUp,
   Bookmark,
   Star,
-  Plus,
+  Edit2,
+  RotateCcw,
 } from 'lucide-react';
 import { PhraseManageModal } from './PhraseManageModal';
 
@@ -27,7 +28,6 @@ interface ScheduleModalProps {
   onClose: () => void;
   onSave: (schedule: Schedule, keepOpen?: boolean) => Promise<void> | void;
   onDelete?: (scheduleId: string) => void;
-  onSaveAsPreset?: (presetData: Partial<Preset>) => void;
   onUsePreset: (presetId: string) => Promise<void> | void;
   onSavePreset: (preset: Preset) => Promise<void> | void;
   onDeletePreset: (presetId: string) => Promise<void> | void;
@@ -45,7 +45,6 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   onClose,
   onSave,
   onDelete,
-  onSaveAsPreset,
   onUsePreset,
   onSavePreset,
   onDeletePreset,
@@ -64,7 +63,6 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [endTime, setEndTime] = useState('10:00');
   const [category, setCategory] = useState<ScheduleCategory>('personal');
   const [memo, setMemo] = useState('');
-  const [recurrence, setRecurrence] = useState<RecurrenceFrequency>('none');
   const [completed, setCompleted] = useState(false);
   const [continuousAdd, setContinuousAdd] = useState(false);
   const [showAdditionalOptions, setShowAdditionalOptions] = useState(false);
@@ -75,18 +73,19 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   // Phrase Manage Modal state
   const [isPhraseModalOpen, setIsPhraseModalOpen] = useState(false);
   const [phraseModalInitialType, setPhraseModalInitialType] = useState<PhraseType | 'all'>('title');
+  const [phraseMode, setPhraseMode] = useState<'select' | 'manage'>('select');
+  const [applyMode, setApplyMode] = useState<'replace' | 'append'>('replace');
+  const [titleHistory, setTitleHistory] = useState<string[]>([]);
+  const [appliedText, setAppliedText] = useState('');
+  const [phraseMessage, setPhraseMessage] = useState('');
+  const [savingPhrase, setSavingPhrase] = useState(false);
+  const savingPhraseRef = useRef(false);
+  const titlePhraseDraftId = useRef<string | null>(null);
 
   const titleInputRef = useRef<HTMLInputElement>(null);
   const isEditing = Boolean(initialSchedule?.id);
 
-  // Title phrases & Memo phrases
-  const titlePhrases = useMemo(() => {
-    return presets.filter((p) => (p.type || 'title') === 'title');
-  }, [presets]);
-
-  const memoPhrases = useMemo(() => {
-    return presets.filter((p) => p.type === 'memo');
-  }, [presets]);
+  const quickPhrases = useMemo(() => getQuickPresets(presets), [presets]);
 
   useEffect(() => {
     if (isOpen) {
@@ -114,6 +113,11 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       }
       setIsPhraseModalOpen(false);
       setSaveError('');
+      setApplyMode('replace');
+      setTitleHistory([]);
+      setAppliedText('');
+      setPhraseMessage('');
+      titlePhraseDraftId.current = null;
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 80);
@@ -134,51 +138,71 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Apply title phrase from quick chips: fills title, keeps date/time intact
-  const handleApplyTitlePhrase = async (phrase: Preset) => {
-    try {
-      await onUsePreset(phrase.id);
-      setTitle(phrase.text);
-      setSaveError('');
-      titleInputRef.current?.focus();
-    } catch {
-      setSaveError('문구 사용 내역을 저장하지 못했습니다. 다시 시도해 주세요.');
-    }
+  // Apply immediately; usage tracking must not block title entry or schedule saving.
+  const trackUse = (phrase: Preset) => {
+    void Promise.resolve().then(() => onUsePreset(phrase.id)).catch(() => {
+      setSaveError('제목은 적용됐지만 문구 사용 내역을 저장하지 못했습니다. 일정은 그대로 저장할 수 있습니다.');
+    });
   };
 
-  // Selection from PhraseManageModal: fills title or memo, keeps date/time intact, closes modal
-  const handleSelectPhraseFromModal = (phraseText: string, phrase: Preset) => {
+  const handleApplyTitlePhrase = (phrase: Preset) => {
+    const previous = titleInputRef.current?.value ?? title;
+    const next = applyMode === 'append' && previous.trim()
+      ? previous.trimEnd() + ' ' + phrase.text : phrase.text;
+    if (next !== previous) setTitleHistory(history => [...history, previous]);
+    setTitle(next);
+    setAppliedText(phrase.text);
+    setPhraseMessage('');
+    setSaveError('');
+    trackUse(phrase);
+  };
+
+  const handleRestoreTitle = () => {
+    if (!titleHistory.length) return;
+    setTitle(titleHistory[titleHistory.length - 1]);
+    setTitleHistory(history => history.slice(0, -1));
+    setAppliedText('');
+    setPhraseMessage('이전 제목을 복구했습니다.');
+  };
+
+  const handleSelectPhraseFromModal = (_text: string, phrase: Preset) => {
     if (phrase.type === 'memo') {
-      setMemo((prev) => (prev.trim() ? `${prev}\n${phraseText}` : phraseText));
+      setMemo(prev => prev.trim() ? prev + '\n' + phrase.text : phrase.text);
       setShowAdditionalOptions(true);
+      trackUse(phrase);
     } else {
-      setTitle(phraseText);
-      setTimeout(() => titleInputRef.current?.focus(), 50);
+      handleApplyTitlePhrase(phrase);
     }
     setIsPhraseModalOpen(false);
   };
 
-  // Quick save current title as new title phrase
-  const handleSaveCurrentTitleAsPhrase = () => {
+  const handleSaveCurrentTitleAsPhrase = async () => {
     const text = title.trim();
-    if (!text) return;
-    if (onSavePreset) {
+    if (!text || savingPhraseRef.current) return;
+    if (presets.some(p => (p.type || 'title') === 'title' && p.text.trim() === text)) {
+      setPhraseMessage('이미 저장된 문구입니다.');
+      return;
+    }
+    savingPhraseRef.current = true;
+    setSavingPhrase(true);
+    setSaveError('');
+    setPhraseMessage('');
+    try {
       const now = Date.now();
-      onSavePreset({
-        id: `phrase-${now}-${Math.random().toString(36).substring(2, 7)}`,
-        type: 'title',
-        text,
-        isFavorite: false,
-        usageCount: 0,
-        createdAt: now,
-        updatedAt: now,
+      titlePhraseDraftId.current ??= crypto.randomUUID();
+      await onSavePreset({
+        id: titlePhraseDraftId.current, type: 'title', text,
+        isFavorite: false, usageCount: 0, lastUsedAt: 0,
+        sortOrder: Math.max(0, ...presets.map(phraseOrder)) + 1,
+        createdAt: now, updatedAt: now,
       });
-    } else if (onSaveAsPreset) {
-      onSaveAsPreset({
-        type: 'title',
-        text,
-        isFavorite: false,
-      });
+      titlePhraseDraftId.current = null;
+      setPhraseMessage('현재 제목을 문구로 저장했습니다.');
+    } catch {
+      setSaveError('문구를 저장하지 못했습니다. 일정 입력 내용은 유지됩니다. 다시 시도해 주세요.');
+    } finally {
+      savingPhraseRef.current = false;
+      setSavingPhrase(false);
     }
   };
 
@@ -213,6 +237,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       await onSave(newSchedule, true);
       setTitle('');
       setMemo('');
+      setTitleHistory([]);
+      setAppliedText('');
+      setPhraseMessage('');
       setTimeout(() => titleInputRef.current?.focus(), 50);
     } else {
       await onSave(newSchedule, false);
@@ -227,6 +254,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSave();
@@ -236,7 +264,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in" role="dialog" aria-modal="true" aria-label={isEditing ? '일정 수정' : '새 일정'}>
       {/* Mobile Bottom Sheet & Desktop Compact Modal */}
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[90vh] pb-safe safe-bottom">
+      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[90dvh] pb-safe safe-bottom">
         {/* Mobile drag handle */}
         <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
@@ -259,23 +287,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           {saveError && <p role="alert" className="text-xs text-[#C4476B]">{saveError}</p>}
           {/* 1. Title Input & Phrase Trigger */}
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-[#3E3438]">일정 제목</label>
-              <button
-                type="button"
-                onClick={() => {
-                  setPhraseModalInitialType('title');
-                  setIsPhraseModalOpen(true);
-                }}
-                className="text-xs font-semibold text-[#CF8FA8] hover:text-[#BD7F98] flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFFAFB] border border-[#F0E7EB] hover:bg-[#F6E8ED] transition-colors cursor-pointer"
-                title="자주 쓰는 문구 팝업 열기"
-              >
-                <Bookmark className="w-3.5 h-3.5" />
-                <span>자주 쓰는 문구</span>
-              </button>
-            </div>
+            <label className="block text-xs font-semibold text-[#3E3438] mb-1.5" htmlFor="schedule-title">일정 제목</label>
 
             <input
+              id="schedule-title"
               ref={titleInputRef}
               type="text"
               value={title}
@@ -285,26 +300,31 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               className="w-full px-3.5 py-2.5 text-base sm:text-sm bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl focus:outline-none focus:border-[#CF8FA8] text-[#3E3438] placeholder:text-[#85777D]/70 transition-colors"
             />
 
-            {/* Quick Favorites Row (always available horizontal chips for fastest 1-tap input) */}
-            {titlePhrases.filter((p) => p.isFavorite).length > 0 && (
-              <div className="flex items-center gap-1.5 overflow-x-auto pt-2 pb-0.5 no-scrollbar">
-                {titlePhrases
-                  .filter((p) => p.isFavorite)
-                  .slice(0, 5)
-                  .map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleApplyTitlePhrase(p)}
-                      className="px-2.5 py-1 text-xs bg-[#FFFAFB] hover:bg-[#F6E8ED] text-[#3E3438] border border-[#F0E7EB] rounded-lg transition-all cursor-pointer whitespace-nowrap shrink-0 flex items-center gap-1 active:scale-95"
-                      title="클릭하여 바로 입력"
-                    >
-                      <Star className="w-3 h-3 text-[#CF8FA8] fill-[#CF8FA8]" />
-                      <span>{p.text}</span>
-                    </button>
-                  ))}
+            <section aria-label="자주 쓰는 문구 빠른 선택" className="mt-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-[#85777D]">자주 쓰는 문구</span>
+                <div className="flex gap-1">
+                  <button type="button" onClick={() => { setPhraseModalInitialType('title'); setPhraseMode('select'); setIsPhraseModalOpen(true); }} className="min-h-9 px-2 text-xs text-[#CF8FA8] hover:bg-[#F6E8ED] rounded-lg">더보기</button>
+                  <button type="button" onClick={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} className="min-h-9 px-2 text-xs text-[#85777D] hover:bg-[#F6E8ED] rounded-lg"><Edit2 className="inline w-3 h-3 mr-1" />편집</button>
+                </div>
               </div>
-            )}
+              {quickPhrases.length ? <div className="flex gap-1.5 min-w-0 flex-wrap">
+                {quickPhrases.map(p => <button key={p.id} type="button" title={p.text} onPointerDown={e => e.preventDefault()} onClick={() => handleApplyTitlePhrase(p)} className="min-h-10 max-w-full px-2.5 py-1 text-xs text-[#3E3438] bg-[#FFFAFB] border border-[#F0E7EB] hover:bg-[#F6E8ED] rounded-lg inline-flex items-center gap-1">
+                  {p.isFavorite && <Star className="w-3 h-3 shrink-0 text-[#CF8FA8] fill-[#CF8FA8]" />}<span className="truncate max-w-[230px]">{p.text}</span>
+                </button>)}
+              </div> : <p className="text-xs text-[#85777D]">아직 문구가 없습니다. 더보기에서 새 문구를 추가하세요.</p>}
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <div role="group" aria-label="문구 적용 방식" className="flex gap-0.5">
+                  {(['replace', 'append'] as const).map(mode => <button key={mode} type="button" aria-pressed={applyMode === mode} onPointerDown={e => e.preventDefault()} onClick={() => setApplyMode(mode)} className={
+                    'min-h-9 px-2 rounded-lg text-[11px] ' + (applyMode === mode ? 'text-[#BD7F98] bg-[#F6E8ED]' : 'text-[#85777D] hover:bg-[#FFFAFB]')
+                  }>{mode === 'replace' ? '교체' : '이어 붙이기'}</button>)}
+                </div>
+                <button type="button" disabled={!title.trim() || savingPhrase} onPointerDown={e => e.preventDefault()} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 px-1 text-[11px] text-[#CF8FA8] disabled:opacity-40 hover:underline">자주 쓰는 문구로 저장</button>
+              </div>
+              {appliedText && <p role="status" className="text-xs text-[#85777D] break-words max-h-16 overflow-y-auto">적용 문구: {appliedText}</p>}
+              {titleHistory.length > 0 && <button type="button" onPointerDown={e => e.preventDefault()} onClick={handleRestoreTitle} className="min-h-9 text-xs text-[#BD7F98] hover:underline"><RotateCcw className="inline w-3.5 h-3.5 mr-1" />이전 제목 복구</button>}
+              {phraseMessage && <p role="status" className="text-xs text-[#85777D]">{phraseMessage}</p>}
+            </section>
           </div>
 
           {/* 2. Date Selection */}
@@ -444,6 +464,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       type="button"
                       onClick={() => {
                         setPhraseModalInitialType('memo');
+                        setPhraseMode('select');
                         setIsPhraseModalOpen(true);
                       }}
                       className="text-xs font-semibold text-[#CF8FA8] hover:text-[#BD7F98] flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[#FFFAFB] border border-[#F0E7EB] hover:bg-[#F6E8ED] transition-colors cursor-pointer"
@@ -524,7 +545,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         onSavePreset={onSavePreset}
         onDeletePreset={onDeletePreset}
         onReorderPresets={onReorderPresets}
-        onUsePreset={onUsePreset}
+        initialMode={phraseMode}
       />
     </div>
   );

@@ -374,21 +374,6 @@ export default function App() {
     setPresets(await getAllPresets());
   };
 
-  const handleSaveAsPreset = async (presetData: Partial<Preset>) => {
-    const item: Preset = {
-      id: `phrase-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      type: presetData.type || 'title',
-      text: presetData.text || '',
-      isFavorite: Boolean(presetData.isFavorite),
-      usageCount: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      order: Date.now(),
-    };
-    await dbSavePreset(item);
-    setPresets(await getAllPresets());
-  };
-
   const handleUsePreset = async (presetId: string) => {
     await markPresetUsed(presetId);
     setPresets(await getAllPresets());
@@ -583,7 +568,6 @@ export default function App() {
         onClose={() => setScheduleModalOpen(false)}
         onSave={handleSaveSchedule}
         onDelete={handleDeleteSchedule}
-        onSaveAsPreset={handleSaveAsPreset}
         onUsePreset={handleUsePreset}
         onSavePreset={handleSavePreset}
         onDeletePreset={handleDeletePreset}

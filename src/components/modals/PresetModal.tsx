@@ -71,6 +71,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
     const preset: Preset = {
       id: initialPreset?.id || `preset-${Date.now()}`,
       type: 'title',
+      sortOrder: initialPreset?.sortOrder ?? initialPreset?.order ?? Date.now(),
       usageCount: initialPreset?.usageCount || 0,
       createdAt: initialPreset?.createdAt || Date.now(),
       updatedAt: Date.now(),

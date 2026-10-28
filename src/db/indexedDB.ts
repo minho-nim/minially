@@ -61,121 +61,6 @@ export const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'health', name: '운동/건강', color: '#88B098', isDefault: false },
 ];
 
-const LEGACY_SAMPLE_PRESETS: Preset[] = [
-  // 제목 문구 프리셋
-  {
-    id: 'phrase-title-1',
-    type: 'title',
-    text: '주간 팀 회의 및 업무 공유',
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 1,
-  },
-  {
-    id: 'phrase-title-2',
-    type: 'title',
-    text: '모닝 루틴 & 데일리 플래닝',
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 2,
-  },
-  {
-    id: 'phrase-title-3',
-    type: 'title',
-    text: '개인 집중 업무 (딥워크)',
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 3,
-  },
-  {
-    id: 'phrase-title-4',
-    type: 'title',
-    text: '필라테스 / 헬스 운동',
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 4,
-  },
-  {
-    id: 'phrase-title-5',
-    type: 'title',
-    text: '도서관 / 카페 독서',
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 5,
-  },
-  {
-    id: 'phrase-title-6',
-    type: 'title',
-    text: '병원 정기 검진',
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 6,
-  },
-  {
-    id: 'phrase-title-7',
-    type: 'title',
-    text: '장보기 및 식재료 구매',
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 7,
-  },
-  // 메모 문구 프리셋
-  {
-    id: 'phrase-memo-1',
-    type: 'memo',
-    text: '준비물 챙기기 & 필수 사항 사전 확인',
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 1,
-  },
-  {
-    id: 'phrase-memo-2',
-    type: 'memo',
-    text: '어제 진행사항 점검 및 블로커 공유',
-    isFavorite: true,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 2,
-  },
-  {
-    id: 'phrase-memo-3',
-    type: 'memo',
-    text: '충분한 수분 섭취 및 스트레칭',
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 3,
-  },
-  {
-    id: 'phrase-memo-4',
-    type: 'memo',
-    text: '약속 장소 및 교통편 미리 확인',
-    isFavorite: false,
-    usageCount: 0,
-    createdAt: 1710000000000,
-    updatedAt: 1710000000000,
-    order: 4,
-  },
-];
-
 export const DEFAULT_PRESETS: Preset[] = [];
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -261,123 +146,12 @@ function shiftDateStr(base: string, offsetDays: number): string {
   return `${year}-${month}-${day}`;
 }
 
-// Known IDs plus original content prevent removal of user-created or edited records.
-const LEGACY_SAMPLE_SCHEDULES: Schedule[] = [
-        {
-          id: 'sample-1',
-          title: '주간 업무 우선순위 정하기',
-          date: '2000-01-01',
-          startTime: '09:30',
-          endTime: '10:00',
-          category: 'work',
-          completed: false,
-          memo: '이번 주 주요 릴리스 마일스톤 점검',
-        },
-        {
-          id: 'sample-2',
-          title: '제품 기능 디자인 리뷰',
-          date: '2000-01-01',
-          startTime: '14:00',
-          endTime: '15:00',
-          category: 'work',
-          completed: false,
-          memo: 'UI 간소화 및 플래닛 스타일 빠른 일정 등록 플로우 확인',
-        },
-        {
-          id: 'sample-3',
-          title: '필라테스 레슨',
-          date: '2000-01-01',
-          startTime: '19:00',
-          endTime: '20:00',
-          category: 'health',
-          completed: false,
-          memo: '스트레칭 및 코어 운동',
-        },
-        {
-          id: 'sample-4',
-          title: '스페인어 회화 1챕터',
-          date: '2000-01-01',
-          startTime: '21:00',
-          endTime: '21:40',
-          category: 'study',
-          completed: false,
-          memo: '팟캐스트 듣기 및 핵심 표현 복습',
-        },
-        {
-          id: 'sample-5',
-          title: '친구와 브런치 약속',
-          date: '2000-01-01',
-          startTime: '12:00',
-          endTime: '13:30',
-          category: 'personal',
-          completed: false,
-          memo: '연남동 카페',
-        },
-        {
-          id: 'sample-6',
-          title: '방 정리 및 계절 옷 정리',
-          date: '2000-01-01',
-          startTime: '',
-          endTime: '',
-          category: 'personal',
-          completed: false,
-          memo: '시간 지정 없는 하루 할 일',
-        },
-      ];
-const LEGACY_SAMPLE_TASKS: Task[] = [
-        {
-          id: 'sample-task-1',
-          title: '캘린더 간편 복사 기능 테스트하기',
-          dueDate: '2000-01-01',
-          status: 'todo',
-          priority: 'high',
-          checklist: [
-            { id: 'c1', text: '단일 일정 복사', done: true },
-            { id: 'c2', text: '날짜 전체 일정 복사', done: false },
-          ],
-          memo: 'Planit 스타일 복사 UX 검증',
-        },
-        {
-          id: 'sample-task-2',
-          title: '비타민 및 영양제 구매',
-          dueDate: '2000-01-01',
-          status: 'todo',
-          priority: 'medium',
-          checklist: [],
-          memo: '오메가3, 비타민D',
-        },
-      ];
-
-async function removeUnchangedExamples(db: IDBPDatabase<DayFlowDBSchema>): Promise<void> {
-  const tx = db.transaction(['schedules', 'tasks', 'presets'], 'readwrite');
-  for (const example of LEGACY_SAMPLE_SCHEDULES) {
-    const current = await tx.objectStore('schedules').get(example.id);
-    if (current && (['title', 'startTime', 'endTime', 'category', 'completed', 'memo'] as const).every(key => current[key] === example[key]) && !current.recurrenceRuleId && !current.linkedProjectId) {
-      await tx.objectStore('schedules').delete(example.id);
-    }
-  }
-  for (const example of LEGACY_SAMPLE_TASKS) {
-    const current = await tx.objectStore('tasks').get(example.id);
-    if (current && (['title', 'status', 'priority', 'memo'] as const).every(key => current[key] === example[key]) && JSON.stringify(current.checklist) === JSON.stringify(example.checklist) && !current.projectId) {
-      await tx.objectStore('tasks').delete(example.id);
-    }
-  }
-  for (const example of LEGACY_SAMPLE_PRESETS) {
-    const current = await tx.objectStore('presets').get(example.id);
-    if (current && (['text', 'type'] as const).every(key => current[key] === example[key])) {
-      await tx.objectStore('presets').delete(example.id);
-    }
-  }
-  await tx.done;
-}
-
 /**
  * Initialize and migrate data from localStorage if IndexedDB is empty
  */
 export async function initializeDatabase(): Promise<void> {
   const db = await getDB();
 
-  await removeUnchangedExamples(db);
   const existingSettings = await db.get('appSettings', 'global_settings');
 
   // Check categories
@@ -506,72 +280,37 @@ export async function batchDeleteSchedules(ids: string[]): Promise<void> {
 // Preset (Phrase) Operations
 export async function getAllPresets(): Promise<Preset[]> {
   const db = await getDB();
-  const rawList = await db.getAll('presets');
-  let hasMigration = false;
+  // Read and migrate in the same transaction, preserving concurrent writes and every ID.
+  const tx = db.transaction('presets', 'readwrite');
+  const rawList = await tx.store.getAll();
   const migrated: Preset[] = [];
   const now = Date.now();
-
-  for (const item of rawList) {
-    if (!item.text) {
-      hasMigration = true;
-      // Convert legacy preset to title phrase
-      const titlePhrase: Preset = {
-        ...item,
-        id: item.id,
-        type: 'title',
-        text: item.defaultTitle || item.name || '새 문구',
-        isFavorite: Boolean(item.isFavorite),
-        usageCount: typeof item.usageCount === 'number' ? item.usageCount : 0,
-        createdAt: item.createdAt || now,
-        updatedAt: item.updatedAt || now,
-        order: 1,
+  for (const [index, item] of rawList.entries()) {
+    const isLegacy = !item.text;
+    const normalized: Preset = {
+      ...item,
+      type: item.type || 'title',
+      text: item.text || item.defaultTitle || item.name || '새 문구',
+      isFavorite: Boolean(item.isFavorite),
+      usageCount: Number.isFinite(item.usageCount) ? Math.max(0, item.usageCount) : 0,
+      lastUsedAt: Number.isFinite(item.lastUsedAt) ? item.lastUsedAt : 0,
+      sortOrder: Number.isFinite(item.sortOrder) ? item.sortOrder : (Number.isFinite(item.order) ? item.order! : index),
+      createdAt: item.createdAt || now,
+      updatedAt: item.updatedAt || now,
+    };
+    migrated.push(normalized);
+    if (JSON.stringify(item) !== JSON.stringify(normalized)) await tx.store.put(normalized);
+    if (isLegacy && item.memo?.trim()) {
+      const memo: Preset = {
+        id: rawList.some(p => p.id === item.id + '-memo') ? crypto.randomUUID() : item.id + '-memo',
+        type: 'memo', text: item.memo, isFavorite: false, usageCount: 0,
+        lastUsedAt: 0, sortOrder: normalized.sortOrder + 1, createdAt: now, updatedAt: now,
       };
-      migrated.push(titlePhrase);
-
-      // If it had a memo, preserve as memo phrase
-      if (item.memo && item.memo.trim()) {
-        migrated.push({
-          id: rawList.some(p => p.id === `${item.id}-memo`) ? `${item.id}-memo-${crypto.randomUUID()}` : `${item.id}-memo`,
-          type: 'memo',
-          text: item.memo.trim(),
-          isFavorite: false,
-          usageCount: 0,
-          createdAt: now,
-          updatedAt: now,
-          order: 2,
-        });
-      }
-    } else {
-      // Normalize missing fields if any
-      const normalized: Preset = {
-        ...item,
-        type: item.type || 'title',
-        text: (item.text || '').trim(),
-        isFavorite: Boolean(item.isFavorite),
-        usageCount: typeof item.usageCount === 'number' ? item.usageCount : 0,
-        createdAt: item.createdAt || now,
-        updatedAt: item.updatedAt || now,
-      };
-      if (
-        item.type !== normalized.type ||
-        typeof item.usageCount !== 'number' ||
-        !item.createdAt ||
-        !item.updatedAt
-      ) {
-        hasMigration = true;
-      }
-      migrated.push(normalized);
+      migrated.push(memo);
+      await tx.store.put(memo);
     }
   }
-
-  if (hasMigration) {
-    const tx = db.transaction('presets', 'readwrite');
-    for (const p of migrated) {
-      await tx.store.put(p);
-    }
-    await tx.done;
-  }
-
+  await tx.done;
   return sortPresets(migrated);
 }
 
@@ -602,10 +341,11 @@ export async function savePreset(preset: Preset): Promise<void> {
     type: preset.type || 'title',
     text: (preset.text || '').trim(),
     isFavorite: Boolean(preset.isFavorite),
-    usageCount: typeof preset.usageCount === 'number' ? preset.usageCount : (existing?.usageCount || 0),
-    createdAt: preset.createdAt || existing?.createdAt || now,
+    usageCount: existing?.usageCount ?? preset.usageCount ?? 0,
+    createdAt: existing?.createdAt ?? preset.createdAt ?? now,
     updatedAt: now,
-    lastUsedAt: preset.lastUsedAt || existing?.lastUsedAt,
+    lastUsedAt: existing?.lastUsedAt ?? preset.lastUsedAt ?? 0,
+    sortOrder: existing?.sortOrder ?? existing?.order ?? preset.sortOrder ?? preset.order ?? now,
   };
   await tx.store.put(toSave);
   await tx.done;
@@ -622,7 +362,7 @@ export async function reorderPresets(ids: string[]): Promise<void> {
   const tx = db.transaction('presets', 'readwrite');
   for (const [order, id] of ids.entries()) {
     const phrase = await tx.store.get(id);
-    if (phrase) await tx.store.put({ ...phrase, order, updatedAt: Date.now() });
+    if (phrase) await tx.store.put({ ...phrase, sortOrder: order, order, updatedAt: Date.now() });
   }
   await tx.done;
 }

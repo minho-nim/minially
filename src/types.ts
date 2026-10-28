@@ -93,7 +93,8 @@ export interface PhrasePreset {
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number;
-  order?: number;
+  sortOrder: number;
+  order?: number; // Legacy backup compatibility
 
   // Legacy backward-compatibility optional fields
   name?: string;

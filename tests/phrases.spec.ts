@@ -11,7 +11,7 @@ async function openSchedule(page: Page) {
 }
 async function openPhrases(page: Page) {
   const schedule = page.getByRole('dialog', { name: '새 일정', exact: true });
-  await schedule.getByRole('button', { name: '자주 쓰는 문구', exact: true }).first().click();
+  await schedule.getByRole('button', { name: '편집', exact: true }).click();
   return page.getByRole('dialog', { name: '자주 쓰는 문구', exact: true });
 }
 async function readData(page: Page): Promise<AppData> {
@@ -241,18 +241,18 @@ test('모바일 설정 관리, 문구 편집·삭제 실패와 재시도, 메모
   await schedule.getByPlaceholder('일정 제목을 입력하세요').fill('메모 연동 일정');
   await schedule.getByRole('button', { name: '+ 추가 옵션 (시간, 카테고리, 메모)', exact: true }).click();
   await schedule.getByPlaceholder('상세 내용을 메모하세요').fill('직접 적은 메모');
-  await schedule.getByRole('button', { name: '자주 쓰는 문구', exact: true }).nth(1).click();
+  await schedule.getByRole('button', { name: '자주 쓰는 문구', exact: true }).click();
   let modal = page.getByRole('dialog', { name: '자주 쓰는 문구', exact: true });
   await addPhrase(modal, '추가 메모 문구');
   await modal.getByRole('button', { name: '추가 메모 문구', exact: true }).click();
   await expect(schedule.getByPlaceholder('일정 제목을 입력하세요')).toHaveValue('메모 연동 일정');
   await expect(schedule.getByPlaceholder('상세 내용을 메모하세요')).toHaveValue('직접 적은 메모\n추가 메모 문구');
-  await schedule.getByRole('button', { name: '자주 쓰는 문구', exact: true }).first().click();
+  await schedule.getByRole('button', { name: '더보기', exact: true }).click();
   modal = page.getByRole('dialog', { name: '자주 쓰는 문구', exact: true });
   await expect(modal.getByRole('button', { name: '일정 제목', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('예시 없는 첫 실행과 기존 예시 정리에서 사용자 데이터 보존', async ({ page }) => {
+test('빈 첫 실행과 기존 일정·문구 전체 보존', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await openSchedule(page);
   let data = await readData(page);
@@ -282,9 +282,9 @@ test('예시 없는 첫 실행과 기존 예시 정리에서 사용자 데이터
   await page.reload({ waitUntil: 'domcontentloaded' });
   await openSchedule(page);
   data = await readData(page);
-  expect(data.schedules.map(s => s.id)).toEqual(['sample-2', 'user-schedule']);
-  expect(data.tasks.map(t => t.id)).toEqual(['user-task']);
-  expect(data.presets.map(p => p.id)).toEqual(['phrase-title-2', 'user-phrase']);
+  expect(data.schedules.map(s => s.id)).toEqual(['sample-1', 'sample-2', 'user-schedule']);
+  expect(data.tasks.map(t => t.id)).toEqual(['sample-task-2', 'user-task']);
+  expect(data.presets.map(p => p.id)).toEqual(['phrase-title-1', 'phrase-title-2', 'user-phrase']);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await openSchedule(page);
   expect(await readData(page)).toEqual(data);
