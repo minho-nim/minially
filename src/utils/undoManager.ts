@@ -1,5 +1,5 @@
-import { ChangeHistoryEntry, Schedule } from '../types';
-import { batchSaveSchedules, batchDeleteSchedules, pushHistory, getLatestHistory, deleteHistory } from '../db/indexedDB';
+import { ChangeHistoryEntry, Schedule, Task } from '../types';
+import { applyScheduleHistory } from '../db/indexedDB';
 
 export interface UndoNotice {
   id: string;
@@ -22,7 +22,7 @@ export async function recordHistory(
     newSchedules,
   };
 
-  await pushHistory(entry);
+  await applyScheduleHistory(entry);
 
   return {
     id: entry.id,
@@ -32,19 +32,12 @@ export async function recordHistory(
 }
 
 export async function revertHistoryEntry(entry: ChangeHistoryEntry): Promise<void> {
-  // To revert:
-  // 1. Delete items that were created or introduced in newSchedules but were not in previousSchedules
-  // 2. Put back items that were in previousSchedules
-  const prevIds = new Set(entry.previousSchedules.map((s) => s.id));
-  const newIdsToDelete = entry.newSchedules.filter((s) => !prevIds.has(s.id)).map((s) => s.id);
+  await applyScheduleHistory(entry, true);
+}
 
-  if (newIdsToDelete.length > 0) {
-    await batchDeleteSchedules(newIdsToDelete);
-  }
-
-  if (entry.previousSchedules.length > 0) {
-    await batchSaveSchedules(entry.previousSchedules);
-  }
-
-  await deleteHistory(entry.id);
+export async function recordTaskDeletion(tasks: Task[]): Promise<UndoNotice> {
+  const description = tasks.length === 1 ? "'" + tasks[0].title + "' 삭제됨" : tasks.length + '개 할 일이 삭제되었습니다';
+  const entry: ChangeHistoryEntry = { id: crypto.randomUUID(), timestamp: Date.now(), type: 'DELETE', description, previousSchedules: [], newSchedules: [], previousTasks: tasks, newTasks: [] };
+  await applyScheduleHistory(entry);
+  return { id: entry.id, message: description, entry };
 }

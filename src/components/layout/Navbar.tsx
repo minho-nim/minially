@@ -6,7 +6,6 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 interface NavbarProps {
   activeTab: ActiveNavTab;
   onTabChange: (tab: ActiveNavTab) => void;
-  onOpenNewScheduleModal: () => void;
   onOpenSettingsModal: () => void;
   onOpenSearchModal: () => void;
 }
@@ -14,7 +13,6 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   onTabChange,
-  onOpenNewScheduleModal,
   onOpenSettingsModal,
   onOpenSearchModal,
 }) => {
@@ -32,7 +30,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* 2 Main Tabs: Segmented Control */}
-        <div className="flex items-center p-0.5 bg-[#F6E8ED] rounded-xl border border-[#F0E7EB]">
+        <div className="hidden md:flex items-center p-0.5 bg-[#F6E8ED] rounded-xl border border-[#F0E7EB]">
           <button
             type="button"
             onClick={() => onTabChange('calendar')}
@@ -64,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSearchModal}
-            className="w-9 h-9 flex items-center justify-center text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
+            className="w-11 h-11 flex items-center justify-center text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
             title="일정 검색"
             aria-label="일정 검색"
           >
@@ -86,21 +84,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSettingsModal}
-            className="w-9 h-9 flex items-center justify-center text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
+            className="w-11 h-11 flex items-center justify-center text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
             title="설정 및 프리셋"
             aria-label="설정 및 프리셋"
           >
             <Settings className="w-4 h-4" />
           </button>
 
-          <button
-            type="button"
-            onClick={onOpenNewScheduleModal}
-            className="hidden md:flex items-center gap-1 ml-1 px-3 py-1.5 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>등록</span>
-          </button>
+
         </div>
       </div>
     </header>

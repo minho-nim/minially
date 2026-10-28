@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import { DatePicker } from '../common/DatePicker';
+import React, { useState, useRef } from 'react';
 import { Schedule } from '../../types';
 import { formatKoreanDate } from '../../utils/dateHelpers';
+import { useScheduleDialog } from '../../hooks/useScheduleDialog';
+import { useDiscardGuard } from '../../hooks/useDiscardGuard';
+import { DiscardPrompt } from '../common/DiscardPrompt';
 import { X, Copy, Calendar, CheckSquare, Square } from 'lucide-react';
 
 interface DateCopyModalProps {
@@ -8,7 +12,7 @@ interface DateCopyModalProps {
   onClose: () => void;
   sourceDate: string;
   sourceSchedules: Schedule[];
-  onConfirmCopy: (selectedScheduleIds: string[], targetDates: string[]) => void;
+  onConfirmCopy: (selectedScheduleIds: string[], targetDates: string[]) => Promise<void> | void;
 }
 
 export const DateCopyModal: React.FC<DateCopyModalProps> = ({
@@ -21,6 +25,12 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [targetDates, setTargetDates] = useState<string[]>([]);
   const [newTargetInput, setNewTargetInput] = useState<string>('');
+  const [pending, setPending] = useState(false), [error, setError] = useState('');
+  const modalRef = useRef<HTMLDivElement>(null), baseline = useRef(''), busy = useRef(false);
+  const snapshot = () => JSON.stringify([[...selectedIds].sort(), [...targetDates].sort()]);
+  const guard = useDiscardGuard(snapshot() !== baseline.current || !!newTargetInput, pending);
+  const close = () => { if (guard.confirming) { guard.cancel(); return false; } return guard.request(onClose); };
+  useScheduleDialog(isOpen, false, modalRef, close, close);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -29,9 +39,10 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
       const nextDate = new Date(y, m - 1, d + 1);
       const nextStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
       setTargetDates([nextStr]);
-      setNewTargetInput('');
+      setNewTargetInput(''); setError('');
+      baseline.current = JSON.stringify([sourceSchedules.map(s => s.id).sort(), [nextStr]]);
     }
-  }, [isOpen, sourceDate, sourceSchedules]);
+  }, [isOpen, sourceDate]);
 
   if (!isOpen) return null;
 
@@ -61,15 +72,15 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
 
   const totalCopiesCount = selectedIds.length * targetDates.length;
 
-  const handleConfirm = () => {
-    if (selectedIds.length === 0 || targetDates.length === 0) return;
-    onConfirmCopy(selectedIds, targetDates);
-    onClose();
+  const handleConfirm = async () => {
+    if (selectedIds.length === 0 || targetDates.length === 0 || busy.current) return;
+    busy.current = true; setPending(true); setError('');
+    try { await onConfirmCopy(selectedIds, targetDates); onClose(); } catch { setError('복사하지 못했습니다. 선택한 일정과 날짜는 유지됩니다. 다시 시도해 주세요.'); } finally { busy.current = false; setPending(false); }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs">
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[90vh] pb-safe safe-bottom">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 복사" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(45,35,40,0.25)]">
+      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
         <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
@@ -81,15 +92,18 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
             </p>
           </div>
           <button
-            onClick={onClose}
+            aria-label="복사 닫기"
+            onClick={close}
             className="p-1 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
+        {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
+        {error && <p role="alert" className="px-5 pt-3 text-xs text-red-600">{error}</p>}
         {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <fieldset disabled={pending} className="p-5 space-y-4 overflow-y-auto min-h-0">
           {/* Step 1: Select schedules */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -142,13 +156,8 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
             <label className="text-xs font-semibold text-[#3E3438] block mb-1.5">
               대상 날짜 추가
             </label>
-            <div className="flex gap-2 mb-2">
-              <input
-                type="date"
-                value={newTargetInput}
-                onChange={(e) => setNewTargetInput(e.target.value)}
-                className="flex-1 px-3 py-1.5 text-xs bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl focus:outline-none focus:border-[#CF8FA8] text-[#3E3438]"
-              />
+            <div className="flex items-start gap-2 mb-2">
+              <DatePicker label="복사할 날짜 추가" value={newTargetInput} onChange={setNewTargetInput} />
               <button
                 type="button"
                 onClick={() => handleAddTargetDate(newTargetInput)}
@@ -169,6 +178,7 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
                   <span>{dateVal}</span>
                   <button
                     type="button"
+                    aria-label={dateVal + ' 선택 해제'}
                     onClick={() => handleRemoveTargetDate(dateVal)}
                     className="text-[#85777D] hover:text-red-500 cursor-pointer ml-1"
                   >
@@ -183,13 +193,13 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
             <span className="text-[#85777D]">총 복사 일정</span>
             <span className="font-bold text-[#CF8FA8]">{totalCopiesCount}건</span>
           </div>
-        </div>
+        </fieldset>
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-[#F0E7EB] bg-white flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
-            onClick={onClose}
+            onClick={close}
             className="px-4 py-2 text-xs font-medium text-[#85777D] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
           >
             취소
@@ -197,11 +207,11 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={totalCopiesCount === 0}
+            disabled={totalCopiesCount === 0 || pending}
             className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
           >
             <Copy className="w-3.5 h-3.5" />
-            <span>복사하기</span>
+            <span>{pending ? '복사 중…' : '복사'}</span>
           </button>
         </div>
       </div>

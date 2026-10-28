@@ -156,7 +156,7 @@ export async function initializeDatabase(): Promise<void> {
 
   // Check categories
   const catCount = await db.count('categories');
-  if (catCount === 0) {
+  if (catCount === 0 && !existingSettings) {
     const tx = db.transaction('categories', 'readwrite');
     for (const cat of DEFAULT_CATEGORIES) {
       await tx.store.put(cat);
@@ -370,7 +370,7 @@ export async function reorderPresets(ids: string[]): Promise<void> {
 // Category Operations
 export async function getAllCategories(): Promise<CategoryItem[]> {
   const db = await getDB();
-  return db.getAll('categories');
+  return (await db.getAll('categories')).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id));
 }
 
 export async function saveCategory(category: CategoryItem): Promise<void> {
@@ -380,7 +380,40 @@ export async function saveCategory(category: CategoryItem): Promise<void> {
 
 export async function deleteCategory(id: string): Promise<void> {
   const db = await getDB();
-  await db.delete('categories', id);
+  const tx = db.transaction(['categories', 'schedules', 'recurrenceExceptions', 'presets', 'appSettings', 'changeHistory'], 'readwrite');
+  try {
+    for (const schedule of await tx.objectStore('schedules').getAll()) {
+      if (schedule.category === id) await tx.objectStore('schedules').put({ ...schedule, category: '' });
+    }
+    for (const exception of await tx.objectStore('recurrenceExceptions').getAll()) {
+      if (exception.modifiedSchedule?.category === id) await tx.objectStore('recurrenceExceptions').put({ ...exception, modifiedSchedule: { ...exception.modifiedSchedule, category: '' } });
+    }
+    for (const preset of await tx.objectStore('presets').getAll()) {
+      if (preset.defaultCategory === id) await tx.objectStore('presets').put({ ...preset, defaultCategory: '' });
+    }
+    const settings = await tx.objectStore('appSettings').get('global_settings');
+    if (settings?.defaultCategory === id) await tx.objectStore('appSettings').put({ ...settings, defaultCategory: '' });
+    for (const entry of await tx.objectStore('changeHistory').getAll()) {
+      const clearReference = (schedule: Schedule) => schedule.category === id ? { ...schedule, category: '' } : schedule;
+      await tx.objectStore('changeHistory').put({ ...entry, previousSchedules: entry.previousSchedules.map(clearReference), newSchedules: entry.newSchedules.map(clearReference) });
+    }
+    await tx.objectStore('categories').delete(id);
+    await tx.done;
+  } catch (error) {
+    try { tx.abort(); } catch { /* Already aborted. */ }
+    await tx.done.catch(() => {});
+    throw error;
+  }
+}
+
+export async function reorderCategories(ids: string[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('categories', 'readwrite');
+  for (const [sortOrder, id] of ids.entries()) {
+    const category = await tx.store.get(id);
+    if (category) await tx.store.put({ ...category, sortOrder });
+  }
+  await tx.done;
 }
 
 // Recurrence Rules
@@ -540,4 +573,25 @@ export async function resetDatabaseToDefault(): Promise<void> {
 
   // reseed
   await initializeDatabase();
+}
+
+// Commit the visible schedule change and its undo record as one durable operation.
+export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = false): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['schedules', 'tasks', 'changeHistory'], 'readwrite');
+  try {
+    const before = undo ? entry.newSchedules : entry.previousSchedules;
+    const after = undo ? entry.previousSchedules : entry.newSchedules;
+    const ids = new Set(after.map(s => s.id));
+    for (const schedule of before) if (!ids.has(schedule.id)) await tx.objectStore('schedules').delete(schedule.id);
+    for (const schedule of after) await tx.objectStore('schedules').put(schedule);
+    const beforeTasks = (undo ? entry.newTasks : entry.previousTasks) ?? [];
+    const afterTasks = (undo ? entry.previousTasks : entry.newTasks) ?? [];
+    const taskIds = new Set(afterTasks.map(t => t.id));
+    for (const task of beforeTasks) if (!taskIds.has(task.id)) await tx.objectStore('tasks').delete(task.id);
+    for (const task of afterTasks) await tx.objectStore('tasks').put(task);
+    if (undo) await tx.objectStore('changeHistory').delete(entry.id);
+    else await tx.objectStore('changeHistory').put(entry);
+    await tx.done;
+  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => {}); throw error; }
 }

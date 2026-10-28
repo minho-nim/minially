@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import { DatePicker } from '../common/DatePicker';
+import React, { useState, useMemo, useRef } from 'react';
 import { Task, TaskPriority } from '../../types';
 import {
   CheckCircle2,
@@ -14,12 +15,12 @@ import { getTodayDateString, formatKoreanDate } from '../../utils/dateHelpers';
 
 interface TasksViewProps {
   tasks: Task[];
-  onToggleTaskStatus: (taskId: string) => void;
-  onToggleTaskChecklist: (taskId: string, checklistId: string) => void;
-  onDeleteTask: (taskId: string) => void;
-  onQuickAddTask: (title: string, dueDate: string, projectId?: string, priority?: TaskPriority) => void;
-  onBatchDeleteTasks?: (taskIds: string[]) => void;
-  onBatchToggleTasks?: (taskIds: string[], targetDone: boolean) => void;
+  onToggleTaskStatus: (taskId: string) => Promise<void> | void;
+  onToggleTaskChecklist: (taskId: string, checklistId: string) => Promise<void> | void;
+  onDeleteTask: (taskId: string) => Promise<void> | void;
+  onQuickAddTask: (title: string, dueDate: string, projectId?: string, priority?: TaskPriority) => Promise<void> | void;
+  onBatchDeleteTasks?: (taskIds: string[]) => Promise<void> | void;
+  onBatchToggleTasks?: (taskIds: string[], targetDone: boolean) => Promise<void> | void;
 }
 
 type DateScopeFilter = 'today' | 'upcoming' | 'all';
@@ -38,6 +39,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [dateScope, setDateScope] = useState<DateScopeFilter>('today');
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('pending');
   const [quickTitle, setQuickTitle] = useState('');
+  const [pending, setPending] = useState(false), [error, setError] = useState('');
+  const busy = useRef(false);
+  const run = async (action: () => Promise<void>) => { if (busy.current) return; busy.current = true; setPending(true); setError(''); try { await action(); } catch { setError('변경사항을 저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.'); } finally { busy.current = false; setPending(false); } };
   const [quickDueDate, setQuickDueDate] = useState(todayStr);
 
   // Selection mode for batch operations
@@ -77,11 +81,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
     }
   };
 
-  const handleQuickAdd = (e: React.FormEvent) => {
+  const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickTitle.trim()) return;
-    onQuickAddTask(quickTitle.trim(), quickDueDate, undefined, 'medium');
-    setQuickTitle('');
+    await run(async () => { await onQuickAddTask(quickTitle.trim(), quickDueDate, undefined, 'medium'); setQuickTitle(''); });
   };
 
   const toggleExpand = (taskId: string) => {
@@ -92,29 +95,35 @@ export const TasksView: React.FC<TasksViewProps> = ({
   };
 
   const handleBatchDelete = () => {
+    if (!window.confirm('선택한 할 일을 삭제할까요? 삭제 후 실행 취소할 수 있습니다.')) return;
+    void run(async () => {
     if (selectedTaskIds.length === 0) return;
     if (onBatchDeleteTasks) {
-      onBatchDeleteTasks(selectedTaskIds);
+      await onBatchDeleteTasks(selectedTaskIds);
     } else {
-      for (const id of selectedTaskIds) onDeleteTask(id);
+      for (const id of selectedTaskIds) await onDeleteTask(id);
     }
     setSelectedTaskIds([]);
     setIsSelectMode(false);
+    });
   };
 
   const handleBatchToggleDone = (targetDone: boolean) => {
+    void run(async () => {
     if (selectedTaskIds.length === 0) return;
     if (onBatchToggleTasks) {
-      onBatchToggleTasks(selectedTaskIds, targetDone);
+      await onBatchToggleTasks(selectedTaskIds, targetDone);
     } else {
-      for (const id of selectedTaskIds) onToggleTaskStatus(id);
+      for (const id of selectedTaskIds) await onToggleTaskStatus(id);
     }
     setSelectedTaskIds([]);
     setIsSelectMode(false);
+    });
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <fieldset disabled={pending} className="task-view max-w-4xl mx-auto space-y-4 min-w-0">
+      {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
         {/* Date Scope: 오늘 | 예정 | 전체 */}
@@ -219,14 +228,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               placeholder="+ 새로운 할 일 입력 후 Enter"
-              className="flex-1 text-sm bg-transparent text-[#3E3438] placeholder:text-[#85777D]/70 focus:outline-none"
+              className="flex-1 min-w-0 text-sm bg-transparent text-[#3E3438] placeholder:text-[#85777D]/70 focus:outline-none"
             />
-            <input
-              type="date"
-              value={quickDueDate}
-              onChange={(e) => setQuickDueDate(e.target.value)}
-              className="text-xs text-[#85777D] bg-transparent focus:outline-none hidden sm:inline"
-            />
+            <div className="hidden sm:block max-w-[240px]"><DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate} /></div>
             <button
               type="submit"
               disabled={!quickTitle.trim()}
@@ -314,8 +318,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     ) : (
                       <button
                         type="button"
-                        onClick={() => onToggleTaskStatus(task.id)}
-                        className="w-8 h-8 -ml-1 flex items-center justify-center text-stone-300 hover:text-[#CF8FA8] transition-colors cursor-pointer shrink-0"
+                        onClick={() => void run(async () => { await onToggleTaskStatus(task.id); })}
+                        aria-label={isDone ? '할 일 완료 해제' : '할 일 완료'}
+                        aria-pressed={isDone}
+                        className="w-11 h-11 -ml-1 flex items-center justify-center text-stone-300 hover:text-[#CF8FA8] transition-colors cursor-pointer shrink-0"
                       >
                         {isDone ? (
                           <CheckCircle2 className="w-5 h-5 text-[#CF8FA8] fill-[#F4DCE5]" />
@@ -328,7 +334,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     {/* Task Title & Meta */}
                     <div className="min-w-0 flex-1">
                       <p
-                        className={`text-sm font-medium truncate ${
+                        className={`text-sm font-medium whitespace-normal break-words ${
                           isDone ? 'line-through text-[#85777D]' : 'text-[#3E3438]'
                         }`}
                       >
@@ -367,7 +373,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                           {task.checklist?.map((item) => (
                             <div
                               key={item.id}
-                              onClick={() => onToggleTaskChecklist(task.id, item.id)}
+                              onClick={() => void run(async () => { await onToggleTaskChecklist(task.id, item.id); })}
                               className="flex items-center gap-2 text-xs cursor-pointer py-0.5 text-[#3E3438]"
                             >
                               <input
@@ -403,6 +409,6 @@ export const TasksView: React.FC<TasksViewProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </fieldset>
   );
 };

@@ -5,6 +5,7 @@ export interface CategoryItem {
   name: string;
   color: string;
   isDefault?: boolean;
+  sortOrder?: number;
 }
 
 export type RecurrenceFrequency = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom';
@@ -29,7 +30,14 @@ export interface RecurrenceException {
   modifiedSchedule?: Partial<Schedule>;
 }
 
+export interface TitleBlock {
+  id: string;
+  text: string;
+  presetId?: string;
+}
+
 export interface Schedule {
+  titleBlocks?: TitleBlock[];
   id: string;
   title: string;
   date: string; // YYYY-MM-DD
@@ -116,6 +124,8 @@ export interface ChangeHistoryEntry {
   timestamp: number;
   type: 'CREATE' | 'DELETE' | 'MOVE' | 'COPY' | 'UPDATE' | 'BATCH_CREATE' | 'TOGGLE_DONE';
   description: string;
+  previousTasks?: Task[];
+  newTasks?: Task[];
   previousSchedules: Schedule[];
   newSchedules: Schedule[];
 }

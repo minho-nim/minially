@@ -52,3 +52,22 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #CF8FA8;
 }
+
+/* Keep primary actions reachable in the visual viewport, including when a keyboard opens. */
+.app-modal button { min-height: 44px; }
+.app-modal button:disabled { cursor: not-allowed; }
+.app-modal input:not([type='checkbox']):not([type='radio']):not([type='color']),
+.app-modal select { min-height: 44px; }
+.app-modal input[type='time'] { min-width: 0; }
+.app-modal :focus-visible { outline: 2px solid #BD7F98; outline-offset: 2px; }
+@media (max-width: 639px) {
+  .calendar-actions button { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 767px) {
+  header button, nav button { min-height: 44px; }
+}
+@media (max-width: 767px) {
+  .task-view button { min-height: 44px; }
+}
+[data-sort-over='true'] { outline: 2px dashed #BD7F98; outline-offset: 2px; }
+[data-sort-dragging='true'] { opacity: 0.5; }

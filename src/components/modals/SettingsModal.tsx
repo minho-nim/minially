@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Preset,
   CategoryItem,
@@ -15,10 +15,14 @@ import {
   Smartphone,
   Trash2,
 } from 'lucide-react';
+import { CategoryActions, CategoryManager } from './CategoryManager';
 import { PhraseManager } from './PhraseManageModal';
+import { useDiscardGuard } from '../../hooks/useDiscardGuard';
+import { useScheduleDialog } from '../../hooks/useScheduleDialog';
+import { DiscardPrompt } from '../common/DiscardPrompt';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
-interface SettingsModalProps {
+interface SettingsModalProps extends CategoryActions {
   isOpen: boolean;
   onClose: () => void;
   presets: Preset[];
@@ -27,12 +31,10 @@ interface SettingsModalProps {
   onSavePreset: (preset: Preset) => Promise<void> | void;
   onReorderPresets: (ids: string[]) => Promise<void> | void;
   onDeletePreset: (presetId: string) => Promise<void> | void;
-  onSaveCategory: (cat: CategoryItem) => void;
-  onDeleteCategory: (catId: string) => void;
-  onUpdateSettings: (settings: AppSettings) => void;
+  onUpdateSettings: (settings: AppSettings) => Promise<void> | void;
   onExportBackup: () => Promise<void> | void;
   onImportBackup: (data: Partial<AppData>) => Promise<void> | void;
-  onResetData: () => void;
+  onResetData: () => Promise<void> | void;
 }
 
 type SettingsTab = 'presets' | 'categories' | 'calendar' | 'backup' | 'pwa';
@@ -42,6 +44,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   presets,
   categories,
+  schedules, onReorderCategories,
   settings,
   onSavePreset,
   onReorderPresets,
@@ -58,25 +61,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [backupStatus, setBackupStatus] = useState('');
   const [backupBusy, setBackupBusy] = useState(false);
 
-  // Category editor state
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatColor, setNewCatColor] = useState('#CF8FA8');
-
+  const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false), [settingsError, setSettingsError] = useState('');
+  const guard = useDiscardGuard(panelDirty, panelBusy || backupBusy || settingsSaving);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const requestClose = () => { if (guard.confirming) { guard.cancel(); return false; } return guard.request(onClose); };
+  useScheduleDialog(isOpen, false, modalRef, requestClose, requestClose);
+  useEffect(() => { if (isOpen) { setPanelDirty(false); setPanelBusy(false); setSettingsError(''); setBackupStatus(''); } }, [isOpen]);
+  const changeTab = (tab: SettingsTab) => { if (tab === activeTab) return; guard.request(() => { setActiveTab(tab); setPanelDirty(false); setPanelBusy(false); }); };
+  const updateSettings = async (next: AppSettings) => { if (settingsSaving) return; setSettingsSaving(true); setSettingsError(''); try { await onUpdateSettings(next); } catch { setSettingsError('설정을 저장하지 못했습니다. 다시 시도해 주세요.'); } finally { setSettingsSaving(false); } };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
 
   if (!isOpen) return null;
-
-  const handleAddCategory = () => {
-    if (!newCatName.trim()) return;
-    const cat: CategoryItem = {
-      id: `cat-${Date.now()}`,
-      name: newCatName.trim(),
-      color: newCatColor,
-    };
-    onSaveCategory(cat);
-    setNewCatName('');
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,15 +91,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs">
-      <div className="w-full sm:max-w-xl bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[90vh] pb-safe safe-bottom">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(45,35,40,0.25)]">
+      <div className="w-full sm:max-w-xl bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
         <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
         <div className="px-5 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white shrink-0">
           <h3 className="text-base font-bold text-[#3E3438]">설정</h3>
           <button
-            onClick={onClose}
+            onClick={requestClose}
+            aria-label="설정 닫기"
             className="p-1 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -112,7 +110,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Navigation Tabs */}
         <div className="flex border-b border-[#F0E7EB] bg-[#FFFAFB] px-4 gap-1 overflow-x-auto text-xs font-semibold shrink-0 no-scrollbar">
           <button
-            onClick={() => setActiveTab('presets')}
+            onClick={() => changeTab('presets')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'presets'
                 ? 'border-[#CF8FA8] text-[#CF8FA8]'
@@ -120,10 +118,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Bookmark className="w-3.5 h-3.5" />
-            <span>자주 쓰는 문구</span>
+            <span>프리셋</span>
           </button>
           <button
-            onClick={() => setActiveTab('categories')}
+            onClick={() => changeTab('categories')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'categories'
                 ? 'border-[#CF8FA8] text-[#CF8FA8]'
@@ -134,7 +132,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <span>카테고리</span>
           </button>
           <button
-            onClick={() => setActiveTab('calendar')}
+            onClick={() => changeTab('calendar')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'calendar'
                 ? 'border-[#CF8FA8] text-[#CF8FA8]'
@@ -145,7 +143,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <span>달력 설정</span>
           </button>
           <button
-            onClick={() => setActiveTab('backup')}
+            onClick={() => changeTab('backup')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'backup'
                 ? 'border-[#CF8FA8] text-[#CF8FA8]'
@@ -156,7 +154,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <span>백업/복원</span>
           </button>
           <button
-            onClick={() => setActiveTab('pwa')}
+            onClick={() => changeTab('pwa')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'pwa'
                 ? 'border-[#CF8FA8] text-[#CF8FA8]'
@@ -168,72 +166,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
+        {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
+        {settingsError && <p role="alert" className="p-3 text-xs text-red-600">{settingsError}</p>}
         {/* Tab Content */}
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
-          {/* TAB 1: PHRASE PRESETS (자주 쓰는 문구 관리) */}
-          {activeTab === 'presets' && <PhraseManager presets={presets} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} />}
+          {/* TAB 1: PHRASE PRESETS (프리셋 관리) */}
+          {activeTab === 'presets' && <PhraseManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} />}
 
-          {/* TAB 2: CATEGORIES */}
-          {activeTab === 'categories' && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-bold text-[#3E3438]">카테고리 관리</h4>
-                <p className="text-xs text-[#85777D]">
-                  일정에 지정할 카테고리와 대표 색상을 구성합니다.
-                </p>
-              </div>
-
-              <div className="p-2.5 bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl flex items-center gap-2">
-                <input
-                  type="color"
-                  value={newCatColor}
-                  onChange={(e) => setNewCatColor(e.target.value)}
-                  className="w-7 h-7 rounded-lg cursor-pointer border border-[#F0E7EB] shrink-0"
-                />
-                <input
-                  type="text"
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  placeholder="새 카테고리 이름"
-                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#F0E7EB] rounded-xl focus:outline-none focus:border-[#CF8FA8] text-[#3E3438]"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCategory}
-                  disabled={!newCatName.trim()}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] rounded-xl disabled:opacity-40 shrink-0 cursor-pointer"
-                >
-                  추가
-                </button>
-              </div>
-
-              <div className="divide-y divide-[#F0E7EB] border border-[#F0E7EB] rounded-2xl overflow-hidden bg-white">
-                {categories.map((c) => (
-                  <div
-                    key={c.id}
-                    className="p-3 flex items-center justify-between hover:bg-[#FFFAFB]"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: c.color }}
-                      />
-                      <span className="text-xs font-semibold text-[#3E3438]">{c.name}</span>
-                    </div>
-                    {!c.isDefault && (
-                      <button
-                        onClick={() => onDeleteCategory(c.id)}
-                        className="p-1 text-[#85777D] hover:text-red-500 rounded-md cursor-pointer"
-                        title="삭제"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {activeTab === 'categories' && <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={onDeleteCategory} onReorderCategories={onReorderCategories} />}
 
           {/* TAB 3: CALENDAR SETTINGS */}
           {activeTab === 'calendar' && (
@@ -242,7 +182,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h4 className="text-sm font-bold text-[#3E3438]">달력 환경 설정</h4>
               </div>
 
-              <div className="space-y-2.5">
+              <fieldset disabled={settingsSaving} className="space-y-2.5">
                 <div className="p-3 bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-[#3E3438]">시작 요일</p>
@@ -253,7 +193,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex rounded-lg border border-[#F0E7EB] p-0.5 bg-white text-xs">
                     <button
                       type="button"
-                      onClick={() => onUpdateSettings({ ...settings, startDayOfWeek: 0 })}
+                      onClick={() => void updateSettings({ ...settings, startDayOfWeek: 0 })}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         settings.startDayOfWeek === 0
                           ? 'bg-[#CF8FA8] text-white'
@@ -264,7 +204,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => onUpdateSettings({ ...settings, startDayOfWeek: 1 })}
+                      onClick={() => void updateSettings({ ...settings, startDayOfWeek: 1 })}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         settings.startDayOfWeek === 1
                           ? 'bg-[#CF8FA8] text-white'
@@ -286,16 +226,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
+                      aria-label="완료 일정 달력 표시"
                       checked={settings.showCompletedInCalendar}
                       onChange={(e) =>
-                        onUpdateSettings({ ...settings, showCompletedInCalendar: e.target.checked })
+                        void updateSettings({ ...settings, showCompletedInCalendar: e.target.checked })
                       }
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#CF8FA8]"></div>
                   </label>
                 </div>
-              </div>
+              </fieldset>
             </div>
           )}
 
@@ -305,7 +246,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h4 className="text-sm font-bold text-[#3E3438]">데이터 백업 및 복원</h4>
                 <p className="text-xs text-[#85777D]">
-                  브라우저 로컬(IndexedDB)에 저장된 데이터를 JSON 파일로 내보내거나 불러옵니다.
+                  이 브라우저에 저장된 데이터를 JSON 파일로 백업하거나 복원합니다.
                 </p>
               </div>
 
@@ -327,6 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
 
                 <div
+                  role="button" tabIndex={backupBusy ? -1 : 0} aria-label="JSON 백업 복원" onKeyDown={e => { if (!backupBusy && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileInputRef.current?.click(); } }}
                   onClick={() => { if (!backupBusy) fileInputRef.current?.click(); }}
                   className="p-3.5 border border-[#F0E7EB] bg-[#FFFAFB] hover:bg-[#F6E8ED] rounded-xl text-left transition-colors cursor-pointer"
                 >
@@ -355,7 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="button"
                     onClick={() => {
                       if (window.confirm('정말 모든 데이터를 초기화하시겠습니까?')) {
-                        onResetData();
+                        setBackupBusy(true); setBackupStatus(''); Promise.resolve(onResetData()).then(() => setBackupStatus('데이터를 초기화했습니다.')).catch(() => setBackupStatus('초기화하지 못했습니다. 다시 시도해 주세요.')).finally(() => setBackupBusy(false));
                       }
                     }}
                     className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl cursor-pointer"

@@ -5,7 +5,6 @@ import { Calendar, CheckSquare, Plus, Search, Settings } from 'lucide-react';
 interface BottomTabBarProps {
   activeTab: ActiveNavTab;
   onTabChange: (tab: ActiveNavTab) => void;
-  onOpenNewScheduleModal: () => void;
   onOpenSearchModal: () => void;
   onOpenSettingsModal: () => void;
 }
@@ -13,12 +12,11 @@ interface BottomTabBarProps {
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({
   activeTab,
   onTabChange,
-  onOpenNewScheduleModal,
   onOpenSearchModal,
   onOpenSettingsModal,
 }) => {
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-t border-[#F0E7EB] px-3 pt-1 pb-safe safe-bottom shadow-xs flex items-center justify-around h-16">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-t border-[#F0E7EB] px-3 pt-1 pb-safe safe-bottom shadow-xs flex items-center justify-around h-[calc(4rem+env(safe-area-inset-bottom,0px))]">
       <button
         type="button"
         onClick={() => onTabChange('calendar')}
@@ -39,16 +37,6 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({
       >
         <CheckSquare className="w-5 h-5 mb-0.5" />
         <span className="text-[10px]">할 일</span>
-      </button>
-
-      {/* Center Quick Add FAB */}
-      <button
-        type="button"
-        onClick={onOpenNewScheduleModal}
-        className="-mt-5 w-12 h-12 rounded-full bg-[#CF8FA8] text-white flex items-center justify-center shadow-md hover:bg-[#BD7F98] active:scale-90 transition-all cursor-pointer border-2 border-white shrink-0"
-        aria-label="새 일정 등록"
-      >
-        <Plus className="w-6 h-6 stroke-[2.5]" />
       </button>
 
       <button

@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Schedule, CategoryItem } from '../../types';
 import { formatKoreanDate } from '../../utils/dateHelpers';
+import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { Search, X, Calendar, Clock } from 'lucide-react';
 
 interface SearchModalProps {
   isOpen: boolean;
+  sessionKey?: number;
   onClose: () => void;
   schedules: Schedule[];
   categories: CategoryItem[];
@@ -12,19 +14,21 @@ interface SearchModalProps {
 }
 
 export const SearchModal: React.FC<SearchModalProps> = ({
-  isOpen,
+  isOpen, sessionKey = 0,
   onClose,
   schedules,
   categories,
   onSelectSchedule,
 }) => {
   const [query, setQuery] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null), modalRef = useRef<HTMLDivElement>(null);
+  useScheduleDialog(isOpen, false, modalRef, onClose, onClose);
+  useEffect(() => setQuery(''), [sessionKey]);
 
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setTimeout(() => inputRef.current?.focus(), 60);
+      const timer = window.setTimeout(() => inputRef.current?.focus(), 60);
+      return () => window.clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -51,14 +55,15 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-3 sm:p-4 pt-12 sm:pt-20 bg-black/40 backdrop-blur-xs">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[80vh]">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 검색" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-3 sm:p-4 bg-[rgba(45,35,40,0.25)]">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(80dvh,var(--modal-height,100dvh))]">
         {/* Search Input Bar */}
         <div className="p-3.5 border-b border-[#F0E7EB] flex items-center gap-2.5 bg-[#FFFAFB]">
           <Search className="w-4 h-4 text-[#CF8FA8] shrink-0" />
           <input
             ref={inputRef}
-            type="text"
+            type="search"
+            aria-label="일정 검색어"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="일정 제목, 메모, 카테고리 검색..."
@@ -66,6 +71,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           />
           {query && (
             <button
+              aria-label="검색어 지우기"
               onClick={() => setQuery('')}
               className="p-1 text-[#85777D] hover:text-[#3E3438] rounded-md cursor-pointer"
             >
@@ -99,15 +105,17 @@ export const SearchModal: React.FC<SearchModalProps> = ({
               {results.map((item) => (
                 <div
                   key={item.id}
+                  role="button" tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClose(); onSelectSchedule(item); } }}
                   onClick={() => {
-                    onSelectSchedule(item);
                     onClose();
+                    onSelectSchedule(item);
                   }}
                   className="p-3 rounded-xl hover:bg-[#FFFAFB] transition-colors cursor-pointer flex items-center justify-between gap-3 border border-transparent hover:border-[#F0E7EB]"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-medium text-[#3E3438] truncate">
+                      <span className="text-sm font-medium text-[#3E3438] break-words">
                         {item.title}
                       </span>
                       {item.completed && (
@@ -128,7 +136,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                         </span>
                       )}
                       <span className="bg-[#F6E8ED] text-[#CF8FA8] px-1.5 py-0.2 rounded text-[10px] font-semibold">
-                        {catMap.get(item.category) || item.category}
+                        {catMap.get(item.category) || item.category || '미분류'}
                       </span>
                     </div>
                     {item.memo && (

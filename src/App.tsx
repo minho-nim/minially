@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Schedule,
   Preset,
@@ -24,6 +24,7 @@ import {
   reorderPresets,
   getAllCategories,
   saveCategory as dbSaveCategory,
+  reorderCategories,
   deleteCategory as dbDeleteCategory,
   getAllRecurrenceRules,
   getAllRecurrenceExceptions,
@@ -38,19 +39,19 @@ import {
   DEFAULT_SETTINGS,
 } from './db/indexedDB';
 import { expandRecurringSchedules } from './utils/recurrenceEngine';
-import { recordHistory, revertHistoryEntry, UndoNotice } from './utils/undoManager';
+import { recordHistory, recordTaskDeletion, revertHistoryEntry, UndoNotice } from './utils/undoManager';
 import { Navbar } from './components/layout/Navbar';
 import { BottomTabBar } from './components/layout/BottomTabBar';
 import { CalendarView } from './components/views/CalendarView';
 import { TasksView } from './components/views/TasksView';
 import { ScheduleModal } from './components/modals/ScheduleModal';
 import { DateCopyModal } from './components/modals/DateCopyModal';
-import { BatchDateModal } from './components/modals/BatchDateModal';
 import { ScheduleMoveModal } from './components/modals/ScheduleMoveModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { UndoToast } from './components/common/UndoToast';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
 import { getTodayDateString } from './utils/dateHelpers';
 
 export default function App() {
@@ -78,8 +79,14 @@ export default function App() {
   const [dateCopyModalOpen, setDateCopyModalOpen] = useState(false);
   const [dateCopySourceDate, setDateCopySourceDate] = useState<string>('');
 
-  const [batchModalOpen, setBatchModalOpen] = useState(false);
-  const [batchDefaultDate, setBatchDefaultDate] = useState<string>('');
+  const [initialBatch, setInitialBatch] = useState(false);
+  const [initialPreset, setInitialPreset] = useState(false);
+  const [actionError, setActionError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
+  const [taskDeleteTarget, setTaskDeleteTarget] = useState<Task | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [searchSession, setSearchSession] = useState(0);
+  const searchOrigin = useRef<{ date: string; tab: ActiveNavTab } | null>(null);
 
   const [moveModalOpen, setMoveModalOpen] = useState(false);
   const [movingSchedule, setMovingSchedule] = useState<Schedule | null>(null);
@@ -148,17 +155,22 @@ export default function App() {
   }, [schedules, recurrenceRules, recurrenceExceptions, selectedDate]);
 
   // Schedule Actions with Undo
-  const handleOpenNewScheduleModal = (defaultDate?: string) => {
+  const handleOpenNewScheduleModal = (defaultDate?: string, fromPreset = false) => {
+    setInitialPreset(fromPreset);
     const targetDate = defaultDate || selectedDate || getTodayDateString();
+    searchOrigin.current = null;
+    setInitialBatch(false);
     setScheduleSelectedDate(targetDate);
     setEditingSchedule({
       date: targetDate,
-      category: categories[0]?.id || 'personal',
+      category: '',
     });
     setScheduleModalOpen(true);
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
+    setInitialPreset(false);
+    setInitialBatch(false);
     setEditingSchedule(schedule);
     setScheduleSelectedDate(schedule.date);
     setScheduleModalOpen(true);
@@ -169,13 +181,13 @@ export default function App() {
     const previousList = prev ? [prev] : [];
     const newList = [schedule];
 
-    await dbSaveSchedule(schedule);
 
     const desc = prev ? `'${schedule.title}' 수정됨` : `'${schedule.title}' 추가됨`;
     const notice = await recordHistory(prev ? 'UPDATE' : 'CREATE', desc, previousList, newList);
     setUndoNotice(notice);
 
     await reloadData();
+    setSelectedDate(schedule.date);
 
     if (!keepOpen) {
       setScheduleModalOpen(false);
@@ -186,7 +198,6 @@ export default function App() {
     const target = schedules.find((s) => s.id === scheduleId);
     if (!target) return;
 
-    await dbDeleteSchedule(scheduleId);
     const notice = await recordHistory('DELETE', `'${target.title}' 삭제됨`, [target], []);
     setUndoNotice(notice);
     await reloadData();
@@ -201,7 +212,6 @@ export default function App() {
       completed: !target.completed,
     };
 
-    await dbSaveSchedule(updated);
     const desc = updated.completed ? `'${target.title}' 완료됨` : `'${target.title}' 완료 취소`;
     const notice = await recordHistory('TOGGLE_DONE', desc, [target], [updated]);
     setUndoNotice(notice);
@@ -218,7 +228,6 @@ export default function App() {
       date: newDate,
     };
 
-    await dbSaveSchedule(updated);
     const notice = await recordHistory(
       'MOVE',
       `'${target.title}'이(가) ${newDate}로 이동되었습니다`,
@@ -241,35 +250,12 @@ export default function App() {
       completed: false,
     };
 
-    await dbSaveSchedule(newSchedule);
     const notice = await recordHistory(
       'COPY',
       `'${target.title}'이(가) ${targetDate}로 복사되었습니다`,
       [],
       [newSchedule]
     );
-    setUndoNotice(notice);
-    await reloadData();
-  };
-
-  // Quick Inline Add from Agenda panel
-  const handleQuickAddSchedule = async (
-    title: string,
-    date: string,
-    category: Schedule['category']
-  ) => {
-    const newSchedule: Schedule = {
-      id: `sch-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      title,
-      date,
-      startTime: '',
-      endTime: '',
-      category,
-      completed: false,
-    };
-
-    await dbSaveSchedule(newSchedule);
-    const notice = await recordHistory('CREATE', `'${title}' 추가됨`, [], [newSchedule]);
     setUndoNotice(notice);
     await reloadData();
   };
@@ -296,7 +282,6 @@ export default function App() {
       }
     }
 
-    await batchSaveSchedules(newSchedules);
     const notice = await recordHistory(
       'COPY',
       `${newSchedules.length}개의 일정이 ${targetDates.length}개 날짜에 복사되었습니다`,
@@ -309,18 +294,12 @@ export default function App() {
 
   // Batch Date Modal: Register same schedule across multiple dates
   const handleOpenBatchDateModal = (defaultDate: string) => {
-    setBatchDefaultDate(defaultDate);
-    setBatchModalOpen(true);
+    handleOpenNewScheduleModal(defaultDate);
+    setInitialBatch(true);
   };
 
   const handleConfirmBatch = async (
-    scheduleData: {
-      title: string;
-      startTime: string;
-      endTime: string;
-      category: Schedule['category'];
-      memo: string;
-    },
+    scheduleData: Schedule,
     dates: string[]
   ) => {
     if (!scheduleData.title.trim() || dates.length === 0) return;
@@ -333,10 +312,10 @@ export default function App() {
       endTime: scheduleData.endTime,
       category: scheduleData.category,
       memo: scheduleData.memo,
+      ...(scheduleData.titleBlocks ? { titleBlocks: scheduleData.titleBlocks } : {}),
       completed: false,
     }));
 
-    await batchSaveSchedules(newSchedules);
     const notice = await recordHistory(
       'BATCH_CREATE',
       `'${scheduleData.title}' 일정이 ${dates.length}개 날짜에 일괄 등록되었습니다`,
@@ -345,6 +324,7 @@ export default function App() {
     );
     setUndoNotice(notice);
     await reloadData();
+    setSelectedDate(dates[0]);
   };
 
   // Undo execution handler
@@ -354,7 +334,7 @@ export default function App() {
       setUndoNotice(null);
       await reloadData();
     } catch (err) {
-      console.error('Failed to undo change', err);
+      setActionError('실행 취소하지 못했습니다. 다시 시도해 주세요.');
     }
   };
 
@@ -387,13 +367,23 @@ export default function App() {
 
   const handleDeleteCategory = async (catId: string) => {
     await dbDeleteCategory(catId);
+    setUndoNotice(notice => {
+      if (!notice) return notice;
+      const clearReference = (schedule: Schedule) => schedule.category === catId ? { ...schedule, category: '' } : schedule;
+      return { ...notice, entry: { ...notice.entry, previousSchedules: notice.entry.previousSchedules.map(clearReference), newSchedules: notice.entry.newSchedules.map(clearReference) } };
+    });
     await reloadData();
+  };
+
+  const handleReorderCategories = async (ids: string[]) => {
+    await reorderCategories(ids);
+    setCategories(await getAllCategories());
   };
 
   // Settings Handlers
   const handleUpdateSettings = async (newSettings: AppSettings) => {
-    setSettings(newSettings);
     await dbSaveAppSettings(newSettings);
+    setSettings(newSettings);
   };
 
   // Backup & Restore
@@ -414,11 +404,13 @@ export default function App() {
 
   const handleImportBackup = async (data: Partial<AppData>) => {
     await importAllData(data);
+    setUndoNotice(null);
     await reloadData();
   };
 
   const handleResetData = async () => {
     await resetDatabaseToDefault();
+    setUndoNotice(null);
     await reloadData();
   };
 
@@ -446,7 +438,9 @@ export default function App() {
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    await dbDeleteTask(taskId);
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    setUndoNotice(await recordTaskDeletion([task]));
     await reloadData();
   };
 
@@ -464,9 +458,7 @@ export default function App() {
   };
 
   const handleBatchDeleteTasks = async (taskIds: string[]) => {
-    for (const id of taskIds) {
-      await dbDeleteTask(id);
-    }
+    setUndoNotice(await recordTaskDeletion(tasks.filter(t => taskIds.includes(t.id))));
     await reloadData();
   };
 
@@ -480,8 +472,16 @@ export default function App() {
     await reloadData();
   };
 
+  const handleCloseSchedule = () => {
+    setScheduleModalOpen(false);
+    const origin = searchOrigin.current;
+    if (origin) { setSelectedDate(origin.date); setActiveTab(origin.tab); setSearchModalOpen(true); searchOrigin.current = null; }
+  };
+  const openSearch = () => { searchOrigin.current = null; setSearchSession(key => key + 1); setSearchModalOpen(true); };
+  const runAction = async (action: () => Promise<void>) => { setActionError(''); try { await action(); } catch { setActionError('변경사항을 저장하지 못했습니다. 다시 시도해 주세요.'); } };
   // Search Navigation
   const handleSelectScheduleFromSearch = (schedule: Schedule) => {
+    searchOrigin.current = { date: selectedDate, tab: activeTab };
     setSelectedDate(schedule.date);
     setActiveTab('calendar');
     handleEditSchedule(schedule);
@@ -509,9 +509,8 @@ export default function App() {
       <Navbar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}
-        onOpenNewScheduleModal={() => handleOpenNewScheduleModal()}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
-        onOpenSearchModal={() => setSearchModalOpen(true)}
+        onOpenSearchModal={openSearch}
       />
 
       {/* Main View Area (Mobile Optimized Max Width) */}
@@ -526,16 +525,16 @@ export default function App() {
             onSelectDate={(date) => setSelectedDate(date)}
             onOpenNewScheduleModal={handleOpenNewScheduleModal}
             onEditSchedule={handleEditSchedule}
-            onToggleSchedule={handleToggleSchedule}
-            onMoveSchedule={handleMoveSchedule}
-            onDeleteSchedule={handleDeleteSchedule}
+            onToggleSchedule={id => void runAction(() => handleToggleSchedule(id))}
+            onMoveSchedule={(id, date) => void runAction(() => handleMoveSchedule(id, date))}
+            onDeleteSchedule={id => setDeleteTarget(schedules.find(s => s.id === id) || null)}
             onOpenDateCopyModal={handleOpenDateCopyModal}
             onOpenBatchDateModal={handleOpenBatchDateModal}
             onOpenMoveModal={(sch) => {
               setMovingSchedule(sch);
               setMoveModalOpen(true);
             }}
-            onQuickAddSchedule={handleQuickAddSchedule}
+            onOpenPresetModal={date => handleOpenNewScheduleModal(date, true)}
           />
         )}
 
@@ -545,7 +544,7 @@ export default function App() {
             tasks={tasks}
             onToggleTaskStatus={handleToggleTaskStatus}
             onToggleTaskChecklist={handleToggleTaskChecklist}
-            onDeleteTask={handleDeleteTask}
+            onDeleteTask={id => { setTaskDeleteTarget(tasks.find(t => t.id === id) || null); }}
             onQuickAddTask={handleQuickAddTask}
             onBatchDeleteTasks={handleBatchDeleteTasks}
             onBatchToggleTasks={handleBatchToggleTasks}
@@ -557,25 +556,32 @@ export default function App() {
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}
-        onOpenNewScheduleModal={() => handleOpenNewScheduleModal()}
-        onOpenSearchModal={() => setSearchModalOpen(true)}
+        onOpenSearchModal={openSearch}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
       />
 
+      {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-11 px-3">닫기</button></div>}
+      <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
+      <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
         isOpen={scheduleModalOpen}
-        onClose={() => setScheduleModalOpen(false)}
+        onClose={handleCloseSchedule}
         onSave={handleSaveSchedule}
         onDelete={handleDeleteSchedule}
         onUsePreset={handleUsePreset}
         onSavePreset={handleSavePreset}
         onDeletePreset={handleDeletePreset}
         onReorderPresets={handleReorderPresets}
-        onOpenBatchModal={handleOpenBatchDateModal}
+        initialBatch={initialBatch}
+        initialPreset={initialPreset}
+        onSaveBatch={handleConfirmBatch}
         initialSchedule={editingSchedule}
         presets={presets}
         categories={categories}
+        onSaveCategory={handleSaveCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onReorderCategories={handleReorderCategories}
         schedules={schedules}
         selectedDate={scheduleSelectedDate}
       />
@@ -587,15 +593,6 @@ export default function App() {
         sourceDate={dateCopySourceDate}
         sourceSchedules={schedules.filter((s) => s.date === dateCopySourceDate)}
         onConfirmCopy={handleConfirmDateCopy}
-      />
-
-      {/* Batch Date Modal ("여러 날짜 일괄 등록") */}
-      <BatchDateModal
-        isOpen={batchModalOpen}
-        onClose={() => setBatchModalOpen(false)}
-        categories={categories}
-        defaultDate={batchDefaultDate}
-        onConfirmBatch={handleConfirmBatch}
       />
 
       {/* Schedule Move / Copy Modal */}
@@ -613,6 +610,7 @@ export default function App() {
       {/* Search Modal */}
       <SearchModal
         isOpen={searchModalOpen}
+        sessionKey={searchSession}
         onClose={() => setSearchModalOpen(false)}
         schedules={schedules}
         categories={categories}
@@ -631,6 +629,8 @@ export default function App() {
         onReorderPresets={handleReorderPresets}
         onSaveCategory={handleSaveCategory}
         onDeleteCategory={handleDeleteCategory}
+        schedules={schedules}
+        onReorderCategories={handleReorderCategories}
         onUpdateSettings={handleUpdateSettings}
         onExportBackup={handleExportBackup}
         onImportBackup={handleImportBackup}
@@ -639,7 +639,7 @@ export default function App() {
 
       {/* Undo Toast Notification */}
       <UndoToast
-        notice={undoNotice}
+        notice={scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
         onUndo={handleUndo}
         onDismiss={() => setUndoNotice(null)}
       />

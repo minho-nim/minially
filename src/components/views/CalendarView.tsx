@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Schedule,
   ScheduleCategory,
@@ -40,7 +40,7 @@ interface CalendarViewProps {
   onOpenDateCopyModal: (sourceDate: string) => void;
   onOpenBatchDateModal: (defaultDate: string) => void;
   onOpenMoveModal: (schedule: Schedule) => void;
-  onQuickAddSchedule: (title: string, date: string, category: ScheduleCategory) => void;
+  onOpenPresetModal: (date: string) => void;
 }
 
 type CalendarMode = 'month' | 'week';
@@ -59,11 +59,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onOpenDateCopyModal,
   onOpenBatchDateModal,
   onOpenMoveModal,
-  onQuickAddSchedule,
+  onOpenPresetModal,
 }) => {
   const todayStr = getTodayDateString();
   const [viewMode, setViewMode] = useState<CalendarMode>(settings.defaultView || 'month');
-  const [quickInputText, setQuickInputText] = useState('');
   const [activeDateMenu, setActiveDateMenu] = useState<string | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
@@ -72,6 +71,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return new Date(y, m - 1, d || 1);
   });
 
+  useEffect(() => { const [y, m, d] = selectedDate.split('-').map(Number); setViewDate(new Date(y, m - 1, d)); }, [selectedDate]);
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
@@ -121,9 +121,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Month navigation
   const handlePrev = () => {
     if (viewMode === 'month') {
-      setViewDate(new Date(year, month - 1, 1));
+      const day = Math.min(Number(selectedDate.slice(-2)), new Date(year, month, 0).getDate());
+      const next = new Date(year, month - 1, day);
+      onSelectDate(next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0'));
     } else {
-      const d = new Date(selectedDate);
+      const d = new Date(selectedDate + 'T00:00:00');
       d.setDate(d.getDate() - 7);
       const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       onSelectDate(str);
@@ -133,9 +135,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   const handleNext = () => {
     if (viewMode === 'month') {
-      setViewDate(new Date(year, month + 1, 1));
+      const day = Math.min(Number(selectedDate.slice(-2)), new Date(year, month + 2, 0).getDate());
+      const next = new Date(year, month + 1, day);
+      onSelectDate(next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0'));
     } else {
-      const d = new Date(selectedDate);
+      const d = new Date(selectedDate + 'T00:00:00');
       d.setDate(d.getDate() + 7);
       const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       onSelectDate(str);
@@ -268,19 +272,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
-  // Quick Inline Add submit
-  const handleQuickAddSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const text = quickInputText.trim();
-    if (!text) return;
-    onQuickAddSchedule(text, selectedDate, categories[0]?.id || 'personal');
-    setQuickInputText('');
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-4">
+      <div role="group" aria-label="일정 만들기" className="flex justify-end gap-2">
+        <button type="button" onClick={() => onOpenPresetModal(selectedDate)} className="min-h-11 px-4 rounded-xl border border-[#E9CDD8] bg-white text-sm text-[#AD728B]">프리셋</button>
+        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-11 px-4 rounded-xl bg-[#CF8FA8] text-white text-sm font-semibold">일정 등록</button>
+      </div>
       {/* Month/Week Navigation & Mode Controls */}
-      <div className="flex items-center justify-between px-1 sm:px-2 pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2 pt-1">
         <div className="flex items-center gap-2">
           <div className="flex items-center">
             <button
@@ -628,36 +627,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             >
               <Copy className="w-4 h-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => onOpenNewScheduleModal(selectedDate)}
-              className="p-1.5 text-[#CF8FA8] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
-              title="새 일정 추가"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-            </button>
+
           </div>
         </div>
-
-        {/* Quick Inline Add input */}
-        <form onSubmit={handleQuickAddSubmit} className="p-3 border-b border-[#F0E7EB] bg-[#FFFAFB]/50">
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#F0E7EB] focus-within:border-[#CF8FA8] transition-colors">
-            <input
-              type="text"
-              value={quickInputText}
-              onChange={(e) => setQuickInputText(e.target.value)}
-              placeholder="+ 새 일정 입력 후 Enter"
-              className="flex-1 text-sm bg-transparent text-[#3E3438] placeholder:text-[#85777D]/70 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={!quickInputText.trim()}
-              className="px-2.5 py-1 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-lg transition-all cursor-pointer"
-            >
-              등록
-            </button>
-          </div>
-        </form>
 
         {/* List of Schedules (Cardless rows with hairline dividers) */}
         <div className="divide-y divide-[#F0E7EB]">
@@ -679,7 +651,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <button
                     type="button"
                     onClick={() => onToggleSchedule(schedule.id)}
-                    className="w-8 h-8 -ml-1 flex items-center justify-center text-stone-300 hover:text-[#CF8FA8] transition-colors cursor-pointer shrink-0"
+                    aria-label={schedule.completed ? '일정 완료 해제' : '일정 완료'}
+                    aria-pressed={schedule.completed}
+                    className="w-11 h-11 -ml-1 flex items-center justify-center text-stone-300 hover:text-[#CF8FA8] transition-colors cursor-pointer shrink-0"
                   >
                     {schedule.completed ? (
                       <CheckCircle2 className="w-5 h-5 text-[#CF8FA8] fill-[#F4DCE5]" />
@@ -695,7 +669,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-sm font-medium truncate ${
+                        className={`text-sm font-medium whitespace-normal break-words ${
                           schedule.completed ? 'line-through text-[#85777D]' : 'text-[#3E3438]'
                         }`}
                       >
@@ -703,7 +677,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 mt-0.5 text-xs text-[#85777D]">
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-[#85777D]">
                       {schedule.startTime ? (
                         <span className="flex items-center gap-1 font-mono">
                           <Clock className="w-3 h-3 text-[#CF8FA8]" />
@@ -721,7 +695,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           color: cat?.color || '#CF8FA8',
                         }}
                       >
-                        {cat?.name || schedule.category}
+                        {cat?.name || schedule.category || '미분류'}
                       </span>
 
                       {schedule.memo && (
@@ -733,7 +707,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <div className="calendar-actions flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                     <button
                       type="button"
                       onClick={() => onOpenMoveModal(schedule)}
