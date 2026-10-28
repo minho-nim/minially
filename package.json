@@ -10,7 +10,8 @@
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "test": "playwright test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "build:pages": "vite build --mode github-pages"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

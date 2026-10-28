@@ -4,8 +4,10 @@ import path from 'path';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(() => {
+export default defineConfig(({ mode }) => {
+  const base = mode === 'github-pages' ? '/minially/' : '/';
   return {
+    base,
     plugins: [
       react(),
       tailwindcss(),
@@ -13,30 +15,30 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
-          id: '/',
+          id: base,
           name: '미니어리 (Minially) · 간편 일정관리',
           short_name: '미니어리',
           description: '누구나 빠르고 쉽게 등록하고 관리하는 심플 캘린더 & 할 일 플래너',
           theme_color: '#FFF8FA',
           background_color: '#FFF8FA',
           display: 'standalone',
-          start_url: '/',
-          scope: '/',
+          start_url: base,
+          scope: base,
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: `${base}pwa-192x192.png`,
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: `${base}pwa-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: `${base}pwa-maskable-512x512.png`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',

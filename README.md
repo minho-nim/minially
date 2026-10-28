@@ -39,3 +39,11 @@ npm test
 브라우저 테스트는 설치된 Google Chrome을 기본으로 사용합니다. 별도 Chromium을 쓰려면 `npx playwright install chromium` 실행 후 `PLAYWRIGHT_CHANNEL=chromium` 환경 변수로 실행합니다. 테스트마다 독립된 브라우저 저장 공간을 사용합니다.
 
 테스트에는 문구 추가·수정·삭제와 취소, 새로고침, 일정 제목 적용과 편집·저장, 기존 일정 보존, JSON 백업·복원, 즐겨찾기·순서, 저장 오류와 재시도, 이전 데이터 이관, 잘못된 복원 롤백이 포함됩니다.
+
+## GitHub Pages 배포
+
+실사용 주소: https://minho-nim.github.io/minially/
+
+`main` 브랜치에 업로드하면 GitHub Actions가 타입 검사와 빌드를 실행한 뒤 자동 배포합니다. `npm run build:pages`는 `/minially/` 경로에 맞춘 화면·아이콘·PWA 파일을 생성합니다.
+
+배포 주소가 달라지면 브라우저 저장 공간도 분리됩니다. 이전 Sites 주소에 저장한 데이터는 설정에서 JSON 백업 후 새 주소에서 복원할 수 있습니다.
