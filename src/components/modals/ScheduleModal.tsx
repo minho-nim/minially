@@ -97,7 +97,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [isPhraseModalOpen, setIsPhraseModalOpen] = useState(false);
   const [phraseModalInitialType, setPhraseModalInitialType] = useState<PhraseType | 'all'>('title');
   const [phraseMode, setPhraseMode] = useState<'select' | 'manage'>('select');
-  const [applyMode, setApplyMode] = useState<'replace' | 'append'>('replace');
+  const [applyMode, setApplyMode] = useState<'replace' | 'append'>('append');
   const [titleHistory, setTitleHistory] = useState<{ text: string; blocks: TitleBlock[] }[]>([]);
   const [phraseMessage, setPhraseMessage] = useState('');
   const [savingPhrase, setSavingPhrase] = useState(false);
@@ -149,7 +149,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     setShowAdditionalOptions(Boolean(note || originalRule)); setExtraDates([]); setDateInput(''); setDatePanel(initialBatch);
     setIsPhraseModalOpen(false); setInlinePresetsOpen(false); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false);
     closeGuard.cancel(); panelGuard.cancel();
-    setSaveError(''); setApplyMode('replace'); setTitleHistory([]); setPhraseMessage(''); titlePhraseDraftId.current = null;
+    setSaveError(''); setApplyMode('append'); setTitleHistory([]); setPhraseMessage(''); titlePhraseDraftId.current = null;
     baseline.current = snapshot(t, d, all, start, end, cat, note, done, [], parts);
     const timer = window.setTimeout(() => titleInputRef.current?.focus(), 80);
     return () => window.clearTimeout(timer);
@@ -362,8 +362,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               <button type="button" className="shrink-0 min-h-11 px-3 bg-[#F6E8ED] rounded-xl text-sm text-[#BD7F98]" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
             </div>
             {(titleBlocks.length > 1 || titleBlocks.some(b => b.presetId)) && <div className="mt-2"><TitleBlockEditor blocks={titleBlocks} word="" onWordChange={() => {}} onChange={parts => { setTitleBlocks(parts); setTitle(parts.map(b => b.text).join(' ')); }} editable compact hideWordInput /></div>}
-            {inlinePresetsOpen && title.trim() && <label className="flex items-center gap-2 text-xs min-h-11">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-11 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>}
-            {inlinePresetsOpen && <InlinePresetPicker presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
+            {inlinePresetsOpen && <InlinePresetPicker selectedBlocks={titleBlocks} options={<label className="flex items-center gap-2 text-xs min-h-11">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-11 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
               const previous = titleInputRef.current?.value ?? title;
               const current = titleBlocks.map(b => b.text).join(' ') === previous ? titleBlocks : previous.trim() ? [{ id: crypto.randomUUID(), text: previous }] : [];
               const next = applyMode === 'append' ? [...current, ...parts] : parts; setTitleHistory(history => [...history, { text: previous, blocks: titleBlocks }]); setTitleBlocks(next); setTitle(next.map(b => b.text).join(' ')); trackUse(preset); setPhraseMessage(''); setApplyMode('append');

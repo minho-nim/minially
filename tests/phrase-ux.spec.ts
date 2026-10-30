@@ -1,3 +1,4 @@
+import { presetMode } from './helpers/preset-actions';
 import { chooseDate, readDate, expectDate } from './helpers/date';
 import { test, expect, Page } from '@playwright/test';
 import type { AppData } from '../src/types';
@@ -40,11 +41,11 @@ test('프리셋 선택·검색·복구·이어 붙이기·현재 제목 저장�
   await expect(page.getByRole('dialog')).toHaveCount(1);
   await expect(panel(page).getByRole('group', {name:'프리셋 그룹 선택'})).toBeVisible();
 
-  await panel(page).getByLabel('프리셋 검색', { exact: true }).fill('회의');
+  await presetMode(dialog,'replace'); await panel(page).getByLabel('프리셋 검색', { exact: true }).fill('회의');
   await panel(page).getByRole('button', { name: '주간 회의', exact: true }).click(); await panel(page).getByRole('button',{name:'프리셋 패널 닫기'}).click();
   await expect(title).toHaveValue('주간 회의');
   await dialog.getByRole('button', { name: '이전 제목 복구', exact: true }).click(); await expect(title).toHaveValue('작성하던 제목');
-  await dialog.getByRole('button', {name:'프리셋',exact:true}).click(); await dialog.getByLabel('프리셋 적용 방식').selectOption('append'); await panel(page).getByLabel('프리셋 검색', { exact: true }).fill('');
+  await dialog.getByRole('button', {name:'프리셋',exact:true}).click(); await presetMode(dialog,'append'); await panel(page).getByLabel('프리셋 검색', { exact: true }).fill('');
   await panel(page).getByRole('button', { name: '운동', exact: true }).click(); await panel(page).getByRole('button',{name:'프리셋 패널 닫기'}).click(); await expect(title).toHaveValue('작성하던 제목 운동');
   await dialog.getByRole('button', { name: '프리셋으로 저장', exact: true }).click(); await expect(dialog.getByRole('status', { name: '프리셋 알림', exact: true })).toContainText('저장했습니다');
   await dialog.getByRole('button', { name: '프리셋으로 저장', exact: true }).click(); await expect(dialog.getByRole('status', { name: '프리셋 알림', exact: true })).toContainText('이미 저장');

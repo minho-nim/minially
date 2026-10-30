@@ -1,4 +1,4 @@
-import { presetAction } from './helpers/preset-actions';
+import { presetAction, presetMode } from './helpers/preset-actions';
 import { chooseDate, readDate, expectDate } from './helpers/date';
 import { test, expect, Page } from '@playwright/test';
 import type { AppData, Preset } from '../src/types';
@@ -21,7 +21,7 @@ async function usePhrase(page: Page, text: string) {
   const schedule = page.getByRole('dialog', { name: '새 일정', exact: true }); const manager = schedule.locator('[data-schedule-panel]');
   if (await manager.isVisible()) await manager.getByRole('button', { name: '뒤로', exact: true }).first().click();
   const selection = schedule.locator('[data-inline-presets]'); if (!(await selection.isVisible())) await schedule.getByRole('button', { name: '프리셋', exact: true }).click();
-  if(await schedule.getByLabel('프리셋 적용 방식').isVisible()) await schedule.getByLabel('프리셋 적용 방식').selectOption('replace'); await selection.getByRole('button', { name: text, exact: true }).click(); await selection.getByRole('button',{name:'프리셋 패널 닫기'}).click();
+  await presetMode(schedule,'replace'); await selection.getByRole('button', { name: text, exact: true }).click(); await selection.getByRole('button',{name:'프리셋 패널 닫기'}).click();
 }
 async function readData(page: Page): Promise<AppData> {
   return page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await import(path)).exportAllData(); });

@@ -1,61 +1,20 @@
 import React from 'react';
 import { ActiveNavTab } from '../../types';
-import { Calendar, CheckSquare, Plus, Search, Settings } from 'lucide-react';
-
+import { Calendar, CheckSquare, Search, Settings } from 'lucide-react';
 interface BottomTabBarProps {
-  activeTab: ActiveNavTab;
-  onTabChange: (tab: ActiveNavTab) => void;
-  onOpenSearchModal: () => void;
-  onOpenSettingsModal: () => void;
+ activeTab: ActiveNavTab;
+ onTabChange: (tab: ActiveNavTab) => void;
+ onOpenSearchModal: () => void;
+ onOpenSettingsModal: () => void;
 }
-
-export const BottomTabBar: React.FC<BottomTabBarProps> = ({
-  activeTab,
-  onTabChange,
-  onOpenSearchModal,
-  onOpenSettingsModal,
-}) => {
-  return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-t border-[#F0E7EB] px-3 pt-1 pb-safe safe-bottom shadow-xs flex items-center justify-around h-[calc(4rem+env(safe-area-inset-bottom,0px))]">
-      <button
-        type="button"
-        onClick={() => onTabChange('calendar')}
-        className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
-          activeTab === 'calendar' ? 'text-[#CF8FA8] font-bold' : 'text-[#85777D] hover:text-[#3E3438]'
-        }`}
-      >
-        <Calendar className="w-5 h-5 mb-0.5" />
-        <span className="text-[10px]">캘린더</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onTabChange('tasks')}
-        className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer ${
-          activeTab === 'tasks' ? 'text-[#CF8FA8] font-bold' : 'text-[#85777D] hover:text-[#3E3438]'
-        }`}
-      >
-        <CheckSquare className="w-5 h-5 mb-0.5" />
-        <span className="text-[10px]">할 일</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={onOpenSearchModal}
-        className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer text-[#85777D] hover:text-[#3E3438]"
-      >
-        <Search className="w-5 h-5 mb-0.5" />
-        <span className="text-[10px]">검색</span>
-      </button>
-
-      <button
-        type="button"
-        onClick={onOpenSettingsModal}
-        className="flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all cursor-pointer text-[#85777D] hover:text-[#3E3438]"
-      >
-        <Settings className="w-5 h-5 mb-0.5" />
-        <span className="text-[10px]">설정</span>
-      </button>
-    </nav>
-  );
+export const BottomTabBar: React.FC<BottomTabBarProps> = ({activeTab,onTabChange,onOpenSearchModal,onOpenSettingsModal}) => {
+ const items=[
+  {id:'calendar',label:'캘린더',icon:Calendar,onClick:()=>onTabChange('calendar')},
+  {id:'tasks',label:'할 일',icon:CheckSquare,onClick:()=>onTabChange('tasks')},
+  {id:'search',label:'검색',icon:Search,onClick:onOpenSearchModal},
+  {id:'settings',label:'설정',icon:Settings,onClick:onOpenSettingsModal},
+ ];
+ return <nav aria-label="하단 메뉴" className="mobile-bottom-nav md:hidden fixed left-1/2 -translate-x-1/2 z-30 grid grid-cols-4 items-stretch gap-1 rounded-full border border-[#E9DDE3] bg-white/95 backdrop-blur-lg">
+  {items.map(({id,label,icon:Icon,onClick})=><button key={id} type="button" onClick={onClick} aria-current={activeTab===id?'page':undefined} aria-haspopup={id==='search'||id==='settings'?'dialog':undefined} className={'min-w-0 min-h-11 flex flex-col items-center justify-center gap-0.5 rounded-full transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-[#BD7F98] focus-visible:outline-offset-2 '+(activeTab===id?'bg-[#F6E8ED] text-[#8F526C] font-semibold':'text-[#85777D] hover:bg-[#FFFAFB] hover:text-[#3E3438]')}><Icon aria-hidden="true" className="w-5 h-5"/><span className="text-[11px]">{label}</span></button>)}
+ </nav>;
 };

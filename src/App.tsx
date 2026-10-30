@@ -530,7 +530,7 @@ export default function App() {
       />
 
       {/* Main View Area (Mobile Optimized Max Width) */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-12">
+      <main className="app-main-content flex-1 max-w-4xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-12">
         {/* 1. Calendar View (Default) */}
         {activeTab === 'calendar' && (
           <CalendarView

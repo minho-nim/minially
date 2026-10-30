@@ -82,3 +82,17 @@
 /* Compact title chips; retain larger targets for other modal actions. */
 .app-modal .title-blocks-compact button { min-height: 36px; min-width: 28px; }
 .app-modal .title-blocks-compact input:not([type='checkbox']):not([type='radio']):not([type='color']) { min-height: 32px; padding-block: 2px; font-size: 16px; }
+
+/* Float navigation above the OS home gesture area without blocking that area. */
+:root { --app-safe-bottom: env(safe-area-inset-bottom, 0px); --mobile-nav-height: 68px; }
+.mobile-bottom-nav {
+  bottom: max(16px, var(--app-safe-bottom));
+  width: min(400px, calc(100% - 32px));
+  height: var(--mobile-nav-height);
+  padding: 6px;
+  box-shadow: 0 5px 24px rgba(94, 65, 78, 0.09);
+}
+@media (max-width: 767px) {
+  .app-undo-toast { bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 12px); }
+  .app-main-content { padding-bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 24px); }
+}
