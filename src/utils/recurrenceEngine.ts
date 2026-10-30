@@ -102,7 +102,7 @@ export function expandRecurringSchedules(
             ...schedule,
             ...modified,
             id: instanceId,
-            date: curStr,
+            date: modified.date || curStr,
             recurrenceRuleId: rule.id,
             isRecurringInstance: curStr !== schedule.date,
           });

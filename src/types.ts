@@ -1,6 +1,7 @@
 export type ScheduleCategory = 'personal' | 'work' | 'project' | string;
 
 export interface CategoryItem {
+  isUserManaged?: boolean;
   id: string;
   name: string;
   color: string;
@@ -37,6 +38,8 @@ export interface TitleBlock {
 }
 
 export interface Schedule {
+  isImportant?: boolean;
+  sortOrder?: number;
   titleBlocks?: TitleBlock[];
   id: string;
   title: string;
@@ -92,7 +95,17 @@ export interface Task {
 
 export type PhraseType = 'title' | 'memo';
 
+export interface PresetGroup {
+  createdAt?: number;
+  updatedAt?: number;
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface PhrasePreset {
+  groupId?: string;
+  blocks?: TitleBlock[];
   id: string;
   type: PhraseType; // 'title' | 'memo'
   text: string;
@@ -120,6 +133,10 @@ export interface PhrasePreset {
 export type Preset = PhrasePreset;
 
 export interface ChangeHistoryEntry {
+  previousRules?: RecurrenceRule[];
+  newRules?: RecurrenceRule[];
+  previousExceptions?: RecurrenceException[];
+  newExceptions?: RecurrenceException[];
   id: string;
   timestamp: number;
   type: 'CREATE' | 'DELETE' | 'MOVE' | 'COPY' | 'UPDATE' | 'BATCH_CREATE' | 'TOGGLE_DONE';
@@ -131,6 +148,8 @@ export interface ChangeHistoryEntry {
 }
 
 export interface AppSettings {
+  presetGroups?: PresetGroup[];
+  dayScheduleView?: 'category' | 'list';
   startDayOfWeek: 0 | 1; // 0: Sunday, 1: Monday
   defaultCategory: ScheduleCategory;
   defaultView: 'month' | 'week';

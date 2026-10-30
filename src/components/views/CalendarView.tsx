@@ -1,3 +1,4 @@
+import { compareSchedules } from '../../utils/scheduleOrder';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Schedule,
@@ -24,6 +25,7 @@ import {
   MoreVertical,
   CalendarRange,
   Edit2,
+  Star,
 } from 'lucide-react';
 
 interface CalendarViewProps {
@@ -32,6 +34,7 @@ interface CalendarViewProps {
   settings: AppSettings;
   selectedDate: string;
   onSelectDate: (date: string) => void;
+  onOpenDay: (date: string) => void;
   onOpenNewScheduleModal: (defaultDate?: string) => void;
   onEditSchedule: (schedule: Schedule) => void;
   onToggleSchedule: (scheduleId: string) => void;
@@ -40,7 +43,7 @@ interface CalendarViewProps {
   onOpenDateCopyModal: (sourceDate: string) => void;
   onOpenBatchDateModal: (defaultDate: string) => void;
   onOpenMoveModal: (schedule: Schedule) => void;
-  onOpenPresetModal: (date: string) => void;
+  onOpenPresetModal: () => void;
 }
 
 type CalendarMode = 'month' | 'week';
@@ -50,7 +53,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   categories,
   settings,
   selectedDate,
-  onSelectDate,
+  onSelectDate, onOpenDay,
   onOpenNewScheduleModal,
   onEditSchedule,
   onToggleSchedule,
@@ -98,11 +101,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       map.set(s.date, arr);
     }
     for (const [, arr] of map.entries()) {
-      arr.sort((a, b) => {
-        if (!a.startTime && b.startTime) return -1;
-        if (a.startTime && !b.startTime) return 1;
-        return (a.startTime || '').localeCompare(b.startTime || '');
-      });
+      arr.sort(compareSchedules);
     }
     return map;
   }, [visibleSchedules]);
@@ -111,11 +110,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const selectedDateSchedules = useMemo(() => {
     return schedules
       .filter((s) => s.date === selectedDate)
-      .sort((a, b) => {
-        if (!a.startTime && b.startTime) return -1;
-        if (a.startTime && !b.startTime) return 1;
-        return (a.startTime || '').localeCompare(b.startTime || '');
-      });
+      .sort(compareSchedules);
   }, [schedules, selectedDate]);
 
   // Month navigation
@@ -275,7 +270,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       <div role="group" aria-label="일정 만들기" className="flex justify-end gap-2">
-        <button type="button" onClick={() => onOpenPresetModal(selectedDate)} className="min-h-11 px-4 rounded-xl border border-[#E9CDD8] bg-white text-sm text-[#AD728B]">프리셋</button>
+        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-11 px-4 rounded-xl border border-[#E9CDD8] bg-white text-sm text-[#AD728B]">프리셋</button>
         <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-11 px-4 rounded-xl bg-[#CF8FA8] text-white text-sm font-semibold">일정 등록</button>
       </div>
       {/* Month/Week Navigation & Mode Controls */}
@@ -373,8 +368,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               return (
                 <div
                   key={cell.dateStr}
+                  data-calendar-date={cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
+                  onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); } }}
                   onClick={() => {
-                    onSelectDate(cell.dateStr);
+                    onSelectDate(cell.dateStr); onOpenDay(cell.dateStr);
                     setActiveDateMenu(null);
                   }}
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
@@ -469,21 +466,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   <div className="flex-1 overflow-hidden">
                     {/* Mobile: Category dots */}
                     <div className="flex sm:hidden items-center justify-center gap-1 mt-1 flex-wrap">
-                      {daySchedules.slice(0, 4).map((s) => {
-                        const cat = categoryMap.get(s.category);
-                        return (
-                          <span
-                            key={s.id}
-                            className={`w-1.5 h-1.5 rounded-full ${s.completed ? 'opacity-40' : ''}`}
-                            style={{ backgroundColor: cat?.color || '#CF8FA8' }}
-                          />
-                        );
-                      })}
-                      {daySchedules.length > 4 && (
-                        <span className="text-[9px] text-[#85777D] font-bold">
-                          +{daySchedules.length - 4}
-                        </span>
-                      )}
+                      {(() => {
+                        const ids = [...new Set(daySchedules.map(s => categoryMap.has(s.category) ? s.category : ''))];
+                        return <>{ids.slice(0, 3).map(id => <span key={id} aria-label={categoryMap.get(id)?.name || '미분류'} className="w-[7px] h-[7px] rounded-full" style={{ background: categoryMap.get(id)?.color || '#A69BA1' }} />)}{ids.length > 3 && <span className="text-[9px] text-[#85777D]">+{ids.length - 3}</span>}</>;
+                      })()}
+                      {daySchedules.some(s => s.isImportant) && <Star aria-label="중요 일정 있음" className="w-2.5 h-2.5 text-[#AD728B] fill-current" />}
                     </div>
 
                     {/* Desktop: Concise schedule bars */}
@@ -515,7 +502,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 {s.startTime}
                               </span>
                             )}
-                            <span className="truncate font-medium">{s.title}</span>
+                            <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.title}</span>
                           </div>
                         );
                       })}
@@ -541,7 +528,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               return (
                 <div
                   key={cell.dateStr}
-                  onClick={() => onSelectDate(cell.dateStr)}
+                  data-calendar-date={cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
+                  onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); } }}
+                  onClick={() => { onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); }}
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
@@ -593,7 +582,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               {s.startTime}
                             </span>
                           )}
-                          <p className="font-medium truncate">{s.title}</p>
+                          <p className={s.isImportant ? 'font-bold truncate' : 'font-medium truncate'}>{s.isImportant && '★ '}{s.title}</p>
                         </div>
                       );
                     })}
@@ -605,8 +594,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         )}
       </div>
 
-      {/* Selected Date Schedule List (Cardless Planit Style List) */}
-      <div className="bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
+      {/* Desktop agenda; mobile dates open the day sheet. */}
+      <div className="hidden sm:block bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
         {/* List Header */}
         <div className="px-4 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white">
           <div className="flex items-center gap-2">
@@ -669,11 +658,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   >
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-sm font-medium whitespace-normal break-words ${
+                        className={`text-sm ${schedule.isImportant ? 'font-bold' : 'font-medium'} whitespace-normal break-words ${
                           schedule.completed ? 'line-through text-[#85777D]' : 'text-[#3E3438]'
                         }`}
                       >
-                        {schedule.title}
+                        {schedule.isImportant && <Star aria-label="중요 일정" className="inline w-3.5 h-3.5 mr-1 fill-current text-[#AD728B]" />}{schedule.title}
                       </span>
                     </div>
 

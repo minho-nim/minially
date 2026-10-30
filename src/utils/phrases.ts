@@ -1,4 +1,12 @@
-import { Preset } from '../types';
+import { Preset, TitleBlock } from '../types';
+
+export function getPresetBlocks(preset: Preset): TitleBlock[] {
+  const parts = preset.blocks;
+  if (Array.isArray(parts) && parts.length && parts.every(b => b && typeof b.text === 'string' && b.text.trim()) && parts.map(b => b.text).join(' ') === preset.text) {
+    return parts.map(b => ({ ...b, id: crypto.randomUUID(), presetId: preset.id }));
+  }
+  return [{ id: crypto.randomUUID(), text: preset.text, presetId: preset.id }];
+}
 
 export type PhraseSort = 'manual' | 'recent' | 'usage';
 export const phraseOrder = (phrase: Preset) => phrase.sortOrder ?? phrase.order ?? phrase.createdAt;

@@ -39,7 +39,7 @@ import {
   DEFAULT_SETTINGS,
 } from './db/indexedDB';
 import { expandRecurringSchedules } from './utils/recurrenceEngine';
-import { recordHistory, recordTaskDeletion, revertHistoryEntry, UndoNotice } from './utils/undoManager';
+import { recordHistory, recordOccurrenceHistory, recordTaskDeletion, revertHistoryEntry, UndoNotice } from './utils/undoManager';
 import { Navbar } from './components/layout/Navbar';
 import { BottomTabBar } from './components/layout/BottomTabBar';
 import { CalendarView } from './components/views/CalendarView';
@@ -52,6 +52,8 @@ import { SettingsModal } from './components/modals/SettingsModal';
 import { UndoToast } from './components/common/UndoToast';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
+import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
+import { DayScheduleSheet } from './components/modals/DayScheduleSheet';
 import { getTodayDateString } from './utils/dateHelpers';
 
 export default function App() {
@@ -72,6 +74,8 @@ export default function App() {
   const [undoNotice, setUndoNotice] = useState<UndoNotice | null>(null);
 
   // Modals state
+  const [daySheetOpen, setDaySheetOpen] = useState(false);
+  const dayDetailSaved = useRef<(() => void) | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<Partial<Schedule> | null>(null);
   const [scheduleSelectedDate, setScheduleSelectedDate] = useState<string | undefined>(undefined);
@@ -80,7 +84,7 @@ export default function App() {
   const [dateCopySourceDate, setDateCopySourceDate] = useState<string>('');
 
   const [initialBatch, setInitialBatch] = useState(false);
-  const [initialPreset, setInitialPreset] = useState(false);
+  const [presetLibraryOpen, setPresetLibraryOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
   const [taskDeleteTarget, setTaskDeleteTarget] = useState<Task | null>(null);
@@ -129,6 +133,7 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => { const refresh = () => { void reloadData(); }; window.addEventListener('preset-groups-changed', refresh); return () => window.removeEventListener('preset-groups-changed', refresh); }, [reloadData]);
   useEffect(() => {
     async function init() {
       await initializeDatabase();
@@ -155,8 +160,7 @@ export default function App() {
   }, [schedules, recurrenceRules, recurrenceExceptions, selectedDate]);
 
   // Schedule Actions with Undo
-  const handleOpenNewScheduleModal = (defaultDate?: string, fromPreset = false) => {
-    setInitialPreset(fromPreset);
+  const handleOpenNewScheduleModal = (defaultDate?: string) => {
     const targetDate = defaultDate || selectedDate || getTodayDateString();
     searchOrigin.current = null;
     setInitialBatch(false);
@@ -169,25 +173,31 @@ export default function App() {
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
-    setInitialPreset(false);
     setInitialBatch(false);
     setEditingSchedule(schedule);
     setScheduleSelectedDate(schedule.date);
     setScheduleModalOpen(true);
   };
 
-  const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false) => {
-    const prev = schedules.find((s) => s.id === schedule.id);
+  const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false, rule?: RecurrenceRule | null) => {
+    const prev = expandedSchedules.find((s) => s.id === schedule.id) || schedules.find((s) => s.id === schedule.id);
+    if (rule !== undefined) {
+      schedule = { ...schedule };
+      if (rule) schedule.recurrenceRuleId = rule.id;
+      else delete schedule.recurrenceRuleId;
+    }
     const previousList = prev ? [prev] : [];
     const newList = [schedule];
 
 
     const desc = prev ? `'${schedule.title}' 수정됨` : `'${schedule.title}' 추가됨`;
-    const notice = await recordHistory(prev ? 'UPDATE' : 'CREATE', desc, previousList, newList);
+    const oldRule = recurrenceRules.find(r => r.id === prev?.recurrenceRuleId || r.scheduleId === prev?.id);
+    const notice = await recordOccurrenceHistory(prev ? 'UPDATE' : 'CREATE', desc, previousList, newList, recurrenceExceptions, rule === undefined ? undefined : { before: oldRule ? [oldRule] : [], after: rule ? [rule] : [] });
     setUndoNotice(notice);
 
     await reloadData();
     setSelectedDate(schedule.date);
+    dayDetailSaved.current?.(); dayDetailSaved.current = null;
 
     if (!keepOpen) {
       setScheduleModalOpen(false);
@@ -195,16 +205,16 @@ export default function App() {
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
-    const target = schedules.find((s) => s.id === scheduleId);
+    const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target) return;
 
-    const notice = await recordHistory('DELETE', `'${target.title}' 삭제됨`, [target], []);
+    const notice = await recordOccurrenceHistory('DELETE', `'${target.title}' 삭제됨`, [target], [], recurrenceExceptions);
     setUndoNotice(notice);
     await reloadData();
   };
 
   const handleToggleSchedule = async (scheduleId: string) => {
-    const target = schedules.find((s) => s.id === scheduleId);
+    const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target) return;
 
     const updated: Schedule = {
@@ -213,14 +223,14 @@ export default function App() {
     };
 
     const desc = updated.completed ? `'${target.title}' 완료됨` : `'${target.title}' 완료 취소`;
-    const notice = await recordHistory('TOGGLE_DONE', desc, [target], [updated]);
+    const notice = await recordOccurrenceHistory('TOGGLE_DONE', desc, [target], [updated], recurrenceExceptions);
     setUndoNotice(notice);
     await reloadData();
   };
 
   // Move schedule to new date (via drag & drop or move modal)
   const handleMoveSchedule = async (scheduleId: string, newDate: string) => {
-    const target = schedules.find((s) => s.id === scheduleId);
+    const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target || target.date === newDate) return;
 
     const updated: Schedule = {
@@ -228,11 +238,11 @@ export default function App() {
       date: newDate,
     };
 
-    const notice = await recordHistory(
+    const notice = await recordOccurrenceHistory(
       'MOVE',
       `'${target.title}'이(가) ${newDate}로 이동되었습니다`,
       [target],
-      [updated]
+      [updated], recurrenceExceptions
     );
     setUndoNotice(notice);
     await reloadData();
@@ -240,7 +250,7 @@ export default function App() {
 
   // Copy single schedule to new date
   const handleCopySingleSchedule = async (scheduleId: string, targetDate: string) => {
-    const target = schedules.find((s) => s.id === scheduleId);
+    const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target) return;
 
     const newSchedule: Schedule = {
@@ -250,6 +260,7 @@ export default function App() {
       completed: false,
     };
 
+    delete newSchedule.recurrenceRuleId; delete newSchedule.isRecurringInstance;
     const notice = await recordHistory(
       'COPY',
       `'${target.title}'이(가) ${targetDate}로 복사되었습니다`,
@@ -267,7 +278,7 @@ export default function App() {
   };
 
   const handleConfirmDateCopy = async (selectedScheduleIds: string[], targetDates: string[]) => {
-    const sourceItems = schedules.filter((s) => selectedScheduleIds.includes(s.id));
+    const sourceItems = expandedSchedules.filter((s) => selectedScheduleIds.includes(s.id));
     if (sourceItems.length === 0 || targetDates.length === 0) return;
 
     const newSchedules: Schedule[] = [];
@@ -275,6 +286,7 @@ export default function App() {
       for (const item of sourceItems) {
         newSchedules.push({
           ...item,
+          recurrenceRuleId: undefined, isRecurringInstance: undefined,
           id: `sch-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
           date: d,
           completed: false,
@@ -312,6 +324,7 @@ export default function App() {
       endTime: scheduleData.endTime,
       category: scheduleData.category,
       memo: scheduleData.memo,
+      isImportant: Boolean(scheduleData.isImportant),
       ...(scheduleData.titleBlocks ? { titleBlocks: scheduleData.titleBlocks } : {}),
       completed: false,
     }));
@@ -325,6 +338,7 @@ export default function App() {
     setUndoNotice(notice);
     await reloadData();
     setSelectedDate(dates[0]);
+    dayDetailSaved.current?.(); dayDetailSaved.current = null;
   };
 
   // Undo execution handler
@@ -370,7 +384,8 @@ export default function App() {
     setUndoNotice(notice => {
       if (!notice) return notice;
       const clearReference = (schedule: Schedule) => schedule.category === catId ? { ...schedule, category: '' } : schedule;
-      return { ...notice, entry: { ...notice.entry, previousSchedules: notice.entry.previousSchedules.map(clearReference), newSchedules: notice.entry.newSchedules.map(clearReference) } };
+      const clearException = (ex: RecurrenceException) => ex.modifiedSchedule?.category === catId ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: '' } } : ex;
+      return { ...notice, entry: { ...notice.entry, previousSchedules: notice.entry.previousSchedules.map(clearReference), newSchedules: notice.entry.newSchedules.map(clearReference), previousExceptions: notice.entry.previousExceptions?.map(clearException), newExceptions: notice.entry.newExceptions?.map(clearException) } };
     });
     await reloadData();
   };
@@ -473,6 +488,7 @@ export default function App() {
   };
 
   const handleCloseSchedule = () => {
+    dayDetailSaved.current = null;
     setScheduleModalOpen(false);
     const origin = searchOrigin.current;
     if (origin) { setSelectedDate(origin.date); setActiveTab(origin.tab); setSearchModalOpen(true); searchOrigin.current = null; }
@@ -523,18 +539,19 @@ export default function App() {
             settings={settings}
             selectedDate={selectedDate}
             onSelectDate={(date) => setSelectedDate(date)}
+            onOpenDay={date => { setSelectedDate(date); if (matchMedia('(max-width: 639px)').matches) setDaySheetOpen(true); }}
             onOpenNewScheduleModal={handleOpenNewScheduleModal}
             onEditSchedule={handleEditSchedule}
             onToggleSchedule={id => void runAction(() => handleToggleSchedule(id))}
             onMoveSchedule={(id, date) => void runAction(() => handleMoveSchedule(id, date))}
-            onDeleteSchedule={id => setDeleteTarget(schedules.find(s => s.id === id) || null)}
+            onDeleteSchedule={id => setDeleteTarget(expandedSchedules.find(s => s.id === id) || null)}
             onOpenDateCopyModal={handleOpenDateCopyModal}
             onOpenBatchDateModal={handleOpenBatchDateModal}
             onOpenMoveModal={(sch) => {
               setMovingSchedule(sch);
               setMoveModalOpen(true);
             }}
-            onOpenPresetModal={date => handleOpenNewScheduleModal(date, true)}
+            onOpenPresetModal={() => setPresetLibraryOpen(true)}
           />
         )}
 
@@ -563,6 +580,20 @@ export default function App() {
       {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-11 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
+      <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
+      <DayScheduleSheet
+        open={daySheetOpen && activeTab === 'calendar' && !presetLibraryOpen && !scheduleModalOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
+        date={selectedDate} onSelectDate={setSelectedDate} onClose={() => setDaySheetOpen(false)}
+        schedules={expandedSchedules} categorySchedules={schedules} categories={categories} presets={presets} settings={settings}
+        undoLabel={undoNotice?.message} onUndo={async () => { if (undoNotice) await handleUndo(undoNotice); }}
+        onSave={schedule => handleSaveSchedule(schedule, true)} onEdit={handleEditSchedule}
+        onToggle={handleToggleSchedule} onMove={schedule => { setMovingSchedule(schedule); setMoveModalOpen(true); }}
+        onCopyDate={() => handleOpenDateCopyModal(selectedDate)}
+        onDetails={(draft, saved) => { handleOpenNewScheduleModal(selectedDate); setEditingSchedule(draft); dayDetailSaved.current = saved; }}
+        onReorder={async next => { const previous = next.map(s => expandedSchedules.find(item => item.id === s.id)!).filter(Boolean); setUndoNotice(await recordOccurrenceHistory('UPDATE', '일정 순서 변경됨', previous, next, recurrenceExceptions)); await reloadData(); }}
+        onSettings={handleUpdateSettings} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} onUsePreset={handleUsePreset}
+        onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
+      />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
         isOpen={scheduleModalOpen}
@@ -574,9 +605,10 @@ export default function App() {
         onDeletePreset={handleDeletePreset}
         onReorderPresets={handleReorderPresets}
         initialBatch={initialBatch}
-        initialPreset={initialPreset}
         onSaveBatch={handleConfirmBatch}
         initialSchedule={editingSchedule}
+        recurrenceRules={recurrenceRules}
+        presetGroups={settings.presetGroups || []}
         presets={presets}
         categories={categories}
         onSaveCategory={handleSaveCategory}
@@ -591,7 +623,7 @@ export default function App() {
         isOpen={dateCopyModalOpen}
         onClose={() => setDateCopyModalOpen(false)}
         sourceDate={dateCopySourceDate}
-        sourceSchedules={schedules.filter((s) => s.date === dateCopySourceDate)}
+        sourceSchedules={expandedSchedules.filter((s) => s.date === dateCopySourceDate)}
         onConfirmCopy={handleConfirmDateCopy}
       />
 
@@ -639,7 +671,7 @@ export default function App() {
 
       {/* Undo Toast Notification */}
       <UndoToast
-        notice={scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
+        notice={presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
         onUndo={handleUndo}
         onDismiss={() => setUndoNotice(null)}
       />

@@ -171,7 +171,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Tab Content */}
         <div className="p-5 overflow-y-auto flex-1 space-y-4">
           {/* TAB 1: PHRASE PRESETS (프리셋 관리) */}
-          {activeTab === 'presets' && <PhraseManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} />}
+          {activeTab === 'presets' && <PhraseManager presetGroups={settings.presetGroups || []} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} />}
 
           {activeTab === 'categories' && <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={onDeleteCategory} onReorderCategories={onReorderCategories} />}
 

@@ -1,3 +1,4 @@
+import { presetAction } from './helpers/preset-actions';
 import { chooseDate, readDate, expectDate } from './helpers/date';
 import { test, expect, Page } from '@playwright/test';
 import type { AppData, Preset } from '../src/types';
@@ -12,9 +13,15 @@ async function openSchedule(page: Page) {
 }
 async function openPhrases(page: Page) {
   const schedule = page.getByRole('dialog', { name: '새 일정', exact: true });
-  await schedule.getByRole('button', { name: '프리셋', exact: true }).click();
+  if (!(await schedule.locator('[data-inline-presets]').isVisible())) await schedule.getByRole('button', { name: '프리셋', exact: true }).click();
   await schedule.getByRole('button', { name: '프리셋 관리', exact: true }).click();
   return schedule.locator('[data-schedule-panel]');
+}
+async function usePhrase(page: Page, text: string) {
+  const schedule = page.getByRole('dialog', { name: '새 일정', exact: true }); const manager = schedule.locator('[data-schedule-panel]');
+  if (await manager.isVisible()) await manager.getByRole('button', { name: '뒤로', exact: true }).first().click();
+  const selection = schedule.locator('[data-inline-presets]'); if (!(await selection.isVisible())) await schedule.getByRole('button', { name: '프리셋', exact: true }).click();
+  if(await schedule.getByLabel('프리셋 적용 방식').isVisible()) await schedule.getByLabel('프리셋 적용 방식').selectOption('replace'); await selection.getByRole('button', { name: text, exact: true }).click(); await selection.getByRole('button',{name:'프리셋 패널 닫기'}).click();
 }
 async function readData(page: Page): Promise<AppData> {
   return page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await import(path)).exportAllData(); });
@@ -23,7 +30,7 @@ async function addPhrase(modal: ReturnType<Page['getByRole']>, text: string) {
   if (!(await modal.getByLabel('새 프리셋', { exact: true }).isVisible())) await modal.getByRole('button', { name: '새 프리셋 추가', exact: true }).click();
   await modal.getByLabel('새 프리셋', { exact: true }).fill(text);
   await modal.getByRole('button', { name: '프리셋 저장', exact: true }).click();
-  await expect(modal.getByRole('button', { name: text, exact: true })).toBeVisible();
+  await expect(modal.getByText(text, { exact: true })).toBeVisible();
 }
 
 // A new browser context per test isolates all data from the user's browser.
@@ -43,17 +50,17 @@ test('요청한 12단계: 프리셋 CRUD, 새로고침, 일정 연동, 백업과
   await expect(row.getByLabel('프리셋 수정 내용')).toHaveValue('테스트 주간 회의');
   await row.getByLabel('프리셋 수정 내용').fill('수정한 주간 회의');
   await row.getByRole('button', { name: '변경사항 저장' }).click(); // 3–4
-  await expect(row.getByRole('button', { name: '수정한 주간 회의', exact: true })).toBeVisible();
+  await expect(row.getByText('수정한 주간 회의', { exact: true })).toBeVisible();
   let data = await readData(page);
   expect(data.presets.length).toBe(original.presets.length + 1);
   expect(data.presets.find(p => p.id === added.id)!.text).toBe('수정한 주간 회의');
   for (const prior of original.presets) expect(data.presets.find(p => p.id === prior.id)).toEqual(prior);
   await addPhrase(modal, '삭제용 프리셋');
-  const deleteRow = modal.locator('li').filter({ has: page.getByRole('button', { name: '삭제용 프리셋', exact: true }) });
-  await deleteRow.getByRole('button', { name: '프리셋 삭제', exact: true }).click();
+  const deleteRow = modal.locator('li').filter({ has: page.getByText('삭제용 프리셋', { exact: true }) });
+  await presetAction(deleteRow,'프리셋 삭제');
   await deleteRow.getByRole('button', { name: '취소', exact: true }).click();
   await expect(deleteRow).toBeVisible();
-  await deleteRow.getByRole('button', { name: '프리셋 삭제', exact: true }).click();
+  await presetAction(deleteRow,'프리셋 삭제');
   await deleteRow.getByRole('button', { name: '삭제', exact: true }).click(); // 5
   await expect(deleteRow).toHaveCount(0);
   await page.reload({ waitUntil: 'domcontentloaded' }); // 6
@@ -65,8 +72,7 @@ test('요청한 12단계: 프리셋 CRUD, 새로고침, 일정 연동, 백업과
   await setTime(schedule, '종료 시간', '15:45');
   await schedule.getByPlaceholder('상세 내용을 메모하세요').fill('기존 메모');
   modal = await openPhrases(page);
-  await modal.getByRole('button', { name: '수정한 주간 회의', exact: true }).click();
-  await modal.getByRole('button', { name: '제목 적용', exact: true }).click(); // 7
+  await usePhrase(page, '수정한 주간 회의'); // 7
   await expect(modal).toHaveCount(0);
   await expect(schedule.getByPlaceholder('일정 제목을 입력하세요')).toHaveValue('수정한 주간 회의');
   await expectDate(schedule, '일정 날짜', '2026-10-29');
@@ -87,7 +93,7 @@ test('요청한 12단계: 프리셋 CRUD, 새로고침, 일정 연동, 백업과
   await edited.getByRole('button', { name: '프리셋 수정', exact: true }).click();
   await edited.getByLabel('프리셋 수정 내용').fill('프리셋만 다시 변경');
   await edited.getByRole('button', { name: '변경사항 저장' }).click();
-  await expect(edited.getByRole('button', { name: '프리셋만 다시 변경', exact: true })).toBeVisible();
+  await expect(edited.getByText('프리셋만 다시 변경', { exact: true })).toBeVisible();
   expect((await readData(page)).schedules.find(s => s.id === saved.id)).toEqual(saved); // 11
   await modal.getByRole('button', { name: '뒤로', exact: true }).first().click();
   await page.getByRole('dialog', { name: '새 일정', exact: true }).getByRole('button', { name: '취소', exact: true }).click();
@@ -120,14 +126,13 @@ test('즐겨찾기·지정 순서·사용 순서와 빈 목록 유지', async ({
   const a = data.presets.find(p => p.text === '순서 A')!;
   const b = data.presets.find(p => p.text === '순서 B')!;
   const rowB = modal.locator(`[data-phrase-id="${b.id}"]`);
-  await rowB.getByRole('button', { name: '위로 이동' }).click();
+  await presetAction(rowB,'위로 이동');
   await expect.poll(async () => { const list = (await readData(page)).presets; return list.find(p => p.id === b.id)!.order! < list.find(p => p.id === a.id)!.order!; }).toBe(true);
   await rowB.getByRole('button', { name: '즐겨찾기 등록', exact: true }).click();
   await expect(rowB.getByRole('button', { name: '즐겨찾기 해제', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await modal.getByRole('button', { name: '순서 B', exact: true }).click();
-  await modal.getByRole('button', { name: '제목 적용', exact: true }).click();
+  await usePhrase(page, '순서 B');
   modal = await openPhrases(page);
-  await modal.getByLabel('프리셋 정렬').selectOption('usage');
+  await modal.getByText('보기 설정 · 즐겨찾기 / 정렬',{exact:true}).click(); await modal.getByLabel('프리셋 정렬').selectOption('usage');
   await expect(modal.locator('li').first()).toHaveAttribute('data-phrase-id', b.id);
   await page.reload({ waitUntil: 'domcontentloaded' });
   data = await readData(page);
@@ -163,7 +168,7 @@ test('비동기 저장 실패 시 프리셋 초안과 기존 데이터 유지', 
   expect((await readData(page)).presets).toEqual(before.presets);
   await page.evaluate(() => (window as any).restorePut());
   await modal.getByRole('button', { name: '프리셋 저장', exact: true }).click();
-  await expect(modal.getByRole('button', { name: '실패해도 남는 초안', exact: true })).toBeVisible();
+  await expect(modal.getByText('실패해도 남는 초안', { exact: true })).toBeVisible();
 });
 
 test('이전 프리셋 데이터 이관 및 잘못된 백업의 원자적 롤백', async ({ page }) => {
@@ -224,10 +229,10 @@ test('모바일 설정 관리, 프리셋 관리·삭제 실패와 재시도, 메
   await expect(row.getByText('모바일 수정 프리셋', { exact: true })).toBeVisible();
   await page.screenshot({ path: 'test-results/mobile-phrases.png' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await row.getByRole('button', { name: '프리셋 삭제', exact: true }).click();
+  await presetAction(row,'프리셋 삭제');
   await row.getByRole('button', { name: '취소', exact: true }).click();
   await expect(row).toBeVisible();
-  await row.getByRole('button', { name: '프리셋 삭제', exact: true }).click();
+  await presetAction(row,'프리셋 삭제');
   await page.evaluate(() => {
     const remove = IDBObjectStore.prototype.delete;
     (window as any).restoreDelete = () => { IDBObjectStore.prototype.delete = remove; };
@@ -255,8 +260,8 @@ test('모바일 설정 관리, 프리셋 관리·삭제 실패와 재시도, 메
   await expect(schedule.getByPlaceholder('일정 제목을 입력하세요')).toHaveValue('메모 연동 일정');
   await expect(schedule.getByPlaceholder('상세 내용을 메모하세요')).toHaveValue('직접 적은 메모\n추가 메모 프리셋');
   await schedule.getByRole('button', { name: '프리셋', exact: true }).click();
-  modal = schedule.locator('[data-schedule-panel]');
-  await expect(modal.getByRole('checkbox', { name: '현재 제목 포함' })).toBeVisible();
+  modal = schedule.locator('[data-inline-presets]');
+  await expect(modal).toBeVisible(); await expect(schedule.getByLabel('일정 제목', { exact: true })).toHaveValue('메모 연동 일정');
 });
 
 test('빈 첫 실행과 기존 일정·프리셋 전체 보존', async ({ page }) => {

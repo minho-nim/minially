@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Schedule,
   ScheduleCategory,
+  RecurrenceFrequency,
+  RecurrenceRule,
   Preset,
+  PresetGroup,
   CategoryItem,
   PhraseType,
   TitleBlock,
@@ -11,18 +14,20 @@ import { getTodayDateString } from '../../utils/dateHelpers';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
 import { DiscardPrompt } from '../common/DiscardPrompt';
 import { DatePicker } from '../common/DatePicker';
+import { usePresetGroup } from '../../hooks/usePresetGroup';
+import { InlinePresetPicker } from '../common/InlinePresetPicker';
+import { TitleBlockEditor } from '../common/TitleBlockEditor';
 import { TimeField } from '../common/TimeField';
 import { phraseOrder } from '../../utils/phrases';
-import { addMinutesToTime } from '../../utils/storage';
 import {
   X,
   Clock,
   Calendar,
-  AlertCircle,
   Trash2,
   ChevronDown,
   ChevronUp,
   Bookmark,
+  Star,
 } from 'lucide-react';
 import { PhraseManager } from './PhraseManageModal';
 import { CategoryActions, CategoryManager } from './CategoryManager';
@@ -31,17 +36,18 @@ import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 interface ScheduleModalProps extends CategoryActions {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (schedule: Schedule, keepOpen?: boolean) => Promise<void> | void;
+  onSave: (schedule: Schedule, keepOpen?: boolean, rule?: RecurrenceRule | null) => Promise<void> | void;
   onDelete?: (scheduleId: string) => Promise<void> | void;
   onUsePreset: (presetId: string) => Promise<void> | void;
   onSavePreset: (preset: Preset) => Promise<void> | void;
   onDeletePreset: (presetId: string) => Promise<void> | void;
   onReorderPresets: (ids: string[]) => Promise<void> | void;
   initialBatch?: boolean;
-  initialPreset?: boolean;
   onSaveBatch: (schedule: Schedule, dates: string[]) => Promise<void>;
   initialSchedule?: Partial<Schedule> | null;
+  recurrenceRules: RecurrenceRule[];
   presets: Preset[];
+  presetGroups?: PresetGroup[];
   categories: CategoryItem[];
   schedules: Schedule[];
   selectedDate?: string;
@@ -57,13 +63,20 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   onDeletePreset,
   onReorderPresets,
   onSaveCategory, onDeleteCategory, onReorderCategories,
-  initialBatch = false, initialPreset = false, onSaveBatch,
-  initialSchedule,
-  presets,
+  initialBatch = false, onSaveBatch,
+  initialSchedule, recurrenceRules,
+  presets, presetGroups = [],
   categories,
   schedules = [],
   selectedDate,
 }) => {
+  const importantBaseline = useRef(false), repeatBaseline = useRef('');
+  const [repeat, setRepeat] = useState<RecurrenceFrequency>('none');
+  const [repeatEnd, setRepeatEnd] = useState('');
+  const occurrence = Boolean(initialSchedule?.recurrenceRuleId && /_rec_\d{4}-\d{2}-\d{2}$/.test(initialSchedule.id || ''));
+  const originalRule = recurrenceRules.find(r => r.id === initialSchedule?.recurrenceRuleId || r.scheduleId === initialSchedule?.id);
+  const [isImportant, setIsImportant] = useState(false);
+  const [selectedPresetGroup] = usePresetGroup(presetGroups, presets);
   const [title, setTitle] = useState('');
   const [titleBlocks, setTitleBlocks] = useState<TitleBlock[]>([]);
   const [date, setDate] = useState('');
@@ -96,7 +109,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
   const [categoryPanel, setCategoryPanel] = useState<'select' | 'manage' | null>(null);
   const [datePanel, setDatePanel] = useState(false);
-  const [directPresetView, setDirectPresetView] = useState(false);
+  const [inlinePresetsOpen, setInlinePresetsOpen] = useState(false);
   const [extraDates, setExtraDates] = useState<string[]>([]);
   const [dateInput, setDateInput] = useState('');
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
@@ -104,50 +117,43 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const modalRef = useRef<HTMLDivElement>(null), baseline = useRef('');
   const allDates = [...new Set([date, ...extraDates])].filter(Boolean).sort();
   const snapshot = (t: string, d: string, all: boolean, start: string, end: string, cat: string, note: string, done: boolean, extra: string[], blocks: TitleBlock[] = []) => JSON.stringify([t, d, all, all ? '' : start, all ? '' : end, cat, note, done, extra, blocks.map(b => [b.text, b.presetId])]);
-  const dirty = snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
+  const dirty = JSON.stringify([repeat, repeatEnd]) !== repeatBaseline.current || isImportant !== importantBaseline.current || snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
   const closeGuard = useDiscardGuard(dirty || panelDirty, saving || savingPhrase || panelBusy);
   const panelGuard = useDiscardGuard(panelDirty, saving || panelBusy);
   const returnToSchedule = () => { setIsPhraseModalOpen(false); setCategoryPanel(null); setDatePanel(false); setPanelDirty(false); setPanelBusy(false); requestAnimationFrame(() => titleInputRef.current?.focus()); };
   const requestBack = () => {
     if (panelGuard.confirming) { panelGuard.cancel(); return false; }
+    if (inlinePresetsOpen && !isPhraseModalOpen && !categoryPanel && !datePanel) { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); return true; }
     if (datePanel) { returnToSchedule(); return true; }
-    return panelGuard.request(() => { if (directPresetView && isPhraseModalOpen) { onClose(); return; } if (categoryPanel === 'manage') { setCategoryPanel('select'); setPanelDirty(false); } else returnToSchedule(); });
+    return panelGuard.request(() => { if (categoryPanel === 'manage') { setCategoryPanel('select'); setPanelDirty(false); } else returnToSchedule(); });
   };
   const requestClose = () => {
     if (closeGuard.confirming) { closeGuard.cancel(); return false; }
     return closeGuard.request(onClose);
   };
   const panelOpen = isPhraseModalOpen || Boolean(categoryPanel) || datePanel;
-  useScheduleDialog(isOpen, panelOpen, modalRef, requestClose, requestBack);
+  useScheduleDialog(isOpen, panelOpen || inlinePresetsOpen, modalRef, requestClose, requestBack);
   useLayoutEffect(() => {
     if (!isOpen) return;
     const t = initialSchedule?.title || '', d = initialSchedule?.date || selectedDate || getTodayDateString();
-    const all = isEditing ? !initialSchedule?.startTime : false, start = initialSchedule?.startTime || '09:00', end = initialSchedule?.endTime || '10:00';
-    const cat = isEditing ? initialSchedule?.category ?? '' : '', note = initialSchedule?.memo || '', done = Boolean(initialSchedule?.completed);
+    const all = isEditing || initialSchedule?.startTime !== undefined ? !initialSchedule?.startTime : false, start = initialSchedule?.startTime || '09:00', end = initialSchedule?.endTime || '10:00';
+    const cat = initialSchedule?.category ?? '', note = initialSchedule?.memo || '', done = Boolean(initialSchedule?.completed);
     const savedBlocks = initialSchedule?.titleBlocks;
     const parts: TitleBlock[] = Array.isArray(savedBlocks) && savedBlocks.every(b => b && typeof b.id === 'string' && typeof b.text === 'string') && savedBlocks.map(b => b.text).join(' ') === t ? savedBlocks : t ? [{ id: crypto.randomUUID(), text: t }] : [];
     setTitleBlocks(parts);
+    const frequency = originalRule?.frequency || 'none', until = originalRule?.endDate || '';
+    setRepeat(frequency); setRepeatEnd(until); repeatBaseline.current = JSON.stringify([frequency, until]);
+    importantBaseline.current = Boolean(initialSchedule?.isImportant);
+    setIsImportant(importantBaseline.current);
     setTitle(t); setDate(d); setIsAllDay(all); setStartTime(start); setEndTime(end); setCategory(cat); setMemo(note); setCompleted(done);
-    setShowAdditionalOptions(Boolean(note)); setExtraDates([]); setDateInput(''); setDatePanel(initialBatch);
-    setIsPhraseModalOpen(initialPreset); setDirectPresetView(initialPreset); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false);
+    setShowAdditionalOptions(Boolean(note || originalRule)); setExtraDates([]); setDateInput(''); setDatePanel(initialBatch);
+    setIsPhraseModalOpen(false); setInlinePresetsOpen(false); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false);
     closeGuard.cancel(); panelGuard.cancel();
     setSaveError(''); setApplyMode('replace'); setTitleHistory([]); setPhraseMessage(''); titlePhraseDraftId.current = null;
     baseline.current = snapshot(t, d, all, start, end, cat, note, done, [], parts);
     const timer = window.setTimeout(() => titleInputRef.current?.focus(), 80);
     return () => window.clearTimeout(timer);
-  }, [isOpen, initialSchedule, selectedDate, initialBatch, initialPreset]);
-
-  // Conflict detection
-  const conflictingSchedule = useMemo(() => {
-    if (isAllDay || !startTime || !endTime || !date) return null;
-    return (
-      schedules.find((s) => {
-        if (initialSchedule?.id && s.id === initialSchedule.id) return false;
-        if (s.date !== date || !s.startTime || !s.endTime) return false;
-        return s.startTime < endTime && s.endTime > startTime;
-      }) || null
-    );
-  }, [schedules, date, isAllDay, startTime, endTime, initialSchedule]);
+  }, [isOpen, initialSchedule, selectedDate, initialBatch]);
 
   if (!isOpen) return null;
 
@@ -193,7 +199,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const handleSaveCurrentTitleAsPhrase = async () => {
     const text = title.trim();
     if (!text || savingPhraseRef.current) return;
-    if (presets.some(p => (p.type || 'title') === 'title' && p.text.trim() === text)) {
+    if (presets.some(p => (p.type || 'title') === 'title' && p.text.trim() === text && (p.groupId || '') === selectedPresetGroup)) {
       setPhraseMessage('이미 저장된 프리셋입니다.');
       return;
     }
@@ -205,7 +211,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       const now = Date.now();
       titlePhraseDraftId.current ??= crypto.randomUUID();
       await onSavePreset({
-        id: titlePhraseDraftId.current, type: 'title', text,
+        id: titlePhraseDraftId.current, groupId: selectedPresetGroup || undefined, type: 'title', text,
+        ...(titleBlocks.length && titleBlocks.every(b => b.text.trim()) && titleBlocks.map(b => b.text).join(' ') === text ? { blocks: titleBlocks.map(b => ({ ...b })) } : {}),
         isFavorite: false, usageCount: 0, lastUsedAt: 0,
         sortOrder: Math.max(0, ...presets.map(phraseOrder)) + 1,
         createdAt: now, updatedAt: now,
@@ -220,18 +227,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     }
   };
 
-  const handleShift30Min = () => {
-    if (!startTime || !endTime) return;
-    const newStart = addMinutesToTime(startTime, 30);
-    const newEnd = addMinutesToTime(endTime, 30);
-    setStartTime(newStart);
-    setEndTime(newEnd);
-  };
-
   const handleSave = async (composition?: TitleBlock[]): Promise<boolean> => {
     const trimmedTitle = (composition ? composition.map(b => b.text).join(' ') : title).trim();
     if (!trimmedTitle || savingRef.current) return false;
+    if (titleBlocks.some(b => !b.text.trim())) { setSaveError('빈 제목 블록을 입력하거나 제거해 주세요.'); return false; }
     if (!date) { setSaveError('날짜를 선택해 주세요.'); return false; }
+    if (!occurrence && repeat !== 'none' && repeatEnd && repeatEnd < date) { setSaveError('반복 종료일은 시작 날짜 이후로 선택해 주세요.'); return false; }
+    if (!isEditing && allDates.length > 1 && repeat !== 'none') { setSaveError('반복 일정은 하나의 기준 날짜로 등록해 주세요.'); return false; }
     if (!isAllDay && (!startTime || !endTime || endTime <= startTime)) { setSaveError('종료 시간은 시작 시간보다 늦게 설정해 주세요.'); return false; }
     savingRef.current = true;
     setSaving(true);
@@ -246,9 +248,16 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       endTime: isAllDay ? '' : endTime,
       category,
       completed,
+      isImportant,
       memo: memo.trim(),
     };
 
+    const repeatChanged = JSON.stringify([repeat, repeatEnd]) !== repeatBaseline.current;
+    const rule: RecurrenceRule | null | undefined = occurrence || (isEditing && !repeatChanged) || (!isEditing && repeat === 'none') ? undefined : repeat === 'none' ? null : {
+      ...originalRule, id: originalRule?.id || newSchedule.id + '-repeat', scheduleId: newSchedule.id,
+      frequency: repeat, startDate: originalRule?.startDate || date, endDate: repeatEnd || undefined,
+      ...(repeat !== originalRule?.frequency ? { weekdays: repeat === 'weekly' ? [new Date(date + 'T12:00:00').getDay()] : undefined } : {}),
+    };
     const parts = composition ?? titleBlocks;
     if (parts.map(b => b.text).join(' ').trim() === trimmedTitle && (parts.length > 1 || parts.some(b => b.presetId))) newSchedule.titleBlocks = parts;
     else delete newSchedule.titleBlocks;
@@ -257,15 +266,15 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       await onSaveBatch(newSchedule, allDates);
       onClose();
     } else if (continuousAdd && !isEditing) {
-      await onSave(newSchedule, true);
+      await onSave(newSchedule, true, rule);
       setTitle(''); setTitleBlocks([]);
-      setMemo('');
+      setMemo(''); setIsImportant(false); importantBaseline.current = false; repeatBaseline.current = JSON.stringify([repeat, repeatEnd]);
       setTitleHistory([]);
       setPhraseMessage(''); setHasSaved(true); scheduleDraftId.current = crypto.randomUUID();
       baseline.current = snapshot('', date, isAllDay, startTime, endTime, category, '', completed, extraDates);
       setTimeout(() => titleInputRef.current?.focus(), 50);
     } else {
-      await onSave(newSchedule, false);
+      await onSave(newSchedule, false, rule);
       onClose();
     }
     return true;
@@ -276,15 +285,6 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       savingRef.current = false;
       setSaving(false);
     }
-  };
-
-  const applyComposition = (parts: TitleBlock[]) => {
-    const previous = titleInputRef.current?.value ?? title;
-    const text = parts.map(b => b.text).join(' ');
-    if (text !== previous) setTitleHistory(h => [...h, { text: previous, blocks: titleBlocks }]);
-    setTitle(text); setTitleBlocks(parts); setDirectPresetView(false); setPhraseMessage(''); setSaveError('');
-    for (const id of new Set(parts.map(b => b.presetId).filter(Boolean))) { const preset = presets.find(p => p.id === id); if (preset) trackUse(preset); }
-    returnToSchedule();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -306,18 +306,16 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         {closeGuard.confirming && <DiscardPrompt actionLabel={isEditing ? '수정 취소' : '등록 취소'} title={isEditing ? '수정을 취소할까요?' : '등록을 취소할까요?'} onContinue={closeGuard.cancel} onDiscard={closeGuard.discard} />}
         {saveError && <p role="alert" className="px-5 py-2 text-xs text-[#C4476B]">{saveError}</p>}
         {panelOpen && <div data-schedule-panel className="p-4 overflow-y-auto min-h-0">
-          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
+          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
           {datePanel ? <div className="space-y-3">
             <p className="text-xs text-[#85777D]">같은 내용으로 등록할 날짜를 선택하세요. 작성 중인 내용은 유지됩니다.</p>
             <div className="flex items-start gap-2"><DatePicker label="추가할 날짜" value={dateInput} onChange={setDateInput} /><button type="button" disabled={!dateInput} onClick={() => { if (dateInput !== date) setExtraDates(ds => [...new Set([...ds, dateInput])].sort()); setDateInput(''); }} className="px-3 text-sm">추가</button></div>
             <div className="flex flex-wrap gap-2">{allDates.map(d => <span key={d} className="inline-flex items-center gap-1 px-2 bg-[#FFFAFB] border border-[#F0E7EB] rounded-lg text-sm">{d}{d !== date && <button type="button" aria-label={d + ' 선택 해제'} onClick={() => setExtraDates(ds => ds.filter(item => item !== d))}><X className="w-4 h-4" /></button>}</span>)}</div>
             <div className="flex gap-2">{[3, 5, 7].map(n => <button key={n} type="button" className="text-xs px-2 rounded-lg bg-[#F6E8ED]" onClick={() => { const [y, m, d] = date.split('-').map(Number); const range = Array.from({ length: n - 1 }, (_, i) => { const day = new Date(y, m - 1, d + i + 1); return day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0'); }); setExtraDates(ds => [...new Set([...ds, ...range])].sort()); }}>기준일부터 {n}일 선택</button>)}</div>
           </div> : isPhraseModalOpen ? <>
-            {directPresetView && <p className="text-xs text-[#85777D] mb-3">{date} · {isAllDay ? '종일' : startTime + ' ~ ' + endTime} · {categories.find(c => c.id === category)?.name || '카테고리 선택하세요'}</p>}
-            <PhraseManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} initialType={phraseModalInitialType} initialMode={phraseMode} onSelectPhrase={handleSelectPhraseFromModal} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets}
+            <PhraseManager hideSearch presetGroups={presetGroups} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} initialType={phraseModalInitialType} initialMode={phraseMode} onSelectPhrase={phraseModalInitialType === 'memo' ? handleSelectPhraseFromModal : undefined} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets}
               initialBlocks={titleBlocks.length > 1 || titleBlocks.some(b => b.presetId) ? titleBlocks : []} existingTitle={title}
-              onApplyComposition={phraseModalInitialType === 'title' ? applyComposition : undefined}
-              onRegisterComposition={phraseModalInitialType === 'title' && directPresetView ? async parts => { setTitle(parts.map(b => b.text).join(' ')); setTitleBlocks(parts); const success = await handleSave(parts); if (success) for (const id of new Set(parts.map(b => b.presetId))) { const p = presets.find(p => p.id === id); if (p) trackUse(p); } return success; } : undefined}
+              onApplyComposition={undefined}
             />
           </> : categoryPanel === 'manage' ? <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={async id => { await onDeleteCategory(id); if (category === id) setCategory(''); }} onReorderCategories={onReorderCategories} onCreated={id => { setCategory(id); returnToSchedule(); }} /> : <div className="space-y-2">
             <button type="button" className="block p-3 w-full text-left rounded-xl border border-[#F0E7EB]" aria-pressed={!category} onClick={() => { setCategory(''); returnToSchedule(); }}>미분류 (선택 해제)</button>
@@ -349,6 +347,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <label className="block text-xs font-semibold text-[#3E3438] mb-1.5" htmlFor="schedule-title">일정 제목</label>
 
             <div className="flex gap-2 items-center">
+            <button type="button" aria-label="중요 일정" aria-pressed={isImportant} onClick={() => setIsImportant(v => !v)} className="shrink-0 text-[#BD7F98]"><Star className={`w-5 h-5 ${isImportant ? 'fill-current' : ''}`} /></button>
             <input
               id="schedule-title"
               ref={titleInputRef}
@@ -360,13 +359,20 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               className="w-full min-w-0 px-3.5 py-2.5 text-base sm:text-sm bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl focus:outline-none focus:border-[#CF8FA8] text-[#3E3438] placeholder:text-[#85777D]/70 transition-colors"
             />
 
-              <button type="button" className="shrink-0 min-h-11 px-3 bg-[#F6E8ED] rounded-xl text-sm text-[#BD7F98]" onClick={() => { setPhraseModalInitialType('title'); setPhraseMode('select'); setApplyMode('replace'); setIsPhraseModalOpen(true); }}>프리셋</button>
+              <button type="button" className="shrink-0 min-h-11 px-3 bg-[#F6E8ED] rounded-xl text-sm text-[#BD7F98]" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
             </div>
+            {(titleBlocks.length > 1 || titleBlocks.some(b => b.presetId)) && <div className="mt-2"><TitleBlockEditor blocks={titleBlocks} word="" onWordChange={() => {}} onChange={parts => { setTitleBlocks(parts); setTitle(parts.map(b => b.text).join(' ')); }} editable compact hideWordInput /></div>}
+            {inlinePresetsOpen && title.trim() && <label className="flex items-center gap-2 text-xs min-h-11">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-11 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>}
+            {inlinePresetsOpen && <InlinePresetPicker presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
+              const previous = titleInputRef.current?.value ?? title;
+              const current = titleBlocks.map(b => b.text).join(' ') === previous ? titleBlocks : previous.trim() ? [{ id: crypto.randomUUID(), text: previous }] : [];
+              const next = applyMode === 'append' ? [...current, ...parts] : parts; setTitleHistory(history => [...history, { text: previous, blocks: titleBlocks }]); setTitleBlocks(next); setTitle(next.map(b => b.text).join(' ')); trackUse(preset); setPhraseMessage(''); setApplyMode('append');
+            }} />}
             <div className="flex items-center justify-between gap-2 mt-1">
               <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-[#BD7F98] disabled:opacity-40">프리셋으로 저장</button>
               {titleHistory.length > 0 && <button type="button" onClick={handleRestoreTitle} className="min-h-9 text-xs text-[#BD7F98]">이전 제목 복구</button>}
             </div>
-            {phraseMessage && <p role="status" className="text-xs text-[#85777D]">{phraseMessage}</p>}
+            {phraseMessage && <p role="status" aria-label="프리셋 알림" className="text-xs text-[#85777D]">{phraseMessage}</p>}
           </div>
 
           <div className="space-y-2">
@@ -403,24 +409,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         </div>
                       </div>
 
-                      {/* Conflict Alert */}
-                      {conflictingSchedule && (
-                        <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                            <span className="truncate">
-                              겹침: {conflictingSchedule.title} ({conflictingSchedule.startTime})
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={handleShift30Min}
-                            className="px-2 py-0.5 text-[11px] font-semibold bg-amber-200 rounded-lg text-amber-900 cursor-pointer"
-                          >
-                            30분 연기
-                          </button>
-                        </div>
-                      )}
+
                     </div>
                   )}
                 </div>
@@ -440,6 +429,15 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             {/* Collapsed by default */}
             {showAdditionalOptions && (
               <div className="space-y-4 pt-2 border-t border-[#F0E7EB] animate-in fade-in">
+                <div className="space-y-2">
+                  {occurrence ? <p className="text-xs text-[#85777D]">반복 일정의 이 날짜만 수정합니다. 반복 주기는 유지됩니다.</p> : <>
+                    <label className="block text-xs font-semibold" htmlFor="schedule-repeat">반복</label>
+                    <select id="schedule-repeat" value={repeat} onChange={e => setRepeat(e.target.value as RecurrenceFrequency)} className="w-full px-3 text-sm border border-[#F0E7EB] rounded-xl bg-[#FFFAFB]">
+                      <option value="none">반복 없음</option><option value="daily">매일</option><option value="weekdays">평일</option><option value="weekly">매주 같은 요일</option><option value="monthly">매월 같은 날짜</option>{repeat === 'custom' && <option value="custom">기존 사용자 지정 반복 유지</option>}
+                    </select>
+                    {repeat !== 'none' && <div className="flex items-start gap-2"><DatePicker label="반복 종료일" value={repeatEnd} onChange={setRepeatEnd} /><button type="button" className="text-xs px-2 shrink-0" onClick={() => setRepeatEnd('')}>종료일 없음</button></div>}
+                  </>}
+                </div>
                 {/* Memo with Memo Phrase Selector */}
                 <div>
                   <div className="flex items-center justify-between mb-1">

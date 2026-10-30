@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import type React from 'react';
 
-export function useDragOrder(ids: string[], onReorder: (ids: string[]) => void, enabled = true) {
+export function useDragOrder(ids: string[], onReorder: (ids: string[]) => void, enabled = true, holdMs = 0) {
   const rootRef = useRef<HTMLDivElement>(null);
   const source = useRef<string | null>(null);
   const interaction = useRef('mouse');
-  const pointer = useRef<{ id: string; x: number; y: number; moved: boolean } | null>(null);
+  const pointer = useRef<{ id: string; x: number; y: number; moved: boolean; since: number } | null>(null);
   const target = useRef<string | null>(null);
   const [dragging, setDragging] = useState<string | null>(null), [over, setOver] = useState<string | null>(null);
   const reset = () => { source.current = null; pointer.current = null; target.current = null; setDragging(null); setOver(null); };
@@ -22,6 +22,7 @@ export function useDragOrder(ids: string[], onReorder: (ids: string[]) => void, 
     onDrop: (e: React.DragEvent) => { if (!enabled || !source.current) return; e.preventDefault(); e.stopPropagation(); commit(source.current, id); reset(); },
   });
   const handleProps = (id: string) => ({
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
     draggable: enabled,
     style: { touchAction: enabled ? 'none' : 'auto' } as React.CSSProperties,
     onDragStart: (e: React.DragEvent) => { if (interaction.current === 'touch' || interaction.current === 'pen') { e.preventDefault(); return; } if (!enabled) { e.preventDefault(); return; } source.current = id; setDragging(id); e.dataTransfer.setData('text/plain', id); e.dataTransfer.effectAllowed = 'move'; },
@@ -30,13 +31,23 @@ export function useDragOrder(ids: string[], onReorder: (ids: string[]) => void, 
       interaction.current = e.pointerType;
       if (!enabled || e.button !== 0 || e.pointerType === 'mouse') return;
       e.preventDefault();
-      pointer.current = { id, x: e.clientX, y: e.clientY, moved: false }; target.current = id;
+      pointer.current = { id, x: e.clientX, y: e.clientY, moved: false, since: Date.now() }; target.current = id;
       e.currentTarget.setPointerCapture(e.pointerId);
     },
     onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
       const start = pointer.current; if (!start || !enabled) return;
+      if (!start.moved && Date.now() - start.since < holdMs) return;
       if (!start.moved && Math.hypot(e.clientX - start.x, e.clientY - start.y) < 6) return;
       start.moved = true; source.current = start.id; setDragging(start.id); e.preventDefault();
+      // Scroll the actual list/panel under the handle, including group managers.
+      let scroll: HTMLElement | null = e.currentTarget.parentElement;
+      while (scroll && !(scroll.scrollHeight > scroll.clientHeight && /auto|scroll/.test(getComputedStyle(scroll).overflowY))) scroll = scroll.parentElement;
+
+      if (scroll) {
+        const bounds = scroll.getBoundingClientRect();
+        if (e.clientY < bounds.top + 32) scroll.scrollTop -= 12;
+        else if (e.clientY > bounds.bottom - 32) scroll.scrollTop += 12;
+      }
       const element = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('[data-sort-item]');
       if (element && rootRef.current?.contains(element) && ids.includes(element.dataset.sortItem!)) { target.current = element.dataset.sortItem!; setOver(target.current); } else { target.current = null; setOver(null); }
     },

@@ -1,11 +1,12 @@
-import { RefObject, useEffect, useRef } from 'react';
+import { RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 
 // Finish retiring the previous modal's history entry before opening its replacement.
 let pendingBack: Promise<void> | null = null;
 export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<HTMLDivElement | null>, close: () => boolean | void, back: () => boolean | void, options: { lockScroll?: boolean; trapFocus?: boolean } = {}) {
   const { lockScroll = true, trapFocus = true } = options;
   const state = useRef({ panel, close, back });
-  state.current = { panel, close, back };
+  // Event handlers follow committed UI, never an interrupted concurrent render.
+  useLayoutEffect(() => { state.current = { panel, close, back }; }, [panel, close, back]);
   useEffect(() => {
     if (!open) return;
     const focus = document.activeElement as HTMLElement | null;
@@ -18,7 +19,7 @@ export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<
       if (!active) return;
       const calendarClose = trapFocus ? ref.current?.querySelector<HTMLButtonElement>('[data-date-picker-open] [data-date-close]') : null;
       if (calendarClose) { calendarClose.click(); push(); return; }
-      if (state.current.panel) { state.current.back(); push(); }
+      if (state.current.panel || ref.current?.querySelector('[data-schedule-panel]')) { state.current.back(); push(); }
       else if (state.current.close() === false) push();
       else active = false;
     };
@@ -35,9 +36,11 @@ export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<
     void start();
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault(); e.stopPropagation();
+        if (e.repeat || !ref.current) return;
         const calendarClose = ref.current?.querySelector<HTMLButtonElement>('[data-date-picker-open] [data-date-close]');
         if (calendarClose) { e.preventDefault(); e.stopPropagation(); calendarClose.click(); return; }
-        e.preventDefault(); e.stopPropagation(); if (state.current.panel) state.current.back(); else state.current.close(); }
+        if (state.current.panel || ref.current.querySelector('[data-schedule-panel]')) state.current.back(); else state.current.close(); }
       if (e.key !== 'Tab' || !trapFocus) return;
       const elements = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length);
       const first = elements[0], last = elements.at(-1);

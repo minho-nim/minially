@@ -40,9 +40,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('pending');
   const [quickTitle, setQuickTitle] = useState('');
   const [pending, setPending] = useState(false), [error, setError] = useState('');
-  const busy = useRef(false);
+  const busy = useRef(false), quickInput = useRef<HTMLInputElement>(null), composing = useRef(false);
+  const [quickScope,setQuickScope] = useState<'today'|'upcoming'>('today');
   const run = async (action: () => Promise<void>) => { if (busy.current) return; busy.current = true; setPending(true); setError(''); try { await action(); } catch { setError('변경사항을 저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.'); } finally { busy.current = false; setPending(false); } };
-  const [quickDueDate, setQuickDueDate] = useState(todayStr);
+  const [quickDueDate, setQuickDueDate] = useState(() => {const day=new Date();day.setDate(day.getDate()+1);return day.getFullYear()+'-'+String(day.getMonth()+1).padStart(2,'0')+'-'+String(day.getDate()).padStart(2,'0');});
 
   // Selection mode for batch operations
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -83,8 +84,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
   const handleQuickAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!quickTitle.trim()) return;
-    await run(async () => { await onQuickAddTask(quickTitle.trim(), quickDueDate, undefined, 'medium'); setQuickTitle(''); });
+    if (!quickTitle.trim() || composing.current) return;
+    if(quickScope==='upcoming'&&(!quickDueDate || quickDueDate<=todayStr)){setError('예정된 할 일은 내일 이후 날짜를 선택하세요.');return;}
+    await run(async () => { await onQuickAddTask(quickTitle.trim(), quickScope==='today'?getTodayDateString():quickDueDate, undefined, 'medium'); setQuickTitle(''); setDateScope(quickScope);setCompletionFilter('pending');requestAnimationFrame(()=>quickInput.current?.focus()); });
   };
 
   const toggleExpand = (taskId: string) => {
@@ -127,10 +129,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
         {/* Date Scope: 오늘 | 예정 | 전체 */}
-        <div className="flex items-center p-0.5 bg-[#F6E8ED] rounded-xl border border-[#F0E7EB] text-xs">
+        <div role="group" aria-label="할 일 보기" className="flex items-center p-0.5 bg-[#F6E8ED] rounded-xl border border-[#F0E7EB] text-xs"><span className="px-2 text-[#85777D]">보기</span>
           <button
             type="button"
-            onClick={() => setDateScope('today')}
+            onClick={() => {setDateScope('today');setQuickScope('today');setError('');}}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-medium ${
               dateScope === 'today'
                 ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
@@ -141,7 +143,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setDateScope('upcoming')}
+            onClick={() => {setDateScope('upcoming');setQuickScope('upcoming');setError('');}}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-medium ${
               dateScope === 'upcoming'
                 ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
@@ -221,16 +223,22 @@ export const TasksView: React.FC<TasksViewProps> = ({
       {/* Main List Container: Cardless List */}
       <div className="bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
         {/* Quick Inline Add Bar */}
-        <form onSubmit={handleQuickAdd} className="p-3 border-b border-[#F0E7EB] bg-[#FFFAFB]/50">
+        <form aria-label="할 일 등록" onSubmit={handleQuickAdd} className="p-3 space-y-2 border-b border-[#F0E7EB] bg-[#FFFAFB]/50">
+          <div role="group" aria-label="할 일 등록 구분" className="flex items-center gap-1 text-sm"><span className="text-xs text-[#85777D] mr-2">등록</span>{(['today','upcoming'] as const).map(scope=><button key={scope} type="button" aria-pressed={quickScope===scope} onClick={()=>{setQuickScope(scope);setError('');}} className={'min-h-11 px-4 rounded-lg '+(quickScope===scope?'bg-[#F6E8ED] text-[#8F526C] font-semibold':'text-[#85777D]')}>{scope==='today'?'오늘':'예정'}</button>)}</div>
+          {quickScope==='upcoming' ? <DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate}/> : <p className="text-xs text-[#85777D] px-1">오늘 · {formatKoreanDate(todayStr)}</p>}
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#F0E7EB] focus-within:border-[#CF8FA8] transition-colors">
             <input
               type="text"
+              ref={quickInput}
+              aria-label="새 할 일 제목"
+              onCompositionStart={()=>{composing.current=true;}}
+              onCompositionEnd={()=>{composing.current=false;}}
+              onKeyDown={e=>{if(e.key==='Enter'&&(e.nativeEvent.isComposing || e.keyCode===229 || composing.current))e.preventDefault();}}
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
               placeholder="+ 새로운 할 일 입력 후 Enter"
               className="flex-1 min-w-0 text-sm bg-transparent text-[#3E3438] placeholder:text-[#85777D]/70 focus:outline-none"
             />
-            <div className="hidden sm:block max-w-[240px]"><DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate} /></div>
             <button
               type="submit"
               disabled={!quickTitle.trim()}

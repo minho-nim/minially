@@ -71,3 +71,14 @@
 }
 [data-sort-over='true'] { outline: 2px dashed #BD7F98; outline-offset: 2px; }
 [data-sort-dragging='true'] { opacity: 0.5; }
+
+.day-sheet {
+  height: min(62dvh, calc(var(--modal-height, 100dvh) * .8));
+  max-height: calc(var(--modal-height, 100dvh) * .8);
+}
+.day-sheet [data-day-scroll] { scroll-padding-bottom: 12px; }
+.day-sheet input, .day-sheet textarea { font-size: 16px; }
+
+/* Compact title chips; retain larger targets for other modal actions. */
+.app-modal .title-blocks-compact button { min-height: 36px; min-width: 28px; }
+.app-modal .title-blocks-compact input:not([type='checkbox']):not([type='radio']):not([type='color']) { min-height: 32px; padding-block: 2px; font-size: 16px; }

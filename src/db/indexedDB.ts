@@ -1,8 +1,10 @@
 import { sortPresets } from '../utils/phrases';
+import { CATEGORY_LIMIT, visibleCategories } from '../utils/categories';
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import {
   Schedule,
   Preset,
+  PresetGroup,
   CategoryItem,
   RecurrenceRule,
   RecurrenceException,
@@ -54,18 +56,13 @@ interface DayFlowDBSchema extends DBSchema {
 const DB_NAME = 'DayFlowDB';
 const DB_VERSION = 1;
 
-export const DEFAULT_CATEGORIES: CategoryItem[] = [
-  { id: 'work', name: '업무', color: '#D98DAA', isDefault: true },
-  { id: 'personal', name: '개인', color: '#B08898', isDefault: true },
-  { id: 'study', name: '공부/자기계발', color: '#8899B0', isDefault: false },
-  { id: 'health', name: '운동/건강', color: '#88B098', isDefault: false },
-];
+export const DEFAULT_CATEGORIES: CategoryItem[] = [];
 
 export const DEFAULT_PRESETS: Preset[] = [];
 
 export const DEFAULT_SETTINGS: AppSettings = {
   startDayOfWeek: 0, // Sunday
-  defaultCategory: 'personal',
+  defaultCategory: '',
   defaultView: 'month',
   showCompletedInCalendar: true,
   vibrateOnAction: true,
@@ -158,7 +155,9 @@ export async function initializeDatabase(): Promise<void> {
   const catCount = await db.count('categories');
   if (catCount === 0 && !existingSettings) {
     const tx = db.transaction('categories', 'readwrite');
-    for (const cat of DEFAULT_CATEGORIES) {
+    let legacyCategories: CategoryItem[] = [];
+    try { const legacy = JSON.parse(localStorage.getItem('DAYFLOW_APP_DATA_V1') || 'null'); if (Array.isArray(legacy?.categories)) legacyCategories = legacy.categories.filter((cat: CategoryItem) => cat && typeof cat.id === 'string' && typeof cat.name === 'string'); } catch { /* Preserve unreadable legacy storage. */ }
+    for (const cat of legacyCategories) {
       await tx.store.put(cat);
     }
     await tx.done;
@@ -331,8 +330,9 @@ export async function markPresetUsed(id: string): Promise<void> {
 export async function savePreset(preset: Preset): Promise<void> {
   const db = await getDB();
   if (!preset.id || !preset.text?.trim()) throw new Error('문구 내용을 입력해 주세요.');
-  const tx = db.transaction('presets', 'readwrite');
-  const existing = await tx.store.get(preset.id);
+  const tx = db.transaction(['presets', 'appSettings'], 'readwrite');
+  const presetStore = tx.objectStore('presets');
+  const existing = await presetStore.get(preset.id);
   const now = Date.now();
   const toSave: Preset = {
     ...existing,
@@ -347,13 +347,62 @@ export async function savePreset(preset: Preset): Promise<void> {
     lastUsedAt: existing?.lastUsedAt ?? preset.lastUsedAt ?? 0,
     sortOrder: existing?.sortOrder ?? existing?.order ?? preset.sortOrder ?? preset.order ?? now,
   };
-  await tx.store.put(toSave);
+  if (toSave.blocks && (!Array.isArray(toSave.blocks) || !toSave.blocks.length || toSave.blocks.some(b => !b || typeof b.text !== 'string' || !b.text.trim()) || toSave.blocks.map(b => b.text).join(' ') !== toSave.text)) delete toSave.blocks;
+  if (toSave.groupId) { const settings = await tx.objectStore('appSettings').get('global_settings'); if (!settings?.presetGroups?.some(g => g.id === toSave.groupId)) { tx.abort(); await tx.done.catch(() => {}); throw new Error('프리셋 그룹이 없습니다. 그룹을 다시 선택하세요.'); } }
+  await presetStore.put(toSave);
   await tx.done;
 }
 
 export async function deletePreset(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('presets', id);
+}
+
+export async function savePresetGroup(group: PresetGroup): Promise<void> {
+  if (!group.id || !group.name.trim()) throw new Error('그룹 이름을 입력하세요.');
+  if (group.name.trim() === '미분류') throw new Error('미분류는 시스템 그룹 이름입니다. 다른 이름을 입력하세요.');
+  const db = await getDB();
+  const tx = db.transaction('appSettings', 'readwrite');
+  const settings = await tx.store.get('global_settings') || { ...DEFAULT_SETTINGS, id: 'global_settings' };
+  const groups = settings.presetGroups || [];
+  if (groups.some(g => g.id !== group.id && g.name.trim() === group.name.trim())) { tx.abort(); await tx.done.catch(() => {}); throw new Error('같은 이름의 그룹이 있습니다.'); }
+  await tx.store.put({ ...settings, presetGroups: [...groups.filter(g => g.id !== group.id), { ...group, name: group.name.trim(), createdAt: groups.find(g => g.id === group.id)?.createdAt || group.createdAt || Date.now(), updatedAt: Date.now() }].sort((a, b) => a.sortOrder - b.sortOrder) });
+  await tx.done;
+}
+
+export async function deletePresetGroup(id: string, removePresets = false) {
+  const db = await getDB(), tx = db.transaction(['appSettings', 'presets'], 'readwrite');
+  try {
+    const settings = await tx.objectStore('appSettings').get('global_settings') || { ...DEFAULT_SETTINGS, id: 'global_settings' };
+    const group = settings.presetGroups?.find(g => g.id === id);
+    if (!group) throw new Error('그룹이 없습니다.');
+    const members = (await tx.objectStore('presets').getAll()).filter(p => p.groupId === id);
+    for (const preset of members) {
+      if (removePresets) await tx.objectStore('presets').delete(preset.id);
+      else { const next = { ...preset, updatedAt: Date.now() }; delete next.groupId; await tx.objectStore('presets').put(next); }
+    }
+    await tx.objectStore('appSettings').put({ ...settings, presetGroups: (settings.presetGroups || []).filter(g => g.id !== id) });
+    await tx.done; return { group, members, removePresets };
+  } catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
+}
+export async function restorePresetGroup(snapshot: Awaited<ReturnType<typeof deletePresetGroup>>) {
+  const db = await getDB(), tx = db.transaction(['appSettings','presets'], 'readwrite');
+  try {
+    const settings = await tx.objectStore('appSettings').get('global_settings') || { ...DEFAULT_SETTINGS, id:'global_settings' };
+    if (settings.presetGroups?.some(g => g.id === snapshot.group.id || g.name === snapshot.group.name)) throw new Error('같은 그룹이 있어 복구할 수 없습니다.');
+    await tx.objectStore('appSettings').put({...settings,presetGroups:[...(settings.presetGroups || []),snapshot.group].sort((a,b)=>a.sortOrder-b.sortOrder)});
+    for (const preset of snapshot.members) {
+      const current = await tx.objectStore('presets').get(preset.id);
+      if (!current || (!snapshot.removePresets && !current.groupId && current.text === preset.text)) await tx.objectStore('presets').put({...preset,...current,updatedAt:preset.updatedAt,groupId:snapshot.group.id});
+    }
+    await tx.done;
+  } catch(error) { try {tx.abort();} catch {} await tx.done.catch(()=>{});throw error; }
+}
+export async function reorderPresetGroups(ids: string[]) {
+  const db = await getDB(), tx = db.transaction('appSettings','readwrite');
+  const settings = await tx.store.get('global_settings');
+  if (settings) await tx.store.put({...settings,presetGroups:(settings.presetGroups || []).map(g=>({...g,sortOrder:ids.includes(g.id)?ids.indexOf(g.id):g.sortOrder,updatedAt:Date.now()})).sort((a,b)=>a.sortOrder-b.sortOrder)});
+  await tx.done;
 }
 
 // Update all positions in one transaction, so a failed move cannot save half a swap.
@@ -370,12 +419,25 @@ export async function reorderPresets(ids: string[]): Promise<void> {
 // Category Operations
 export async function getAllCategories(): Promise<CategoryItem[]> {
   const db = await getDB();
-  return (await db.getAll('categories')).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id));
+  const tx = db.transaction(['categories', 'schedules', 'recurrenceExceptions'], 'readonly');
+  const [categories, schedules, exceptions] = await Promise.all([tx.objectStore('categories').getAll(), tx.objectStore('schedules').getAll(), tx.objectStore('recurrenceExceptions').getAll()]);
+  await tx.done;
+  const used = new Set([...schedules.map(s => s.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
+  return visibleCategories(categories, used).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.id.localeCompare(b.id));
 }
 
 export async function saveCategory(category: CategoryItem): Promise<void> {
+  if (!category.id || !category.name?.trim()) throw new Error('카테고리 이름을 입력해 주세요.');
   const db = await getDB();
-  await db.put('categories', category);
+  const tx = db.transaction(['categories', 'schedules', 'recurrenceExceptions'], 'readwrite');
+  try {
+    const [categories, schedules, exceptions] = await Promise.all([tx.objectStore('categories').getAll(), tx.objectStore('schedules').getAll(), tx.objectStore('recurrenceExceptions').getAll()]);
+    const used = new Set([...schedules.map(s => s.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
+    const visible = visibleCategories(categories, used);
+    if (!visible.some(c => c.id === category.id) && visible.length >= CATEGORY_LIMIT) throw new Error('카테고리는 최대 10개까지 만들 수 있습니다.');
+    await tx.objectStore('categories').put({ ...category, name: category.name.trim(), isUserManaged: true });
+    await tx.done;
+  } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => {}); throw error; }
 }
 
 export async function deleteCategory(id: string): Promise<void> {
@@ -395,7 +457,8 @@ export async function deleteCategory(id: string): Promise<void> {
     if (settings?.defaultCategory === id) await tx.objectStore('appSettings').put({ ...settings, defaultCategory: '' });
     for (const entry of await tx.objectStore('changeHistory').getAll()) {
       const clearReference = (schedule: Schedule) => schedule.category === id ? { ...schedule, category: '' } : schedule;
-      await tx.objectStore('changeHistory').put({ ...entry, previousSchedules: entry.previousSchedules.map(clearReference), newSchedules: entry.newSchedules.map(clearReference) });
+      const clearException = (ex: RecurrenceException) => ex.modifiedSchedule?.category === id ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: '' } } : ex;
+      await tx.objectStore('changeHistory').put({ ...entry, previousSchedules: entry.previousSchedules.map(clearReference), newSchedules: entry.newSchedules.map(clearReference), ...(entry.previousExceptions ? { previousExceptions: entry.previousExceptions.map(clearException) } : {}), ...(entry.newExceptions ? { newExceptions: entry.newExceptions.map(clearException) } : {}) });
     }
     await tx.objectStore('categories').delete(id);
     await tx.done;
@@ -461,13 +524,17 @@ export async function deleteTask(id: string): Promise<void> {
 
 // Settings
 export async function getAppSettings(): Promise<AppSettings> {
-  const db = await getDB();
-  const res = await db.get('appSettings', 'global_settings');
-  if (res) {
-    const { id, ...settings } = res;
-    return settings;
+  const db = await getDB(), tx = db.transaction('appSettings','readwrite');
+  const res = await tx.store.get('global_settings');
+  if (!res) { await tx.done; return DEFAULT_SETTINGS; }
+  const { id, ...settings } = res;
+  if (settings.presetGroups) {
+    const now=Date.now();
+    const groups=settings.presetGroups.map(g=>({...g,createdAt:g.createdAt||now,updatedAt:g.updatedAt||g.createdAt||now}));
+    if(JSON.stringify(groups)!==JSON.stringify(settings.presetGroups))await tx.store.put({...res,presetGroups:groups});
+    settings.presetGroups=groups;
   }
-  return DEFAULT_SETTINGS;
+  await tx.done; return settings;
 }
 
 export async function saveAppSettings(settings: AppSettings): Promise<void> {
@@ -537,6 +604,14 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
       }
     }
   }
+  if (data.settings?.presetGroups !== undefined) {
+    if (!Array.isArray(data.settings.presetGroups)) throw new Error('잘못된 프리셋 그룹 목록입니다.');
+    const groupIds = new Set<string>();
+    for (const group of data.settings.presetGroups) {
+      if (!group || typeof group.id !== 'string' || !group.id || typeof group.name !== 'string' || !group.name.trim() || !Number.isFinite(group.sortOrder) || groupIds.has(group.id)) throw new Error('잘못되거나 중복된 프리셋 그룹입니다.');
+      groupIds.add(group.id);
+    }
+  }
   const db = await getDB();
   const tx = db.transaction([...stores, 'appSettings'] as const, 'readwrite');
   try {
@@ -578,13 +653,23 @@ export async function resetDatabaseToDefault(): Promise<void> {
 // Commit the visible schedule change and its undo record as one durable operation.
 export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = false): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction(['schedules', 'tasks', 'changeHistory'], 'readwrite');
+  const tx = db.transaction(['schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory'], 'readwrite');
   try {
     const before = undo ? entry.newSchedules : entry.previousSchedules;
     const after = undo ? entry.previousSchedules : entry.newSchedules;
     const ids = new Set(after.map(s => s.id));
     for (const schedule of before) if (!ids.has(schedule.id)) await tx.objectStore('schedules').delete(schedule.id);
     for (const schedule of after) await tx.objectStore('schedules').put(schedule);
+    const beforeExceptions = (undo ? entry.newExceptions : entry.previousExceptions) ?? [];
+    const afterExceptions = (undo ? entry.previousExceptions : entry.newExceptions) ?? [];
+    const exceptionIds = new Set(afterExceptions.map(ex => ex.id));
+    for (const ex of beforeExceptions) if (!exceptionIds.has(ex.id)) await tx.objectStore('recurrenceExceptions').delete(ex.id);
+    for (const ex of afterExceptions) await tx.objectStore('recurrenceExceptions').put(ex);
+    const beforeRules = (undo ? entry.newRules : entry.previousRules) ?? [];
+    const afterRules = (undo ? entry.previousRules : entry.newRules) ?? [];
+    const ruleIds = new Set(afterRules.map(rule => rule.id));
+    for (const rule of beforeRules) if (!ruleIds.has(rule.id)) await tx.objectStore('recurrenceRules').delete(rule.id);
+    for (const rule of afterRules) await tx.objectStore('recurrenceRules').put(rule);
     const beforeTasks = (undo ? entry.newTasks : entry.previousTasks) ?? [];
     const afterTasks = (undo ? entry.previousTasks : entry.newTasks) ?? [];
     const taskIds = new Set(afterTasks.map(t => t.id));

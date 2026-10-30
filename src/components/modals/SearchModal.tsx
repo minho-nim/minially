@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Schedule, CategoryItem } from '../../types';
 import { formatKoreanDate } from '../../utils/dateHelpers';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
-import { Search, X, Calendar, Clock } from 'lucide-react';
+import { Search, X, Calendar, Clock, Star } from 'lucide-react';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -115,7 +115,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <span className="text-sm font-medium text-[#3E3438] break-words">
+                      {item.isImportant && <Star aria-label="중요 일정" className="w-3.5 h-3.5 shrink-0 text-[#AD728B] fill-current" />}
+                      <span className={`text-sm text-[#3E3438] break-words ${item.isImportant ? 'font-bold' : 'font-medium'}`}>
                         {item.title}
                       </span>
                       {item.completed && (
