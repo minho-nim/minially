@@ -98,3 +98,8 @@
 }
 
 .app-modal .mobile-sheet-handle { min-height: 28px; outline-offset: -3px; }
+
+.calendar-date-menu button { min-height: 44px; }
+@media (min-width: 640px) {
+  .day-sheet { height: min(70dvh, 640px); max-height: calc(var(--modal-height, 100dvh) - 32px); }
+}

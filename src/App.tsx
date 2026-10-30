@@ -548,7 +548,7 @@ export default function App() {
             settings={settings}
             selectedDate={selectedDate}
             onSelectDate={(date) => setSelectedDate(date)}
-            onOpenDay={date => { setSelectedDate(date); if (matchMedia('(max-width: 639px)').matches) setDaySheetOpen(true); }}
+            onOpenDay={date => { setSelectedDate(date); setDaySheetOpen(true); }}
             onOpenNewScheduleModal={handleOpenNewScheduleModal}
             onEditSchedule={handleEditSchedule}
             onToggleSchedule={id => void runAction(() => handleToggleSchedule(id))}

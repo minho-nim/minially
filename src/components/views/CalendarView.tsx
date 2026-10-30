@@ -1,3 +1,4 @@
+import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { compareSchedules } from '../../utils/scheduleOrder';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
@@ -67,6 +68,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const todayStr = getTodayDateString();
   const [viewMode, setViewMode] = useState<CalendarMode>(settings.defaultView || 'month');
   const [activeDateMenu, setActiveDateMenu] = useState<string | null>(null);
+  const dateMenuAnchor = useRef<HTMLButtonElement|null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
   const [viewDate, setViewDate] = useState<Date>(() => {
@@ -409,6 +411,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
+                          dateMenuAnchor.current=e.currentTarget;
                           setActiveDateMenu(isMenuOpen ? null : cell.dateStr);
                         }}
                         className={`p-1 text-[#85777D] hover:text-[#3E3438] rounded transition-opacity ${
@@ -420,17 +423,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       </button>
 
                       {isMenuOpen && (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 top-5 z-40 w-38 bg-white rounded-xl shadow-lg border border-[#F0E7EB] py-1 text-xs animate-in fade-in"
-                        >
+                        <CalendarDateMenu anchor={dateMenuAnchor.current} onClose={()=>setActiveDateMenu(null)}>
                           <button
                             type="button"
                             onClick={() => {
                               setActiveDateMenu(null);
                               onOpenNewScheduleModal(cell.dateStr);
                             }}
-                            className="w-full px-3 py-1.5 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-11 px-3 py-2 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
                           >
                             <Plus className="w-3 h-3 text-[#CF8FA8]" />
                             <span>일정 추가</span>
@@ -441,7 +441,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenDateCopyModal(cell.dateStr);
                             }}
-                            className="w-full px-3 py-1.5 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-11 px-3 py-2 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
                           >
                             <Copy className="w-3 h-3 text-[#CF8FA8]" />
                             <span>일정 전체 복사</span>
@@ -452,12 +452,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenBatchDateModal(cell.dateStr);
                             }}
-                            className="w-full px-3 py-1.5 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-11 px-3 py-2 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
                           >
                             <CalendarRange className="w-3 h-3 text-[#CF8FA8]" />
                             <span>여러 날짜 등록</span>
                           </button>
-                        </div>
+                        </CalendarDateMenu>
                       )}
                     </div>
                   </div>

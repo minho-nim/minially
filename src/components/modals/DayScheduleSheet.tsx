@@ -103,7 +103,6 @@ export function DayScheduleSheet(props: Props) {
   const close = () => { if (guard.confirming) { guard.cancel(); return false; } if (savingRef.current || panelBusy || undoBusy) return false; return guard.request(() => { onClose(); requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-calendar-date="' + date + '"]')?.focus({ preventScroll: true })); }); };
   useScheduleDialog(open, Boolean(panel), root, close, back);
   useEffect(() => { if (!open) {changePanel(null);return;} if (open) { setPresetApplyMode('append'); setExpanded(Boolean(draft.title)); changePanel(null); setNotice(''); setOldTitle(null); guard.cancel(); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('header button')?.focus({ preventScroll: true })); } }, [open, date]);
-  useEffect(() => { if (!open) return; const media = matchMedia('(min-width: 640px)'); const resize = () => { if (media.matches) onClose(); }; resize(); media.addEventListener('change', resize); return () => media.removeEventListener('change', resize); }, [open, onClose]);
   const focusTitle = () => requestAnimationFrame(() => input.current?.focus({ preventScroll: true }));
   const apply = (preset: Preset) => {
     if (draft.title !== preset.text) setOldTitle({ text: draft.title, blocks: draft.blocks });
@@ -138,12 +137,12 @@ export function DayScheduleSheet(props: Props) {
   const grouped = (settings.dayScheduleView || 'category') === 'category';
   const groups = [...categories.map(c => ({ id: c.id, name: c.name, color: c.color, items: items.filter(s => s.category === c.id) })), { id: '', name: '미분류', color: '#A69BA1', items: items.filter(s => !categories.some(c => c.id === s.category)) }].filter(g => g.items.length);
   const shiftDate = (delta: number) => { const day = new Date(date + 'T12:00:00'); day.setDate(day.getDate() + delta); props.onSelectDate(`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`); };
-  return <div ref={root} data-day-overlay role="dialog" aria-modal="true" aria-label="날짜별 일정" className="app-modal day-overlay fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 bg-[rgba(45,35,40,0.25)] flex items-end" onClick={e => {
+  return <div ref={root} data-day-overlay role="dialog" aria-modal="true" aria-label="날짜별 일정" className="app-modal day-overlay fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 bg-[rgba(45,35,40,0.25)] flex items-end sm:items-center justify-center sm:p-4" onClick={e => {
     if (e.target !== e.currentTarget || saving || panelBusy || undoBusy) return;
     e.preventDefault(); e.stopPropagation(); close();
   }}>
-    <section ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="day-sheet w-full bg-white rounded-t-3xl border-t border-[#F0E7EB] flex flex-col overflow-hidden safe-bottom">
-      <button {...mobileSheet.handleProps} className="mobile-sheet-handle shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 rounded-full bg-[#E8D5DC]"/></button>
+    <section ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="day-sheet w-full sm:max-w-xl bg-white rounded-t-3xl sm:rounded-2xl sm:shadow-xl border-t sm:border border-[#F0E7EB] flex flex-col overflow-hidden safe-bottom">
+      <button {...mobileSheet.handleProps} className="mobile-sheet-handle sm:hidden shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 rounded-full bg-[#E8D5DC]"/></button>
       <header className="px-3 py-1 flex items-center gap-1 shrink-0 border-b border-[#F0E7EB]">
         {panel ? <button type="button" className={button} onClick={back} aria-label="일정 목록으로"><ArrowLeft className="w-4 h-4" /></button> : <button type="button" className={button} disabled={saving || undoBusy} onClick={() => shiftDate(-1)} aria-label="이전 날짜"><ChevronLeft className="w-4 h-4" /></button>}
         <h2 className="text-sm font-bold flex-1">{panel === 'presets' ? '프리셋' : panel === 'presetManage' ? '프리셋 관리' : panel === 'categoryManage' ? '카테고리 관리' : panel === 'categories' ? '카테고리 선택' : panel === 'options' ? '빠른 등록 옵션' : formatKoreanDate(date)}</h2>
