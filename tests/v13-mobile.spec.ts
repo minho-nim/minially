@@ -45,8 +45,8 @@ test.afterEach(async ({ page }) => expect(errors.get(page)).toEqual([]));
 test('신규 사용자 빈 카테고리, 부분 시트·보기 저장·카테고리 색상 및 중요 표시', async ({ page }) => {
   expect((await data(page)).categories).toEqual([]);
   await seed(page); const cell = page.locator(`[data-calendar-date="${day}"]`);
-  await expect(cell.locator('.sm\\:hidden span[aria-label]')).toHaveCount(3);
-  await expect(cell.getByText('+2', { exact: true })).toBeVisible(); await expect(cell.getByLabel('중요 일정 있음')).toBeVisible();
+  await expect(cell.locator('[data-mobile-calendar-titles] [data-calendar-title]')).toHaveCount(2);
+  await expect(cell.getByText('+5개', { exact: true })).toBeVisible(); await expect(cell.locator('[data-mobile-calendar-titles]').getByLabel('오전 업무',{exact:true})).toBeVisible();
   const scrollBefore = await page.evaluate(() => scrollY); await open(page);
   expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
   const box = await sheet(page).locator('.day-sheet').boundingBox(); expect(box!.height).toBeGreaterThan(844 * .55); expect(box!.height).toBeLessThan(844 * .66);
@@ -100,13 +100,13 @@ test('빠른 프리셋 선택·검색·마우스 드롭·복구·관리·다른 
   await sheet(page).getByRole('button', { name: '일정 목록으로' }).click(); await title(page).press('Enter'); await expect.poll(async () => (await data(page)).schedules.length).toBe(8); expect((await data(page)).schedules.find(s => s.title === '준비 회의')).toMatchObject({ startTime: '09:05', endTime: '10:00', memo: '유지할 메모' });
 });
 
-test('시트 안 카테고리 추가·HEX·이름·색상·삭제, 상세 등록 복귀와 초안 유지', async ({ page }) => {
+test('시트 안 카테고리 추가·이름·고정 색상·삭제, 상세 등록 복귀와 초안 유지', async ({ page }) => {
   await open(page); await sheet(page).getByRole('button', { name: '일정 추가', exact: true }).click(); await title(page).fill('직접 분류할 일정');
   const categories = async () => { await sheet(page).getByRole('button', { name: '상세 옵션', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 선택', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 추가·관리' }).click(); };
-  await categories(); await sheet(page).getByPlaceholder('카테고리 이름').fill('내 분류'); await sheet(page).getByLabel('HEX 색상').fill('#123456'); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); await expect(sheet(page).getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류'); await expect(title(page)).toHaveValue('직접 분류할 일정');
+  await categories(); await sheet(page).getByPlaceholder('카테고리 이름').fill('내 분류'); await expect(sheet(page).getByLabel('HEX 색상')).toHaveCount(0); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); await expect(sheet(page).getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류'); await expect(title(page)).toHaveValue('직접 분류할 일정');
   await sheet(page).getByRole('button', { name: '상세 등록 열기' }).click(); const editor = page.getByRole('dialog', { name: '새 일정', exact: true }); await expect(page.getByRole('dialog')).toHaveCount(1); await expect(editor.getByLabel('일정 제목', { exact: true })).toHaveValue('직접 분류할 일정'); await expect(editor.getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류');
   await editor.getByRole('button', { name: '중요 일정', exact: true }).click(); await editor.getByRole('button', { name: '등록', exact: true }).click(); await expect(sheet(page)).toBeVisible(); await expect(title(page)).toHaveCount(0); await sheet(page).getByRole('button', { name: '일정 추가', exact: true }).click(); await expect(title(page)).toHaveValue('');
-  await categories(); const row = sheet(page).locator('[data-category-id]'); await row.getByRole('button', { name: '수정', exact: true }).click(); await sheet(page).getByPlaceholder('카테고리 이름').fill('수정한 분류'); await sheet(page).getByRole('button', { name: '라벤더', exact: true }).click(); await sheet(page).getByRole('button', { name: '변경사항 저장', exact: true }).click();
+  await categories(); const row = sheet(page).locator('[data-category-id]'); await row.getByRole('button', { name: '수정', exact: true }).click(); await sheet(page).getByPlaceholder('카테고리 이름').fill('수정한 분류'); await sheet(page).getByRole('button', { name: '변경사항 저장', exact: true }).click();
   await row.getByRole('button', { name: '삭제', exact: true }).click(); const confirmation = row.getByRole('group', { name: '카테고리 삭제 확인' }); await expect(confirmation).toContainText('일정 1개'); await confirmation.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toHaveCount(0); expect((await data(page)).schedules[0]).toMatchObject({ title: '직접 분류할 일정', category: '', isImportant: true });
 });
 
@@ -150,7 +150,7 @@ test('실제 터치 길게 드래그로 일정 순서 및 프리셋 입력 적�
   await drag(sheet(page).getByRole('button', { name: '집중 업무 입력창으로 드래그' }), sheet(page).locator('[data-preset-drop]')); await expect(title(page)).toHaveValue('집중 업무'); expect((await data(page)).schedules).toHaveLength(7);
 });
 
-test('시트 관리 패널 반복 전환·프리셋 편집·HEX 미완성 입력 취소와 초안 보존', async ({ page }) => {
+test('시트 관리 패널 반복 전환·프리셋 편집·카테고리 이름 입력 취소와 초안 보존', async ({ page }) => {
   await seed(page); await open(page); await sheet(page).getByRole('button', { name: '일정 추가', exact: true }).click(); await title(page).fill('계속 작성할 초안');
   for (let i=0;i<20;i++) {
     await sheet(page).getByRole('button', { name: '프리셋', exact: true }).click(); await page.keyboard.press('Escape');
@@ -163,8 +163,8 @@ test('시트 관리 패널 반복 전환·프리셋 편집·HEX 미완성 입력
   await expect(sheet(page).getByRole('button', { name: '계속 작성', exact: true })).toBeVisible(); await sheet(page).getByRole('button', { name: '계속 작성', exact: true }).click(); await expect(sheet(page).getByRole('textbox', { name: '프리셋 수정 내용' })).toHaveValue('수정 중인 문구'); await sheet(page).getByRole('button', { name: '변경사항 저장' }).click();
   await sheet(page).getByRole('button', { name: '일정 목록으로' }).click(); await expect(title(page)).toHaveValue('계속 작성할 초안');
   await sheet(page).getByRole('button', { name: '상세 옵션', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 선택', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 추가·관리' }).click();
-  await sheet(page).getByLabel('HEX 색상').fill('#1'); await sheet(page).getByRole('button', { name: '취소', exact: true }).click(); await sheet(page).getByRole('button', { name: '등록 취소', exact: true }).click(); await expect(sheet(page).getByLabel('HEX 색상')).toHaveValue('#CF8FA8');
-  await sheet(page).getByPlaceholder('카테고리 이름').fill('이름만 추가'); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); expect((await data(page)).categories.find(c => c.name === '이름만 추가')?.color).toBe('#CF8FA8'); await expect(title(page)).toHaveValue('계속 작성할 초안');
+  await sheet(page).getByPlaceholder('카테고리 이름').fill('취소할 이름'); await sheet(page).getByRole('button', { name: '취소', exact: true }).click(); await sheet(page).getByRole('button', { name: '등록 취소', exact: true }).click(); await expect(sheet(page).getByPlaceholder('카테고리 이름')).toHaveValue('');
+  await sheet(page).getByPlaceholder('카테고리 이름').fill('이름만 추가'); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); expect((await data(page)).categories.find(c => c.name === '이름만 추가')?.color).toBe('#E6B49F'); await expect(title(page)).toHaveValue('계속 작성할 초안');
 });
 
 test('저장 실패 시 일정 순서 롤백·동시 전송 방지·시트 안 실행 취소', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { sortPresets } from '../utils/phrases';
-import { CATEGORY_LIMIT, visibleCategories } from '../utils/categories';
+import { CATEGORY_LIMIT, nextCategoryColor, visibleCategories } from '../utils/categories';
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import {
   Schedule,
@@ -434,8 +434,9 @@ export async function saveCategory(category: CategoryItem): Promise<void> {
     const [categories, schedules, exceptions] = await Promise.all([tx.objectStore('categories').getAll(), tx.objectStore('schedules').getAll(), tx.objectStore('recurrenceExceptions').getAll()]);
     const used = new Set([...schedules.map(s => s.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
     const visible = visibleCategories(categories, used);
-    if (!visible.some(c => c.id === category.id) && visible.length >= CATEGORY_LIMIT) throw new Error('카테고리는 최대 10개까지 만들 수 있습니다.');
-    await tx.objectStore('categories').put({ ...category, name: category.name.trim(), isUserManaged: true });
+    if (!visible.some(c => c.id === category.id) && visible.length >= CATEGORY_LIMIT) throw new Error('카테고리는 최대 12개까지 만들 수 있습니다.');
+    const existing = categories.find(item => item.id === category.id);
+    await tx.objectStore('categories').put({ ...category, color: existing?.color || nextCategoryColor(visible), name: category.name.trim(), isUserManaged: true });
     await tx.done;
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => {}); throw error; }
 }

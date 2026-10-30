@@ -65,7 +65,7 @@ test('날짜와 시간은 선택만 가능, 달력 Escape·뒤로가기와 날�
 
 test('할 일 날짜도 선택 전용이며 달력 Escape·뒤로가기·바깥 클릭 후 초안 유지', async ({ page }) => {
   await seed(page); await page.locator('header').getByRole('button', { name: '할 일', exact: true }).click(); const title = page.getByPlaceholder('+ 새로운 할 일 입력 후 Enter'); await title.fill('할 일 날짜 선택');
-  await page.getByRole('group',{name:'할 일 등록 구분'}).getByRole('button',{name:'예정',exact:true}).click(); const button = page.getByRole('button', { name: '할 일 날짜', exact: true }), calendar = page.getByRole('group', { name: '할 일 날짜 달력', exact: true });
+  await page.getByRole('group',{name:'할 일 보기'}).getByRole('button',{name:'예정',exact:true}).click(); const button = page.getByRole('button', { name: '할 일 날짜', exact: true }), calendar = page.getByRole('group', { name: '할 일 날짜 달력', exact: true });
   await button.click(); await expect(calendar).toBeVisible(); await page.keyboard.press('Escape'); await expect(calendar).toHaveCount(0); await expect(title).toHaveValue('할 일 날짜 선택');
   await button.click(); await page.goBack(); await expect(calendar).toHaveCount(0); await expect(title).toHaveValue('할 일 날짜 선택');
   await button.click(); await title.click(); await expect(calendar).toHaveCount(0); await chooseDate(page, '할 일 날짜', '2026-12-31'); await page.getByRole('button', { name: '추가', exact: true }).click(); await expect.poll(async () => (await data(page)).tasks.length).toBe(1); expect((await data(page)).tasks[0]).toMatchObject({ title: '할 일 날짜 선택', dueDate: '2026-12-31' });

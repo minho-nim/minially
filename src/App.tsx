@@ -50,6 +50,7 @@ import { ScheduleMoveModal } from './components/modals/ScheduleMoveModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { UndoToast } from './components/common/UndoToast';
+import { RegistrationNotice } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
 import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
@@ -72,6 +73,8 @@ export default function App() {
 
   // Undo state
   const [undoNotice, setUndoNotice] = useState<UndoNotice | null>(null);
+  const [registrationNotice,setRegistrationNotice] = useState<{id:string;message:string;title:string}|null>(null);
+  useEffect(()=>{if(!registrationNotice)return;const timer=setTimeout(()=>setRegistrationNotice(null),8000);return()=>clearTimeout(timer);},[registrationNotice]);
 
   // Modals state
   const [daySheetOpen, setDaySheetOpen] = useState(false);
@@ -180,6 +183,7 @@ export default function App() {
   };
 
   const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false, rule?: RecurrenceRule | null) => {
+    setRegistrationNotice(null);
     const prev = expandedSchedules.find((s) => s.id === schedule.id) || schedules.find((s) => s.id === schedule.id);
     if (rule !== undefined) {
       schedule = { ...schedule };
@@ -202,6 +206,7 @@ export default function App() {
     if (!keepOpen) {
       setScheduleModalOpen(false);
     }
+    setRegistrationNotice({id:crypto.randomUUID(),message:prev?'일정이 수정되었습니다':'일정이 등록되었습니다',title:schedule.title});
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
@@ -315,6 +320,7 @@ export default function App() {
     dates: string[]
   ) => {
     if (!scheduleData.title.trim() || dates.length === 0) return;
+    setRegistrationNotice(null);
 
     const newSchedules: Schedule[] = dates.map((d) => ({
       id: `sch-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
@@ -338,6 +344,7 @@ export default function App() {
     setUndoNotice(notice);
     await reloadData();
     setSelectedDate(dates[0]);
+    setRegistrationNotice({id:crypto.randomUUID(),message:`일정 ${dates.length}개가 등록되었습니다`,title:scheduleData.title});
     dayDetailSaved.current?.(); dayDetailSaved.current = null;
   };
 
@@ -460,6 +467,7 @@ export default function App() {
   };
 
   const handleQuickAddTask = async (title: string, dueDate: string) => {
+    setRegistrationNotice(null);
     const newTask: Task = {
       id: `task-${Date.now()}`,
       title,
@@ -470,6 +478,7 @@ export default function App() {
     };
     await dbSaveTask(newTask);
     await reloadData();
+    setRegistrationNotice({id:crypto.randomUUID(),message:'할 일이 등록되었습니다',title});
   };
 
   const handleBatchDeleteTasks = async (taskIds: string[]) => {
@@ -559,6 +568,10 @@ export default function App() {
         {activeTab === 'tasks' && (
           <TasksView
             tasks={tasks}
+            presets={presets}
+            presetGroups={settings.presetGroups || []}
+            onUsePreset={handleUsePreset}
+            onOpenPresetManager={()=>setPresetLibraryOpen(true)}
             onToggleTaskStatus={handleToggleTaskStatus}
             onToggleTaskChecklist={handleToggleTaskChecklist}
             onDeleteTask={id => { setTaskDeleteTarget(tasks.find(t => t.id === id) || null); }}
@@ -570,6 +583,7 @@ export default function App() {
       </main>
 
       {/* Mobile Sticky Bottom Tab Bar */}
+      {registrationNotice && <RegistrationNotice key={registrationNotice.id} message={registrationNotice.message} title={registrationNotice.title}/>}
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}

@@ -1,3 +1,4 @@
+import { CategoryGrid } from '../common/CategoryGrid';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Schedule,
@@ -11,6 +12,7 @@ import {
   TitleBlock,
 } from '../../types';
 import { getTodayDateString } from '../../utils/dateHelpers';
+import { useMobileSheet, useRevealSheetPanel } from '../../hooks/useMobileSheet';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
 import { DiscardPrompt } from '../common/DiscardPrompt';
 import { DatePicker } from '../common/DatePicker';
@@ -115,6 +117,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
   const [hasSaved, setHasSaved] = useState(false), [deleting, setDeleting] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null), baseline = useRef('');
+  const mobileSheet=useMobileSheet(isOpen,.9,'schedule');
+  useRevealSheetPanel(isOpen && inlinePresetsOpen && !isPhraseModalOpen,modalRef,mobileSheet.expand);
   const allDates = [...new Set([date, ...extraDates])].filter(Boolean).sort();
   const snapshot = (t: string, d: string, all: boolean, start: string, end: string, cat: string, note: string, done: boolean, extra: string[], blocks: TitleBlock[] = []) => JSON.stringify([t, d, all, all ? '' : start, all ? '' : end, cat, note, done, extra, blocks.map(b => [b.text, b.presetId])]);
   const dirty = JSON.stringify([repeat, repeatEnd]) !== repeatBaseline.current || isImportant !== importantBaseline.current || snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
@@ -134,7 +138,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const panelOpen = isPhraseModalOpen || Boolean(categoryPanel) || datePanel;
   useScheduleDialog(isOpen, panelOpen || inlinePresetsOpen, modalRef, requestClose, requestBack);
   useLayoutEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {setInlinePresetsOpen(false);return;}
     const t = initialSchedule?.title || '', d = initialSchedule?.date || selectedDate || getTodayDateString();
     const all = isEditing || initialSchedule?.startTime !== undefined ? !initialSchedule?.startTime : false, start = initialSchedule?.startTime || '09:00', end = initialSchedule?.endTime || '10:00';
     const cat = initialSchedule?.category ?? '', note = initialSchedule?.memo || '', done = Boolean(initialSchedule?.completed);
@@ -298,9 +302,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   return (
     <div ref={modalRef} data-schedule-overlay className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(45,35,40,0.25)]" role="dialog" aria-modal="true" aria-label={isEditing ? '일정 수정' : '새 일정'}>
       {/* Mobile Bottom Sheet & Desktop Compact Modal */}
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
+      <div ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
         {/* Mobile drag handle */}
-        <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+        <button {...mobileSheet.handleProps} className="mobile-sheet-handle sm:hidden shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 bg-[#E8D5DC] rounded-full"/></button>
 
         {panelGuard.confirming && <DiscardPrompt onContinue={panelGuard.cancel} onDiscard={panelGuard.discard} />}
         {closeGuard.confirming && <DiscardPrompt actionLabel={isEditing ? '수정 취소' : '등록 취소'} title={isEditing ? '수정을 취소할까요?' : '등록을 취소할까요?'} onContinue={closeGuard.cancel} onDiscard={closeGuard.discard} />}
@@ -309,6 +313,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
           {datePanel ? <div className="space-y-3">
             <p className="text-xs text-[#85777D]">같은 내용으로 등록할 날짜를 선택하세요. 작성 중인 내용은 유지됩니다.</p>
+            <DatePicker label="직접 선택" value={date} onChange={()=>{}} multiple={{values:allDates,fixed:[date],onToggle:selected=>setExtraDates(previous=>previous.includes(selected)?previous.filter(item=>item!==selected):[...previous,selected].sort())}}/>
             <div className="flex items-start gap-2"><DatePicker label="추가할 날짜" value={dateInput} onChange={setDateInput} /><button type="button" disabled={!dateInput} onClick={() => { if (dateInput !== date) setExtraDates(ds => [...new Set([...ds, dateInput])].sort()); setDateInput(''); }} className="px-3 text-sm">추가</button></div>
             <div className="flex flex-wrap gap-2">{allDates.map(d => <span key={d} className="inline-flex items-center gap-1 px-2 bg-[#FFFAFB] border border-[#F0E7EB] rounded-lg text-sm">{d}{d !== date && <button type="button" aria-label={d + ' 선택 해제'} onClick={() => setExtraDates(ds => ds.filter(item => item !== d))}><X className="w-4 h-4" /></button>}</span>)}</div>
             <div className="flex gap-2">{[3, 5, 7].map(n => <button key={n} type="button" className="text-xs px-2 rounded-lg bg-[#F6E8ED]" onClick={() => { const [y, m, d] = date.split('-').map(Number); const range = Array.from({ length: n - 1 }, (_, i) => { const day = new Date(y, m - 1, d + i + 1); return day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0'); }); setExtraDates(ds => [...new Set([...ds, ...range])].sort()); }}>기준일부터 {n}일 선택</button>)}</div>
@@ -319,7 +324,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             />
           </> : categoryPanel === 'manage' ? <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={async id => { await onDeleteCategory(id); if (category === id) setCategory(''); }} onReorderCategories={onReorderCategories} onCreated={id => { setCategory(id); returnToSchedule(); }} /> : <div className="space-y-2">
             <button type="button" className="block p-3 w-full text-left rounded-xl border border-[#F0E7EB]" aria-pressed={!category} onClick={() => { setCategory(''); returnToSchedule(); }}>미분류 (선택 해제)</button>
-            {categories.map(cat => <button key={cat.id} type="button" aria-pressed={category === cat.id} className="flex items-center gap-2 p-3 w-full text-left rounded-xl border border-[#F0E7EB]" onClick={() => { setCategory(category === cat.id ? '' : cat.id); returnToSchedule(); }}><span className="w-3 h-3 rounded-full" style={{ background: cat.color }} />{cat.name}</button>)}
+            <CategoryGrid categories={categories} value={category} onChange={id=>{setCategory(id);returnToSchedule();}}/>
             <button type="button" className="min-h-10 px-3 text-[#BD7F98]" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
             <button type="button" className="min-h-11 px-3 text-[#BD7F98]" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
           </div>}
@@ -341,7 +346,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <div data-sheet-scroll className="p-5 space-y-4 overflow-y-auto min-h-0 flex-1">
           {/* 1. Title Input & Phrase Trigger */}
           <div>
             <label className="block text-xs font-semibold text-[#3E3438] mb-1.5" htmlFor="schedule-title">일정 제목</label>

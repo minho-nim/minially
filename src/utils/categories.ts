@@ -1,13 +1,19 @@
 import { CategoryItem } from '../types';
 
-export const CATEGORY_LIMIT = 10;
+export const CATEGORY_LIMIT = 12;
 export const CATEGORY_PALETTE = [
   { name: '로즈 핑크', color: '#CF8FA8' }, { name: '라벤더', color: '#B4A2D3' },
   { name: '스카이 블루', color: '#94BED9' }, { name: '세이지 그린', color: '#9DB6A2' },
   { name: '피치', color: '#E6B49F' }, { name: '베이지', color: '#C8B99E' },
   { name: '더스티 코랄', color: '#D6A4A4' }, { name: '소프트 민트', color: '#A5C5BD' },
   { name: '모브', color: '#B6A2B3' }, { name: '버터 옐로', color: '#D6C796' },
+  { name: '페리윙클', color: '#A4ADD0' }, { name: '살구 로즈', color: '#D5ACBB' },
 ];
+
+export function nextCategoryColor(categories: CategoryItem[]) {
+  const used = new Set(categories.map(category => category.color.toLowerCase()));
+  return (CATEGORY_PALETTE.find(item => !used.has(item.color.toLowerCase())) || CATEGORY_PALETTE[categories.length % CATEGORY_PALETTE.length]).color;
+}
 
 // These exact records were seeded by older releases. Keep used or edited records;
 // hide unused samples without deleting them from storage or exported backups.

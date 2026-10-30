@@ -74,7 +74,7 @@
 
 .day-sheet {
   height: min(62dvh, calc(var(--modal-height, 100dvh) * .8));
-  max-height: calc(var(--modal-height, 100dvh) * .8);
+  max-height: calc(var(--modal-height, 100dvh) * .92);
 }
 .day-sheet [data-day-scroll] { scroll-padding-bottom: 12px; }
 .day-sheet input, .day-sheet textarea { font-size: 16px; }
@@ -96,3 +96,5 @@
   .app-undo-toast { bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 12px); }
   .app-main-content { padding-bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 24px); }
 }
+
+.app-modal .mobile-sheet-handle { min-height: 28px; outline-offset: -3px; }

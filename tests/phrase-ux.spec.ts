@@ -56,17 +56,17 @@ test('프리셋 선택·검색·복구·이어 붙이기·현재 제목 저장�
   expect(stored.schedules.find(s => s.id === 'old')?.recurrenceRuleId).toBe('rule');
 });
 
-test('카테고리 생성·선택·수정·색상·순서·취소·삭제 및 참조 보존', async ({ page }) => {
+test('카테고리 생성·선택·수정·고정 색상·순서·취소·삭제 및 참조 보존', async ({ page }) => {
   const dialog = await seed(page); await dialog.getByLabel('일정 제목', { exact: true }).fill('카테고리 초안');
   let manager = await categories(page);
-  await manager.getByPlaceholder('카테고리 이름').fill('새 분류'); await manager.getByLabel('카테고리 색상').fill('#abcdef'); await manager.getByRole('button', { name: '추가', exact: true }).click();
+  await manager.getByPlaceholder('카테고리 이름').fill('새 분류'); await expect(manager.locator('input[type=color]')).toHaveCount(0); await manager.getByRole('button', { name: '추가', exact: true }).click();
   await expect(panel(page)).toHaveCount(0); await expect(dialog.getByRole('button', { name: '카테고리 선택', exact: true })).toContainText('새 분류');
   await expect(dialog.getByLabel('일정 제목', { exact: true })).toHaveValue('카테고리 초안');
   manager = await categories(page); const row = manager.locator('[data-category-id=a]');
   await row.getByRole('button', { name: '수정', exact: true }).click(); await expect(manager.getByPlaceholder('카테고리 이름')).toHaveValue('개인');
   await manager.getByPlaceholder('카테고리 이름').fill('취소할 이름'); await manager.getByRole('button', { name: '취소', exact: true }).click(); await manager.getByRole('button', { name: '등록 취소', exact: true }).click(); expect((await data(page)).categories.find(c => c.id === 'a')?.name).toBe('개인');
-  await row.getByRole('button', { name: '수정', exact: true }).click(); await manager.getByPlaceholder('카테고리 이름').fill('생활'); await manager.getByLabel('카테고리 색상').fill('#fedcba'); await manager.getByRole('button', { name: '변경사항 저장', exact: true }).click();
-  await expect(row).toContainText('생활'); expect((await data(page)).categories.find(c => c.id === 'a')).toMatchObject({ name: '생활', color: '#fedcba' });
+  await row.getByRole('button', { name: '수정', exact: true }).click(); await manager.getByPlaceholder('카테고리 이름').fill('생활'); await manager.getByRole('button', { name: '변경사항 저장', exact: true }).click();
+  await expect(row).toContainText('생활'); expect((await data(page)).categories.find(c => c.id === 'a')).toMatchObject({ name: '생활', color: '#112233' });
   await row.getByRole('button', { name: '카테고리 아래로 이동', exact: true }).click(); await expect(manager.getByRole('listitem').first()).toHaveAttribute('data-category-id', 'b');
   await row.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toContainText('일정 1개');
   await row.getByRole('group', { name: '카테고리 삭제 확인' }).getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toHaveCount(0);

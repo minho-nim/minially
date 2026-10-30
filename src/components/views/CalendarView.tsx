@@ -377,7 +377,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
-                  className={`min-h-[72px] sm:min-h-[88px] p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
+                  className={`min-w-0 min-h-[100px] sm:min-h-[88px] p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
                     isSelected
                       ? 'bg-[#F4DCE5]/40'
                       : isDragTarget
@@ -462,15 +462,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Schedules representation: Clean mobile dots on small screens, concise text bars on desktop */}
+                  {/* Schedule title previews on mobile and desktop */}
                   <div className="flex-1 overflow-hidden">
-                    {/* Mobile: Category dots */}
-                    <div className="flex sm:hidden items-center justify-center gap-1 mt-1 flex-wrap">
-                      {(() => {
-                        const ids = [...new Set(daySchedules.map(s => categoryMap.has(s.category) ? s.category : ''))];
-                        return <>{ids.slice(0, 3).map(id => <span key={id} aria-label={categoryMap.get(id)?.name || '미분류'} className="w-[7px] h-[7px] rounded-full" style={{ background: categoryMap.get(id)?.color || '#A69BA1' }} />)}{ids.length > 3 && <span className="text-[9px] text-[#85777D]">+{ids.length - 3}</span>}</>;
-                      })()}
-                      {daySchedules.some(s => s.isImportant) && <Star aria-label="중요 일정 있음" className="w-2.5 h-2.5 text-[#AD728B] fill-current" />}
+                    {/* Mobile: readable title previews; tapping opens the day sheet. */}
+                    <div data-mobile-calendar-titles className="sm:hidden space-y-1 mt-0.5 min-w-0">
+                      {daySchedules.slice(0,2).map(schedule=>{
+                        const color=categoryMap.get(schedule.category)?.color || '#CF8FA8';
+                        return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-[#85777D]':schedule.isImportant?'font-bold text-[#3E3438]':'text-[#3E3438]')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{Array.from(schedule.title).slice(0,schedule.isImportant?2:3).join('')}</div>;
+                      })}
+                      {daySchedules.length>2&&<p className="text-[9px] leading-3 text-[#85777D] text-right">+{daySchedules.length-2}개</p>}
                     </div>
 
                     {/* Desktop: Concise schedule bars */}
@@ -493,7 +493,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             }`}
                             style={{
                               backgroundColor: s.completed ? undefined : `${cat?.color || '#CF8FA8'}18`,
-                              borderLeft: `2.5px solid ${cat?.color || '#CF8FA8'}`,
+                              borderLeft: `3px solid ${cat?.color || '#CF8FA8'}`,
                             }}
                             title={`${s.startTime ? `[${s.startTime}] ` : ''}${s.title}`}
                           >
