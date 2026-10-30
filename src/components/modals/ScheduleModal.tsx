@@ -319,7 +319,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
           {datePanel ? <div className="space-y-3">
             <p className="text-xs text-[#85777D]">같은 내용으로 등록할 날짜를 선택하세요. 작성 중인 내용은 유지됩니다.</p>
-            <MultipleDateSelection baseDate={date} dates={allDates} onChange={(base,dates)=>{setDate(base);setExtraDates(dates.filter(value=>value!==base));}}/>
+            <MultipleDateSelection baseDate={date} dates={allDates} onDone={returnToSchedule} onChange={(base,dates)=>{setDate(base);setExtraDates(dates.filter(value=>value!==base));}}/>
           </div> : isPhraseModalOpen ? <>
             <PhraseManager hideSearch presetGroups={presetGroups} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} initialType={phraseModalInitialType} initialMode={phraseMode} onSelectPhrase={phraseModalInitialType === 'memo' ? handleSelectPhraseFromModal : undefined} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets}
               initialBlocks={titleBlocks.length > 1 || titleBlocks.some(b => b.presetId) ? titleBlocks : []} existingTitle={title}
