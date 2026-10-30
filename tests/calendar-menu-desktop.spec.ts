@@ -9,16 +9,17 @@ test.beforeEach(async({page})=>{
 for(const width of [320,390,1280])test.describe(width+'px 날짜 메뉴',()=>{
  test.use({viewport:{width,height:844},isMobile:width<640,hasTouch:width<640});
  test('달력 가장자리 메뉴 전체 노출·위치 보정·바깥 클릭 차단·Escape·등록 연결',async({page})=>{
-  const cells=page.locator('[data-calendar-date]'),menu=page.getByRole('group',{name:'날짜 작업 메뉴'});
+  const cells=page.locator('[data-calendar-date]'),menu=page.getByRole('group',{name:'날짜 작업 메뉴'}),sheet=page.getByRole('dialog',{name:'날짜별 일정',exact:true});
+  const openMenu=async(cell:import('@playwright/test').Locator)=>{if(width<640){await cell.click({position:{x:5,y:5}});const trigger=sheet.getByRole('button',{name:'날짜 작업',exact:true});await trigger.click();return trigger;}const trigger=cell.getByRole('button',{name:'날짜 작업',exact:true});await trigger.click();return trigger;};
   for(const index of [0,6,(await cells.count())-7,(await cells.count())-1]){
-   const cell=cells.nth(index);await cell.getByRole('button',{name:'날짜 작업',exact:true}).click();await expect(menu).toBeVisible();expect(await menu.evaluate(e=>e.parentElement===document.body)).toBe(true);const box=(await menu.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(7);expect(box.x+box.width).toBeLessThanOrEqual(width-7);expect(box.y).toBeGreaterThanOrEqual(7);expect(box.y+box.height).toBeLessThanOrEqual(844-7);
+   const cell=cells.nth(index),trigger=await openMenu(cell);await expect(menu).toBeVisible();expect(await menu.evaluate(e=>Boolean(e.closest('[aria-modal="true"]')))).toBe(width<640);const box=(await menu.boundingBox())!;expect(box.x).toBeGreaterThanOrEqual(7);expect(box.x+box.width).toBeLessThanOrEqual(width-7);expect(box.y).toBeGreaterThanOrEqual(7);expect(box.y+box.height).toBeLessThanOrEqual(844-7);
    for(const button of await menu.getByRole('button').all()){await expect(button).toBeInViewport({ratio:1});expect(await button.evaluate(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);}
-   if(width<640){const nav=(await page.getByRole('navigation',{name:'하단 메뉴'}).boundingBox())!;expect(box.y+box.height).toBeLessThanOrEqual(nav.y-7);}
-   await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(cell.getByRole('button',{name:'날짜 작업',exact:true})).toBeFocused();
+   if(width<640){expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);await expect(cell.getByRole('button',{name:'날짜 작업',exact:true})).toHaveCount(0);const nav=(await page.getByRole('navigation',{name:'하단 메뉴'}).boundingBox())!;expect(box.y+box.height).toBeLessThanOrEqual(nav.y-7);await expect(sheet.locator('.day-sheet')).toHaveCSS('border-bottom-left-radius','16px');}
+   await page.keyboard.press('Escape');await expect(menu).toHaveCount(0);await expect(trigger).toBeFocused();if(width<640)await sheet.getByRole('button',{name:'날짜 팝업 닫기'}).click();
   }
-  const last=cells.last();await last.getByRole('button',{name:'날짜 작업',exact:true}).click();const other=(await cells.nth(8).boundingBox())!;await page.mouse.click(other.x+5,other.y+5);await expect(menu).toHaveCount(0);await expect(page.getByRole('dialog')).toHaveCount(0);
-  const date=(await last.getAttribute('data-calendar-date'))!;await last.getByRole('button',{name:'날짜 작업',exact:true}).click();await menu.getByRole('button',{name:'일정 추가',exact:true}).click();const editor=page.getByRole('dialog',{name:'새 일정',exact:true});await expectDate(editor,'일정 날짜',date);await expect(menu).toHaveCount(0);await editor.getByRole('button',{name:'취소',exact:true}).click();
-  await last.getByRole('button',{name:'날짜 작업',exact:true}).click();await page.screenshot({path:'test-results/calendar-date-menu-'+width+'.png'});
+  const last=cells.last();await openMenu(last);await page.mouse.click(5,100);await expect(menu).toHaveCount(0);if(width<640){await expect(sheet).toBeVisible();await sheet.getByRole('button',{name:'날짜 팝업 닫기'}).click();}else await expect(page.getByRole('dialog')).toHaveCount(0);
+  const date=(await last.getAttribute('data-calendar-date'))!;await openMenu(last);await menu.getByRole('button',{name:width<640?'여러 날짜 등록':'일정 추가',exact:true}).click();const editor=page.getByRole('dialog',{name:'새 일정',exact:true});if(width<640)await editor.locator('[data-schedule-panel]').getByRole('button',{name:'뒤로',exact:true}).click();await expectDate(editor,'일정 날짜',date);await expect(menu).toHaveCount(0);await editor.getByRole('button',{name:'취소',exact:true}).click();if(width<640)await sheet.getByRole('button',{name:'날짜 팝업 닫기'}).click();await openMenu(last);await page.screenshot({path:'test-results/calendar-date-menu-'+width+'.png'});
+
  });
 });
 test.describe('PC 간편 일정 등록',()=>{

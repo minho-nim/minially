@@ -1,7 +1,7 @@
 import {useEffect,useLayoutEffect,useRef,useState, type ReactNode} from 'react';
 import {createPortal} from 'react-dom';
 
-export function CalendarDateMenu({anchor,onClose,children}:{anchor:HTMLButtonElement|null;onClose:()=>void;children:ReactNode}) {
+export function CalendarDateMenu({anchor,onClose,children,container}:{anchor:HTMLButtonElement|null;onClose:()=>void;children:ReactNode;container?:HTMLElement|null}) {
  const root=useRef<HTMLDivElement>(null);
  const [position,setPosition]=useState({left:8,top:8,maxHeight:200,ready:false});
  useLayoutEffect(()=>{
@@ -28,5 +28,5 @@ export function CalendarDateMenu({anchor,onClose,children}:{anchor:HTMLButtonEle
   return()=>{document.removeEventListener('click',outside,true);document.removeEventListener('keydown',escape,true);};
  },[anchor,onClose]);
  if(!anchor)return null;
- return createPortal(<div ref={root} role="group" aria-label="날짜 작업 메뉴" onClick={event=>event.stopPropagation()} className="calendar-date-menu fixed z-[60] w-44 max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain bg-white rounded-xl shadow-lg border border-[#F0E7EB] py-1 text-xs" style={{left:position.left,top:position.top,maxHeight:position.maxHeight,visibility:position.ready?'visible':'hidden'}}>{children}</div>,document.body);
+ return createPortal(<div ref={root} role="group" aria-label="날짜 작업 메뉴" onClick={event=>event.stopPropagation()} className="calendar-date-menu fixed z-[60] w-44 max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain bg-white rounded-2xl shadow-lg border border-[#F0E7EB] py-1 text-xs" style={{left:position.left,top:position.top,maxHeight:position.maxHeight,visibility:position.ready?'visible':'hidden'}}>{children}</div>,container||document.body);
 }

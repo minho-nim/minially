@@ -1,6 +1,8 @@
+import { RegistrationNotice, type RegistrationNoticeData } from '../common/RegistrationNotice';
+import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { CategoryGrid } from '../common/CategoryGrid';
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Circle, Copy, GripVertical, Plus, RotateCcw, Star, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Circle, Copy, GripVertical, Plus, RotateCcw, Star, X, MoreHorizontal, CalendarRange } from 'lucide-react';
 import { AppSettings, CategoryItem, Preset, Schedule, TitleBlock } from '../../types';
 import { formatKoreanDate } from '../../utils/dateHelpers';
 import { compareSchedules, canReorderSchedules } from '../../utils/scheduleOrder';
@@ -20,6 +22,9 @@ type QuickDraft = { title: string; blocks?: TitleBlock[]; isImportant: boolean; 
 const emptyDraft = (): QuickDraft => ({ title: '', isImportant: false, category: '', timed: false, startTime: '09:00', endTime: '10:00', memo: '' });
 const button = 'min-h-11 min-w-11 px-2 rounded-lg text-xs text-[#85777D] hover:bg-[#F6E8ED] disabled:opacity-40';
 interface Props extends CategoryActions {
+  registrationNotice?:RegistrationNoticeData|null;
+  onDismissRegistration?:()=>void;
+  onUndoRegistration?:()=>Promise<void>;
   open: boolean;
   date: string;
   presets: Preset[];
@@ -32,7 +37,7 @@ interface Props extends CategoryActions {
   onToggle: (id: string) => Promise<void>;
   onMove: (schedule: Schedule) => void;
   onCopyDate: () => void;
-  onDetails: (draft: Partial<Schedule>, saved: () => void) => void;
+  onDetails: (draft: Partial<Schedule>, saved: () => void, batch?: boolean) => void;
   onReorder: (schedules: Schedule[]) => Promise<void>;
   onSettings: (settings: AppSettings) => Promise<void>;
   onSavePreset: (preset: Preset) => Promise<void>;
@@ -88,6 +93,8 @@ export function DayScheduleSheet(props: Props) {
   const draft = drafts[date] || emptyDraft();
   const update = (patch: Partial<QuickDraft>) => setDrafts(all => ({ ...all, [date]: { ...(all[date] || emptyDraft()), ...patch } }));
   const [expanded, setExpanded] = useState(false);
+  const [dateMenuOpen,setDateMenuOpen]=useState(false);
+  const dateMenuAnchor=useRef<HTMLButtonElement>(null);
   const [panel, setPanel] = useState<'presets' | 'presetManage' | 'categories' | 'categoryManage' | 'options' | null>(null);
   const categoryReturn = useRef<'options' | null>(null);
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
@@ -99,10 +106,10 @@ export function DayScheduleSheet(props: Props) {
   const savingRef = useRef(false), composing = useRef(false), draftId = useRef(crypto.randomUUID());
   const guard = useDiscardGuard(panelDirty, panelBusy || saving);
   const changePanel = (next: typeof panel) => { setPanel(next); setPanelDirty(false); setPanelBusy(false); setError(''); };
-  const back = () => { if (guard.confirming) { guard.cancel(); return false; } return guard.request(() => changePanel(null)); };
+  const back = () => { if(dateMenuOpen){setDateMenuOpen(false);requestAnimationFrame(()=>dateMenuAnchor.current?.focus({preventScroll:true}));return true;} if (guard.confirming) { guard.cancel(); return false; } return guard.request(() => changePanel(null)); };
   const close = () => { if (guard.confirming) { guard.cancel(); return false; } if (savingRef.current || panelBusy || undoBusy) return false; return guard.request(() => { onClose(); requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-calendar-date="' + date + '"]')?.focus({ preventScroll: true })); }); };
-  useScheduleDialog(open, Boolean(panel), root, close, back);
-  useEffect(() => { if (!open) {changePanel(null);return;} if (open) { setPresetApplyMode('append'); setExpanded(Boolean(draft.title)); changePanel(null); setNotice(''); setOldTitle(null); guard.cancel(); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('header button')?.focus({ preventScroll: true })); } }, [open, date]);
+  useScheduleDialog(open, Boolean(panel)||dateMenuOpen, root, close, back);
+  useEffect(() => { if (!open) {setDateMenuOpen(false);changePanel(null);return;} if (open) { setDateMenuOpen(false);setPresetApplyMode('append'); setExpanded(Boolean(draft.title)); changePanel(null); setNotice(''); setOldTitle(null); guard.cancel(); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('header button')?.focus({ preventScroll: true })); } }, [open, date]);
   const focusTitle = () => requestAnimationFrame(() => input.current?.focus({ preventScroll: true }));
   const apply = (preset: Preset) => {
     if (draft.title !== preset.text) setOldTitle({ text: draft.title, blocks: draft.blocks });
@@ -141,17 +148,24 @@ export function DayScheduleSheet(props: Props) {
     if (e.target !== e.currentTarget || saving || panelBusy || undoBusy) return;
     e.preventDefault(); e.stopPropagation(); close();
   }}>
-    <section ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="day-sheet w-full sm:max-w-xl bg-white rounded-t-3xl sm:rounded-2xl sm:shadow-xl border-t sm:border border-[#F0E7EB] flex flex-col overflow-hidden safe-bottom">
+    <section ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="day-sheet w-full sm:max-w-xl bg-white rounded-2xl sm:shadow-xl border-t sm:border border-[#F0E7EB] flex flex-col overflow-hidden safe-bottom">
       <button {...mobileSheet.handleProps} className="mobile-sheet-handle sm:hidden shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 rounded-full bg-[#E8D5DC]"/></button>
       <header className="px-3 py-1 flex items-center gap-1 shrink-0 border-b border-[#F0E7EB]">
         {panel ? <button type="button" className={button} onClick={back} aria-label="일정 목록으로"><ArrowLeft className="w-4 h-4" /></button> : <button type="button" className={button} disabled={saving || undoBusy} onClick={() => shiftDate(-1)} aria-label="이전 날짜"><ChevronLeft className="w-4 h-4" /></button>}
-        <h2 className="text-sm font-bold flex-1">{panel === 'presets' ? '프리셋' : panel === 'presetManage' ? '프리셋 관리' : panel === 'categoryManage' ? '카테고리 관리' : panel === 'categories' ? '카테고리 선택' : panel === 'options' ? '빠른 등록 옵션' : formatKoreanDate(date)}</h2>
+        <h2 className="text-xs sm:text-sm font-bold flex-1 min-w-0">{panel === 'presets' ? '프리셋' : panel === 'presetManage' ? '프리셋 관리' : panel === 'categoryManage' ? '카테고리 관리' : panel === 'categories' ? '카테고리 선택' : panel === 'options' ? '빠른 등록 옵션' : formatKoreanDate(date)}</h2>
         {!panel && <button type="button" className={button} disabled={saving || undoBusy} onClick={() => shiftDate(1)} aria-label="다음 날짜"><ChevronRight className="w-4 h-4" /></button>}
+        {!panel&&<button ref={dateMenuAnchor} type="button" className={button} aria-label="날짜 작업" title="날짜 작업" aria-expanded={dateMenuOpen} disabled={saving||undoBusy} onClick={()=>setDateMenuOpen(value=>!value)}><MoreHorizontal className="w-5 h-5"/></button>}
         <button type="button" className={button} aria-label="날짜 팝업 닫기" onClick={close}><X className="w-5 h-5" /></button>
       </header>
+      {props.registrationNotice&&<RegistrationNotice key={props.registrationNotice.id} notice={props.registrationNotice} onDismiss={props.onDismissRegistration} onUndo={props.onUndoRegistration} container={root.current}/>}
+      {dateMenuOpen&&<CalendarDateMenu anchor={dateMenuAnchor.current} container={root.current} onClose={()=>setDateMenuOpen(false)}>
+        <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);setExpanded(true);focusTitle();}}><Plus className="w-4 h-4"/>간편 등록</button>
+        <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);props.onCopyDate();}}><Copy className="w-4 h-4"/>일정 전체 복사</button>
+        <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);props.onDetails({title:draft.title,date,category:draft.category,isImportant:draft.isImportant,startTime:draft.timed?draft.startTime:'',endTime:draft.timed?draft.endTime:'',memo:draft.memo,titleBlocks:draft.blocks},()=>update({title:'',blocks:undefined,isImportant:false,memo:''}),true);}}><CalendarRange className="w-4 h-4"/>여러 날짜 등록</button>
+      </CalendarDateMenu>}
       {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
       {error && <p role="alert" className="px-4 py-1.5 text-xs text-[#C4476B] shrink-0">{error}</p>}
-      {!panel && <div className="px-4 flex items-center gap-1 shrink-0 border-b border-[#F0E7EB]"><span className="text-xs text-[#85777D] flex-1">{items.length}개 일정</span>{(['category', 'list'] as const).map(view => <button key={view} type="button" aria-pressed={(settings.dayScheduleView || 'category') === view} onClick={() => void props.onSettings({ ...settings, dayScheduleView: view }).catch(() => setError('보기 방식을 저장하지 못했습니다.'))} className={button + ((settings.dayScheduleView || 'category') === view ? ' text-[#AD728B] bg-[#FFFAFB] font-semibold' : '')}>{view === 'category' ? '카테고리형' : '목록형'}</button>)}<button type="button" aria-label="이 날짜 일정 전체 복사" className={button} disabled={saving || undoBusy} onClick={props.onCopyDate}><Copy className="w-4 h-4" /></button>{props.undoLabel && <button type="button" disabled={undoBusy || saving} aria-label="실행 취소" title={props.undoLabel} className={button} onClick={async () => { if (undoBusy) return; setUndoBusy(true); try { await props.onUndo?.(); } finally { setUndoBusy(false); } }}><RotateCcw className="w-4 h-4" /></button>}</div>}
+      {!panel && <div className="px-4 flex items-center gap-1 shrink-0 border-b border-[#F0E7EB]"><span className="text-xs text-[#85777D] flex-1">{items.length}개 일정</span>{(['category', 'list'] as const).map(view => <button key={view} type="button" aria-pressed={(settings.dayScheduleView || 'category') === view} onClick={() => void props.onSettings({ ...settings, dayScheduleView: view }).catch(() => setError('보기 방식을 저장하지 못했습니다.'))} className={button + ((settings.dayScheduleView || 'category') === view ? ' text-[#AD728B] bg-[#FFFAFB] font-semibold' : '')}>{view === 'category' ? '카테고리형' : '목록형'}</button>)}{props.undoLabel && <button type="button" disabled={undoBusy || saving} aria-label="실행 취소" title={props.undoLabel} className={button} onClick={async () => { if (undoBusy) return; setUndoBusy(true); try { await props.onUndo?.(); } finally { setUndoBusy(false); } }}><RotateCcw className="w-4 h-4" /></button>}</div>}
       <div data-day-scroll data-sheet-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3" data-schedule-panel={panel || undefined}>
         {!panel && (!items.length ? <p className="text-center py-8 text-xs text-[#85777D]">등록된 일정이 없습니다.</p> : grouped ? groups.map(group => <section key={group.id} aria-label={group.name}><h3 className="flex gap-2 items-center text-xs font-semibold pt-4 pb-1 px-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: group.color }} />{group.name}</h3><ScheduleRows items={group.items} grouped categories={categories} onEdit={props.onEdit} onMove={props.onMove} onToggle={props.onToggle} onReorder={props.onReorder} onError={setError} /></section>) : <ScheduleRows items={items} grouped={false} categories={categories} onEdit={props.onEdit} onMove={props.onMove} onToggle={props.onToggle} onReorder={props.onReorder} onError={setError} />)}
         {panel === 'presets' && <div className="pt-3 min-w-0"><InlinePresetPicker selectedBlocks={draft.blocks || []} options={<label className="text-xs flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" className="min-h-11 border rounded-lg bg-white px-2" value={presetApplyMode} onChange={e=>setPresetApplyMode(e.target.value as 'replace'|'append')}><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={settings.presetGroups || []} dragHandle={p=><button type="button" {...presetDrag(p)} style={{touchAction:'none'}} aria-label={p.text+' 입력창으로 드래그'} className={button+' cursor-grab'}><GripVertical className="w-4 h-4"/></button>} onAdd={(_,preset)=>apply(preset)} onManage={()=>changePanel('presetManage')} onClose={()=>{changePanel(null);focusTitle();}}/></div>}

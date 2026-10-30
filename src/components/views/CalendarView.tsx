@@ -414,7 +414,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           dateMenuAnchor.current=e.currentTarget;
                           setActiveDateMenu(isMenuOpen ? null : cell.dateStr);
                         }}
-                        className={`p-1 text-[#85777D] hover:text-[#3E3438] rounded transition-opacity ${
+                        className={`hidden sm:block p-1 text-[#85777D] hover:text-[#3E3438] rounded transition-opacity ${
                           isSelected || isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}
                         title="날짜 작업"

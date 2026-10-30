@@ -1,3 +1,5 @@
+import { RegistrationNotice, type RegistrationNoticeData } from '../common/RegistrationNotice';
+import { MultipleDateSelection } from '../common/MultipleDateSelection';
 import { CategoryGrid } from '../common/CategoryGrid';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
@@ -36,6 +38,9 @@ import { CategoryActions, CategoryManager } from './CategoryManager';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 
 interface ScheduleModalProps extends CategoryActions {
+  registrationNotice?:RegistrationNoticeData|null;
+  onDismissRegistration?:()=>void;
+  onUndoRegistration?:()=>Promise<void>;
   isOpen: boolean;
   onClose: () => void;
   onSave: (schedule: Schedule, keepOpen?: boolean, rule?: RecurrenceRule | null) => Promise<void> | void;
@@ -56,6 +61,7 @@ interface ScheduleModalProps extends CategoryActions {
 }
 
 export const ScheduleModal: React.FC<ScheduleModalProps> = ({
+  registrationNotice,onDismissRegistration,onUndoRegistration,
   isOpen,
   onClose,
   onSave,
@@ -113,7 +119,6 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [datePanel, setDatePanel] = useState(false);
   const [inlinePresetsOpen, setInlinePresetsOpen] = useState(false);
   const [extraDates, setExtraDates] = useState<string[]>([]);
-  const [dateInput, setDateInput] = useState('');
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
   const [hasSaved, setHasSaved] = useState(false), [deleting, setDeleting] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null), baseline = useRef('');
@@ -150,7 +155,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     importantBaseline.current = Boolean(initialSchedule?.isImportant);
     setIsImportant(importantBaseline.current);
     setTitle(t); setDate(d); setIsAllDay(all); setStartTime(start); setEndTime(end); setCategory(cat); setMemo(note); setCompleted(done);
-    setShowAdditionalOptions(Boolean(note || originalRule)); setExtraDates([]); setDateInput(''); setDatePanel(initialBatch);
+    setShowAdditionalOptions(Boolean(note || originalRule)); setExtraDates([]); setDatePanel(initialBatch);
     setIsPhraseModalOpen(false); setInlinePresetsOpen(false); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false);
     closeGuard.cancel(); panelGuard.cancel();
     setSaveError(''); setApplyMode('append'); setTitleHistory([]); setPhraseMessage(''); titlePhraseDraftId.current = null;
@@ -302,10 +307,11 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   return (
     <div ref={modalRef} data-schedule-overlay className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(45,35,40,0.25)]" role="dialog" aria-modal="true" aria-label={isEditing ? '일정 수정' : '새 일정'}>
       {/* Mobile Bottom Sheet & Desktop Compact Modal */}
-      <div ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
+      <div ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="w-full sm:max-w-md bg-white rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
         {/* Mobile drag handle */}
         <button {...mobileSheet.handleProps} className="mobile-sheet-handle sm:hidden shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 bg-[#E8D5DC] rounded-full"/></button>
 
+        {registrationNotice&&<RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={onDismissRegistration} onUndo={onUndoRegistration} container={modalRef.current}/>}
         {panelGuard.confirming && <DiscardPrompt onContinue={panelGuard.cancel} onDiscard={panelGuard.discard} />}
         {closeGuard.confirming && <DiscardPrompt actionLabel={isEditing ? '수정 취소' : '등록 취소'} title={isEditing ? '수정을 취소할까요?' : '등록을 취소할까요?'} onContinue={closeGuard.cancel} onDiscard={closeGuard.discard} />}
         {saveError && <p role="alert" className="px-5 py-2 text-xs text-[#C4476B]">{saveError}</p>}
@@ -313,10 +319,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
           {datePanel ? <div className="space-y-3">
             <p className="text-xs text-[#85777D]">같은 내용으로 등록할 날짜를 선택하세요. 작성 중인 내용은 유지됩니다.</p>
-            <DatePicker label="직접 선택" value={date} onChange={()=>{}} multiple={{values:allDates,fixed:[date],onToggle:selected=>setExtraDates(previous=>previous.includes(selected)?previous.filter(item=>item!==selected):[...previous,selected].sort())}}/>
-            <div className="flex items-start gap-2"><DatePicker label="추가할 날짜" value={dateInput} onChange={setDateInput} /><button type="button" disabled={!dateInput} onClick={() => { if (dateInput !== date) setExtraDates(ds => [...new Set([...ds, dateInput])].sort()); setDateInput(''); }} className="px-3 text-sm">추가</button></div>
-            <div className="flex flex-wrap gap-2">{allDates.map(d => <span key={d} className="inline-flex items-center gap-1 px-2 bg-[#FFFAFB] border border-[#F0E7EB] rounded-lg text-sm">{d}{d !== date && <button type="button" aria-label={d + ' 선택 해제'} onClick={() => setExtraDates(ds => ds.filter(item => item !== d))}><X className="w-4 h-4" /></button>}</span>)}</div>
-            <div className="flex gap-2">{[3, 5, 7].map(n => <button key={n} type="button" className="text-xs px-2 rounded-lg bg-[#F6E8ED]" onClick={() => { const [y, m, d] = date.split('-').map(Number); const range = Array.from({ length: n - 1 }, (_, i) => { const day = new Date(y, m - 1, d + i + 1); return day.getFullYear() + '-' + String(day.getMonth() + 1).padStart(2, '0') + '-' + String(day.getDate()).padStart(2, '0'); }); setExtraDates(ds => [...new Set([...ds, ...range])].sort()); }}>기준일부터 {n}일 선택</button>)}</div>
+            <MultipleDateSelection baseDate={date} dates={allDates} onChange={(base,dates)=>{setDate(base);setExtraDates(dates.filter(value=>value!==base));}}/>
           </div> : isPhraseModalOpen ? <>
             <PhraseManager hideSearch presetGroups={presetGroups} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} initialType={phraseModalInitialType} initialMode={phraseMode} onSelectPhrase={phraseModalInitialType === 'memo' ? handleSelectPhraseFromModal : undefined} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets}
               initialBlocks={titleBlocks.length > 1 || titleBlocks.some(b => b.presetId) ? titleBlocks : []} existingTitle={title}

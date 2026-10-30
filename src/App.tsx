@@ -50,7 +50,7 @@ import { ScheduleMoveModal } from './components/modals/ScheduleMoveModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { UndoToast } from './components/common/UndoToast';
-import { RegistrationNotice } from './components/common/RegistrationNotice';
+import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
 import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
@@ -73,7 +73,8 @@ export default function App() {
 
   // Undo state
   const [undoNotice, setUndoNotice] = useState<UndoNotice | null>(null);
-  const [registrationNotice,setRegistrationNotice] = useState<{id:string;message:string;title:string}|null>(null);
+  const [registrationUndoId,setRegistrationUndoId]=useState<string|null>(null);
+  const [registrationNotice,setRegistrationNotice] = useState<RegistrationNoticeData|null>(null);
   useEffect(()=>{if(!registrationNotice)return;const timer=setTimeout(()=>setRegistrationNotice(null),8000);return()=>clearTimeout(timer);},[registrationNotice]);
 
   // Modals state
@@ -206,7 +207,8 @@ export default function App() {
     if (!keepOpen) {
       setScheduleModalOpen(false);
     }
-    setRegistrationNotice({id:crypto.randomUUID(),message:prev?'일정이 수정되었습니다':'일정이 등록되었습니다',title:schedule.title});
+    setRegistrationUndoId(notice.id);
+    setRegistrationNotice({undoId:notice.id,id:crypto.randomUUID(),message:prev?'일정이 수정되었습니다':'일정이 등록되었습니다',title:schedule.title,dates:[schedule.date],startTime:schedule.startTime,endTime:schedule.endTime});
   };
 
   const handleDeleteSchedule = async (scheduleId: string) => {
@@ -344,7 +346,8 @@ export default function App() {
     setUndoNotice(notice);
     await reloadData();
     setSelectedDate(dates[0]);
-    setRegistrationNotice({id:crypto.randomUUID(),message:`일정 ${dates.length}개가 등록되었습니다`,title:scheduleData.title});
+    setRegistrationUndoId(notice.id);
+    setRegistrationNotice({undoId:notice.id,id:crypto.randomUUID(),message:`일정 ${dates.length}개가 등록되었습니다`,title:scheduleData.title,dates:[...dates].sort(),startTime:scheduleData.startTime,endTime:scheduleData.endTime});
     dayDetailSaved.current?.(); dayDetailSaved.current = null;
   };
 
@@ -353,6 +356,7 @@ export default function App() {
     try {
       await revertHistoryEntry(notice.entry);
       setUndoNotice(null);
+      if(registrationNotice?.undoId===notice.id)setRegistrationNotice(null);
       await reloadData();
     } catch (err) {
       setActionError('실행 취소하지 못했습니다. 다시 시도해 주세요.');
@@ -478,7 +482,7 @@ export default function App() {
     };
     await dbSaveTask(newTask);
     await reloadData();
-    setRegistrationNotice({id:crypto.randomUUID(),message:'할 일이 등록되었습니다',title});
+    setRegistrationNotice({id:crypto.randomUUID(),message:'할 일이 등록되었습니다',title,dates:[newTask.dueDate!],kind:'task'});
   };
 
   const handleBatchDeleteTasks = async (taskIds: string[]) => {
@@ -538,6 +542,8 @@ export default function App() {
         onOpenSearchModal={openSearch}
       />
 
+      {registrationNotice && !(daySheetOpen&&activeTab==='calendar') && !scheduleModalOpen && !presetLibraryOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget && <RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={()=>setRegistrationNotice(null)} onUndo={registrationNotice.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}/>}
+
       {/* Main View Area (Mobile Optimized Max Width) */}
       <main className="app-main-content flex-1 max-w-4xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-12">
         {/* 1. Calendar View (Default) */}
@@ -583,7 +589,6 @@ export default function App() {
       </main>
 
       {/* Mobile Sticky Bottom Tab Bar */}
-      {registrationNotice && <RegistrationNotice key={registrationNotice.id} message={registrationNotice.message} title={registrationNotice.title}/>}
       <BottomTabBar
         activeTab={activeTab}
         onTabChange={(tab) => setActiveTab(tab)}
@@ -596,6 +601,7 @@ export default function App() {
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
       <DayScheduleSheet
+        registrationNotice={registrationNotice} onDismissRegistration={()=>setRegistrationNotice(null)} onUndoRegistration={registrationNotice?.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}
         open={daySheetOpen && activeTab === 'calendar' && !presetLibraryOpen && !scheduleModalOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
         date={selectedDate} onSelectDate={setSelectedDate} onClose={() => setDaySheetOpen(false)}
         schedules={expandedSchedules} categorySchedules={schedules} categories={categories} presets={presets} settings={settings}
@@ -603,13 +609,14 @@ export default function App() {
         onSave={schedule => handleSaveSchedule(schedule, true)} onEdit={handleEditSchedule}
         onToggle={handleToggleSchedule} onMove={schedule => { setMovingSchedule(schedule); setMoveModalOpen(true); }}
         onCopyDate={() => handleOpenDateCopyModal(selectedDate)}
-        onDetails={(draft, saved) => { handleOpenNewScheduleModal(selectedDate); setEditingSchedule(draft); dayDetailSaved.current = saved; }}
+        onDetails={(draft, saved, batch=false) => { handleOpenNewScheduleModal(selectedDate); setInitialBatch(batch); setEditingSchedule(draft); dayDetailSaved.current = saved; }}
         onReorder={async next => { const previous = next.map(s => expandedSchedules.find(item => item.id === s.id)!).filter(Boolean); setUndoNotice(await recordOccurrenceHistory('UPDATE', '일정 순서 변경됨', previous, next, recurrenceExceptions)); await reloadData(); }}
         onSettings={handleUpdateSettings} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} onUsePreset={handleUsePreset}
         onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
       />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
+        registrationNotice={registrationNotice} onDismissRegistration={()=>setRegistrationNotice(null)}
         isOpen={scheduleModalOpen}
         onClose={handleCloseSchedule}
         onSave={handleSaveSchedule}
@@ -685,7 +692,7 @@ export default function App() {
 
       {/* Undo Toast Notification */}
       <UndoToast
-        notice={presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
+        notice={undoNotice?.id===registrationUndoId || presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
         onUndo={handleUndo}
         onDismiss={() => setUndoNotice(null)}
       />
