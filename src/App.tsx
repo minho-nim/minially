@@ -530,7 +530,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#FFFAFB] text-[#3E3438] flex flex-col selection:bg-[#F4DCE5]">
+    <div className={`${activeTab === 'calendar' ? 'h-dvh overflow-hidden' : 'min-h-dvh'} bg-[#FFFAFB] text-[#3E3438] flex flex-col selection:bg-[#F4DCE5]`}>
       {/* Offline Alert Banner */}
       <OfflineIndicator />
 
@@ -545,7 +545,7 @@ export default function App() {
       {registrationNotice && !(daySheetOpen&&activeTab==='calendar') && !scheduleModalOpen && !presetLibraryOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget && <RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={()=>setRegistrationNotice(null)} onUndo={registrationNotice.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}/>}
 
       {/* Main View Area (Mobile Optimized Max Width) */}
-      <main className="app-main-content flex-1 max-w-4xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-12">
+      <main className="app-main-content flex-1 min-h-0 max-w-4xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-12">
         {/* 1. Calendar View (Default) */}
         {activeTab === 'calendar' && (
           <CalendarView
