@@ -73,7 +73,8 @@
 [data-sort-dragging='true'] { opacity: 0.5; }
 
 .day-sheet {
-  height: min(62dvh, calc(var(--modal-height, 100dvh) * .8));
+  height: min(66dvh, calc(var(--modal-height, 100dvh) - 48px));
+  border-radius: 24px;
   max-height: calc(var(--modal-height, 100dvh) - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 .day-sheet [data-day-scroll] { scroll-padding-bottom: 12px; }
@@ -100,9 +101,15 @@
 .app-modal .mobile-sheet-handle { min-height: 28px; outline-offset: -3px; }
 
 .calendar-date-menu button { min-height: 44px; }
-.day-overlay { padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+.day-overlay { padding-inline: max(24px, 12.5vw); padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 640px) {
+  .day-overlay { padding-inline: 24px; }
   .day-sheet { height: min(70dvh, 640px); }
+}
+/* Leave room for typing controls when the visual viewport shrinks. */
+@media (max-height: 500px) {
+  .day-overlay { padding-inline: 16px; }
+  .day-sheet { height: calc(var(--modal-height, 100dvh) - 32px); }
 }
 
 /* Divide the available calendar height evenly, including six-week months. */
