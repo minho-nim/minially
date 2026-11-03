@@ -8,7 +8,6 @@ import {
   AppSettings,
 } from '../../types';
 import {
-  formatKoreanDate,
   formatShortDate,
   getTodayDateString,
   DAYS_KR,
@@ -17,15 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Clock,
-  CheckCircle2,
-  Circle,
   Copy,
-  ArrowRight,
-  Trash2,
   MoreVertical,
   CalendarRange,
-  Edit2,
   Star,
 } from 'lucide-react';
 
@@ -107,13 +100,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
     return map;
   }, [visibleSchedules]);
-
-  // Schedules for selected date
-  const selectedDateSchedules = useMemo(() => {
-    return schedules
-      .filter((s) => s.date === selectedDate)
-      .sort(compareSchedules);
-  }, [schedules, selectedDate]);
 
   // Month navigation
   const handlePrev = () => {
@@ -270,7 +256,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <div className="calendar-view max-w-4xl mx-auto space-y-2 sm:space-y-4">
+    <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-2 sm:gap-4">
       <div role="group" aria-label="일정 만들기" className="flex items-center justify-end gap-2">
         {/* View Mode Toggle */}
         <div className="mr-auto flex items-center p-0.5 bg-[#F6E8ED] rounded-lg border border-[#F0E7EB] text-xs">
@@ -338,7 +324,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <div className="bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
+      <div className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
         {/* Weekday Row */}
         <div className="grid grid-cols-7 border-b border-[#F0E7EB] text-center text-xs font-medium text-[#85777D] py-2 bg-white">
           {weekdayLabels.map((day, idx) => {
@@ -359,7 +345,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Unified Calendar Grid (Natural Grid without heavy per-day card borders) */}
         {viewMode === 'month' ? (
-          <div className="calendar-month-grid grid grid-cols-7 divide-x divide-y divide-[#F0E7EB]" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
+          <div className="calendar-month-grid min-h-0 flex-1 grid grid-cols-7 divide-x divide-y divide-[#F0E7EB]" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
             {monthDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -378,7 +364,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
-                  className={`calendar-day-cell min-w-0 sm:min-h-[88px] p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
+                  className={`calendar-day-cell min-h-0 min-w-0 overflow-hidden p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
                     isSelected
                       ? 'bg-[#F4DCE5]/40'
                       : isDragTarget
@@ -519,7 +505,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
         ) : (
           /* Week View: 7 columns */
-          <div className="grid grid-cols-7 divide-x divide-[#F0E7EB] min-h-[260px]">
+          <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-[#F0E7EB] overflow-hidden">
             {weekDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -534,7 +520,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
-                  className={`p-2 transition-colors cursor-pointer flex flex-col justify-start ${
+                  className={`min-w-0 min-h-0 overflow-hidden p-1 sm:p-2 transition-colors cursor-pointer flex flex-col justify-start ${
                     isSelected
                       ? 'bg-[#F4DCE5]/40'
                       : isDragTarget
@@ -559,8 +545,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="space-y-1 overflow-y-auto flex-1">
-                    {daySchedules.map((s) => {
+                  <div className="space-y-1 overflow-hidden flex-1 min-h-0">
+                    {daySchedules.slice(0, 2).map((s) => {
                       const cat = categoryMap.get(s.category);
                       return (
                         <div
@@ -586,6 +572,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         </div>
                       );
                     })}
+                    {daySchedules.length > 2 && <p className="text-[10px] text-[#85777D] text-right">+{daySchedules.length - 2}개</p>}
                   </div>
                 </div>
               );
@@ -594,140 +581,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         )}
       </div>
 
-      {/* Desktop agenda; mobile dates open the day sheet. */}
-      <div className="hidden sm:block bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
-        {/* List Header */}
-        <div className="px-4 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm sm:text-base font-bold text-[#3E3438]">
-              {formatKoreanDate(selectedDate)}
-            </h3>
-            <span className="text-xs font-semibold text-[#CF8FA8]">
-              {selectedDateSchedules.length}개
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onOpenDateCopyModal(selectedDate)}
-              className="p-1.5 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
-              title="이 날짜 일정 전체 복사"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-
-          </div>
-        </div>
-
-        {/* List of Schedules (Cardless rows with hairline dividers) */}
-        <div className="divide-y divide-[#F0E7EB]">
-          {selectedDateSchedules.length === 0 ? (
-            <div className="py-10 text-center text-xs text-[#85777D]">
-              등록된 일정이 없습니다.
-            </div>
-          ) : (
-            selectedDateSchedules.map((schedule) => {
-              const cat = categoryMap.get(schedule.category);
-              return (
-                <div
-                  key={schedule.id}
-                  draggable="true"
-                  onDragStart={(e) => handleDragStart(e, schedule.id)}
-                  className="px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#FFFAFB] transition-colors group"
-                >
-                  {/* Left: Completion Checkbox (Min 44px touch target) */}
-                  <button
-                    type="button"
-                    onClick={() => onToggleSchedule(schedule.id)}
-                    aria-label={schedule.completed ? '일정 완료 해제' : '일정 완료'}
-                    aria-pressed={schedule.completed}
-                    className="w-11 h-11 -ml-1 flex items-center justify-center text-stone-300 hover:text-[#CF8FA8] transition-colors cursor-pointer shrink-0"
-                  >
-                    {schedule.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-[#CF8FA8] fill-[#F4DCE5]" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-[#85777D]/40 hover:text-[#CF8FA8]" />
-                    )}
-                  </button>
-
-                  {/* Center: Schedule Content */}
-                  <div
-                    onClick={() => onEditSchedule(schedule)}
-                    className="flex-1 min-w-0 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-sm ${schedule.isImportant ? 'font-bold' : 'font-medium'} whitespace-normal break-words ${
-                          schedule.completed ? 'line-through text-[#85777D]' : 'text-[#3E3438]'
-                        }`}
-                      >
-                        {schedule.isImportant && <Star aria-label="중요 일정" className="inline w-3.5 h-3.5 mr-1 fill-current text-[#AD728B]" />}{schedule.title}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-[#85777D]">
-                      {schedule.startTime ? (
-                        <span className="flex items-center gap-1 font-mono">
-                          <Clock className="w-3 h-3 text-[#CF8FA8]" />
-                          {schedule.startTime}
-                          {schedule.endTime ? ` ~ ${schedule.endTime}` : ''}
-                        </span>
-                      ) : (
-                        <span>종일</span>
-                      )}
-
-                      <span
-                        className="px-1.5 py-0.2 rounded text-[10px] font-medium"
-                        style={{
-                          backgroundColor: `${cat?.color || '#CF8FA8'}18`,
-                          color: cat?.color || '#CF8FA8',
-                        }}
-                      >
-                        {cat?.name || schedule.category || '미분류'}
-                      </span>
-
-                      {schedule.memo && (
-                        <span className="truncate max-w-[140px] hidden sm:inline text-[#85777D]/80">
-                          · {schedule.memo}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="calendar-actions flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => onOpenMoveModal(schedule)}
-                      className="p-1.5 text-[#85777D] hover:text-[#CF8FA8] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
-                      title="이동/복사"
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onEditSchedule(schedule)}
-                      className="p-1.5 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
-                      title="수정"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteSchedule(schedule.id)}
-                      className="p-1.5 text-[#85777D] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                      title="삭제"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
     </div>
   );
 };

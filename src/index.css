@@ -74,7 +74,7 @@
 
 .day-sheet {
   height: min(62dvh, calc(var(--modal-height, 100dvh) * .8));
-  max-height: calc(var(--modal-height, 100dvh) * .92);
+  max-height: calc(var(--modal-height, 100dvh) - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 .day-sheet [data-day-scroll] { scroll-padding-bottom: 12px; }
 .day-sheet input, .day-sheet textarea { font-size: 16px; }
@@ -100,14 +100,21 @@
 .app-modal .mobile-sheet-handle { min-height: 28px; outline-offset: -3px; }
 
 .calendar-date-menu button { min-height: 44px; }
+.day-overlay { padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 640px) {
-  .day-sheet { height: min(70dvh, 640px); max-height: calc(var(--modal-height, 100dvh) - 32px); }
+  .day-sheet { height: min(70dvh, 640px); }
 }
 
-/* Fit a whole month above the floating navigation on mobile. */
+/* Divide the available calendar height evenly, including six-week months. */
+.calendar-month-grid { grid-template-rows: repeat(var(--calendar-rows), minmax(0, 1fr)); }
+.calendar-surface > :first-child { flex-shrink: 0; }
+.app-main-content:has(.calendar-view) { overflow: hidden; }
+@media (max-width: 767px) {
+  .app-main-content:has(.calendar-view) { padding-bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 12px); }
+}
+
 @media (max-width: 639px) {
-  .app-main-content:has(.calendar-view) { padding-top: 8px; padding-bottom: 0; }
-  .calendar-month-grid { grid-auto-rows: max(44px, calc((100svh - 282px - env(safe-area-inset-top, 0px) - max(16px, var(--app-safe-bottom))) / var(--calendar-rows))); }
+  .app-main-content:has(.calendar-view) { padding-top: 8px; }
   .calendar-day-cell { overflow: hidden; }
   [data-mobile-calendar-titles] [data-calendar-title] { padding-block: 0; line-height: 17px; }
 }

@@ -7,7 +7,7 @@ import { AppSettings, CategoryItem, Preset, Schedule, TitleBlock } from '../../t
 import { formatKoreanDate } from '../../utils/dateHelpers';
 import { compareSchedules, canReorderSchedules } from '../../utils/scheduleOrder';
 import { getPresetBlocks } from '../../utils/phrases';
-import { useMobileSheet, useRevealSheetPanel } from '../../hooks/useMobileSheet';
+import { useRevealSheetPanel } from '../../hooks/useMobileSheet';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { useDragOrder } from '../../hooks/useDragOrder';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
@@ -88,7 +88,7 @@ function ScheduleRows({ items, grouped, categories, onEdit, onMove, onToggle, on
 export function DayScheduleSheet(props: Props) {
   const { open, date, schedules, categories, presets, settings, onClose } = props;
   const root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), dropArea = useRef<HTMLDivElement>(null);
-  const mobileSheet=useMobileSheet<HTMLElement>(open);
+  const expandPopup = React.useCallback(() => {}, []);
   const [drafts, setDrafts] = useState<Record<string, QuickDraft>>({});
   const draft = drafts[date] || emptyDraft();
   const update = (patch: Partial<QuickDraft>) => setDrafts(all => ({ ...all, [date]: { ...(all[date] || emptyDraft()), ...patch } }));
@@ -98,7 +98,7 @@ export function DayScheduleSheet(props: Props) {
   const [panel, setPanel] = useState<'presets' | 'presetManage' | 'categories' | 'categoryManage' | 'options' | null>(null);
   const categoryReturn = useRef<'options' | null>(null);
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
-  useRevealSheetPanel(open && panel==='presets',root,mobileSheet.expand);
+  useRevealSheetPanel(open && panel==='presets',root,expandPopup);
   const [undoBusy, setUndoBusy] = useState(false);
   const [error, setError] = useState(''), [saving, setSaving] = useState(false), [notice, setNotice] = useState('');
   const [presetApplyMode,setPresetApplyMode] = useState<'replace'|'append'>('append');
@@ -144,12 +144,11 @@ export function DayScheduleSheet(props: Props) {
   const grouped = (settings.dayScheduleView || 'category') === 'category';
   const groups = [...categories.map(c => ({ id: c.id, name: c.name, color: c.color, items: items.filter(s => s.category === c.id) })), { id: '', name: '미분류', color: '#A69BA1', items: items.filter(s => !categories.some(c => c.id === s.category)) }].filter(g => g.items.length);
   const shiftDate = (delta: number) => { const day = new Date(date + 'T12:00:00'); day.setDate(day.getDate() + delta); props.onSelectDate(`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`); };
-  return <div ref={root} data-day-overlay role="dialog" aria-modal="true" aria-label="날짜별 일정" className="app-modal day-overlay fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 bg-[rgba(45,35,40,0.25)] flex items-end sm:items-center justify-center sm:p-4" onClick={e => {
+  return <div ref={root} data-day-overlay role="dialog" aria-modal="true" aria-label="날짜별 일정" className="app-modal day-overlay fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 bg-[rgba(45,35,40,0.25)] flex items-center justify-center p-4" onClick={e => {
     if (e.target !== e.currentTarget || saving || panelBusy || undoBusy) return;
     e.preventDefault(); e.stopPropagation(); close();
   }}>
-    <section ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="day-sheet w-full sm:max-w-xl bg-white rounded-2xl sm:shadow-xl border-t sm:border border-[#F0E7EB] flex flex-col overflow-hidden safe-bottom">
-      <button {...mobileSheet.handleProps} className="mobile-sheet-handle sm:hidden shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 rounded-full bg-[#E8D5DC]"/></button>
+    <section className="day-sheet w-full max-w-xl bg-white rounded-2xl shadow-xl border border-[#F0E7EB] flex flex-col overflow-hidden">
       {panel !== 'presets' && <header className="px-3 py-1 flex items-center gap-1 shrink-0 border-b border-[#F0E7EB]">
         {panel ? <button type="button" className={button} onClick={back} aria-label="일정 목록으로"><ArrowLeft className="w-4 h-4" /></button> : <button type="button" className={button} disabled={saving || undoBusy} onClick={() => shiftDate(-1)} aria-label="이전 날짜"><ChevronLeft className="w-4 h-4" /></button>}
         <h2 className="text-xs sm:text-sm font-bold flex-1 min-w-0">{panel === 'presetManage' ? '프리셋 관리' : panel === 'categoryManage' ? '카테고리 관리' : panel === 'categories' ? '카테고리 선택' : panel === 'options' ? '빠른 등록 옵션' : formatKoreanDate(date)}</h2>
