@@ -270,8 +270,33 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      <div role="group" aria-label="일정 만들기" className="flex justify-end gap-2">
+    <div className="calendar-view max-w-4xl mx-auto space-y-2 sm:space-y-4">
+      <div role="group" aria-label="일정 만들기" className="flex items-center justify-end gap-2">
+        {/* View Mode Toggle */}
+        <div className="mr-auto flex items-center p-0.5 bg-[#F6E8ED] rounded-lg border border-[#F0E7EB] text-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode('month')}
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+              viewMode === 'month'
+                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
+                : 'text-[#85777D] hover:text-[#3E3438]'
+            }`}
+          >
+            월간
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('week')}
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+              viewMode === 'week'
+                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
+                : 'text-[#85777D] hover:text-[#3E3438]'
+            }`}
+          >
+            주간
+          </button>
+        </div>
         <button type="button" onClick={() => onOpenPresetModal()} className="min-h-11 px-4 rounded-xl border border-[#E9CDD8] bg-white text-sm text-[#AD728B]">프리셋</button>
         <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-11 px-4 rounded-xl bg-[#CF8FA8] text-white text-sm font-semibold">일정 등록</button>
       </div>
@@ -310,32 +335,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             오늘
           </button>
         </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex items-center p-0.5 bg-[#F6E8ED] rounded-lg border border-[#F0E7EB] text-xs">
-          <button
-            type="button"
-            onClick={() => setViewMode('month')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
-              viewMode === 'month'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
-            }`}
-          >
-            월간
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('week')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
-              viewMode === 'week'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
-            }`}
-          >
-            주간
-          </button>
-        </div>
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
@@ -360,7 +359,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Unified Calendar Grid (Natural Grid without heavy per-day card borders) */}
         {viewMode === 'month' ? (
-          <div className="grid grid-cols-7 divide-x divide-y divide-[#F0E7EB]">
+          <div className="calendar-month-grid grid grid-cols-7 divide-x divide-y divide-[#F0E7EB]" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
             {monthDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -379,7 +378,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
-                  className={`min-w-0 min-h-[100px] sm:min-h-[88px] p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
+                  className={`calendar-day-cell min-w-0 sm:min-h-[88px] p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
                     isSelected
                       ? 'bg-[#F4DCE5]/40'
                       : isDragTarget
@@ -470,7 +469,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         const color=categoryMap.get(schedule.category)?.color || '#CF8FA8';
                         return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-[#85777D]':schedule.isImportant?'font-bold text-[#3E3438]':'text-[#3E3438]')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{Array.from(schedule.title).slice(0,schedule.isImportant?2:3).join('')}</div>;
                       })}
-                      {daySchedules.length>2&&<p className="text-[9px] leading-3 text-[#85777D] text-right">+{daySchedules.length-2}개</p>}
+                      {daySchedules.length>1&&<span className="calendar-compact-count hidden absolute top-2 right-1 text-[9px] text-[#85777D]">+{daySchedules.length-1}</span>}
+                      {daySchedules.length>2&&<p className="calendar-extra-count text-[9px] leading-3 text-[#85777D] text-right">+{daySchedules.length-2}개</p>}
                     </div>
 
                     {/* Desktop: Concise schedule bars */}

@@ -349,7 +349,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div data-sheet-scroll className="p-5 space-y-4 overflow-y-auto min-h-0 flex-1">
+        <div data-sheet-scroll className="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto min-h-0 flex-1">
           {/* 1. Title Input & Phrase Trigger */}
           <div>
             <label className="block text-xs font-semibold text-[#3E3438] mb-1.5" htmlFor="schedule-title">일정 제목</label>
@@ -375,8 +375,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               const current = titleBlocks.map(b => b.text).join(' ') === previous ? titleBlocks : previous.trim() ? [{ id: crypto.randomUUID(), text: previous }] : [];
               const next = applyMode === 'append' ? [...current, ...parts] : parts; setTitleHistory(history => [...history, { text: previous, blocks: titleBlocks }]); setTitleBlocks(next); setTitle(next.map(b => b.text).join(' ')); trackUse(preset); setPhraseMessage(''); setApplyMode('append');
             }} />}
-            <div className="flex items-center justify-between gap-2 mt-1">
-              <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-[#BD7F98] disabled:opacity-40">프리셋으로 저장</button>
+            <div className="flex items-center justify-end gap-2">
+
               {titleHistory.length > 0 && <button type="button" onClick={handleRestoreTitle} className="min-h-9 text-xs text-[#BD7F98]">이전 제목 복구</button>}
             </div>
             {phraseMessage && <p role="status" aria-label="프리셋 알림" className="text-xs text-[#85777D]">{phraseMessage}</p>}
@@ -436,6 +436,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             {/* Collapsed by default */}
             {showAdditionalOptions && (
               <div className="space-y-4 pt-2 border-t border-[#F0E7EB] animate-in fade-in">
+              <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-[#BD7F98] disabled:opacity-40">프리셋으로 저장</button>
                 <div className="space-y-2">
                   {occurrence ? <p className="text-xs text-[#85777D]">반복 일정의 이 날짜만 수정합니다. 반복 주기는 유지됩니다.</p> : <>
                     <label className="block text-xs font-semibold" htmlFor="schedule-repeat">반복</label>

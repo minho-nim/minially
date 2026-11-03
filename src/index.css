@@ -103,3 +103,19 @@
 @media (min-width: 640px) {
   .day-sheet { height: min(70dvh, 640px); max-height: calc(var(--modal-height, 100dvh) - 32px); }
 }
+
+/* Fit a whole month above the floating navigation on mobile. */
+@media (max-width: 639px) {
+  .app-main-content:has(.calendar-view) { padding-top: 8px; padding-bottom: 0; }
+  .calendar-month-grid { grid-auto-rows: max(44px, calc((100svh - 282px - env(safe-area-inset-top, 0px) - max(16px, var(--app-safe-bottom))) / var(--calendar-rows))); }
+  .calendar-day-cell { overflow: hidden; }
+  [data-mobile-calendar-titles] [data-calendar-title] { padding-block: 0; line-height: 17px; }
+}
+@media (max-width: 639px) and (max-height: 760px) {
+  [data-mobile-calendar-titles] [data-calendar-title]:nth-child(2), .calendar-extra-count { display: none; }
+  .calendar-compact-count { display: inline; }
+  .calendar-day-cell > div:first-child { margin-bottom: 0; }
+  .calendar-day-cell > div:first-child > span { width: 20px; height: 20px; }
+}
+
+.day-sheet [data-schedule-panel="presets"] [data-inline-presets] { margin-top: 0; border: 0; padding: 0; }

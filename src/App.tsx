@@ -518,7 +518,7 @@ export default function App() {
 
   if (!isReady) {
     return (
-      <div className="min-h-screen bg-[#FFFAFB] flex items-center justify-center">
+      <div className="min-h-dvh bg-[#FFFAFB] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[#CF8FA8] text-white flex items-center justify-center font-bold text-base shadow-2xs animate-pulse">
             D
@@ -530,7 +530,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFFAFB] text-[#3E3438] flex flex-col selection:bg-[#F4DCE5]">
+    <div className="min-h-dvh bg-[#FFFAFB] text-[#3E3438] flex flex-col selection:bg-[#F4DCE5]">
       {/* Offline Alert Banner */}
       <OfflineIndicator />
 
