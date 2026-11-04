@@ -91,11 +91,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-5 bg-[rgba(52,40,35,0.30)]">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]">
       <div className="w-full sm:max-w-xl bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[calc(var(--modal-height,100dvh)-40px)] pb-safe safe-bottom">
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
+        <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <h3 className="text-base font-bold text-app-ink">설정</h3>
           <button
             onClick={requestClose}
@@ -168,7 +168,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
         {settingsError && <p role="alert" className="p-3 text-xs text-red-600">{settingsError}</p>}
         {/* Tab Content */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-4">
+        <div className="p-4 overflow-y-auto flex-1 space-y-3">
           {/* TAB 1: PHRASE PRESETS (프리셋 관리) */}
           {activeTab === 'presets' && <PhraseManager presetGroups={settings.presetGroups || []} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} />}
 
@@ -176,7 +176,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* TAB 3: CALENDAR SETTINGS */}
           {activeTab === 'calendar' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <h4 className="text-sm font-bold text-app-ink">달력 환경 설정</h4>
               </div>
@@ -241,7 +241,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* TAB 4: BACKUP & RESTORE */}
           {activeTab === 'backup' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <h4 className="text-sm font-bold text-app-ink">데이터 백업 및 복원</h4>
                 <p className="text-xs text-app-muted">
@@ -310,7 +310,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/* TAB 5: PWA INSTALL */}
           {activeTab === 'pwa' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
                 <h4 className="text-sm font-bold text-app-ink">홈 화면에 앱 설치하기 (PWA)</h4>
                 <p className="text-xs text-app-muted">

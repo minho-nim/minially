@@ -54,7 +54,7 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
         <div className="w-10 h-1 bg-app-line rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white">
+        <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white">
           <h3 className="text-base font-bold text-app-ink">일정 이동 / 복사</h3>
           <button
             onClick={close} aria-label="이동·복사 닫기"
@@ -65,9 +65,9 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
         </div>
 
         {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
-        {error && <p role="alert" className="px-5 pt-3 text-xs text-red-600">{error}</p>}
+        {error && <p role="alert" className="px-4 pt-3 text-xs text-red-600">{error}</p>}
         {/* Content */}
-        <fieldset disabled={pending} className="p-5 space-y-4 text-xs">
+        <fieldset disabled={pending} className="p-4 space-y-3 text-xs">
           <div>
             <span className="text-app-muted block mb-1">선택된 일정</span>
             <p className="font-semibold text-sm text-app-ink truncate">{schedule.title}</p>

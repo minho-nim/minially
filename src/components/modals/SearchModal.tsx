@@ -89,11 +89,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         {/* Results List */}
         <div className="p-2 overflow-y-auto space-y-1 flex-1 min-h-[140px]">
           {!query.trim() ? (
-            <div className="py-12 text-center text-xs text-app-muted">
+            <div className="py-4 text-center text-xs text-app-muted">
               검색어를 입력하면 전체 일정을 찾아드립니다.
             </div>
           ) : results.length === 0 ? (
-            <div className="py-12 text-center text-xs text-app-muted">
+            <div className="py-4 text-center text-xs text-app-muted">
               '{query}'와 일치하는 일정이 없습니다.
             </div>
           ) : (

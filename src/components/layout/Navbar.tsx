@@ -62,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSearchModal}
-            className="w-11 h-11 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
             title="일정 검색"
             aria-label="일정 검색"
           >
@@ -84,7 +84,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSettingsModal}
-            className="w-11 h-11 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
             title="설정 및 프리셋"
             aria-label="설정 및 프리셋"
           >

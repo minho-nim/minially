@@ -34,7 +34,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   return (
     <div className="space-y-5 max-w-4xl mx-auto">
       {/* Project Summary Header */}
-      <div className="bg-white rounded-2xl p-5 border border-app-line shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-4 border border-app-line shadow-xs space-y-3">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={onBack}
@@ -121,9 +121,9 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
 
       {/* View Content */}
       {activeTab === 'tasks' ? (
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-app-line shadow-xs space-y-2">
+        <div className="bg-white rounded-2xl p-4 sm:p-4 border border-app-line shadow-xs space-y-2">
           {projectTasks.length === 0 ? (
-            <div className="py-12 text-center text-stone-400 text-xs">
+            <div className="py-4 text-center text-stone-400 text-xs">
               등록된 세부 작업이 없습니다.
               <button
                 onClick={() => onOpenNewTaskModal(project.id)}

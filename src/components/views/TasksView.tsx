@@ -139,7 +139,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   };
 
   return (
-    <fieldset disabled={pending} className="task-view max-w-4xl mx-auto space-y-4 min-w-0">
+    <fieldset disabled={pending} className="task-view max-w-4xl mx-auto space-y-3 min-w-0">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
@@ -242,7 +242,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       <div className="bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {/* Quick Inline Add Bar */}
         <form aria-label="할 일 등록" onSubmit={handleQuickAdd} onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement&&e.target!==quickInput.current)e.preventDefault();}} className="p-3 space-y-2 border-b border-app-line bg-app-canvas/50">
-          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0">{dateScope!=='today' ? <DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate}/> : <p className="text-xs text-app-muted px-1">오늘 · {formatKoreanDate(todayStr)}</p>}</div><button type="button" onClick={onOpenPresetManager} className="min-h-11 px-2 flex items-center gap-1 text-xs text-app-accent rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/>프리셋 설정</button></div>
+          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0">{dateScope!=='today' ? <DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate}/> : <p className="text-xs text-app-muted px-1">오늘 · {formatKoreanDate(todayStr)}</p>}</div><button type="button" onClick={onOpenPresetManager} className="min-h-9 px-2 flex items-center gap-1 text-xs text-app-accent rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/>프리셋 설정</button></div>
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-app-line focus-within:border-app-accent transition-colors">
             <input
               type="text"
@@ -256,7 +256,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               placeholder="+ 새로운 할 일 입력 후 Enter"
               className="flex-1 min-w-0 text-sm bg-transparent text-app-ink placeholder:text-app-muted/70 focus:outline-none"
             />
-            <button type="button" aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-11 px-2 text-xs text-app-accent bg-app-soft rounded-lg">프리셋</button>
+            <button type="button" aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-9 px-2 text-xs text-app-accent bg-app-soft rounded-lg">프리셋</button>
             <button
               type="submit"
               disabled={!quickTitle.trim()}
@@ -266,8 +266,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
             </button>
           </div>
           {!!blocks.length && <TitleBlockEditor compact editable hideWordInput blocks={blocks} word="" onWordChange={()=>{}} onChange={next=>{setTitleHistory(history=>[...history,{text:quickTitle,blocks}]);setBlocks(next);setQuickTitle(next.map(b=>b.text).join(' '));}}/>}
-          {!!titleHistory.length && <button type="button" className="min-h-11 px-2 text-xs text-app-accent" onClick={()=>{const previous=titleHistory[titleHistory.length-1];setQuickTitle(previous.text);setBlocks(previous.blocks);setTitleHistory(history=>history.slice(0,-1));}}>이전 제목 복구</button>}
-          {presetsOpen && <div ref={presetPanel}><InlinePresetPicker presets={presets} presetGroups={presetGroups} selectedBlocks={blocks} onManage={onOpenPresetManager} onClose={()=>{setPresetsOpen(false);requestAnimationFrame(()=>quickInput.current?.focus({preventScroll:true}));}} options={<label className="flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'append'|'replace')} className="min-h-11 border rounded-lg px-2 bg-white"><option value="append">이어 붙이기</option><option value="replace">제목 교체</option></select></label>} onAdd={(parts,preset)=>{
+          {!!titleHistory.length && <button type="button" className="min-h-9 px-2 text-xs text-app-accent" onClick={()=>{const previous=titleHistory[titleHistory.length-1];setQuickTitle(previous.text);setBlocks(previous.blocks);setTitleHistory(history=>history.slice(0,-1));}}>이전 제목 복구</button>}
+          {presetsOpen && <div ref={presetPanel}><InlinePresetPicker presets={presets} presetGroups={presetGroups} selectedBlocks={blocks} onManage={onOpenPresetManager} onClose={()=>{setPresetsOpen(false);requestAnimationFrame(()=>quickInput.current?.focus({preventScroll:true}));}} options={<label className="flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'append'|'replace')} className="min-h-9 border rounded-lg px-2 bg-white"><option value="append">이어 붙이기</option><option value="replace">제목 교체</option></select></label>} onAdd={(parts,preset)=>{
             const current=blocks.map(b=>b.text).join(' ')===quickTitle?blocks:quickTitle.trim()?[{id:crypto.randomUUID(),text:quickTitle.trim()}]:[];
             const next=applyMode==='append'?[...current,...parts]:parts;
             setTitleHistory(history=>[...history,{text:quickTitle,blocks}]);setBlocks(next);setQuickTitle(next.map(b=>b.text).join(' '));setApplyMode('append');
@@ -315,7 +315,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
         {/* Cardless List of Tasks */}
         <div className="divide-y divide-app-line">
           {filteredTasks.length === 0 ? (
-            <div className="py-12 text-center text-xs text-app-muted">
+            <div className="py-4 text-center text-xs text-app-muted">
               등록된 할 일이 없습니다.
             </div>
           ) : (
@@ -355,7 +355,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                         onClick={() => void run(async () => { await onToggleTaskStatus(task.id); })}
                         aria-label={isDone ? '할 일 완료 해제' : '할 일 완료'}
                         aria-pressed={isDone}
-                        className="w-11 h-11 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent transition-colors cursor-pointer shrink-0"
+                        className="w-9 h-9 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent transition-colors cursor-pointer shrink-0"
                       >
                         {isDone ? (
                           <CheckCircle2 className="w-5 h-5 text-app-accent fill-app-soft" />

@@ -93,7 +93,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
         <div className="w-10 h-1 bg-app-line rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
+        <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2">
             <CalendarRange className="w-5 h-5 text-app-accent" />
             <h3 className="text-base font-bold text-app-ink">여러 날짜 일괄 등록</h3>
@@ -107,7 +107,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
         </div>
 
         {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <div className="p-4 space-y-3 overflow-y-auto">
           {/* Title */}
           <div>
             <input
@@ -213,7 +213,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <span className="text-xs text-app-muted">
             총 <span className="font-bold text-app-accent">{dates.length}</span>개 일정 등록
           </span>
@@ -229,7 +229,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
               type="button"
               onClick={handleConfirm}
               disabled={!title.trim() || dates.length === 0}
-              className="px-5 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              className="px-4 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
             >
               일괄 등록
             </button>

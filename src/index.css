@@ -69,20 +69,20 @@
 }
 
 /* Keep primary actions reachable in the visual viewport, including when a keyboard opens. */
-.app-modal button { min-height: 44px; }
+.app-modal button { min-height: 36px; }
 .app-modal button:disabled { cursor: not-allowed; }
 .app-modal input:not([type='checkbox']):not([type='radio']):not([type='color']),
-.app-modal select { min-height: 44px; }
+.app-modal select { min-height: 36px; }
 .app-modal input[type='time'] { min-width: 0; }
 .app-modal :focus-visible { outline: 2px solid #BD7F98; outline-offset: 2px; }
 @media (max-width: 639px) {
-  .calendar-actions button { min-width: 44px; min-height: 44px; }
+  .calendar-actions button { min-width: 36px; min-height: 36px; }
 }
 @media (max-width: 767px) {
   header button, nav button { min-height: 44px; }
 }
 @media (max-width: 767px) {
-  .task-view button { min-height: 44px; }
+  .task-view button { min-height: 36px; }
 }
 [data-sort-over='true'] { outline: 2px dashed #BD7F98; outline-offset: 2px; }
 [data-sort-dragging='true'] { opacity: 0.5; }
@@ -115,7 +115,7 @@
 
 .app-modal .mobile-sheet-handle { min-height: 28px; outline-offset: -3px; }
 
-.calendar-date-menu button { min-height: 44px; }
+.calendar-date-menu button { min-height: 36px; }
 .day-overlay { padding-inline: max(24px, 12.5vw); padding-top: max(16px, env(safe-area-inset-top, 0px)); padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 640px) {
   .day-overlay { padding-inline: 24px; }
@@ -155,8 +155,8 @@
   padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));
 }
 .preset-library-surface {
-  height: min(78dvh, 700px);
-  max-height: calc(var(--modal-height, 100dvh) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  height: auto;
+  max-height: min(78dvh, calc(var(--modal-height, 100dvh) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
 }
 [data-preset-overlay] :focus-visible {
   outline-color: #BD7F98;

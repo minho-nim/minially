@@ -100,7 +100,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
         role="dialog"
         aria-modal="true"
       >
-        <div className="px-5 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
+        <div className="px-4 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
           <h2 className="text-sm font-bold text-app-ink">
             {isEdit ? '프리셋 수정' : '새 프리셋 만들기'}
           </h2>
@@ -112,7 +112,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">
               프리셋 이름 <span className="text-app-accent">*</span>
