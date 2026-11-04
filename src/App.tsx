@@ -53,6 +53,7 @@ import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
+import { CategoryLibraryModal } from './components/modals/CategoryLibraryModal';
 import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
 import { DayScheduleSheet } from './components/modals/DayScheduleSheet';
 import { getTodayDateString } from './utils/dateHelpers';
@@ -89,6 +90,7 @@ export default function App() {
 
   const [initialBatch, setInitialBatch] = useState(false);
   const [presetLibraryOpen, setPresetLibraryOpen] = useState(false);
+  const [categoryLibraryOpen, setCategoryLibraryOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
   const [taskDeleteTarget, setTaskDeleteTarget] = useState<Task | null>(null);
@@ -567,6 +569,7 @@ export default function App() {
               setMoveModalOpen(true);
             }}
             onOpenPresetModal={() => setPresetLibraryOpen(true)}
+            onOpenCategoryModal={() => setCategoryLibraryOpen(true)}
           />
         )}
 
@@ -599,10 +602,11 @@ export default function App() {
       {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-9 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
+      <CategoryLibraryModal open={categoryLibraryOpen} onClose={() => setCategoryLibraryOpen(false)} categories={categories} schedules={schedules} onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
       <DayScheduleSheet
         registrationNotice={registrationNotice} onDismissRegistration={()=>setRegistrationNotice(null)} onUndoRegistration={registrationNotice?.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}
-        open={daySheetOpen && activeTab === 'calendar' && !presetLibraryOpen && !scheduleModalOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
+        open={daySheetOpen && activeTab === 'calendar' && !categoryLibraryOpen && !presetLibraryOpen && !scheduleModalOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
         date={selectedDate} onSelectDate={setSelectedDate} onClose={() => setDaySheetOpen(false)}
         schedules={expandedSchedules} categorySchedules={schedules} categories={categories} presets={presets} settings={settings}
         undoLabel={undoNotice?.message} onUndo={async () => { if (undoNotice) await handleUndo(undoNotice); }}
@@ -692,7 +696,7 @@ export default function App() {
 
       {/* Undo Toast Notification */}
       <UndoToast
-        notice={undoNotice?.id===registrationUndoId || presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
+        notice={undoNotice?.id===registrationUndoId || categoryLibraryOpen || presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
         onUndo={handleUndo}
         onDismiss={() => setUndoNotice(null)}
       />
