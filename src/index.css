@@ -100,17 +100,17 @@
 .app-modal .title-blocks-compact input:not([type='checkbox']):not([type='radio']):not([type='color']) { min-height: 32px; padding-block: 2px; font-size: 16px; }
 
 /* Float navigation above the OS home gesture area without blocking that area. */
-:root { --app-safe-bottom: env(safe-area-inset-bottom, 0px); --mobile-nav-height: 68px; }
+:root { --app-safe-bottom: env(safe-area-inset-bottom, 0px); --mobile-nav-height: 56px; --mobile-nav-offset: max(10px, var(--app-safe-bottom)); }
 .mobile-bottom-nav {
-  bottom: max(16px, var(--app-safe-bottom));
-  width: min(400px, calc(100% - 32px));
+  bottom: var(--mobile-nav-offset);
+  width: min(360px, calc(100% - 32px));
   height: var(--mobile-nav-height);
-  padding: 6px;
+  padding: 4px;
   box-shadow: 0 5px 24px rgba(94, 65, 78, 0.09);
 }
 @media (max-width: 767px) {
-  .app-undo-toast { bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 12px); }
-  .app-main-content { padding-bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 24px); }
+  .app-undo-toast { bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-offset) + 12px); }
+  .app-main-content { padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-offset) + 8px); }
 }
 
 .app-modal .mobile-sheet-handle { min-height: 28px; outline-offset: -3px; }
@@ -132,7 +132,7 @@
 .calendar-surface > :first-child { flex-shrink: 0; }
 .app-main-content:has(.calendar-view) { overflow: hidden; }
 @media (max-width: 767px) {
-  .app-main-content:has(.calendar-view) { padding-bottom: calc(var(--mobile-nav-height) + max(16px, var(--app-safe-bottom)) + 12px); }
+  .app-main-content:has(.calendar-view) { padding-bottom: calc(var(--mobile-nav-height) + var(--mobile-nav-offset) + 12px); }
 }
 
 @media (max-width: 639px) {
@@ -189,3 +189,6 @@
   padding: 4px 10px;
   font-size: 11px;
 }
+
+/* Text actions should not add a full control row above a field. */
+.app-modal .schedule-inline-action { min-height: 24px; padding-block: 0; }

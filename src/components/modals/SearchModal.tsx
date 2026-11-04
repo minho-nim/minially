@@ -58,7 +58,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
     <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 검색" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-3 sm:p-4 bg-[rgba(52,40,35,0.30)]">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(80dvh,var(--modal-height,100dvh))]">
         {/* Search Input Bar */}
-        <div className="p-3.5 border-b border-app-line flex items-center gap-2.5 bg-app-canvas">
+        <div className="px-3 py-2 border-b border-app-line flex items-center gap-2 bg-app-canvas">
           <Search className="w-4 h-4 text-app-accent shrink-0" />
           <input
             ref={inputRef}
@@ -80,20 +80,20 @@ export const SearchModal: React.FC<SearchModalProps> = ({
           )}
           <button
             onClick={onClose}
-            className="px-2 py-1 text-xs text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+            className="shrink-0 whitespace-nowrap px-2 py-1 text-xs text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             닫기
           </button>
         </div>
 
         {/* Results List */}
-        <div className="p-2 overflow-y-auto space-y-1 flex-1 min-h-[140px]">
+        <div className="px-3 py-2 overflow-y-auto space-y-1 min-h-0">
           {!query.trim() ? (
-            <div className="py-4 text-center text-xs text-app-muted">
+            <div className="py-1.5 text-center text-xs text-app-muted">
               검색어를 입력하면 전체 일정을 찾아드립니다.
             </div>
           ) : results.length === 0 ? (
-            <div className="py-4 text-center text-xs text-app-muted">
+            <div className="py-1.5 text-center text-xs text-app-muted">
               '{query}'와 일치하는 일정이 없습니다.
             </div>
           ) : (
