@@ -334,7 +334,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>}
         <div inert={saving} aria-busy={saving} className={panelOpen ? 'hidden' : 'flex flex-col min-h-0 min-w-0'}>
         {/* Header */}
-        <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
+        <div className="px-3 py-2 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <h3 className="text-base font-bold text-app-ink">
             {isEditing ? '일정 수정' : '새 일정'}
           </h3>
@@ -349,10 +349,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div data-sheet-scroll className="p-4 sm:p-4 space-y-3 sm:space-y-3 overflow-y-auto min-h-0 flex-1">
+        <div data-sheet-scroll className="px-3 py-2.5 sm:px-4 space-y-2 overflow-y-auto min-h-0 flex-1">
           {/* 1. Title Input & Phrase Trigger */}
           <div>
-            <label className="block text-xs font-semibold text-app-ink mb-1.5" htmlFor="schedule-title">일정 제목</label>
+            <label className="block text-xs font-semibold text-app-ink mb-1" htmlFor="schedule-title">일정 제목</label>
 
             <div className="flex gap-2 items-center">
             <button type="button" aria-label="중요 일정" aria-pressed={isImportant} onClick={() => setIsImportant(v => !v)} className="shrink-0 text-app-accent-hover"><Star className={`w-5 h-5 ${isImportant ? 'fill-current' : ''}`} /></button>
@@ -382,14 +382,14 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             {phraseMessage && <p role="status" aria-label="프리셋 알림" className="text-xs text-app-muted">{phraseMessage}</p>}
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between"><span className="text-xs font-semibold">날짜</span>{!isEditing && <button type="button" className="text-xs text-app-accent px-2" onClick={() => setDatePanel(true)}>{allDates.length > 1 ? allDates.length + '개 날짜' : '여러 날짜 선택'}</button>}</div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between"><span className="text-xs font-semibold">날짜</span>{!isEditing && <button type="button" className="schedule-inline-action text-xs text-app-accent px-1" onClick={() => setDatePanel(true)}>{allDates.length > 1 ? allDates.length + '개 날짜' : '여러 날짜 선택'}</button>}</div>
             <DatePicker label="일정 날짜" value={date} onChange={setDate} />
           </div>
 
                 {/* Time Setting */}
                 <div>
-                  <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-semibold text-app-ink">시간</label>
                     <label className="flex items-center gap-1.5 text-xs text-app-muted cursor-pointer">
                       <input
@@ -405,12 +405,12 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                   {!isAllDay && (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 flex items-center gap-1.5 px-3 py-2 bg-app-canvas border border-app-line rounded-xl text-xs">
+                        <div className="flex-1 flex items-center gap-1.5 px-3 py-0.5 bg-app-canvas border border-app-line rounded-xl text-xs">
                           <Clock className="w-3.5 h-3.5 text-app-muted" />
                           <TimeField label="시작 시간" value={startTime} onChange={setStartTime} />
                         </div>
                         <span className="text-xs text-app-muted">~</span>
-                        <div className="flex-1 flex items-center gap-1.5 px-3 py-2 bg-app-canvas border border-app-line rounded-xl text-xs">
+                        <div className="flex-1 flex items-center gap-1.5 px-3 py-0.5 bg-app-canvas border border-app-line rounded-xl text-xs">
                           <Clock className="w-3.5 h-3.5 text-app-muted" />
                           <TimeField label="종료 시간" value={endTime} onChange={setEndTime} />
                         </div>
@@ -481,7 +481,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           <p>이 일정을 삭제할까요? 삭제 후 실행 취소할 수 있습니다.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(false)}>취소</button><button type="button" disabled={saving} onClick={async () => { if (!initialSchedule?.id || savingRef.current) return; savingRef.current = true; setSaving(true); try { await onDelete?.(initialSchedule.id); onClose(); } catch { setSaveError('일정을 삭제하지 못했습니다. 다시 시도해 주세요.'); } finally { savingRef.current = false; setSaving(false); } }} className="text-red-600 px-3">삭제</button></div>
         </div>}
         {/* Footer */}
-        <div className="px-4 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
+        <div className="px-3 py-2 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <div>
             {isEditing && onDelete ? (
               <button
