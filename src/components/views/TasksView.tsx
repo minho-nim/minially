@@ -22,6 +22,7 @@ interface TasksViewProps {
   presetGroups: PresetGroup[];
   onUsePreset: (id: string) => Promise<void> | void;
   onOpenPresetManager: () => void;
+  onOpenCalendar: () => void;
   onToggleTaskStatus: (taskId: string) => Promise<void> | void;
   onToggleTaskChecklist: (taskId: string, checklistId: string) => Promise<void> | void;
   onDeleteTask: (taskId: string) => Promise<void> | void;
@@ -35,7 +36,7 @@ type CompletionFilter = 'pending' | 'completed' | 'all';
 
 export const TasksView: React.FC<TasksViewProps> = ({
   tasks,
-  presets, presetGroups, onUsePreset, onOpenPresetManager,
+  presets, presetGroups, onUsePreset, onOpenPresetManager, onOpenCalendar,
   onToggleTaskStatus,
   onToggleTaskChecklist,
   onDeleteTask,
@@ -184,7 +185,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
         </div>
 
         {/* Completion & Select Mode Toggle */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={onOpenCalendar} aria-haspopup="dialog" aria-label="캘린더 오늘 일정 보기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" />캘린더</button>
           <div className="flex items-center p-0.5 bg-app-soft rounded-xl border border-app-line text-xs">
             <button
               type="button"

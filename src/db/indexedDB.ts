@@ -1,5 +1,6 @@
 import { sortPresets } from '../utils/phrases';
-import { CATEGORY_LIMIT, nextCategoryColor, visibleCategories } from '../utils/categories';
+import { hasCalendarTask, taskFromSchedule } from '../utils/calendarTasks';
+import { CATEGORY_LIMIT, nextCategoryColor, visibleCategories, resolveCategoryColor } from '../utils/categories';
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import {
   Schedule,
@@ -436,7 +437,7 @@ export async function saveCategory(category: CategoryItem): Promise<void> {
     const visible = visibleCategories(categories, used);
     if (!visible.some(c => c.id === category.id) && visible.length >= CATEGORY_LIMIT) throw new Error('카테고리는 최대 12개까지 만들 수 있습니다.');
     const existing = categories.find(item => item.id === category.id);
-    await tx.objectStore('categories').put({ ...category, color: existing?.color || nextCategoryColor(visible), name: category.name.trim(), isUserManaged: true });
+    await tx.objectStore('categories').put({ ...category, color: resolveCategoryColor(category.color, existing?.color, visible), name: category.name.trim(), isUserManaged: true });
     await tx.done;
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => {}); throw error; }
 }
@@ -516,6 +517,26 @@ export async function getAllTasks(): Promise<Task[]> {
 export async function saveTask(task: Task): Promise<void> {
   const db = await getDB();
   await db.put('tasks', task);
+}
+
+// Read and insert in one transaction so concurrent tabs cannot overwrite a task.
+export async function saveCalendarTask(schedule: Schedule): Promise<boolean> {
+  const db = await getDB();
+  const tx = db.transaction('tasks', 'readwrite');
+  try {
+    const existing = await tx.store.getAll();
+    if (hasCalendarTask(existing, schedule)) {
+      await tx.done;
+      return false;
+    }
+    await tx.store.add(taskFromSchedule(schedule));
+    await tx.done;
+    return true;
+  } catch (error) {
+    try { tx.abort(); } catch { /* Already completed or aborted. */ }
+    await tx.done.catch(() => {});
+    throw error;
+  }
 }
 
 export async function deleteTask(id: string): Promise<void> {

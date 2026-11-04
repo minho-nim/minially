@@ -30,6 +30,7 @@ import {
   getAllRecurrenceExceptions,
   getAllTasks,
   saveTask as dbSaveTask,
+  saveCalendarTask as dbSaveCalendarTask,
   deleteTask as dbDeleteTask,
   getAppSettings,
   saveAppSettings as dbSaveAppSettings,
@@ -56,6 +57,7 @@ import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
 import { CategoryLibraryModal } from './components/modals/CategoryLibraryModal';
 import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
 import { DayScheduleSheet } from './components/modals/DayScheduleSheet';
+import { TodaySchedulesModal } from './components/modals/TodaySchedulesModal';
 import { getTodayDateString } from './utils/dateHelpers';
 
 export default function App() {
@@ -91,6 +93,7 @@ export default function App() {
   const [initialBatch, setInitialBatch] = useState(false);
   const [presetLibraryOpen, setPresetLibraryOpen] = useState(false);
   const [categoryLibraryOpen, setCategoryLibraryOpen] = useState(false);
+  const [todaySchedulesOpen, setTodaySchedulesOpen] = useState(false);
   const [actionError, setActionError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
   const [taskDeleteTarget, setTaskDeleteTarget] = useState<Task | null>(null);
@@ -487,6 +490,11 @@ export default function App() {
     setRegistrationNotice({id:crypto.randomUUID(),message:'할 일이 등록되었습니다',title,dates:[newTask.dueDate!],kind:'task'});
   };
 
+  const handleRegisterScheduleAsTask = async (schedule: Schedule) => {
+    await dbSaveCalendarTask(schedule);
+    await reloadData();
+  };
+
   const handleBatchDeleteTasks = async (taskIds: string[]) => {
     setUndoNotice(await recordTaskDeletion(tasks.filter(t => taskIds.includes(t.id))));
     await reloadData();
@@ -581,6 +589,7 @@ export default function App() {
             presetGroups={settings.presetGroups || []}
             onUsePreset={handleUsePreset}
             onOpenPresetManager={()=>setPresetLibraryOpen(true)}
+            onOpenCalendar={() => setTodaySchedulesOpen(true)}
             onToggleTaskStatus={handleToggleTaskStatus}
             onToggleTaskChecklist={handleToggleTaskChecklist}
             onDeleteTask={id => { setTaskDeleteTarget(tasks.find(t => t.id === id) || null); }}
@@ -602,6 +611,7 @@ export default function App() {
       {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-9 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
+      <TodaySchedulesModal open={todaySchedulesOpen} onClose={() => setTodaySchedulesOpen(false)} schedules={schedules} rules={recurrenceRules} exceptions={recurrenceExceptions} categories={categories} tasks={tasks} onRegisterTask={handleRegisterScheduleAsTask} />
       <CategoryLibraryModal open={categoryLibraryOpen} onClose={() => setCategoryLibraryOpen(false)} categories={categories} schedules={schedules} onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
       <DayScheduleSheet
@@ -696,7 +706,7 @@ export default function App() {
 
       {/* Undo Toast Notification */}
       <UndoToast
-        notice={undoNotice?.id===registrationUndoId || categoryLibraryOpen || presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
+        notice={undoNotice?.id===registrationUndoId || todaySchedulesOpen || categoryLibraryOpen || presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
         onUndo={handleUndo}
         onDismiss={() => setUndoNotice(null)}
       />

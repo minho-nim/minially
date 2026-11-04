@@ -1,4 +1,4 @@
-import { Schedule, RecurrenceRule, RecurrenceException } from '../types';
+import type { Schedule, RecurrenceRule, RecurrenceException } from '../types';
 
 export function parseDate(dateStr: string): Date {
   const [y, m, d] = dateStr.split('-').map(Number);

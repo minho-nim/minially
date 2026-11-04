@@ -1,4 +1,4 @@
-import { CategoryItem } from '../types';
+import type { CategoryItem } from '../types';
 
 export const CATEGORY_LIMIT = 12;
 export const CATEGORY_PALETTE = [
@@ -25,4 +25,8 @@ const legacySamples = [
 ];
 export function visibleCategories(categories: CategoryItem[], used: Set<string>) {
   return categories.filter(cat => cat.isUserManaged || used.has(cat.id) || !legacySamples.some(sample => sample.id === cat.id && sample.name === cat.name && sample.color.toLowerCase() === cat.color?.toLowerCase() && sample.isDefault === cat.isDefault));
+}
+
+export function resolveCategoryColor(requested: string, existing: string | undefined, categories: CategoryItem[]): string {
+  return /^#[0-9a-f]{6}$/i.test(requested || '') ? requested : existing || nextCategoryColor(categories);
 }

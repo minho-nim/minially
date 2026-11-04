@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { CATEGORY_LIMIT, nextCategoryColor } from '../../utils/categories';
+import { CATEGORY_LIMIT, CATEGORY_PALETTE, nextCategoryColor } from '../../utils/categories';
 import { CategoryItem, Schedule } from '../../types';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
 import { DiscardPrompt } from '../common/DiscardPrompt';
@@ -16,18 +16,19 @@ const input = 'min-w-0 w-full border border-app-line rounded-lg p-2 text-base bg
 export function CategoryManager({ categories, schedules, onSaveCategory, onDeleteCategory, onReorderCategories, onCreated, onDirtyChange, onBusyChange }: CategoryActions & { onCreated?: (id: string) => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [customColor, setCustomColor] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const busy = useRef(false);
   const draftId = useRef<string | null>(null);
   const original = categories.find(c => c.id === editing);
-  const color = original?.color || nextCategoryColor(categories);
-  const dirty = editing ? name !== original?.name : Boolean(name);
+  const color = customColor || original?.color || nextCategoryColor(categories);
+  const dirty = editing ? name !== original?.name || color.toLowerCase() !== original?.color.toLowerCase() : Boolean(name || customColor);
   const guard = useDiscardGuard(dirty, pending);
   useLayoutEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   useLayoutEffect(() => { onBusyChange?.(pending); }, [pending, onBusyChange]);
-  const reset = () => { draftId.current = null; setEditing(null); setName(''); setError(''); };
+  const reset = () => { draftId.current = null; setEditing(null); setName(''); setCustomColor(''); setError(''); };
   const run = async (action: () => Promise<void>) => {
     if (busy.current) return;
     busy.current = true; setPending(true); setError('');
@@ -43,7 +44,7 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
       {categories.map((cat, index) => <li key={cat.id} data-category-id={cat.id} className="py-2">
         <div className="flex items-center gap-1 flex-wrap">
           <span className="w-3 h-3 rounded-full" style={{ background: cat.color }} /><span className="text-sm flex-1 break-all">{cat.name}</span>
-          <button type="button" className={button} onClick={() => guard.request(() => { setEditing(cat.id); setName(cat.name); setDeleting(null); })}>수정</button>
+          <button type="button" className={button} onClick={() => guard.request(() => { setEditing(cat.id); setName(cat.name); setCustomColor(cat.color); setDeleting(null); })}>수정</button>
           <button type="button" className={button} onClick={() => setDeleting(cat.id)}>삭제</button>
           {onReorderCategories && ([-1, 1] as const).map(direction => <button key={direction} type="button" className={button} aria-label={direction < 0 ? '카테고리 위로 이동' : '카테고리 아래로 이동'} disabled={!categories[index + direction]} onClick={() => void run(async () => {
             const ids = categories.map(c => c.id); [ids[index], ids[index + direction]] = [ids[index + direction], ids[index]]; await onReorderCategories(ids);
@@ -68,8 +69,14 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
       });
     }}>
       <label htmlFor="category-name" className="block text-sm font-semibold">{editing ? '카테고리 수정' : '새 카테고리 추가'}</label>
-      <div className="flex items-center gap-2"><span aria-label="고정 카테고리 색상" className="w-5 h-5 rounded-full shrink-0" style={{background:color}}/><input id="category-name" className={input} required placeholder="카테고리 이름" value={name} onChange={e => setName(e.target.value)} /></div>
-      <p className="text-xs text-app-muted">색상은 자동 배정되며 변경되지 않습니다.</p>
+      <div className="flex items-center gap-2"><span aria-hidden="true" className="w-4 h-4 rounded-full shrink-0" style={{background:color}}/><input id="category-name" className={input} required placeholder="카테고리 이름" value={name} onChange={e => setName(e.target.value)} /></div>
+      <div role="group" aria-label="카테고리 색상" className="space-y-1.5">
+        <span className="text-xs font-semibold">색상</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {CATEGORY_PALETTE.map(item => <button key={item.color} type="button" aria-label={item.name + ' 색상'} aria-pressed={color.toLowerCase() === item.color.toLowerCase()} title={item.name} onClick={() => setCustomColor(item.color)} className={'min-h-8 min-w-8 rounded-lg border flex items-center justify-center ' + (color.toLowerCase() === item.color.toLowerCase() ? 'border-app-accent bg-app-soft' : 'border-app-line bg-white')}><span aria-hidden="true" className="h-4 w-4 rounded-full" style={{background:item.color}} /></button>)}
+          <label className="flex items-center gap-1.5 text-xs text-app-muted"><input type="color" aria-label="직접 색상 선택" value={color} onChange={e => setCustomColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded border border-app-line bg-white p-0.5" />직접 선택</label>
+        </div>
+      </div>
       <button type="submit" className={button + ' bg-app-soft'} disabled={!name.trim() || (!editing && categories.length >= CATEGORY_LIMIT)}>{editing ? '변경사항 저장' : '추가'}</button>
       {(editing || dirty) && <button type="button" className={button} onClick={() => guard.request(reset)}>취소</button>}
     </form>
