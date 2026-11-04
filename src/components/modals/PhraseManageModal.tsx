@@ -3,7 +3,7 @@ import { PresetGroupTabs } from '../common/PresetGroupTabs';
 import { PresetGroupManager } from '../common/PresetGroupManager';
 import { usePresetGroup } from '../../hooks/usePresetGroup';
 import { Preset, PresetGroup, PhraseType, TitleBlock } from '../../types';
-import { ArrowLeft, X, Star, Edit2, Trash2, ArrowUp, ArrowDown, Search, GripVertical, MoreHorizontal } from 'lucide-react';
+import { X, Star, Edit2, Trash2, ArrowUp, ArrowDown, Search, GripVertical, MoreHorizontal } from 'lucide-react';
 import { getPresetBlocks, phraseOrder, PhraseSort, sortPresets } from '../../utils/phrases';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
 import { useDragOrder } from '../../hooks/useDragOrder';
@@ -26,13 +26,13 @@ type PhraseActions = {
   presetGroups?: PresetGroup[];
   initialType?: PhraseType | 'all';
   initialMode?: 'select' | 'manage';
-  groupNavigation?: boolean;
+  expandableGroups?: boolean;
 };
 const button = 'min-h-11 min-w-11 px-2 py-1 text-xs rounded-lg text-app-muted hover:bg-app-soft disabled:opacity-40 cursor-pointer';
 const primary = `${button} bg-app-accent text-white font-semibold hover:bg-app-accent-hover`;
 const input = 'w-full min-w-0 min-h-11 px-3 py-2 text-base sm:text-sm border border-app-line rounded-lg bg-white text-app-ink focus:outline-none focus:border-app-peach';
-export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeletePreset, onReorderPresets, onDirtyChange, onBusyChange, initialBlocks = [], existingTitle = '', onApplyComposition, composePresets = false, hideSearch = false, presetGroups = [], initialType = 'title', initialMode = 'manage', groupNavigation = false }: PhraseActions) {
-  const [showGroupList, setShowGroupList] = useState(groupNavigation);
+export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeletePreset, onReorderPresets, onDirtyChange, onBusyChange, initialBlocks = [], existingTitle = '', onApplyComposition, composePresets = false, hideSearch = false, presetGroups = [], initialType = 'title', initialMode = 'manage', expandableGroups = false }: PhraseActions) {
+  const [groupsCollapsed, setGroupsCollapsed] = useState(expandableGroups);
   const [activeGroupId, setActiveGroup, hasUnclassified] = usePresetGroup(presetGroups, presets);
   const [groupManaging,setGroupManaging] = useState(false),[groupDirty,setGroupDirty] = useState(false),[groupBusy,setGroupBusy] = useState(false),[moving,setMoving] = useState<string|null>(null),[moreId,setMoreId] = useState<string|null>(null);
   const [filter, setFilter] = useState(initialType);
@@ -106,10 +106,9 @@ export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeleteP
   const duplicate = (text: string, type: PhraseType, id?: string) => presets.some(p => p.id !== id && (p.type || 'title') === type && p.text.trim() === text.trim() && (p.groupId || '') === (original?.groupId || (activeGroupId === 'all' ? '' : activeGroupId)));
   return <fieldset disabled={pending || groupBusy} aria-busy={pending || groupBusy} className="min-w-0 flex flex-col gap-3 text-app-ink">
     {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
-    {!groupManaging && (!groupNavigation || showGroupList) && <PresetGroupTabs groups={presetGroups} presets={presets} value={activeGroupId} unclassified={hasUnclassified} onManage={()=>navigate(()=>{setGroupManaging(true);setGroupDirty(false);})} onChange={id=>navigate(()=>{setActiveGroup(id);setShowGroupList(false);setQuery('');setFavoritesOnly(false);setFilter(initialType);setGroupDirty(false);setMoving(null);setMoreId(null);})}/>}
-    {!groupManaging && groupNavigation && !showGroupList && <button type="button" className={button+' self-start flex items-center gap-1.5'} onClick={()=>navigate(()=>{setShowGroupList(true);setMoreId(null);setMoving(null);})}><ArrowLeft aria-hidden="true" className="h-4 w-4"/>프리셋 그룹</button>}
+    {!groupManaging && <PresetGroupTabs groups={presetGroups} presets={presets} value={activeGroupId} expandedGroupId={expandableGroups ? (groupsCollapsed ? null : activeGroupId) : undefined} unclassified={hasUnclassified} onManage={()=>navigate(()=>{setGroupManaging(true);setGroupDirty(false);})} onChange={id=>navigate(()=>{setActiveGroup(id);setGroupsCollapsed(expandableGroups && id===activeGroupId ? !groupsCollapsed : false);setQuery('');setFavoritesOnly(false);setFilter(initialType);setGroupDirty(false);setMoving(null);setMoreId(null);})}/>}
     {groupManaging && <button type="button" className={button+' self-start border border-app-outline bg-app-canvas text-app-accent'} onClick={()=>navigate(()=>{setGroupManaging(false);setGroupDirty(false);})}>프리셋 목록으로</button>}
-    {groupManaging ? <PresetGroupManager groups={presetGroups} presets={presets} onSelect={setActiveGroup} onCreated={()=>{setGroupManaging(false);setShowGroupList(false);setGroupDirty(false);setGroupBusy(false);}} onDirtyChange={setGroupDirty} onBusyChange={setGroupBusy}/> : (groupNavigation && showGroupList) ? null : <>
+    {groupManaging ? <PresetGroupManager groups={presetGroups} presets={presets} onSelect={setActiveGroup} onCreated={()=>{setGroupManaging(false);setGroupsCollapsed(false);setGroupDirty(false);setGroupBusy(false);}} onDirtyChange={setGroupDirty} onBusyChange={setGroupBusy}/> : (expandableGroups && groupsCollapsed) ? null : <>
 
     {!hideSearch && !adding && !editingId && <div className="relative"><Search className="absolute left-3 top-3.5 w-4 h-4 text-app-muted" /><input type="search" aria-label="프리셋 검색" placeholder="프리셋 검색" value={query} onChange={e => setQuery(e.target.value)} className={`${input} pl-9 pr-14`} />{query && <button type="button" aria-label="검색어 지우기" className={`${button} absolute right-0 top-0`} onClick={() => setQuery('')}><X className="w-4 h-4" /></button>}</div>}
     {compositionEnabled && !adding && !editingId && <div className="space-y-2">
