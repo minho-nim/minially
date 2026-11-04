@@ -518,19 +518,19 @@ export default function App() {
 
   if (!isReady) {
     return (
-      <div className="min-h-dvh bg-[#FFFAFB] flex items-center justify-center">
+      <div className="min-h-dvh bg-app-canvas flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#CF8FA8] text-white flex items-center justify-center font-bold text-base shadow-2xs animate-pulse">
+          <div className="w-9 h-9 rounded-xl bg-app-accent text-white flex items-center justify-center font-bold text-base shadow-2xs animate-pulse">
             D
           </div>
-          <span className="text-xs font-semibold text-[#85777D]">미니어리 준비 중...</span>
+          <span className="text-xs font-semibold text-app-muted">미니어리 준비 중...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`${activeTab === 'calendar' ? 'h-dvh overflow-hidden' : 'min-h-dvh'} bg-[#FFFAFB] text-[#3E3438] flex flex-col selection:bg-[#F4DCE5]`}>
+    <div className={`${activeTab === 'calendar' ? 'h-dvh overflow-hidden' : 'min-h-dvh'} bg-app-canvas text-app-ink flex flex-col selection:bg-app-soft`}>
       {/* Offline Alert Banner */}
       <OfflineIndicator />
 

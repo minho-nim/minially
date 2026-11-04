@@ -40,7 +40,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       setStartDate(initialProject.startDate || new Date().toISOString().slice(0, 10));
       setDueDate(initialProject.dueDate || new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10));
       setStatus(initialProject.status || 'active');
-      setColor(initialProject.color || '#D98DAA');
+      setColor(initialProject.color || '#DCA78F');
       setMemo(initialProject.memo || '');
     } else {
       setName('');
@@ -80,17 +80,17 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs">
       <div 
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#F2E2E7] overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
-        <div className="px-5 py-3.5 border-b border-[#F2E2E7] flex items-center justify-between bg-[#FFF8FA]">
-          <h2 className="text-sm font-bold text-[#473B40]">
+        <div className="px-5 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
+          <h2 className="text-sm font-bold text-app-ink">
             {isEdit ? '프로젝트 수정' : '새 프로젝트 만들기'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-[#F9EBEF] transition-colors"
+            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-app-soft transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -99,7 +99,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">
-              프로젝트 이름 <span className="text-[#D98DAA]">*</span>
+              프로젝트 이름 <span className="text-app-accent">*</span>
             </label>
             <input
               type="text"
@@ -107,7 +107,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: 미니어리 (Minially) 웹앱 출시"
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -118,33 +118,33 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="프로젝트 목표나 설명..."
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#D98DAA]" /> 시작일
+                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 시작일
               </label>
               <input
                 type="date"
                 required
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#D98DAA]" /> 마감일
+                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 마감일
               </label>
               <input
                 type="date"
                 required
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
             </div>
           </div>
@@ -160,7 +160,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     onClick={() => setStatus(st)}
                     className={`py-1.5 text-xs font-medium rounded-xl border transition-all ${
                       status === st
-                        ? 'bg-[#F9EBEF] text-[#9E5170] border-[#ECD0DB] font-bold shadow-2xs'
+                        ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
                         : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                     }`}
                   >
@@ -172,7 +172,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1.5 flex items-center gap-1">
-                <Palette className="w-3.5 h-3.5 text-[#D98DAA]" /> 포인트 색상
+                <Palette className="w-3.5 h-3.5 text-app-accent" /> 포인트 색상
               </label>
               <div className="flex items-center gap-2 pt-0.5">
                 {COLOR_OPTIONS.map((c) => (
@@ -182,7 +182,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     onClick={() => setColor(c.value)}
                     style={{ backgroundColor: c.value }}
                     className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                      color === c.value ? 'scale-115 border-[#473B40]' : 'border-white'
+                      color === c.value ? 'scale-115 border-app-ink' : 'border-white'
                     }`}
                     title={c.label}
                   />
@@ -198,7 +198,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder="참고 사항..."
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -230,7 +230,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-xs font-bold text-white bg-[#D98DAA] hover:bg-[#C97996] rounded-lg shadow-xs transition"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-xs transition"
               >
                 {isEdit ? '수정' : '생성'}
               </button>

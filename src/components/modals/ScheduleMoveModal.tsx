@@ -49,16 +49,16 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
   };
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 이동 / 복사" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(45,35,40,0.25)]">
-      <div className="w-full sm:max-w-sm bg-white rounded-2xl shadow-xl border border-[#F0E7EB] overflow-y-auto max-h-[var(--modal-height,100dvh)] pb-safe safe-bottom">
-        <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 이동 / 복사" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(52,40,35,0.30)]">
+      <div className="w-full sm:max-w-sm bg-white rounded-2xl shadow-xl border border-app-line overflow-y-auto max-h-[var(--modal-height,100dvh)] pb-safe safe-bottom">
+        <div className="w-10 h-1 bg-app-line rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white">
-          <h3 className="text-base font-bold text-[#3E3438]">일정 이동 / 복사</h3>
+        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white">
+          <h3 className="text-base font-bold text-app-ink">일정 이동 / 복사</h3>
           <button
             onClick={close} aria-label="이동·복사 닫기"
-            className="p-1 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+            className="p-1 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -69,15 +69,15 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
         {/* Content */}
         <fieldset disabled={pending} className="p-5 space-y-4 text-xs">
           <div>
-            <span className="text-[#85777D] block mb-1">선택된 일정</span>
-            <p className="font-semibold text-sm text-[#3E3438] truncate">{schedule.title}</p>
-            <p className="text-[11px] text-[#85777D] mt-0.5">
+            <span className="text-app-muted block mb-1">선택된 일정</span>
+            <p className="font-semibold text-sm text-app-ink truncate">{schedule.title}</p>
+            <p className="text-[11px] text-app-muted mt-0.5">
               현재: {formatKoreanDate(schedule.date)} {schedule.startTime && `(${schedule.startTime})`}
             </p>
           </div>
 
           <div>
-            <label className="font-semibold text-[#3E3438] block mb-1.5">대상 날짜 선택</label>
+            <label className="font-semibold text-app-ink block mb-1.5">대상 날짜 선택</label>
             <DatePicker label="대상 날짜" value={targetDate} onChange={setTargetDate} />
           </div>
 
@@ -86,19 +86,19 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
               type="button"
               onClick={() => void submit('move')}
               disabled={!targetDate || targetDate === schedule.date}
-              className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
               <ArrowRight className="w-3.5 h-3.5" />
               <span>{pending ? '저장 중…' : '이동'}</span>
             </button>
-            <p className="text-[#85777D] text-center">복사하면 원본 일정이 유지됩니다.</p>
+            <p className="text-app-muted text-center">복사하면 원본 일정이 유지됩니다.</p>
             <button
               type="button"
               onClick={() => void submit('copy')}
               disabled={!targetDate}
-              className="w-full py-2.5 px-4 text-xs font-semibold text-[#3E3438] bg-[#F6E8ED] hover:bg-[#F0DCE4] border border-[#F0E7EB] rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              className="w-full py-2.5 px-4 text-xs font-semibold text-app-ink bg-app-soft hover:bg-app-soft border border-app-line rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <Copy className="w-3.5 h-3.5 text-[#CF8FA8]" />
+              <Copy className="w-3.5 h-3.5 text-app-accent" />
               <span>복사</span>
             </button>
           </div>

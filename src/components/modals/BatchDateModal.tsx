@@ -89,18 +89,18 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-xs">
-      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[90vh] pb-safe safe-bottom">
-        <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+      <div className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[90vh] pb-safe safe-bottom">
+        <div className="w-10 h-1 bg-app-line rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white shrink-0">
+        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2">
-            <CalendarRange className="w-5 h-5 text-[#CF8FA8]" />
-            <h3 className="text-base font-bold text-[#3E3438]">여러 날짜 일괄 등록</h3>
+            <CalendarRange className="w-5 h-5 text-app-accent" />
+            <h3 className="text-base font-bold text-app-ink">여러 날짜 일괄 등록</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+            className="p-1 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -116,17 +116,17 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
               onChange={(e) => setTitle(e.target.value)}
               placeholder="일정 제목을 입력하세요"
               autoFocus
-              className="w-full px-3.5 py-2.5 text-base sm:text-sm bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl focus:outline-none focus:border-[#CF8FA8] text-[#3E3438]"
+              className="w-full px-3.5 py-2.5 text-base sm:text-sm bg-app-canvas border border-app-line rounded-xl focus:outline-none focus:border-app-accent text-app-ink"
             />
           </div>
 
           {/* Quick Date range buttons */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-[#3E3438]">
+              <label className="text-xs font-semibold text-app-ink">
                 등록할 날짜 ({dates.length}일)
               </label>
-              <div className="flex items-center gap-1.5 text-xs text-[#CF8FA8]">
+              <div className="flex items-center gap-1.5 text-xs text-app-accent">
                 <button
                   type="button"
                   onClick={() => handleAddQuickRange(3)}
@@ -158,30 +158,30 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
                 type="date"
                 value={newDateInput}
                 onChange={(e) => setNewDateInput(e.target.value)}
-                className="flex-1 px-3 py-1.5 text-xs bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl focus:outline-none focus:border-[#CF8FA8] text-[#3E3438]"
+                className="flex-1 px-3 py-1.5 text-xs bg-app-canvas border border-app-line rounded-xl focus:outline-none focus:border-app-accent text-app-ink"
               />
               <button
                 type="button"
                 onClick={() => handleAddDate(newDateInput)}
                 disabled={!newDateInput}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-xl transition-all cursor-pointer"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all cursor-pointer"
               >
                 추가
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 p-2 bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl max-h-32 overflow-y-auto">
+            <div className="flex flex-wrap gap-1.5 p-2 bg-app-canvas border border-app-line rounded-xl max-h-32 overflow-y-auto">
               {dates.map((d) => (
                 <span
                   key={d}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-white text-[#3E3438] border border-[#F0E7EB] rounded-lg shadow-2xs"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-white text-app-ink border border-app-line rounded-lg shadow-2xs"
                 >
-                  <Calendar className="w-3 h-3 text-[#CF8FA8]" />
+                  <Calendar className="w-3 h-3 text-app-accent" />
                   <span>{d}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveDate(d)}
-                    className="text-[#85777D] hover:text-red-500 cursor-pointer ml-1"
+                    className="text-app-muted hover:text-red-500 cursor-pointer ml-1"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -192,7 +192,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
 
           {/* Category */}
           <div>
-            <label className="text-xs font-semibold text-[#3E3438] block mb-1.5">카테고리</label>
+            <label className="text-xs font-semibold text-app-ink block mb-1.5">카테고리</label>
             <div className="flex flex-wrap gap-1.5">
               {categories.map((cat) => (
                 <button
@@ -201,8 +201,8 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
                   onClick={() => setCategory(cat.id)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer ${
                     category === cat.id
-                      ? 'bg-[#F4DCE5] border-[#CF8FA8] text-[#3E3438] font-bold shadow-2xs'
-                      : 'bg-white border-[#F0E7EB] text-[#85777D] hover:bg-[#FFFAFB]'
+                      ? 'bg-app-soft border-app-accent text-app-ink font-bold shadow-2xs'
+                      : 'bg-white border-app-line text-app-muted hover:bg-app-canvas'
                   }`}
                 >
                   {cat.name}
@@ -213,15 +213,15 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-[#F0E7EB] bg-white flex items-center justify-between shrink-0">
-          <span className="text-xs text-[#85777D]">
-            총 <span className="font-bold text-[#CF8FA8]">{dates.length}</span>개 일정 등록
+        <div className="px-5 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
+          <span className="text-xs text-app-muted">
+            총 <span className="font-bold text-app-accent">{dates.length}</span>개 일정 등록
           </span>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-[#85777D] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-medium text-app-muted hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
             >
               취소
             </button>
@@ -229,7 +229,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
               type="button"
               onClick={handleConfirm}
               disabled={!title.trim() || dates.length === 0}
-              className="px-5 py-2 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              className="px-5 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
             >
               일괄 등록
             </button>

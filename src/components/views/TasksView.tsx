@@ -144,15 +144,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
         {/* Date Scope: 오늘 | 예정 | 전체 */}
-        <div role="group" aria-label="할 일 보기" className="flex items-center p-0.5 bg-[#F6E8ED] rounded-xl border border-[#F0E7EB] text-xs">
+        <div role="group" aria-label="할 일 보기" className="flex items-center p-0.5 bg-app-soft rounded-xl border border-app-line text-xs">
           <button
             type="button"
             aria-pressed={dateScope==='today'}
             onClick={() => {setDateScope('today');setError('');}}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-medium ${
               dateScope === 'today'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
             }`}
           >
             오늘
@@ -163,8 +163,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
             onClick={() => {setDateScope('upcoming');setError('');}}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-medium ${
               dateScope === 'upcoming'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
             }`}
           >
             예정
@@ -175,8 +175,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
             onClick={() => {setDateScope('all');setError('');}}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-medium ${
               dateScope === 'all'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
             }`}
           >
             전체
@@ -185,14 +185,14 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center p-0.5 bg-[#F6E8ED] rounded-xl border border-[#F0E7EB] text-xs">
+          <div className="flex items-center p-0.5 bg-app-soft rounded-xl border border-app-line text-xs">
             <button
               type="button"
               onClick={() => setCompletionFilter('pending')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium ${
                 completionFilter === 'pending'
-                  ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                  : 'text-[#85777D] hover:text-[#3E3438]'
+                  ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                  : 'text-app-muted hover:text-app-ink'
               }`}
             >
               미완료
@@ -202,8 +202,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
               onClick={() => setCompletionFilter('completed')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium ${
                 completionFilter === 'completed'
-                  ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                  : 'text-[#85777D] hover:text-[#3E3438]'
+                  ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                  : 'text-app-muted hover:text-app-ink'
               }`}
             >
               완료
@@ -213,8 +213,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
               onClick={() => setCompletionFilter('all')}
               className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium ${
                 completionFilter === 'all'
-                  ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                  : 'text-[#85777D] hover:text-[#3E3438]'
+                  ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                  : 'text-app-muted hover:text-app-ink'
               }`}
             >
               모두
@@ -229,8 +229,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
             }}
             className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
               isSelectMode
-                ? 'bg-[#CF8FA8] text-white border-[#CF8FA8]'
-                : 'bg-white text-[#85777D] border-[#F0E7EB] hover:text-[#3E3438]'
+                ? 'bg-app-accent text-white border-app-accent'
+                : 'bg-white text-app-muted border-app-line hover:text-app-ink'
             }`}
           >
             {isSelectMode ? '선택 취소' : '선택'}
@@ -239,11 +239,11 @@ export const TasksView: React.FC<TasksViewProps> = ({
       </div>
 
       {/* Main List Container: Cardless List */}
-      <div className="bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
+      <div className="bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {/* Quick Inline Add Bar */}
-        <form aria-label="할 일 등록" onSubmit={handleQuickAdd} onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement&&e.target!==quickInput.current)e.preventDefault();}} className="p-3 space-y-2 border-b border-[#F0E7EB] bg-[#FFFAFB]/50">
-          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0">{dateScope!=='today' ? <DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate}/> : <p className="text-xs text-[#85777D] px-1">오늘 · {formatKoreanDate(todayStr)}</p>}</div><button type="button" onClick={onOpenPresetManager} className="min-h-11 px-2 flex items-center gap-1 text-xs text-[#8F526C] rounded-lg hover:bg-[#F6E8ED]"><Settings2 aria-hidden="true" className="w-4 h-4"/>프리셋 설정</button></div>
-          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-[#F0E7EB] focus-within:border-[#CF8FA8] transition-colors">
+        <form aria-label="할 일 등록" onSubmit={handleQuickAdd} onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement&&e.target!==quickInput.current)e.preventDefault();}} className="p-3 space-y-2 border-b border-app-line bg-app-canvas/50">
+          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0">{dateScope!=='today' ? <DatePicker label="할 일 날짜" value={quickDueDate} onChange={setQuickDueDate}/> : <p className="text-xs text-app-muted px-1">오늘 · {formatKoreanDate(todayStr)}</p>}</div><button type="button" onClick={onOpenPresetManager} className="min-h-11 px-2 flex items-center gap-1 text-xs text-app-accent rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/>프리셋 설정</button></div>
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-app-line focus-within:border-app-accent transition-colors">
             <input
               type="text"
               ref={quickInput}
@@ -254,19 +254,19 @@ export const TasksView: React.FC<TasksViewProps> = ({
               value={quickTitle}
               onChange={(e) => {setQuickTitle(e.target.value);setBlocks([]);}}
               placeholder="+ 새로운 할 일 입력 후 Enter"
-              className="flex-1 min-w-0 text-sm bg-transparent text-[#3E3438] placeholder:text-[#85777D]/70 focus:outline-none"
+              className="flex-1 min-w-0 text-sm bg-transparent text-app-ink placeholder:text-app-muted/70 focus:outline-none"
             />
-            <button type="button" aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-11 px-2 text-xs text-[#8F526C] bg-[#F6E8ED] rounded-lg">프리셋</button>
+            <button type="button" aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-11 px-2 text-xs text-app-accent bg-app-soft rounded-lg">프리셋</button>
             <button
               type="submit"
               disabled={!quickTitle.trim()}
-              className="px-2.5 py-1 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-lg transition-all cursor-pointer"
+              className="px-2.5 py-1 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-lg transition-all cursor-pointer"
             >
               추가
             </button>
           </div>
           {!!blocks.length && <TitleBlockEditor compact editable hideWordInput blocks={blocks} word="" onWordChange={()=>{}} onChange={next=>{setTitleHistory(history=>[...history,{text:quickTitle,blocks}]);setBlocks(next);setQuickTitle(next.map(b=>b.text).join(' '));}}/>}
-          {!!titleHistory.length && <button type="button" className="min-h-11 px-2 text-xs text-[#8F526C]" onClick={()=>{const previous=titleHistory[titleHistory.length-1];setQuickTitle(previous.text);setBlocks(previous.blocks);setTitleHistory(history=>history.slice(0,-1));}}>이전 제목 복구</button>}
+          {!!titleHistory.length && <button type="button" className="min-h-11 px-2 text-xs text-app-accent" onClick={()=>{const previous=titleHistory[titleHistory.length-1];setQuickTitle(previous.text);setBlocks(previous.blocks);setTitleHistory(history=>history.slice(0,-1));}}>이전 제목 복구</button>}
           {presetsOpen && <div ref={presetPanel}><InlinePresetPicker presets={presets} presetGroups={presetGroups} selectedBlocks={blocks} onManage={onOpenPresetManager} onClose={()=>{setPresetsOpen(false);requestAnimationFrame(()=>quickInput.current?.focus({preventScroll:true}));}} options={<label className="flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'append'|'replace')} className="min-h-11 border rounded-lg px-2 bg-white"><option value="append">이어 붙이기</option><option value="replace">제목 교체</option></select></label>} onAdd={(parts,preset)=>{
             const current=blocks.map(b=>b.text).join(' ')===quickTitle?blocks:quickTitle.trim()?[{id:crypto.randomUUID(),text:quickTitle.trim()}]:[];
             const next=applyMode==='append'?[...current,...parts]:parts;
@@ -277,16 +277,16 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* Batch Selection Action Bar */}
         {isSelectMode && (
-          <div className="px-4 py-2 bg-[#F6E8ED] border-b border-[#F0E7EB] flex items-center justify-between text-xs animate-in fade-in">
+          <div className="px-4 py-2 bg-app-soft border-b border-app-line flex items-center justify-between text-xs animate-in fade-in">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="text-[#CF8FA8] font-bold cursor-pointer hover:underline"
+                className="text-app-accent font-bold cursor-pointer hover:underline"
               >
                 {selectedTaskIds.length === filteredTasks.length ? '전체 해제' : '전체 선택'}
               </button>
-              <span className="text-[#85777D]">
+              <span className="text-app-muted">
                 ({selectedTaskIds.length}/{filteredTasks.length}개 선택됨)
               </span>
             </div>
@@ -296,7 +296,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 type="button"
                 onClick={() => handleBatchToggleDone(true)}
                 disabled={selectedTaskIds.length === 0}
-                className="px-2.5 py-1 text-xs font-medium bg-white text-[#3E3438] rounded-lg border border-[#F0E7EB] disabled:opacity-40 cursor-pointer"
+                className="px-2.5 py-1 text-xs font-medium bg-white text-app-ink rounded-lg border border-app-line disabled:opacity-40 cursor-pointer"
               >
                 완료 처리
               </button>
@@ -313,9 +313,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
         )}
 
         {/* Cardless List of Tasks */}
-        <div className="divide-y divide-[#F0E7EB]">
+        <div className="divide-y divide-app-line">
           {filteredTasks.length === 0 ? (
-            <div className="py-12 text-center text-xs text-[#85777D]">
+            <div className="py-12 text-center text-xs text-app-muted">
               등록된 할 일이 없습니다.
             </div>
           ) : (
@@ -331,8 +331,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   key={task.id}
                   className={`px-4 py-3 flex items-center justify-between gap-3 transition-colors ${
                     isSelected
-                      ? 'bg-[#F4DCE5]/30'
-                      : 'hover:bg-[#FFFAFB]'
+                      ? 'bg-app-soft/30'
+                      : 'hover:bg-app-canvas'
                   }`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -341,12 +341,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleSelectTask(task.id)}
-                        className="w-7 h-7 flex items-center justify-center text-[#CF8FA8] cursor-pointer shrink-0"
+                        className="w-7 h-7 flex items-center justify-center text-app-accent cursor-pointer shrink-0"
                       >
                         {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-[#CF8FA8]" />
+                          <CheckSquare className="w-5 h-5 text-app-accent" />
                         ) : (
-                          <Square className="w-5 h-5 text-[#85777D]/40" />
+                          <Square className="w-5 h-5 text-app-muted/40" />
                         )}
                       </button>
                     ) : (
@@ -355,12 +355,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
                         onClick={() => void run(async () => { await onToggleTaskStatus(task.id); })}
                         aria-label={isDone ? '할 일 완료 해제' : '할 일 완료'}
                         aria-pressed={isDone}
-                        className="w-11 h-11 -ml-1 flex items-center justify-center text-stone-300 hover:text-[#CF8FA8] transition-colors cursor-pointer shrink-0"
+                        className="w-11 h-11 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent transition-colors cursor-pointer shrink-0"
                       >
                         {isDone ? (
-                          <CheckCircle2 className="w-5 h-5 text-[#CF8FA8] fill-[#F4DCE5]" />
+                          <CheckCircle2 className="w-5 h-5 text-app-accent fill-app-soft" />
                         ) : (
-                          <Circle className="w-5 h-5 text-[#85777D]/40 hover:text-[#CF8FA8]" />
+                          <Circle className="w-5 h-5 text-app-muted/40 hover:text-app-accent" />
                         )}
                       </button>
                     )}
@@ -369,16 +369,16 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     <div className="min-w-0 flex-1">
                       <p
                         className={`text-sm font-medium whitespace-normal break-words ${
-                          isDone ? 'line-through text-[#85777D]' : 'text-[#3E3438]'
+                          isDone ? 'line-through text-app-muted' : 'text-app-ink'
                         }`}
                       >
                         {task.title}
                       </p>
 
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[#85777D]">
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-app-muted">
                         {task.dueDate && (
                           <span className="flex items-center gap-1 font-mono">
-                            <Calendar className="w-3 h-3 text-[#CF8FA8]" />
+                            <Calendar className="w-3 h-3 text-app-accent" />
                             {task.dueDate}
                           </span>
                         )}
@@ -387,7 +387,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                           <button
                             type="button"
                             onClick={() => toggleExpand(task.id)}
-                            className="flex items-center gap-1 text-[#CF8FA8] hover:underline cursor-pointer"
+                            className="flex items-center gap-1 text-app-accent hover:underline cursor-pointer"
                           >
                             <span>
                               체크리스트 {completedCount}/{task.checklist?.length}
@@ -408,15 +408,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
                             <div
                               key={item.id}
                               onClick={() => void run(async () => { await onToggleTaskChecklist(task.id, item.id); })}
-                              className="flex items-center gap-2 text-xs cursor-pointer py-0.5 text-[#3E3438]"
+                              className="flex items-center gap-2 text-xs cursor-pointer py-0.5 text-app-ink"
                             >
                               <input
                                 type="checkbox"
                                 checked={item.done}
                                 onChange={() => {}}
-                                className="rounded text-[#CF8FA8] focus:ring-0"
+                                className="rounded text-app-accent focus:ring-0"
                               />
-                              <span className={item.done ? 'line-through text-[#85777D]' : ''}>
+                              <span className={item.done ? 'line-through text-app-muted' : ''}>
                                 {item.text}
                               </span>
                             </div>
@@ -431,7 +431,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onDeleteTask(task.id)}
-                      className="p-1.5 text-[#85777D] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="p-1.5 text-app-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
                       title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />

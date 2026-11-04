@@ -11,8 +11,8 @@ export interface CategoryActions {
   onDeleteCategory: (id: string) => Promise<void> | void;
   onReorderCategories?: (ids: string[]) => Promise<void> | void;
 }
-const button = 'min-h-11 px-2 rounded-lg text-xs text-[#85777D] hover:bg-[#F6E8ED] disabled:opacity-40';
-const input = 'min-w-0 w-full border border-[#F0E7EB] rounded-lg p-2 text-base bg-white';
+const button = 'min-h-11 px-2 rounded-lg text-xs text-app-muted hover:bg-app-soft disabled:opacity-40';
+const input = 'min-w-0 w-full border border-app-line rounded-lg p-2 text-base bg-white';
 export function CategoryManager({ categories, schedules, onSaveCategory, onDeleteCategory, onReorderCategories, onCreated, onDirtyChange, onBusyChange }: CategoryActions & { onCreated?: (id: string) => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -37,8 +37,8 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
   return <fieldset disabled={pending} className="space-y-3 min-w-0">
     {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
     {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-    <p className="text-xs text-[#85777D]">내 카테고리 {categories.length}/{CATEGORY_LIMIT}개{categories.length >= CATEGORY_LIMIT ? ' · 추가하려면 기존 카테고리를 삭제하세요.' : ''}</p>
-    <ul aria-label="카테고리 관리 목록" className="divide-y divide-[#F0E7EB]">
+    <p className="text-xs text-app-muted">내 카테고리 {categories.length}/{CATEGORY_LIMIT}개{categories.length >= CATEGORY_LIMIT ? ' · 추가하려면 기존 카테고리를 삭제하세요.' : ''}</p>
+    <ul aria-label="카테고리 관리 목록" className="divide-y divide-app-line">
       {!categories.length && <li className="text-sm py-3">카테고리가 없습니다. 아래에서 추가하세요.</li>}
       {categories.map((cat, index) => <li key={cat.id} data-category-id={cat.id} className="py-2">
         <div className="flex items-center gap-1 flex-wrap">
@@ -49,14 +49,14 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
             const ids = categories.map(c => c.id); [ids[index], ids[index + direction]] = [ids[index + direction], ids[index]]; await onReorderCategories(ids);
           })}>{direction < 0 ? '↑' : '↓'}</button>)}
         </div>
-        {deleting === cat.id && <div role="group" aria-label="카테고리 삭제 확인" className="text-xs space-y-1 p-2 bg-[#FFFAFB] rounded-lg">
+        {deleting === cat.id && <div role="group" aria-label="카테고리 삭제 확인" className="text-xs space-y-1 p-2 bg-app-canvas rounded-lg">
           <p>이 카테고리를 사용하는 일정 {schedules.filter(s => s.category === cat.id).length}개는 삭제하지 않고 미분류로 변경합니다. 반복 일정의 변경 내역도 보존합니다.</p>
           <button type="button" className={button} onClick={() => void run(async () => { await onDeleteCategory(cat.id); setDeleting(null); if (editing === cat.id) reset(); })}>삭제</button>
           <button type="button" className={button} onClick={() => setDeleting(null)}>취소</button>
         </div>}
       </li>)}
     </ul>
-    <form className="border-t border-[#F0E7EB] pt-3 space-y-2" onSubmit={e => {
+    <form className="border-t border-app-line pt-3 space-y-2" onSubmit={e => {
       e.preventDefault(); if (!name.trim()) return;
       if (!editing && categories.length >= CATEGORY_LIMIT) { setError('카테고리는 최대 12개까지 만들 수 있습니다.'); return; }
       void run(async () => {
@@ -69,8 +69,8 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
     }}>
       <label htmlFor="category-name" className="block text-sm font-semibold">{editing ? '카테고리 수정' : '새 카테고리 추가'}</label>
       <div className="flex items-center gap-2"><span aria-label="고정 카테고리 색상" className="w-5 h-5 rounded-full shrink-0" style={{background:color}}/><input id="category-name" className={input} required placeholder="카테고리 이름" value={name} onChange={e => setName(e.target.value)} /></div>
-      <p className="text-xs text-[#85777D]">색상은 자동 배정되며 변경되지 않습니다.</p>
-      <button type="submit" className={button + ' bg-[#F6E8ED]'} disabled={!name.trim() || (!editing && categories.length >= CATEGORY_LIMIT)}>{editing ? '변경사항 저장' : '추가'}</button>
+      <p className="text-xs text-app-muted">색상은 자동 배정되며 변경되지 않습니다.</p>
+      <button type="submit" className={button + ' bg-app-soft'} disabled={!name.trim() || (!editing && categories.length >= CATEGORY_LIMIT)}>{editing ? '변경사항 저장' : '추가'}</button>
       {(editing || dirty) && <button type="button" className={button} onClick={() => guard.request(reset)}>취소</button>}
     </form>
   </fieldset>;

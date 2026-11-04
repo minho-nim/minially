@@ -104,17 +104,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs">
       <div 
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#F2E2E7] overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
-        <div className="px-5 py-3.5 border-b border-[#F2E2E7] flex items-center justify-between bg-[#FFF8FA]">
-          <h2 className="text-sm font-bold text-[#473B40]">
+        <div className="px-5 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
+          <h2 className="text-sm font-bold text-app-ink">
             {isEdit ? '작업 수정' : '새 작업 등록'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-[#F9EBEF] transition-colors"
+            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-app-soft transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -128,7 +128,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={selectedProjectId}
               onChange={(e) => setSelectedProjectId(e.target.value)}
               required
-              className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -141,7 +141,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           {/* Title */}
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">
-              작업명 <span className="text-[#D98DAA]">*</span>
+              작업명 <span className="text-app-accent">*</span>
             </label>
             <input
               type="text"
@@ -149,7 +149,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 마일스톤 기획서 작성"
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -157,26 +157,26 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#D98DAA]" /> 시작일
+                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 시작일
               </label>
               <input
                 type="date"
                 required
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
             </div>
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#D98DAA]" /> 마감일
+                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 마감일
               </label>
               <input
                 type="date"
                 required
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
             </div>
           </div>
@@ -193,7 +193,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     onClick={() => setStatus(st)}
                     className={`py-1.5 text-xs font-medium rounded-xl border transition-all ${
                       status === st
-                        ? 'bg-[#F9EBEF] text-[#9E5170] border-[#ECD0DB] font-bold shadow-2xs'
+                        ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
                         : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                     }`}
                   >
@@ -213,7 +213,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     onClick={() => setPriority(pr)}
                     className={`py-1.5 text-xs font-medium rounded-xl border transition-all ${
                       priority === pr
-                        ? 'bg-[#F6EFF4] text-[#875982] border-[#E7D6E4] font-bold shadow-2xs'
+                        ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
                         : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                     }`}
                   >
@@ -227,7 +227,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           {/* Checklist */}
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-              <CheckSquare className="w-3.5 h-3.5 text-[#D98DAA]" /> 체크리스트
+              <CheckSquare className="w-3.5 h-3.5 text-app-accent" /> 체크리스트
             </label>
             <div className="space-y-1 mb-2">
               {checklist.map((item) => (
@@ -237,9 +237,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                       type="checkbox"
                       checked={item.done}
                       onChange={() => handleToggleChecklist(item.id)}
-                      className="w-3.5 h-3.5 rounded-sm accent-[#D98DAA]"
+                      className="w-3.5 h-3.5 rounded-sm accent-app-accent"
                     />
-                    <span className={item.done ? 'line-through text-stone-400' : 'text-[#473B40]'}>
+                    <span className={item.done ? 'line-through text-stone-400' : 'text-app-ink'}>
                       {item.text}
                     </span>
                   </label>
@@ -265,12 +265,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                   }
                 }}
                 placeholder="체크 항목 추가 후 Enter"
-                className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-stone-200 text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-stone-200 text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
               <button
                 type="button"
                 onClick={handleAddChecklist}
-                className="px-2.5 py-1 bg-[#F9EBEF] text-[#9E5170] text-xs font-semibold rounded-lg hover:bg-[#ECD0DB] transition"
+                className="px-2.5 py-1 bg-app-soft text-app-accent text-xs font-semibold rounded-lg hover:bg-app-line transition"
               >
                 추가
               </button>
@@ -284,7 +284,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder="참고 사항..."
-              className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -316,7 +316,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-xs font-bold text-white bg-[#D98DAA] hover:bg-[#C97996] rounded-lg shadow-xs transition"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-xs transition"
               >
                 {isEdit ? '수정' : '등록'}
               </button>

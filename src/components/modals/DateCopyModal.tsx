@@ -79,22 +79,22 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
   };
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 복사" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(45,35,40,0.25)]">
-      <div className="w-full sm:max-w-md bg-white rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
-        <div className="w-10 h-1 bg-[#F0E7EB] rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 복사" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(52,40,35,0.30)]">
+      <div className="w-full sm:max-w-md bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
+        <div className="w-10 h-1 bg-app-line rounded-full mx-auto mt-2.5 mb-1 sm:hidden shrink-0" />
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white shrink-0">
+        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <div>
-            <h3 className="text-base font-bold text-[#3E3438]">일정 복사</h3>
-            <p className="text-xs text-[#85777D] mt-0.5">
-              기준: <span className="font-semibold text-[#3E3438]">{formatKoreanDate(sourceDate)}</span>
+            <h3 className="text-base font-bold text-app-ink">일정 복사</h3>
+            <p className="text-xs text-app-muted mt-0.5">
+              기준: <span className="font-semibold text-app-ink">{formatKoreanDate(sourceDate)}</span>
             </p>
           </div>
           <button
             aria-label="복사 닫기"
             onClick={close}
-            className="p-1 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+            className="p-1 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -107,40 +107,40 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
           {/* Step 1: Select schedules */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-semibold text-[#3E3438]">
+              <label className="text-xs font-semibold text-app-ink">
                 복사할 일정 ({selectedIds.length}/{sourceSchedules.length})
               </label>
               <button
                 type="button"
                 onClick={toggleSelectAll}
-                className="text-xs font-semibold text-[#CF8FA8] hover:underline cursor-pointer"
+                className="text-xs font-semibold text-app-accent hover:underline cursor-pointer"
               >
                 {selectedIds.length === sourceSchedules.length ? '전체 해제' : '전체 선택'}
               </button>
             </div>
 
             {sourceSchedules.length === 0 ? (
-              <p className="text-xs text-[#85777D] p-4 text-center bg-[#FFFAFB] rounded-xl border border-[#F0E7EB]">
+              <p className="text-xs text-app-muted p-4 text-center bg-app-canvas rounded-xl border border-app-line">
                 등록된 일정이 없습니다.
               </p>
             ) : (
-              <div className="space-y-1 max-h-40 overflow-y-auto divide-y divide-[#F0E7EB] border border-[#F0E7EB] rounded-xl">
+              <div className="space-y-1 max-h-40 overflow-y-auto divide-y divide-app-line border border-app-line rounded-xl">
                 {sourceSchedules.map((schedule) => {
                   const isChecked = selectedIds.includes(schedule.id);
                   return (
                     <div
                       key={schedule.id}
                       onClick={() => toggleSchedule(schedule.id)}
-                      className="flex items-center gap-2.5 p-2.5 cursor-pointer hover:bg-[#FFFAFB] transition-colors"
+                      className="flex items-center gap-2.5 p-2.5 cursor-pointer hover:bg-app-canvas transition-colors"
                     >
                       {isChecked ? (
-                        <CheckSquare className="w-4 h-4 text-[#CF8FA8] shrink-0" />
+                        <CheckSquare className="w-4 h-4 text-app-accent shrink-0" />
                       ) : (
-                        <Square className="w-4 h-4 text-[#85777D]/40 shrink-0" />
+                        <Square className="w-4 h-4 text-app-muted/40 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-[#3E3438] truncate">{schedule.title}</p>
-                        <p className="text-[11px] text-[#85777D]">
+                        <p className="text-xs font-medium text-app-ink truncate">{schedule.title}</p>
+                        <p className="text-[11px] text-app-muted">
                           {schedule.startTime || '종일'}
                         </p>
                       </div>
@@ -153,7 +153,7 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
 
           {/* Step 2: Select target dates */}
           <div>
-            <label className="text-xs font-semibold text-[#3E3438] block mb-1.5">
+            <label className="text-xs font-semibold text-app-ink block mb-1.5">
               대상 날짜 추가
             </label>
             <div className="flex items-start gap-2 mb-2">
@@ -162,25 +162,25 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
                 type="button"
                 onClick={() => handleAddTargetDate(newTargetInput)}
                 disabled={!newTargetInput}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-xl transition-all cursor-pointer"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all cursor-pointer"
               >
                 추가
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-1.5 p-2 bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl min-h-[38px]">
+            <div className="flex flex-wrap gap-1.5 p-2 bg-app-canvas border border-app-line rounded-xl min-h-[38px]">
               {targetDates.map((dateVal) => (
                 <span
                   key={dateVal}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-white text-[#3E3438] border border-[#F0E7EB] rounded-lg shadow-2xs"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-white text-app-ink border border-app-line rounded-lg shadow-2xs"
                 >
-                  <Calendar className="w-3 h-3 text-[#CF8FA8]" />
+                  <Calendar className="w-3 h-3 text-app-accent" />
                   <span>{dateVal}</span>
                   <button
                     type="button"
                     aria-label={dateVal + ' 선택 해제'}
                     onClick={() => handleRemoveTargetDate(dateVal)}
-                    className="text-[#85777D] hover:text-red-500 cursor-pointer ml-1"
+                    className="text-app-muted hover:text-red-500 cursor-pointer ml-1"
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -189,18 +189,18 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
             </div>
           </div>
 
-          <div className="p-2.5 bg-[#F6E8ED] border border-[#F0E7EB] rounded-xl flex items-center justify-between text-xs text-[#3E3438]">
-            <span className="text-[#85777D]">총 복사 일정</span>
-            <span className="font-bold text-[#CF8FA8]">{totalCopiesCount}건</span>
+          <div className="p-2.5 bg-app-soft border border-app-line rounded-xl flex items-center justify-between text-xs text-app-ink">
+            <span className="text-app-muted">총 복사 일정</span>
+            <span className="font-bold text-app-accent">{totalCopiesCount}건</span>
           </div>
         </fieldset>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-[#F0E7EB] bg-white flex items-center justify-end gap-2 shrink-0">
+        <div className="px-5 py-3 border-t border-app-line bg-white flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={close}
-            className="px-4 py-2 text-xs font-medium text-[#85777D] hover:bg-[#F6E8ED] rounded-xl transition-colors cursor-pointer"
+            className="px-4 py-2 text-xs font-medium text-app-muted hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
           >
             취소
           </button>
@@ -208,7 +208,7 @@ export const DateCopyModal: React.FC<DateCopyModalProps> = ({
             type="button"
             onClick={handleConfirm}
             disabled={totalCopiesCount === 0 || pending}
-            className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+            className="flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
           >
             <Copy className="w-3.5 h-3.5" />
             <span>{pending ? '복사 중…' : '복사'}</span>

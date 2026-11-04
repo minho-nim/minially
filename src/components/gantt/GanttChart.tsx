@@ -80,10 +80,10 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
   const todayLeftPercent = todayIndex >= 0 ? (todayIndex / totalDays) * 100 + (0.5 / totalDays) * 100 : null;
 
   return (
-    <div className="bg-white rounded-2xl border border-[#F2E2E7] shadow-xs overflow-hidden">
+    <div className="bg-white rounded-2xl border border-app-line shadow-xs overflow-hidden">
       {/* Legend & Summary */}
-      <div className="p-3 bg-[#FFF8FA] border-b border-[#F2E2E7] flex flex-wrap items-center justify-between gap-3 text-xs">
-        <span className="font-semibold text-[#473B40]">
+      <div className="p-3 bg-app-canvas border-b border-app-line flex flex-wrap items-center justify-between gap-3 text-xs">
+        <span className="font-semibold text-app-ink">
           작업 타임라인 ({tasks.length}개)
         </span>
 
@@ -93,7 +93,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
             <span>완료</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#D98DAA]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-app-accent" />
             <span>진행 중</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -126,7 +126,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
                     style={{ width: `${100 / totalDays}%` }}
                     className={`py-1.5 text-center border-r border-stone-100 flex flex-col items-center justify-center ${
                       d.isToday
-                        ? 'bg-[#F9EBEF] text-[#9E5170] font-bold'
+                        ? 'bg-app-soft text-app-accent font-bold'
                         : d.isWeekend
                         ? 'bg-stone-100/50 text-stone-400'
                         : 'text-stone-600'
@@ -145,9 +145,9 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
               {todayLeftPercent !== null && (
                 <div
                   style={{ left: `calc(200px + (100% - 200px) * ${todayLeftPercent / 100})` }}
-                  className="absolute top-0 bottom-0 w-[1.5px] bg-[#D98DAA] z-20 pointer-events-none"
+                  className="absolute top-0 bottom-0 w-[1.5px] bg-app-accent z-20 pointer-events-none"
                 >
-                  <div className="sticky top-10 -ml-2.5 bg-[#D98DAA] text-white text-[9px] px-1 py-0.2 rounded shadow-2xs whitespace-nowrap">
+                  <div className="sticky top-10 -ml-2.5 bg-app-accent text-white text-[9px] px-1 py-0.2 rounded shadow-2xs whitespace-nowrap">
                     오늘
                   </div>
                 </div>
@@ -160,7 +160,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
 
                 let barColorClass = 'bg-stone-300 hover:bg-stone-400 text-stone-800';
                 if (isDone) barColorClass = 'bg-emerald-500 hover:bg-emerald-600 text-white';
-                if (isDoing) barColorClass = 'bg-[#D98DAA] hover:bg-[#C97996] text-white';
+                if (isDoing) barColorClass = 'bg-app-accent hover:bg-app-accent-hover text-white';
 
                 return (
                   <div
@@ -172,11 +172,11 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
                       {isDone ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       ) : isDoing ? (
-                        <Clock className="w-3.5 h-3.5 text-[#D98DAA] shrink-0" />
+                        <Clock className="w-3.5 h-3.5 text-app-accent shrink-0" />
                       ) : (
                         <Circle className="w-3.5 h-3.5 text-stone-300 shrink-0" />
                       )}
-                      <span className={`text-xs truncate ${isDone ? 'line-through text-stone-400' : 'text-[#473B40]'}`}>
+                      <span className={`text-xs truncate ${isDone ? 'line-through text-stone-400' : 'text-app-ink'}`}>
                         {task.title}
                       </span>
                     </div>

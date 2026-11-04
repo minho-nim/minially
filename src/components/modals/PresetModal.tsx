@@ -96,17 +96,17 @@ export const PresetModal: React.FC<PresetModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs">
       <div 
-        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-[#F2E2E7] overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden transform transition-all animate-in fade-in zoom-in-95 duration-150"
         role="dialog"
         aria-modal="true"
       >
-        <div className="px-5 py-3.5 border-b border-[#F2E2E7] flex items-center justify-between bg-[#FFF8FA]">
-          <h2 className="text-sm font-bold text-[#473B40]">
+        <div className="px-5 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
+          <h2 className="text-sm font-bold text-app-ink">
             {isEdit ? '프리셋 수정' : '새 프리셋 만들기'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-[#F9EBEF] transition-colors"
+            className="p-1 rounded-lg text-stone-400 hover:text-stone-700 hover:bg-app-soft transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -115,7 +115,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">
-              프리셋 이름 <span className="text-[#D98DAA]">*</span>
+              프리셋 이름 <span className="text-app-accent">*</span>
             </label>
             <input
               type="text"
@@ -126,7 +126,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 if (!defaultTitle) setDefaultTitle(e.target.value);
               }}
               placeholder="예: 모닝 데일리 스탠드업"
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -139,7 +139,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               value={defaultTitle}
               onChange={(e) => setDefaultTitle(e.target.value)}
               placeholder="일정 등록 시 자동으로 채워질 제목"
-              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -151,7 +151,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 onClick={() => setDefaultCategory('work')}
                 className={`py-1.5 px-3 text-xs font-medium rounded-xl border transition-all ${
                   defaultCategory === 'work'
-                    ? 'bg-[#F9EBEF] text-[#9E5170] border-[#ECD0DB] font-bold shadow-2xs'
+                    ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
                     : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                 }`}
               >
@@ -162,7 +162,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 onClick={() => setDefaultCategory('personal')}
                 className={`py-1.5 px-3 text-xs font-medium rounded-xl border transition-all ${
                   defaultCategory === 'personal'
-                    ? 'bg-[#F6EFF4] text-[#875982] border-[#E7D6E4] font-bold shadow-2xs'
+                    ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
                     : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                 }`}
               >
@@ -173,7 +173,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 onClick={() => setDefaultCategory('project')}
                 className={`py-1.5 px-3 text-xs font-medium rounded-xl border transition-all ${
                   defaultCategory === 'project'
-                    ? 'bg-[#FFF0F4] text-[#B8587C] border-[#F5D2DF] font-bold shadow-2xs'
+                    ? 'bg-app-soft text-[#B8587C] border-app-outline font-bold shadow-2xs'
                     : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                 }`}
               >
@@ -185,13 +185,13 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-[#D98DAA]" /> 시작 시간
+                <Clock className="w-3.5 h-3.5 text-app-accent" /> 시작 시간
               </label>
               <input
                 type="time"
                 value={defaultStartTime}
                 onChange={(e) => setDefaultStartTime(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
             </div>
             <div>
@@ -201,7 +201,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               <select
                 value={defaultDuration}
                 onChange={(e) => setDefaultDuration(Number(e.target.value))}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               >
                 <option value={15}>15분</option>
                 <option value={30}>30분</option>
@@ -216,7 +216,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               <select
                 value={recurrence}
                 onChange={(e) => setRecurrence(e.target.value as RecurrenceType)}
-                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 bg-white text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               >
                 <option value="none">반복 없음</option>
                 <option value="daily">매일</option>
@@ -234,7 +234,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
             </label>
             <div className="space-y-1 mb-2">
               {checklistTemplates.map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-2 p-1.5 bg-stone-50 rounded-lg text-xs text-[#473B40]">
+                <div key={idx} className="flex items-center justify-between gap-2 p-1.5 bg-stone-50 rounded-lg text-xs text-app-ink">
                   <span>• {item}</span>
                   <button
                     type="button"
@@ -258,12 +258,12 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                   }
                 }}
                 placeholder="체크 항목 입력 후 Enter"
-                className="flex-1 px-2.5 py-1 rounded-lg border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+                className="flex-1 px-2.5 py-1 rounded-lg border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
               />
               <button
                 type="button"
                 onClick={handleAddTemplate}
-                className="px-2.5 py-1 bg-[#F9EBEF] text-[#9E5170] text-xs font-semibold rounded-lg hover:bg-[#ECD0DB] transition"
+                className="px-2.5 py-1 bg-app-soft text-app-accent text-xs font-semibold rounded-lg hover:bg-app-line transition"
               >
                 추가
               </button>
@@ -277,7 +277,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               value={memo}
               onChange={(e) => setMemo(e.target.value)}
               placeholder="프리셋 설명..."
-              className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-[#473B40] focus:outline-none focus:ring-1 focus:ring-[#D98DAA]"
+              className="w-full px-2.5 py-1.5 rounded-xl border border-stone-200 text-xs text-app-ink focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
           </div>
 
@@ -310,7 +310,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-xs font-bold text-white bg-[#D98DAA] hover:bg-[#C97996] rounded-lg shadow-xs transition"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-xs transition"
               >
                 {isEdit ? '저장' : '등록'}
               </button>

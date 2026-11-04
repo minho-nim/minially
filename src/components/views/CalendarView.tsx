@@ -259,14 +259,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-2 sm:gap-4">
       <div role="group" aria-label="일정 만들기" className="flex items-center justify-end gap-2">
         {/* View Mode Toggle */}
-        <div className="mr-auto flex items-center p-0.5 bg-[#F6E8ED] rounded-lg border border-[#F0E7EB] text-xs">
+        <div className="mr-auto flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
           <button
             type="button"
             onClick={() => setViewMode('month')}
             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
               viewMode === 'month'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
             }`}
           >
             월간
@@ -276,15 +276,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             onClick={() => setViewMode('week')}
             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
               viewMode === 'week'
-                ? 'bg-white text-[#3E3438] shadow-2xs font-semibold'
-                : 'text-[#85777D] hover:text-[#3E3438]'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
             }`}
           >
             주간
           </button>
         </div>
-        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-11 px-4 rounded-xl border border-[#E9CDD8] bg-white text-sm text-[#AD728B]">프리셋</button>
-        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-11 px-4 rounded-xl bg-[#CF8FA8] text-white text-sm font-semibold">일정 등록</button>
+        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-11 px-4 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
+        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-11 px-4 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
       </div>
       {/* Month/Week Navigation & Mode Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2 pt-1">
@@ -293,12 +293,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <button
               type="button"
               onClick={handlePrev}
-              className="p-1.5 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="이전"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <h2 className="text-base sm:text-lg font-bold text-[#3E3438] px-1 select-none min-w-[120px] text-center">
+            <h2 className="text-base sm:text-lg font-bold text-app-ink px-1 select-none min-w-[120px] text-center">
               {viewMode === 'month'
                 ? `${year}년 ${month + 1}월`
                 : `${formatShortDate(weekDays[0]?.dateStr || selectedDate)} ~ ${formatShortDate(weekDays[6]?.dateStr || selectedDate)}`}
@@ -306,7 +306,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <button
               type="button"
               onClick={handleNext}
-              className="p-1.5 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="다음"
             >
               <ChevronRight className="w-5 h-5" />
@@ -316,7 +316,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <button
             type="button"
             onClick={handleGoToday}
-            className="px-2.5 py-1 text-xs font-semibold text-[#CF8FA8] bg-white border border-[#F0E7EB] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+            className="px-2.5 py-1 text-xs font-semibold text-app-accent bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             오늘
           </button>
@@ -324,9 +324,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <div className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-[#F0E7EB] shadow-2xs overflow-hidden">
+      <div className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {/* Weekday Row */}
-        <div className="grid grid-cols-7 border-b border-[#F0E7EB] text-center text-xs font-medium text-[#85777D] py-2 bg-white">
+        <div className="grid grid-cols-7 border-b border-app-line text-center text-xs font-medium text-app-muted py-2 bg-white">
           {weekdayLabels.map((day, idx) => {
             const isSun = startDayOffset === 0 ? idx === 0 : idx === 6;
             const isSat = startDayOffset === 0 ? idx === 6 : idx === 5;
@@ -334,7 +334,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               <div
                 key={day}
                 className={`py-0.5 ${
-                  isSun ? 'text-[#CF8FA8] font-semibold' : isSat ? 'text-[#85777D]' : 'text-[#3E3438]'
+                  isSun ? 'text-app-accent font-semibold' : isSat ? 'text-app-muted' : 'text-app-ink'
                 }`}
               >
                 {day}
@@ -345,7 +345,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Unified Calendar Grid (Natural Grid without heavy per-day card borders) */}
         {viewMode === 'month' ? (
-          <div className="calendar-month-grid min-h-0 flex-1 grid grid-cols-7 divide-x divide-y divide-[#F0E7EB]" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
+          <div className="calendar-month-grid min-h-0 flex-1 grid grid-cols-7 divide-x divide-y divide-app-line" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
             {monthDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -366,12 +366,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
                   className={`calendar-day-cell min-h-0 min-w-0 overflow-hidden p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
                     isSelected
-                      ? 'bg-[#F4DCE5]/40'
+                      ? 'bg-app-soft/40'
                       : isDragTarget
-                      ? 'bg-[#F6E8ED]'
+                      ? 'bg-app-soft'
                       : cell.isCurrentMonth
-                      ? 'bg-white hover:bg-[#FFFAFB]'
-                      : 'bg-[#FFFAFB]/50'
+                      ? 'bg-white hover:bg-app-canvas'
+                      : 'bg-app-canvas/50'
                   }`}
                 >
                   {/* Date Number Header */}
@@ -379,12 +379,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <span
                       className={`inline-flex items-center justify-center text-xs font-semibold rounded-full w-6 h-6 transition-all ${
                         cell.isToday
-                          ? 'bg-[#CF8FA8] text-white shadow-2xs'
+                          ? 'bg-app-accent text-white shadow-2xs'
                           : isSelected
-                          ? 'bg-[#CF8FA8]/20 text-[#3E3438] font-bold'
+                          ? 'bg-app-accent/20 text-app-ink font-bold'
                           : cell.isCurrentMonth
-                          ? 'text-[#3E3438]'
-                          : 'text-[#85777D]/60'
+                          ? 'text-app-ink'
+                          : 'text-app-muted/60'
                       }`}
                     >
                       {cell.dayNum}
@@ -399,7 +399,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           dateMenuAnchor.current=e.currentTarget;
                           setActiveDateMenu(isMenuOpen ? null : cell.dateStr);
                         }}
-                        className={`hidden sm:block p-1 text-[#85777D] hover:text-[#3E3438] rounded transition-opacity ${
+                        className={`hidden sm:block p-1 text-app-muted hover:text-app-ink rounded transition-opacity ${
                           isSelected || isMenuOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                         }`}
                         title="날짜 작업"
@@ -415,9 +415,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenNewScheduleModal(cell.dateStr);
                             }}
-                            className="w-full min-h-11 px-3 py-2 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-11 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
                           >
-                            <Plus className="w-3 h-3 text-[#CF8FA8]" />
+                            <Plus className="w-3 h-3 text-app-accent" />
                             <span>일정 추가</span>
                           </button>
                           <button
@@ -426,9 +426,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenDateCopyModal(cell.dateStr);
                             }}
-                            className="w-full min-h-11 px-3 py-2 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-11 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
                           >
-                            <Copy className="w-3 h-3 text-[#CF8FA8]" />
+                            <Copy className="w-3 h-3 text-app-accent" />
                             <span>일정 전체 복사</span>
                           </button>
                           <button
@@ -437,9 +437,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenBatchDateModal(cell.dateStr);
                             }}
-                            className="w-full min-h-11 px-3 py-2 text-left text-[#3E3438] hover:bg-[#F6E8ED] flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-11 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
                           >
-                            <CalendarRange className="w-3 h-3 text-[#CF8FA8]" />
+                            <CalendarRange className="w-3 h-3 text-app-accent" />
                             <span>여러 날짜 등록</span>
                           </button>
                         </CalendarDateMenu>
@@ -452,11 +452,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     {/* Mobile: readable title previews; tapping opens the day sheet. */}
                     <div data-mobile-calendar-titles className="sm:hidden space-y-1 mt-0.5 min-w-0">
                       {daySchedules.slice(0,2).map(schedule=>{
-                        const color=categoryMap.get(schedule.category)?.color || '#CF8FA8';
-                        return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-[#85777D]':schedule.isImportant?'font-bold text-[#3E3438]':'text-[#3E3438]')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{Array.from(schedule.title).slice(0,schedule.isImportant?2:3).join('')}</div>;
+                        const color=categoryMap.get(schedule.category)?.color || '#DCA78F';
+                        return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold text-app-ink':'text-app-ink')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{Array.from(schedule.title).slice(0,schedule.isImportant?2:3).join('')}</div>;
                       })}
-                      {daySchedules.length>1&&<span className="calendar-compact-count hidden absolute top-2 right-1 text-[9px] text-[#85777D]">+{daySchedules.length-1}</span>}
-                      {daySchedules.length>2&&<p className="calendar-extra-count text-[9px] leading-3 text-[#85777D] text-right">+{daySchedules.length-2}개</p>}
+                      {daySchedules.length>1&&<span className="calendar-compact-count hidden absolute top-2 right-1 text-[9px] text-app-muted">+{daySchedules.length-1}</span>}
+                      {daySchedules.length>2&&<p className="calendar-extra-count text-[9px] leading-3 text-app-muted text-right">+{daySchedules.length-2}개</p>}
                     </div>
 
                     {/* Desktop: Concise schedule bars */}
@@ -474,17 +474,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             }}
                             className={`px-1.5 py-0.5 rounded text-[11px] truncate leading-tight flex items-center gap-1 transition-all ${
                               s.completed
-                                ? 'line-through text-[#85777D]/70 bg-stone-100'
-                                : 'text-[#3E3438] hover:shadow-2xs'
+                                ? 'line-through text-app-muted/70 bg-stone-100'
+                                : 'text-app-ink hover:shadow-2xs'
                             }`}
                             style={{
-                              backgroundColor: s.completed ? undefined : `${cat?.color || '#CF8FA8'}18`,
-                              borderLeft: `3px solid ${cat?.color || '#CF8FA8'}`,
+                              backgroundColor: s.completed ? undefined : `${cat?.color || '#DCA78F'}18`,
+                              borderLeft: `3px solid ${cat?.color || '#DCA78F'}`,
                             }}
                             title={`${s.startTime ? `[${s.startTime}] ` : ''}${s.title}`}
                           >
                             {s.startTime && (
-                              <span className="font-semibold shrink-0 text-[10px] text-[#85777D]">
+                              <span className="font-semibold shrink-0 text-[10px] text-app-muted">
                                 {s.startTime}
                               </span>
                             )}
@@ -493,7 +493,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         );
                       })}
                       {daySchedules.length > 2 && (
-                        <div className="text-[10px] text-[#85777D] font-semibold text-right pr-0.5">
+                        <div className="text-[10px] text-app-muted font-semibold text-right pr-0.5">
                           +{daySchedules.length - 2}
                         </div>
                       )}
@@ -505,7 +505,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
         ) : (
           /* Week View: 7 columns */
-          <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-[#F0E7EB] overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-app-line overflow-hidden">
             {weekDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -522,23 +522,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
                   className={`min-w-0 min-h-0 overflow-hidden p-1 sm:p-2 transition-colors cursor-pointer flex flex-col justify-start ${
                     isSelected
-                      ? 'bg-[#F4DCE5]/40'
+                      ? 'bg-app-soft/40'
                       : isDragTarget
-                      ? 'bg-[#F6E8ED]'
-                      : 'bg-white hover:bg-[#FFFAFB]'
+                      ? 'bg-app-soft'
+                      : 'bg-white hover:bg-app-canvas'
                   }`}
                 >
-                  <div className="text-center pb-2 border-b border-[#F0E7EB] mb-2">
-                    <span className="text-[11px] font-semibold text-[#85777D] block">
+                  <div className="text-center pb-2 border-b border-app-line mb-2">
+                    <span className="text-[11px] font-semibold text-app-muted block">
                       {cell.dayName}
                     </span>
                     <span
                       className={`inline-flex items-center justify-center text-xs font-bold rounded-full w-6 h-6 mt-0.5 ${
                         cell.isToday
-                          ? 'bg-[#CF8FA8] text-white shadow-2xs'
+                          ? 'bg-app-accent text-white shadow-2xs'
                           : isSelected
-                          ? 'bg-[#CF8FA8]/20 text-[#3E3438]'
-                          : 'text-[#3E3438]'
+                          ? 'bg-app-accent/20 text-app-ink'
+                          : 'text-app-ink'
                       }`}
                     >
                       {cell.dayNum}
@@ -559,12 +559,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           }}
                           className={`p-1.5 rounded-lg text-xs transition-all border ${
                             s.completed
-                              ? 'bg-stone-50 border-stone-200 text-[#85777D]/70 line-through'
-                              : 'bg-white border-[#F0E7EB] text-[#3E3438] hover:border-[#CF8FA8]'
+                              ? 'bg-stone-50 border-stone-200 text-app-muted/70 line-through'
+                              : 'bg-white border-app-line text-app-ink hover:border-app-accent'
                           }`}
                         >
                           {s.startTime && (
-                            <span className="text-[10px] font-semibold text-[#CF8FA8] block mb-0.5">
+                            <span className="text-[10px] font-semibold text-app-accent block mb-0.5">
                               {s.startTime}
                             </span>
                           )}
@@ -572,7 +572,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         </div>
                       );
                     })}
-                    {daySchedules.length > 2 && <p className="text-[10px] text-[#85777D] text-right">+{daySchedules.length - 2}개</p>}
+                    {daySchedules.length > 2 && <p className="text-[10px] text-app-muted text-right">+{daySchedules.length - 2}개</p>}
                   </div>
                 </div>
               );
