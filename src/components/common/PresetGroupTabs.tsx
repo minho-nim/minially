@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, Settings2 } from 'lucide-react';
 import { Preset, PresetGroup } from '../../types';
 
-export function PresetGroupTabs({ groups, value, onChange, unclassified = false, presets, onManage }: { groups: PresetGroup[]; value: string; onChange: (id: string) => void; unclassified?: boolean; presets?: Preset[]; onManage?: () => void }) {
+export function PresetGroupTabs({ groups, value, onChange, unclassified = false, presets, onManage, expandedGroupId }: { groups: PresetGroup[]; value: string; onChange: (id: string) => void; unclassified?: boolean; presets?: Preset[]; onManage?: () => void; expandedGroupId?: string | null }) {
   const visibleGroups = [...[...groups].sort((a, b) => a.sortOrder - b.sortOrder), ...(unclassified ? [{ id: '', name: '미분류' }] : [])];
   if (!visibleGroups.length && !onManage) return null;
 
@@ -20,10 +20,10 @@ export function PresetGroupTabs({ groups, value, onChange, unclassified = false,
       {!visibleGroups.length && <p className="rounded-2xl border border-dashed border-app-outline bg-app-canvas p-4 text-xs leading-relaxed text-app-muted">그룹 관리에서 첫 그룹을 만들어 보세요.</p>}
       <div className="flex min-w-0 flex-wrap gap-1.5">
         {visibleGroups.map(group => {
-          const selected = value === group.id;
+          const selected = expandedGroupId === undefined ? value === group.id : expandedGroupId === group.id;
           const count = presets?.filter(p => (groups.some(g => g.id === p.groupId) ? p.groupId : '') === group.id).length;
           return (
-            <button key={group.id} type="button" title={group.name} aria-pressed={selected} onClick={() => onChange(group.id)}
+            <button key={group.id} type="button" title={group.name} aria-pressed={selected} aria-expanded={expandedGroupId === undefined ? undefined : selected} onClick={() => onChange(group.id)}
               className={'preset-group-chip inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ' + (selected
                 ? 'border-app-outline bg-app-soft text-app-ink'
                 : 'border-app-line bg-white text-app-ink hover:border-app-outline hover:bg-app-canvas')}>
