@@ -91,29 +91,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-5 bg-[rgba(45,35,40,0.25)]">
-      <div className="w-full sm:max-w-xl bg-white rounded-2xl shadow-xl border border-[#F0E7EB] overflow-hidden flex flex-col max-h-[calc(var(--modal-height,100dvh)-40px)] pb-safe safe-bottom">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-5 bg-[rgba(52,40,35,0.30)]">
+      <div className="w-full sm:max-w-xl bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[calc(var(--modal-height,100dvh)-40px)] pb-safe safe-bottom">
 
         {/* Header */}
-        <div className="px-5 py-3 border-b border-[#F0E7EB] flex items-center justify-between bg-white shrink-0">
-          <h3 className="text-base font-bold text-[#3E3438]">설정</h3>
+        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
+          <h3 className="text-base font-bold text-app-ink">설정</h3>
           <button
             onClick={requestClose}
             aria-label="설정 닫기"
-            className="p-1 text-[#85777D] hover:text-[#3E3438] hover:bg-[#F6E8ED] rounded-lg transition-colors cursor-pointer"
+            className="p-1 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-[#F0E7EB] bg-[#FFFAFB] px-4 gap-1 overflow-x-auto text-xs font-semibold shrink-0 no-scrollbar">
+        <div className="flex border-b border-app-line bg-app-canvas px-4 gap-1 overflow-x-auto text-xs font-semibold shrink-0 no-scrollbar">
           <button
             onClick={() => changeTab('presets')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'presets'
-                ? 'border-[#CF8FA8] text-[#CF8FA8]'
-                : 'border-transparent text-[#85777D] hover:text-[#3E3438]'
+                ? 'border-app-accent text-app-accent'
+                : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
             <Bookmark className="w-3.5 h-3.5" />
@@ -123,8 +123,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('categories')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'categories'
-                ? 'border-[#CF8FA8] text-[#CF8FA8]'
-                : 'border-transparent text-[#85777D] hover:text-[#3E3438]'
+                ? 'border-app-accent text-app-accent'
+                : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
@@ -134,8 +134,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('calendar')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'calendar'
-                ? 'border-[#CF8FA8] text-[#CF8FA8]'
-                : 'border-transparent text-[#85777D] hover:text-[#3E3438]'
+                ? 'border-app-accent text-app-accent'
+                : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
             <Sliders className="w-3.5 h-3.5" />
@@ -145,8 +145,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('backup')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'backup'
-                ? 'border-[#CF8FA8] text-[#CF8FA8]'
-                : 'border-transparent text-[#85777D] hover:text-[#3E3438]'
+                ? 'border-app-accent text-app-accent'
+                : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
             <Download className="w-3.5 h-3.5" />
@@ -156,8 +156,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('pwa')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'pwa'
-                ? 'border-[#CF8FA8] text-[#CF8FA8]'
-                : 'border-transparent text-[#85777D] hover:text-[#3E3438]'
+                ? 'border-app-accent text-app-accent'
+                : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
             <Smartphone className="w-3.5 h-3.5" />
@@ -178,25 +178,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'calendar' && (
             <div className="space-y-4">
               <div>
-                <h4 className="text-sm font-bold text-[#3E3438]">달력 환경 설정</h4>
+                <h4 className="text-sm font-bold text-app-ink">달력 환경 설정</h4>
               </div>
 
               <fieldset disabled={settingsSaving} className="space-y-2.5">
-                <div className="p-3 bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl flex items-center justify-between">
+                <div className="p-3 bg-app-canvas border border-app-line rounded-xl flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-[#3E3438]">시작 요일</p>
-                    <p className="text-[11px] text-[#85777D]">
+                    <p className="text-xs font-bold text-app-ink">시작 요일</p>
+                    <p className="text-[11px] text-app-muted">
                       달력의 첫 번째 요일을 설정합니다.
                     </p>
                   </div>
-                  <div className="flex rounded-lg border border-[#F0E7EB] p-0.5 bg-white text-xs">
+                  <div className="flex rounded-lg border border-app-line p-0.5 bg-white text-xs">
                     <button
                       type="button"
                       onClick={() => void updateSettings({ ...settings, startDayOfWeek: 0 })}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         settings.startDayOfWeek === 0
-                          ? 'bg-[#CF8FA8] text-white'
-                          : 'text-[#85777D] hover:bg-stone-50'
+                          ? 'bg-app-accent text-white'
+                          : 'text-app-muted hover:bg-stone-50'
                       }`}
                     >
                       일요일
@@ -206,8 +206,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => void updateSettings({ ...settings, startDayOfWeek: 1 })}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         settings.startDayOfWeek === 1
-                          ? 'bg-[#CF8FA8] text-white'
-                          : 'text-[#85777D] hover:bg-stone-50'
+                          ? 'bg-app-accent text-white'
+                          : 'text-app-muted hover:bg-stone-50'
                       }`}
                     >
                       월요일
@@ -215,10 +215,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="p-3 bg-[#FFFAFB] border border-[#F0E7EB] rounded-xl flex items-center justify-between">
+                <div className="p-3 bg-app-canvas border border-app-line rounded-xl flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-bold text-[#3E3438]">완료 일정 달력 표시</p>
-                    <p className="text-[11px] text-[#85777D]">
+                    <p className="text-xs font-bold text-app-ink">완료 일정 달력 표시</p>
+                    <p className="text-[11px] text-app-muted">
                       완료된 일정도 달력에 취소선으로 표시합니다.
                     </p>
                   </div>
@@ -232,7 +232,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#CF8FA8]"></div>
+                    <div className="w-9 h-5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-app-accent"></div>
                   </label>
                 </div>
               </fieldset>
@@ -243,8 +243,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'backup' && (
             <div className="space-y-4">
               <div>
-                <h4 className="text-sm font-bold text-[#3E3438]">데이터 백업 및 복원</h4>
-                <p className="text-xs text-[#85777D]">
+                <h4 className="text-sm font-bold text-app-ink">데이터 백업 및 복원</h4>
+                <p className="text-xs text-app-muted">
                   이 브라우저에 저장된 데이터를 JSON 파일로 백업하거나 복원합니다.
                 </p>
               </div>
@@ -259,17 +259,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     catch { setBackupStatus('백업 파일을 내보내지 못했습니다. 다시 시도해 주세요.'); }
                     finally { setBackupBusy(false); }
                   }}
-                  className="p-3.5 border border-[#F0E7EB] bg-[#FFFAFB] hover:bg-[#F6E8ED] rounded-xl text-left transition-colors cursor-pointer"
+                  className="p-3.5 border border-app-line bg-app-canvas hover:bg-app-soft rounded-xl text-left transition-colors cursor-pointer"
                 >
-                  <Download className="w-5 h-5 text-[#CF8FA8] mb-1.5" />
-                  <p className="text-xs font-bold text-[#3E3438]">JSON 백업 다운로드</p>
-                  <p className="text-[11px] text-[#85777D] mt-0.5">파일로 내보내기</p>
+                  <Download className="w-5 h-5 text-app-accent mb-1.5" />
+                  <p className="text-xs font-bold text-app-ink">JSON 백업 다운로드</p>
+                  <p className="text-[11px] text-app-muted mt-0.5">파일로 내보내기</p>
                 </button>
 
                 <div
                   role="button" tabIndex={backupBusy ? -1 : 0} aria-label="JSON 백업 복원" onKeyDown={e => { if (!backupBusy && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); fileInputRef.current?.click(); } }}
                   onClick={() => { if (!backupBusy) fileInputRef.current?.click(); }}
-                  className="p-3.5 border border-[#F0E7EB] bg-[#FFFAFB] hover:bg-[#F6E8ED] rounded-xl text-left transition-colors cursor-pointer"
+                  className="p-3.5 border border-app-line bg-app-canvas hover:bg-app-soft rounded-xl text-left transition-colors cursor-pointer"
                 >
                   <input
                     ref={fileInputRef}
@@ -278,15 +278,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  <Upload className="w-5 h-5 text-[#CF8FA8] mb-1.5" />
-                  <p className="text-xs font-bold text-[#3E3438]">JSON 백업 복원</p>
-                  <p className="text-[11px] text-[#85777D] mt-0.5">파일에서 불러오기</p>
+                  <Upload className="w-5 h-5 text-app-accent mb-1.5" />
+                  <p className="text-xs font-bold text-app-ink">JSON 백업 복원</p>
+                  <p className="text-[11px] text-app-muted mt-0.5">파일에서 불러오기</p>
                 </div>
               </div>
 
-              {backupStatus && <p role="status" className="text-xs text-[#85777D]">{backupStatus}</p>}
+              {backupStatus && <p role="status" className="text-xs text-app-muted">{backupStatus}</p>}
               {/* Reset */}
-              <div className="pt-3 border-t border-[#F0E7EB]">
+              <div className="pt-3 border-t border-app-line">
                 <div className="p-3 bg-red-50/70 border border-red-100 rounded-xl flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-red-800">기본 데이터로 초기화</p>
@@ -312,18 +312,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'pwa' && (
             <div className="space-y-4">
               <div>
-                <h4 className="text-sm font-bold text-[#3E3438]">홈 화면에 앱 설치하기 (PWA)</h4>
-                <p className="text-xs text-[#85777D]">
+                <h4 className="text-sm font-bold text-app-ink">홈 화면에 앱 설치하기 (PWA)</h4>
+                <p className="text-xs text-app-muted">
                   스마트폰 홈 화면에 바로가기 앱으로 설치하여 오프라인에서도 즉시 사용할 수 있습니다.
                 </p>
               </div>
 
-              <div className="p-4 bg-[#FFFAFB] border border-[#F0E7EB] rounded-2xl space-y-3">
+              <div className="p-4 bg-app-canvas border border-app-line rounded-2xl space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#CF8FA8] text-white flex items-center justify-center font-bold text-lg shadow-2xs">M</div>
+                  <div className="w-10 h-10 rounded-xl bg-app-accent text-white flex items-center justify-center font-bold text-lg shadow-2xs">M</div>
                   <div>
-                    <p className="text-sm font-bold text-[#3E3438]">미니어리 (Minially)</p>
-                    <p className="text-xs text-[#85777D]">
+                    <p className="text-sm font-bold text-app-ink">미니어리 (Minially)</p>
+                    <p className="text-xs text-app-muted">
                       {isInstalled ? '앱으로 설치되어 있습니다.' : '홈 화면 설치 가능'}
                     </p>
                   </div>
@@ -333,7 +333,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={promptInstall}
-                    className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-[#CF8FA8] hover:bg-[#BD7F98] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                   >
                     <Smartphone className="w-4 h-4" />
                     <span>홈 화면에 앱 설치하기</span>
@@ -341,12 +341,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 )}
 
                 {isIOS && (
-                  <div className="p-3 bg-white border border-[#F0E7EB] rounded-xl text-xs space-y-1">
-                    <p className="font-bold text-[#3E3438]">iOS Safari 설치 방법:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-[#85777D]">
-                      <li>Safari 하단의 <span className="font-semibold text-[#3E3438]">공유 버튼</span>을 누릅니다.</li>
-                      <li>메뉴에서 <span className="font-semibold text-[#3E3438]">'홈 화면에 추가'</span>를 선택합니다.</li>
-                      <li>우측 상단 <span className="font-semibold text-[#3E3438]">'추가'</span>를 누르면 홈 화면에 설치됩니다.</li>
+                  <div className="p-3 bg-white border border-app-line rounded-xl text-xs space-y-1">
+                    <p className="font-bold text-app-ink">iOS Safari 설치 방법:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-app-muted">
+                      <li>Safari 하단의 <span className="font-semibold text-app-ink">공유 버튼</span>을 누릅니다.</li>
+                      <li>메뉴에서 <span className="font-semibold text-app-ink">'홈 화면에 추가'</span>를 선택합니다.</li>
+                      <li>우측 상단 <span className="font-semibold text-app-ink">'추가'</span>를 누르면 홈 화면에 설치됩니다.</li>
                     </ol>
                   </div>
                 )}

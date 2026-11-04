@@ -28,5 +28,5 @@ export function CalendarDateMenu({anchor,onClose,children,container}:{anchor:HTM
   return()=>{document.removeEventListener('click',outside,true);document.removeEventListener('keydown',escape,true);};
  },[anchor,onClose]);
  if(!anchor)return null;
- return createPortal(<div ref={root} role="group" aria-label="날짜 작업 메뉴" onClick={event=>event.stopPropagation()} className="calendar-date-menu fixed z-[60] w-44 max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain bg-white rounded-2xl shadow-lg border border-[#F0E7EB] py-1 text-xs" style={{left:position.left,top:position.top,maxHeight:position.maxHeight,visibility:position.ready?'visible':'hidden'}}>{children}</div>,container||document.body);
+ return createPortal(<div ref={root} role="group" aria-label="날짜 작업 메뉴" onClick={event=>event.stopPropagation()} className="calendar-date-menu fixed z-[60] w-44 max-w-[calc(100vw-16px)] overflow-y-auto overscroll-contain bg-white rounded-2xl shadow-lg border border-app-line py-1 text-xs" style={{left:position.left,top:position.top,maxHeight:position.maxHeight,visibility:position.ready?'visible':'hidden'}}>{children}</div>,container||document.body);
 }

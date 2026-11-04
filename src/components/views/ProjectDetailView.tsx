@@ -34,7 +34,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
   return (
     <div className="space-y-5 max-w-4xl mx-auto">
       {/* Project Summary Header */}
-      <div className="bg-white rounded-2xl p-5 border border-[#F2E2E7] shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-5 border border-app-line shadow-xs space-y-4">
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={onBack}
@@ -47,19 +47,19 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             onClick={() => onEditProject(project)}
             className="px-2.5 py-1 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-600 text-xs font-semibold flex items-center gap-1 transition"
           >
-            <Edit2 className="w-3.5 h-3.5 text-[#D98DAA]" /> 프로젝트 수정
+            <Edit2 className="w-3.5 h-3.5 text-app-accent" /> 프로젝트 수정
           </button>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-[#473B40]">{project.name}</h1>
+            <h1 className="text-xl font-bold text-app-ink">{project.name}</h1>
             {project.description && (
               <p className="text-xs text-stone-500 mt-1 max-w-xl">{project.description}</p>
             )}
             <div className="flex items-center gap-3 text-xs text-stone-400 mt-2 font-mono">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#D98DAA]" /> 기간: {project.startDate} ~ {project.dueDate}
+                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 기간: {project.startDate} ~ {project.dueDate}
               </span>
               <span>·</span>
               <span>{doneTasksCount}/{projectTasks.length} 작업 완료</span>
@@ -67,16 +67,16 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           </div>
 
           {/* Progress bar and percent */}
-          <div className="bg-[#FFF8FA] p-3 rounded-xl border border-[#F2E2E7] min-w-[180px]">
+          <div className="bg-app-canvas p-3 rounded-xl border border-app-line min-w-[180px]">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold text-stone-600">진행률</span>
-              <span className="text-sm font-bold font-mono text-[#9E5170]">
+              <span className="text-sm font-bold font-mono text-app-accent">
                 {project.progress}%
               </span>
             </div>
-            <div className="w-full bg-[#F9EBEF] rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-app-soft rounded-full h-2 overflow-hidden">
               <div
-                className="bg-[#D98DAA] h-full rounded-full transition-all duration-300"
+                className="bg-app-accent h-full rounded-full transition-all duration-300"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
@@ -86,12 +86,12 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
 
       {/* Tabs: 세부 작업 vs 간트차트 */}
       <div className="flex items-center justify-between gap-3">
-        <div className="p-0.5 bg-[#F9EBEF] rounded-lg border border-[#ECD0DB] inline-flex">
+        <div className="p-0.5 bg-app-soft rounded-lg border border-app-line inline-flex">
           <button
             onClick={() => setActiveTab('tasks')}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${
               activeTab === 'tasks'
-                ? 'bg-white text-[#473B40] font-bold shadow-2xs'
+                ? 'bg-white text-app-ink font-bold shadow-2xs'
                 : 'text-stone-500 hover:text-stone-800'
             }`}
           >
@@ -101,7 +101,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             onClick={() => setActiveTab('gantt')}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-all flex items-center gap-1.5 ${
               activeTab === 'gantt'
-                ? 'bg-white text-[#473B40] font-bold shadow-2xs'
+                ? 'bg-white text-app-ink font-bold shadow-2xs'
                 : 'text-stone-500 hover:text-stone-800'
             }`}
           >
@@ -112,7 +112,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         {activeTab === 'tasks' && (
           <button
             onClick={() => onOpenNewTaskModal(project.id)}
-            className="px-3 py-1 text-xs font-semibold text-white bg-[#D98DAA] hover:bg-[#C97996] rounded-lg shadow-2xs transition flex items-center gap-1 active:scale-95"
+            className="px-3 py-1 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-2xs transition flex items-center gap-1 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" /> 작업 추가
           </button>
@@ -121,13 +121,13 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
 
       {/* View Content */}
       {activeTab === 'tasks' ? (
-        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#F2E2E7] shadow-xs space-y-2">
+        <div className="bg-white rounded-2xl p-4 sm:p-5 border border-app-line shadow-xs space-y-2">
           {projectTasks.length === 0 ? (
             <div className="py-12 text-center text-stone-400 text-xs">
               등록된 세부 작업이 없습니다.
               <button
                 onClick={() => onOpenNewTaskModal(project.id)}
-                className="mt-2 block mx-auto text-xs font-semibold text-[#D98DAA] hover:underline"
+                className="mt-2 block mx-auto text-xs font-semibold text-app-accent hover:underline"
               >
                 + 새 작업 등록
               </button>
@@ -143,7 +143,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                   className={`p-3 rounded-xl border transition-all ${
                     isDone
                       ? 'bg-stone-50/70 border-stone-200/70 opacity-60'
-                      : 'bg-white hover:bg-[#FFF8FA]/50 border-[#F2E2E7]'
+                      : 'bg-white hover:bg-app-canvas/50 border-app-line'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-3">
@@ -151,10 +151,10 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onToggleTaskStatus(task.id)}
-                        className="text-stone-300 hover:text-[#D98DAA] transition shrink-0"
+                        className="text-stone-300 hover:text-app-accent transition shrink-0"
                       >
                         {isDone ? (
-                          <CheckCircle2 className="w-4 h-4 text-[#D98DAA] fill-[#FFF0F4]" />
+                          <CheckCircle2 className="w-4 h-4 text-app-accent fill-app-soft" />
                         ) : (
                           <Circle className="w-4 h-4" />
                         )}
@@ -164,7 +164,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                         <div className="flex items-center gap-2 flex-wrap mb-0.5">
                           <span
                             className={`text-xs font-medium truncate ${
-                              isDone ? 'line-through text-stone-400' : 'text-[#473B40]'
+                              isDone ? 'line-through text-stone-400' : 'text-app-ink'
                             }`}
                           >
                             {task.title}

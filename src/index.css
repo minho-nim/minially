@@ -1,16 +1,31 @@
 @import "tailwindcss";
 
+/* Shared palette for the calendar, navigation, forms and preset library. */
+@theme {
+  --color-app-canvas: #FFFAF7;
+  --color-app-soft: #FFF0E8;
+  --color-app-line: #EADFD9;
+  --color-app-outline: #DCA78F;
+  --color-app-accent: #92543F;
+  --color-app-accent-hover: #7B4534;
+  --color-app-ink: #463631;
+  --color-app-muted: #786860;
+  --color-app-peach: #F6C3AE;
+  --color-app-peach-hover: #EDB299;
+}
+
+
 @layer base {
   :root {
-    --bg-main: #FFFAFB;
+    --bg-main: #FFFAF7;
     --surface: #FFFFFF;
-    --surface-muted: #F6E8ED;
-    --accent: #CF8FA8;
-    --accent-hover: #BD7F98;
-    --accent-soft: #F4DCE5;
-    --text-primary: #3E3438;
-    --text-secondary: #85777D;
-    --divider: #F0E7EB;
+    --surface-muted: #FFF0E8;
+    --accent: #92543F;
+    --accent-hover: #7B4534;
+    --accent-soft: #FFF0E8;
+    --text-primary: #463631;
+    --text-secondary: #786860;
+    --divider: #EADFD9;
   }
 
   body {
@@ -46,11 +61,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #E8D5DC;
+  background: #DCA78F;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #CF8FA8;
+  background: #92543F;
 }
 
 /* Keep primary actions reachable in the visual viewport, including when a keyboard opens. */
@@ -59,7 +74,7 @@
 .app-modal input:not([type='checkbox']):not([type='radio']):not([type='color']),
 .app-modal select { min-height: 44px; }
 .app-modal input[type='time'] { min-width: 0; }
-.app-modal :focus-visible { outline: 2px solid #BD7F98; outline-offset: 2px; }
+.app-modal :focus-visible { outline: 2px solid #7B4534; outline-offset: 2px; }
 @media (max-width: 639px) {
   .calendar-actions button { min-width: 44px; min-height: 44px; }
 }
@@ -69,7 +84,7 @@
 @media (max-width: 767px) {
   .task-view button { min-height: 44px; }
 }
-[data-sort-over='true'] { outline: 2px dashed #BD7F98; outline-offset: 2px; }
+[data-sort-over='true'] { outline: 2px dashed #7B4534; outline-offset: 2px; }
 [data-sort-dragging='true'] { opacity: 0.5; }
 
 .day-sheet {
