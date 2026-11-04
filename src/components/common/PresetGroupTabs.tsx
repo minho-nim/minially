@@ -15,7 +15,7 @@ export function PresetGroupTabs({ groups, value, onChange, unclassified = false,
             <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-medium text-app-accent">{visibleGroups.length}</span>
           </h3>
         </div>
-        {onManage && <button type="button" onClick={onManage} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-app-accent hover:bg-app-soft focus-visible:outline-2 focus-visible:outline-app-accent"><Settings2 aria-hidden="true" className="h-3.5 w-3.5" />그룹 관리</button>}
+        {onManage && <button type="button" onClick={onManage} className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-app-accent hover:bg-app-soft focus-visible:outline-2 focus-visible:outline-app-accent"><Settings2 aria-hidden="true" className="h-3.5 w-3.5" />그룹 관리</button>}
       </div>
       {!visibleGroups.length && <p className="rounded-2xl border border-dashed border-app-outline bg-app-canvas p-4 text-xs leading-relaxed text-app-muted">그룹 관리에서 첫 그룹을 만들어 보세요.</p>}
       <div className="flex min-w-0 flex-wrap gap-1.5">

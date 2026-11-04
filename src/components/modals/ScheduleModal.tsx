@@ -314,7 +314,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         {registrationNotice&&<RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={onDismissRegistration} onUndo={onUndoRegistration} container={modalRef.current}/>}
         {panelGuard.confirming && <DiscardPrompt onContinue={panelGuard.cancel} onDiscard={panelGuard.discard} />}
         {closeGuard.confirming && <DiscardPrompt actionLabel={isEditing ? '수정 취소' : '등록 취소'} title={isEditing ? '수정을 취소할까요?' : '등록을 취소할까요?'} onContinue={closeGuard.cancel} onDiscard={closeGuard.discard} />}
-        {saveError && <p role="alert" className="px-5 py-2 text-xs text-[#C4476B]">{saveError}</p>}
+        {saveError && <p role="alert" className="px-4 py-2 text-xs text-[#C4476B]">{saveError}</p>}
         {panelOpen && <div data-schedule-panel className="p-4 overflow-y-auto min-h-0">
           <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
           {datePanel ? <div className="space-y-3">
@@ -329,12 +329,12 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <button type="button" className="block p-3 w-full text-left rounded-xl border border-app-line" aria-pressed={!category} onClick={() => { setCategory(''); returnToSchedule(); }}>미분류 (선택 해제)</button>
             <CategoryGrid categories={categories} value={category} onChange={id=>{setCategory(id);returnToSchedule();}}/>
             <button type="button" className="min-h-10 px-3 text-app-accent-hover" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
-            <button type="button" className="min-h-11 px-3 text-app-accent-hover" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
+            <button type="button" className="min-h-9 px-3 text-app-accent-hover" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
           </div>}
         </div>}
         <div inert={saving} aria-busy={saving} className={panelOpen ? 'hidden' : 'flex flex-col min-h-0 min-w-0'}>
         {/* Header */}
-        <div className="px-5 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
+        <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <h3 className="text-base font-bold text-app-ink">
             {isEditing ? '일정 수정' : '새 일정'}
           </h3>
@@ -349,7 +349,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div data-sheet-scroll className="p-4 sm:p-5 space-y-3 sm:space-y-4 overflow-y-auto min-h-0 flex-1">
+        <div data-sheet-scroll className="p-4 sm:p-4 space-y-3 sm:space-y-3 overflow-y-auto min-h-0 flex-1">
           {/* 1. Title Input & Phrase Trigger */}
           <div>
             <label className="block text-xs font-semibold text-app-ink mb-1.5" htmlFor="schedule-title">일정 제목</label>
@@ -367,10 +367,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               className="w-full min-w-0 px-3.5 py-2.5 text-base sm:text-sm bg-app-canvas border border-app-line rounded-xl focus:outline-none focus:border-app-accent text-app-ink placeholder:text-app-muted/70 transition-colors"
             />
 
-              <button type="button" className="shrink-0 min-h-11 px-3 bg-app-soft rounded-xl text-sm text-app-accent-hover" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
+              <button type="button" className="shrink-0 min-h-9 px-3 bg-app-soft rounded-xl text-sm text-app-accent-hover" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
             </div>
             {(titleBlocks.length > 1 || titleBlocks.some(b => b.presetId)) && <div className="mt-2"><TitleBlockEditor blocks={titleBlocks} word="" onWordChange={() => {}} onChange={parts => { setTitleBlocks(parts); setTitle(parts.map(b => b.text).join(' ')); }} editable compact hideWordInput /></div>}
-            {inlinePresetsOpen && <InlinePresetPicker selectedBlocks={titleBlocks} options={<label className="flex items-center gap-2 text-xs min-h-11">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-11 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
+            {inlinePresetsOpen && <InlinePresetPicker selectedBlocks={titleBlocks} options={<label className="flex items-center gap-2 text-xs min-h-9">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-9 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
               const previous = titleInputRef.current?.value ?? title;
               const current = titleBlocks.map(b => b.text).join(' ') === previous ? titleBlocks : previous.trim() ? [{ id: crypto.randomUUID(), text: previous }] : [];
               const next = applyMode === 'append' ? [...current, ...parts] : parts; setTitleHistory(history => [...history, { text: previous, blocks: titleBlocks }]); setTitleBlocks(next); setTitle(next.map(b => b.text).join(' ')); trackUse(preset); setPhraseMessage(''); setApplyMode('append');
@@ -435,7 +435,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
 
             {/* Collapsed by default */}
             {showAdditionalOptions && (
-              <div className="space-y-4 pt-2 border-t border-app-line animate-in fade-in">
+              <div className="space-y-3 pt-2 border-t border-app-line animate-in fade-in">
               <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-app-accent-hover disabled:opacity-40">프리셋으로 저장</button>
                 <div className="space-y-2">
                   {occurrence ? <p className="text-xs text-app-muted">반복 일정의 이 날짜만 수정합니다. 반복 주기는 유지됩니다.</p> : <>
@@ -481,7 +481,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           <p>이 일정을 삭제할까요? 삭제 후 실행 취소할 수 있습니다.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(false)}>취소</button><button type="button" disabled={saving} onClick={async () => { if (!initialSchedule?.id || savingRef.current) return; savingRef.current = true; setSaving(true); try { await onDelete?.(initialSchedule.id); onClose(); } catch { setSaveError('일정을 삭제하지 못했습니다. 다시 시도해 주세요.'); } finally { savingRef.current = false; setSaving(false); } }} className="text-red-600 px-3">삭제</button></div>
         </div>}
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
+        <div className="px-4 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <div>
             {isEditing && onDelete ? (
               <button
@@ -517,7 +517,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               type="button"
               onClick={() => void handleSave()}
               disabled={!title.trim() || saving}
-              className="px-5 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              className="px-4 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
             >
               {saving ? '저장 중…' : isEditing ? '변경사항 저장' : continuousAdd ? '등록 후 계속' : allDates.length > 1 ? allDates.length + '개 등록' : '등록'}
             </button>

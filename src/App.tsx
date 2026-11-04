@@ -545,7 +545,7 @@ export default function App() {
       {registrationNotice && !(daySheetOpen&&activeTab==='calendar') && !scheduleModalOpen && !presetLibraryOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget && <RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={()=>setRegistrationNotice(null)} onUndo={registrationNotice.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}/>}
 
       {/* Main View Area (Mobile Optimized Max Width) */}
-      <main className="app-main-content flex-1 min-h-0 max-w-4xl w-full mx-auto p-3 sm:p-5 pb-24 md:pb-12">
+      <main className="app-main-content flex-1 min-h-0 max-w-4xl w-full mx-auto p-3 sm:p-4 pb-24 md:pb-12">
         {/* 1. Calendar View (Default) */}
         {activeTab === 'calendar' && (
           <CalendarView
@@ -596,7 +596,7 @@ export default function App() {
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
       />
 
-      {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-11 px-3">닫기</button></div>}
+      {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-9 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />

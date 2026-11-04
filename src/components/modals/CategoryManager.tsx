@@ -11,7 +11,7 @@ export interface CategoryActions {
   onDeleteCategory: (id: string) => Promise<void> | void;
   onReorderCategories?: (ids: string[]) => Promise<void> | void;
 }
-const button = 'min-h-11 px-2 rounded-lg text-xs text-app-muted hover:bg-app-soft disabled:opacity-40';
+const button = 'min-h-9 px-2 rounded-lg text-xs text-app-muted hover:bg-app-soft disabled:opacity-40';
 const input = 'min-w-0 w-full border border-app-line rounded-lg p-2 text-base bg-white';
 export function CategoryManager({ categories, schedules, onSaveCategory, onDeleteCategory, onReorderCategories, onCreated, onDirtyChange, onBusyChange }: CategoryActions & { onCreated?: (id: string) => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void }) {
   const [editing, setEditing] = useState<string | null>(null);

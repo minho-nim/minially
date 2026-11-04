@@ -283,8 +283,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             주간
           </button>
         </div>
-        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-11 px-4 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
-        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-11 px-4 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
+        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-9 px-4 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
+        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-9 px-4 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
       </div>
       {/* Month/Week Navigation & Mode Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2 pt-1">
@@ -415,7 +415,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenNewScheduleModal(cell.dateStr);
                             }}
-                            className="w-full min-h-11 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-9 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
                           >
                             <Plus className="w-3 h-3 text-app-accent" />
                             <span>일정 추가</span>
@@ -426,7 +426,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenDateCopyModal(cell.dateStr);
                             }}
-                            className="w-full min-h-11 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-9 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
                           >
                             <Copy className="w-3 h-3 text-app-accent" />
                             <span>일정 전체 복사</span>
@@ -437,7 +437,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               setActiveDateMenu(null);
                               onOpenBatchDateModal(cell.dateStr);
                             }}
-                            className="w-full min-h-11 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
+                            className="w-full min-h-9 px-3 py-2 text-left text-app-ink hover:bg-app-soft flex items-center gap-1.5 cursor-pointer font-medium"
                           >
                             <CalendarRange className="w-3 h-3 text-app-accent" />
                             <span>여러 날짜 등록</span>

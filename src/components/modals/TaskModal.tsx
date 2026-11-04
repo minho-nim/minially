@@ -108,7 +108,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         role="dialog"
         aria-modal="true"
       >
-        <div className="px-5 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
+        <div className="px-4 py-3.5 border-b border-app-line flex items-center justify-between bg-app-canvas">
           <h2 className="text-sm font-bold text-app-ink">
             {isEdit ? '작업 수정' : '새 작업 등록'}
           </h2>
@@ -120,7 +120,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+        <form onSubmit={handleSubmit} className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">
           {/* Project selector */}
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">소속 프로젝트</label>

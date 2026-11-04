@@ -89,7 +89,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               <div
                 key={project.id}
                 onClick={() => onSelectProject(project.id)}
-                className="group bg-white rounded-2xl p-4 sm:p-5 border border-app-line hover:border-app-accent shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+                className="group bg-white rounded-2xl p-4 sm:p-4 border border-app-line hover:border-app-accent shadow-xs transition-all cursor-pointer flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
