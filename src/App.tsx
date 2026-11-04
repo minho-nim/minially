@@ -30,6 +30,7 @@ import {
   getAllRecurrenceExceptions,
   getAllTasks,
   saveTask as dbSaveTask,
+  rescheduleTask as dbRescheduleTask,
   saveCalendarTask as dbSaveCalendarTask,
   deleteTask as dbDeleteTask,
   getAppSettings,
@@ -225,8 +226,8 @@ export default function App() {
     await reloadData();
   };
 
-  const handleToggleSchedule = async (scheduleId: string) => {
-    const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
+  const handleToggleSchedule = async (scheduleId: string, occurrence?: Schedule) => {
+    const target = occurrence || expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target) return;
 
     const updated: Schedule = {
@@ -590,6 +591,7 @@ export default function App() {
             onUsePreset={handleUsePreset}
             onOpenPresetManager={()=>setPresetLibraryOpen(true)}
             onOpenCalendar={() => setTodaySchedulesOpen(true)}
+            onRescheduleTask={async(id,date)=>{await dbRescheduleTask(id,date);await reloadData();}}
             onToggleTaskStatus={handleToggleTaskStatus}
             onToggleTaskChecklist={handleToggleTaskChecklist}
             onDeleteTask={id => { setTaskDeleteTarget(tasks.find(t => t.id === id) || null); }}
@@ -611,7 +613,7 @@ export default function App() {
       {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-9 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
-      <TodaySchedulesModal open={todaySchedulesOpen} onClose={() => setTodaySchedulesOpen(false)} schedules={schedules} rules={recurrenceRules} exceptions={recurrenceExceptions} categories={categories} tasks={tasks} onRegisterTask={handleRegisterScheduleAsTask} />
+      <TodaySchedulesModal open={todaySchedulesOpen} onClose={() => setTodaySchedulesOpen(false)} schedules={schedules} rules={recurrenceRules} exceptions={recurrenceExceptions} categories={categories} tasks={tasks} onToggleSchedule={async schedule=>{await handleToggleSchedule(schedule.id,schedule);}} onRegisterTask={handleRegisterScheduleAsTask} />
       <CategoryLibraryModal open={categoryLibraryOpen} onClose={() => setCategoryLibraryOpen(false)} categories={categories} schedules={schedules} onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
       <DayScheduleSheet

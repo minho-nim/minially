@@ -34,6 +34,11 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       await page.getByRole('button', { name: '캘린더 오늘 일정 보기', exact: true }).click();
       const calendar = page.getByRole('dialog', { name: '오늘 캘린더 일정', exact: true });
       await expect(calendar.getByRole('article')).toContainText('오늘 약속');
+      await calendar.getByRole('button',{name:'오늘 약속 완료',exact:true}).click();
+      await expect(calendar.getByRole('button',{name:'오늘 약속 완료 취소',exact:true})).toBeVisible();
+      await expect(calendar.getByRole('article').locator('p').first()).toHaveClass(/line-through/);
+      await calendar.getByRole('button',{name:'오늘 약속 완료 취소',exact:true}).click();
+      await expect(calendar.getByRole('button',{name:'오늘 약속 완료',exact:true})).toBeVisible();
       expect(await calendar.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
       await calendar.getByRole('button', { name: '오늘 약속 할 일에 등록', exact: true }).click();
       await expect(calendar.getByRole('button', { name: '오늘 약속 할 일에 등록', exact: true })).toBeDisabled();

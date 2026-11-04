@@ -1,3 +1,4 @@
+import { TaskPlanningModal } from '../modals/TaskPlanningModal';
 import { DatePicker } from '../common/DatePicker';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Task, TaskPriority, Preset, PresetGroup, TitleBlock } from '../../types';
@@ -23,6 +24,7 @@ interface TasksViewProps {
   onUsePreset: (id: string) => Promise<void> | void;
   onOpenPresetManager: () => void;
   onOpenCalendar: () => void;
+  onRescheduleTask: (id: string, date: string) => Promise<void>;
   onToggleTaskStatus: (taskId: string) => Promise<void> | void;
   onToggleTaskChecklist: (taskId: string, checklistId: string) => Promise<void> | void;
   onDeleteTask: (taskId: string) => Promise<void> | void;
@@ -36,7 +38,7 @@ type CompletionFilter = 'pending' | 'completed' | 'all';
 
 export const TasksView: React.FC<TasksViewProps> = ({
   tasks,
-  presets, presetGroups, onUsePreset, onOpenPresetManager, onOpenCalendar,
+  presets, presetGroups, onUsePreset, onOpenPresetManager, onOpenCalendar, onRescheduleTask,
   onToggleTaskStatus,
   onToggleTaskChecklist,
   onDeleteTask,
@@ -44,6 +46,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
   onBatchDeleteTasks,
   onBatchToggleTasks,
 }) => {
+  const [dateTarget, setDateTarget] = useState<Task | null>(null);
+  const [importing, setImporting] = useState(false);
   const todayStr = getTodayDateString();
   const [dateScope, setDateScope] = useState<DateScopeFilter>('today');
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('pending');
@@ -73,9 +77,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
         if (completionFilter === 'completed' && t.status !== 'done') return false;
 
         // Date Scope
-        const dueDate = t.dueDate || todayStr;
+        const dueDate = t.dueDate;
         if (dateScope === 'today' && dueDate !== todayStr) return false;
-        if (dateScope === 'upcoming' && dueDate <= todayStr) return false;
+        if (dateScope === 'upcoming' && (!dueDate || dueDate <= todayStr)) return false;
 
         return true;
       })
@@ -142,6 +146,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   return (
     <fieldset disabled={pending} className="task-view max-w-4xl mx-auto space-y-3 min-w-0">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+      <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);setDateScope(!date || date<todayStr?'all':date===todayStr?'today':'upcoming');}} />
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
         {/* Date Scope: 오늘 | 예정 | 전체 */}
@@ -186,6 +191,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={()=>setImporting(true)} className="min-h-9 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent">가져오기</button>
           <button type="button" onClick={onOpenCalendar} aria-haspopup="dialog" aria-label="캘린더 오늘 일정 보기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" />캘린더</button>
           <div className="flex items-center p-0.5 bg-app-soft rounded-xl border border-app-line text-xs">
             <button
@@ -331,6 +337,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               return (
                 <div
                   key={task.id}
+                  data-task-id={task.id}
                   className={`px-4 py-3 flex items-center justify-between gap-3 transition-colors ${
                     isSelected
                       ? 'bg-app-soft/30'
@@ -377,13 +384,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
                         {task.title}
                       </p>
 
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-app-muted">
-                        {task.dueDate && (
-                          <span className="flex items-center gap-1 font-mono">
-                            <Calendar className="w-3 h-3 text-app-accent" />
-                            {task.dueDate}
-                          </span>
-                        )}
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-app-muted">
+                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 미정'}</button>
+                        {isDone && <span className="text-[10px] rounded bg-app-soft px-1.5 text-app-accent">완료</span>}
 
                         {hasChecklist && (
                           <button
@@ -430,6 +433,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                   {/* Single Delete Action */}
                   {!isSelectMode && (
+                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} className="min-h-8 rounded-lg px-2 text-xs text-app-accent">{isDone?'완료 취소':'완료'}</button>
                     <button
                       type="button"
                       onClick={() => onDeleteTask(task.id)}
@@ -437,7 +441,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                       title="삭제"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </button></div>
                   )}
                 </div>
               );

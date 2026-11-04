@@ -519,6 +519,21 @@ export async function saveTask(task: Task): Promise<void> {
   await db.put('tasks', task);
 }
 
+export async function rescheduleTask(id: string, date: string): Promise<void> {
+  if (date) {
+    const parsed = new Date(date + 'T00:00:00');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.getFullYear() !== Number(date.slice(0,4)) || parsed.getMonth()+1 !== Number(date.slice(5,7)) || parsed.getDate() !== Number(date.slice(8,10))) throw new Error('올바른 날짜를 선택해 주세요.');
+  }
+  const db = await getDB();
+  const tx = db.transaction('tasks', 'readwrite');
+  try {
+    const task = await tx.store.get(id);
+    if (!task) throw new Error('할 일을 찾을 수 없습니다.');
+    await tx.store.put({ ...task, dueDate: date || undefined });
+    await tx.done;
+  } catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
+}
+
 // Read and insert in one transaction so concurrent tabs cannot overwrite a task.
 export async function saveCalendarTask(schedule: Schedule): Promise<boolean> {
   const db = await getDB();

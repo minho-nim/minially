@@ -10,8 +10,9 @@ interface Props {
   open: boolean; onClose: () => void; schedules: Schedule[]; categories: CategoryItem[]; tasks: Task[];
   rules: RecurrenceRule[]; exceptions: RecurrenceException[];
   onRegisterTask: (schedule: Schedule) => Promise<void>;
+  onToggleSchedule: (schedule: Schedule) => Promise<void>;
 }
-export function TodaySchedulesModal({ open, onClose, schedules, categories, tasks, rules, exceptions, onRegisterTask }: Props) {
+export function TodaySchedulesModal({ open, onClose, schedules, categories, tasks, rules, exceptions, onRegisterTask, onToggleSchedule }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function TodaySchedulesModal({ open, onClose, schedules, categories, task
     document.addEventListener('visibilitychange', resume);
     return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', resume); };
   }, [open]);
-  const items = useMemo(() => open ? calendarSchedulesForDate(schedules, rules, exceptions, today).sort(compareSchedules) : [], [open, schedules, rules, exceptions, today]);
+  const items = useMemo(() => open ? calendarSchedulesForDate(schedules, rules, exceptions, today).sort((a,b)=>Number(a.completed)-Number(b.completed)||compareSchedules(a,b)) : [], [open, schedules, rules, exceptions, today]);
   if (!open) return null;
   const register = async (schedule: Schedule) => {
     if (busy.current) return;
@@ -48,6 +49,13 @@ export function TodaySchedulesModal({ open, onClose, schedules, categories, task
     try { await onRegisterTask(schedule); setMessage('‘' + schedule.title + '’을 할 일에 등록했습니다.'); }
     catch { setError('할 일에 등록하지 못했습니다. 다시 시도해 주세요.'); }
     finally { busy.current = false; setPendingId(null); }
+  };
+  const toggle = async (schedule: Schedule) => {
+    if (busy.current) return;
+    busy.current=true;setPendingId(schedule.id);setError('');
+    try {await onToggleSchedule(schedule);setMessage(schedule.completed?'완료를 취소했습니다.':'일정을 완료했습니다.');}
+    catch {setError('완료 상태를 저장하지 못했습니다. 다시 시도해 주세요.');}
+    finally {busy.current=false;setPendingId(null);}
   };
   return <div ref={root} role="dialog" aria-modal="true" aria-label="오늘 캘린더 일정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={e => { if (e.target === e.currentTarget) close(); }}>
     <section className="w-full max-w-lg max-h-[min(80dvh,var(--modal-height,100dvh))] rounded-2xl border border-app-line bg-white text-app-ink shadow-xl flex flex-col overflow-hidden">
@@ -60,10 +68,10 @@ export function TodaySchedulesModal({ open, onClose, schedules, categories, task
         {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
         {message && <p role="status" className="text-xs text-app-accent-hover">{message}</p>}
         {!items.length && <p className="py-2 text-center text-xs text-app-muted">오늘 등록된 일정이 없습니다.</p>}
-        {items.map(schedule => {
+        {items.map((schedule,index) => {
           const category = categories.find(item => item.id === schedule.category);
           const added = hasCalendarTask(tasks, schedule);
-          return <article key={schedule.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-app-line p-2">
+          return <React.Fragment key={schedule.id}>{(index===0||items[index-1].completed!==schedule.completed)&&<h3 className="pt-1 text-xs font-semibold text-app-muted">{schedule.completed?'완료':'미완료'}</h3>}<article className="flex flex-wrap items-center gap-2 rounded-lg border border-app-line p-2">
             <div className="min-w-0 flex-1 basis-36">
               <p className={'break-words text-sm ' + (schedule.completed ? 'text-app-muted line-through' : 'text-app-ink')}>{schedule.isImportant && '★ '}{schedule.title}</p>
               <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-app-muted">
@@ -71,8 +79,9 @@ export function TodaySchedulesModal({ open, onClose, schedules, categories, task
                 <span className="inline-flex items-center gap-1"><span aria-hidden="true" className="h-2 w-2 rounded-full" style={{background:category?.color || '#BAAFB4'}} />{category?.name || '미분류'}</span>
               </div>
             </div>
+            <button type="button" disabled={pendingId!==null} aria-label={schedule.title+(schedule.completed?' 완료 취소':' 완료')} aria-pressed={schedule.completed} onClick={()=>void toggle(schedule)} className="min-h-8 shrink-0 rounded-lg border border-app-line px-2 text-xs text-app-accent-hover">{schedule.completed?'완료 취소':'완료'}</button>
             <button type="button" aria-label={schedule.title + ' 할 일에 등록'} disabled={added || pendingId !== null} onClick={() => void register(schedule)} className="ml-auto min-h-8 shrink-0 whitespace-nowrap rounded-lg bg-app-soft px-2 text-xs text-app-accent-hover disabled:opacity-50 inline-flex items-center gap-1">{added && <Check aria-hidden="true" className="h-3 w-3" />}{added ? '등록됨' : pendingId === schedule.id ? '등록 중' : '할 일에 등록'}</button>
-          </article>;
+          </article></React.Fragment>;
         })}
       </div>
     </section>
