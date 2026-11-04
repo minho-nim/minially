@@ -33,9 +33,9 @@ export function TaskDateFilter({ start, end, onChange }: { start: string; end: s
     </div>
     <div role="group" aria-label="할 일 날짜 탐색" className="flex min-w-0 items-start gap-1">
       <button type="button" aria-label="이전 날짜 할 일" onClick={() => shift(-1)} className="flex min-h-9 shrink-0 items-center rounded-lg px-1 hover:bg-app-soft"><ChevronLeft aria-hidden="true" className="h-4 w-4"/></button>
-      <div className="grid min-w-0 flex-1 gap-1.5 sm:grid-cols-2">
-        <div className={range ? '' : 'sm:col-span-2'}><DatePicker label={range ? '조회 시작일' : '조회 날짜'} value={start} onChange={date => onChange(date, range && date <= end ? end : date)}/></div>
-        {range && <DatePicker label="조회 종료일" value={end} onChange={date => onChange(date < start ? date : start, date)}/>}
+      <div className={"grid min-w-0 flex-1 gap-1.5 " + (range ? "grid-cols-2" : "grid-cols-1")}>
+        <DatePicker compact={range} label={range ? '조회 시작일' : '조회 날짜'} value={start} onChange={date => onChange(date, range && date <= end ? end : date)}/>
+        {range && <DatePicker compact label="조회 종료일" value={end} onChange={date => onChange(date < start ? date : start, date)}/>}
       </div>
       <button type="button" aria-label="다음 날짜 할 일" onClick={() => shift(1)} className="flex min-h-9 shrink-0 items-center rounded-lg px-1 hover:bg-app-soft"><ChevronRight aria-hidden="true" className="h-4 w-4"/></button>
       <button type="button" aria-pressed={start === today && end === today} onClick={() => { setRange(false); onChange(today, today); }} className="min-h-9 shrink-0 rounded-lg px-2 text-xs text-app-accent hover:bg-app-soft">오늘</button>

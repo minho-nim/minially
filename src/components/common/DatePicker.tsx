@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
-import { formatKoreanDate, getTodayDateString, DAYS_KR } from '../../utils/dateHelpers';
+import { formatKoreanDate, formatShortDate, getTodayDateString, DAYS_KR } from '../../utils/dateHelpers';
 
-export function DatePicker({ label, value, onChange, placeholder = '날짜를 선택하세요', multiple }: { label: string; value: string; onChange: (date: string) => void; placeholder?: string; multiple?:{values:string[];onToggle:(date:string)=>void;fixed?:string[]} }) {
+export function DatePicker({ label, value, onChange, placeholder = '날짜를 선택하세요', multiple, compact = false }: { label: string; value: string; onChange: (date: string) => void; placeholder?: string; compact?: boolean; multiple?:{values:string[];onToggle:(date:string)=>void;fixed?:string[]} }) {
   const [open, setOpen] = useState(false);
   const [year, setYear] = useState(() => Number((value || getTodayDateString()).slice(0, 4)));
   const [month, setMonth] = useState(() => Number((value || getTodayDateString()).slice(5, 7)));
@@ -22,8 +22,8 @@ export function DatePicker({ label, value, onChange, placeholder = '날짜를 �
   const offset = new Date(year, month - 1, 1).getDay(), count = new Date(year, month, 0).getDate();
   const dateOf = (day: number) => `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const selectDate=(date:string)=>{if(multiple){if(!multiple.fixed?.includes(date))multiple.onToggle(date);}else{onChange(date);close();}};
-  return <div ref={root} className="w-full min-w-0">
-    <button ref={trigger} type="button" aria-label={label} aria-description={multiple?`${multiple.values.length}개 날짜 선택됨`:value ? formatKoreanDate(value) : placeholder} aria-expanded={open} onClick={() => setOpen(v => !v)} className="w-full min-h-9 flex items-center gap-2 text-left px-3 py-1.5 bg-app-canvas border border-app-line rounded-xl text-sm text-app-ink"><Calendar className="w-4 h-4 text-app-accent shrink-0" /><span className="min-w-0 break-words">{multiple?`${label} · ${multiple.values.length}일`:value ? formatKoreanDate(value) : placeholder}</span></button>
+  return <div ref={root} className={'w-full min-w-0' + (compact && open ? ' col-span-2' : '')}>
+    <button ref={trigger} type="button" aria-label={label} aria-description={multiple?`${multiple.values.length}개 날짜 선택됨`:value ? formatKoreanDate(value) : placeholder} aria-expanded={open} onClick={() => setOpen(v => !v)} className={'w-full min-h-9 flex items-center text-left py-1.5 bg-app-canvas border border-app-line rounded-xl text-app-ink ' + (compact ? 'gap-1 px-2 text-xs' : 'gap-2 px-3 text-sm')}><Calendar className="w-4 h-4 text-app-accent shrink-0" /><span className={compact ? "min-w-0 whitespace-nowrap" : "min-w-0 break-words"}>{multiple?`${label} · ${multiple.values.length}일`:value ? (compact ? formatShortDate(value) : formatKoreanDate(value)) : placeholder}</span></button>
     {open && <div data-date-picker-open role="group" aria-label={label + ' 달력'} className="mt-2 border border-app-outline rounded-xl bg-white p-2 space-y-2">
       <div className="flex items-center gap-1"><button type="button" aria-label={label + ' 이전 달'} onClick={() => moveMonth(-1)} className="min-w-8 px-1 text-app-muted"><ChevronLeft className="w-4 h-4" /></button>
         <select autoFocus aria-label={label + ' 연도'} value={String(year)} onChange={e => setYear(Number(e.target.value))} className="min-w-0 flex-1 bg-white text-sm rounded-lg">{Array.from({ length: 151 }, (_, i) => year - 100 + i).map(y => <option key={y} value={String(y)}>{y}</option>)}</select>
