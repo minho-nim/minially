@@ -29,7 +29,7 @@ type PhraseActions = {
   groupNavigation?: boolean;
 };
 const button = 'min-h-11 min-w-11 px-2 py-1 text-xs rounded-lg text-app-muted hover:bg-app-soft disabled:opacity-40 cursor-pointer';
-const primary = `${button} bg-app-peach text-app-ink font-semibold hover:bg-app-peach-hover`;
+const primary = `${button} bg-app-accent text-white font-semibold hover:bg-app-accent-hover`;
 const input = 'w-full min-w-0 min-h-11 px-3 py-2 text-base sm:text-sm border border-app-line rounded-lg bg-white text-app-ink focus:outline-none focus:border-app-peach';
 export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeletePreset, onReorderPresets, onDirtyChange, onBusyChange, initialBlocks = [], existingTitle = '', onApplyComposition, composePresets = false, hideSearch = false, presetGroups = [], initialType = 'title', initialMode = 'manage', groupNavigation = false }: PhraseActions) {
   const [showGroupList, setShowGroupList] = useState(groupNavigation);
