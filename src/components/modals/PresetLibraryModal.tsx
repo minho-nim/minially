@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Bookmark, X } from 'lucide-react';
 import { Preset, PresetGroup } from '../../types';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
@@ -11,6 +11,17 @@ export function PresetLibraryModal({open,onClose,presets,groups,onSavePreset,onD
  const guard=useDiscardGuard(dirty,busy);const close=()=>{if(guard.confirming){guard.cancel();return false;}return guard.request(onClose);};
  useLayoutEffect(()=>{if(open){setDirty(false);setBusy(false);guard.cancel();requestAnimationFrame(()=>root.current?.querySelector<HTMLButtonElement>('header button')?.focus());}},[open]);
  useScheduleDialog(open,false,root,close,close);if(!open)return null;
- return <div ref={root} role="dialog" aria-modal="true" aria-label="프리셋" data-preset-overlay className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center sm:p-4 bg-[rgba(45,35,40,0.25)]"><div className="w-full sm:max-w-md bg-white rounded-2xl max-h-[min(90dvh,var(--modal-height,100dvh))] flex flex-col overflow-hidden safe-bottom"><header className="px-4 py-2 border-b border-[#F0E7EB] flex items-center justify-between"><h2 className="font-bold text-sm">프리셋 관리</h2><button type="button" aria-label="프리셋 닫기" className="min-h-11 min-w-11 flex items-center justify-center" onClick={close}><X className="w-5 h-5"/></button></header>{guard.confirming&&<DiscardPrompt actionLabel="프리셋 작성 취소" onContinue={guard.cancel} onDiscard={guard.discard}/>}
- <div data-preset-content className="p-4 min-h-0 overflow-y-auto space-y-3"><PhraseManager presets={presets} presetGroups={groups} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} hideSearch initialMode="manage" onDirtyChange={setDirty} onBusyChange={setBusy}/></div></div></div>;
+ return <div ref={root} role="dialog" aria-modal="true" aria-label="프리셋" data-preset-overlay className="app-modal preset-library-overlay fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center bg-[rgba(32,40,25,0.32)] p-5" onClick={e=>{if(e.target===e.currentTarget){e.stopPropagation();close();}}}>
+  <div className="preset-library-surface w-full max-w-xl rounded-3xl border border-[#E6E9DE] bg-white text-[#29351F] shadow-xl flex flex-col overflow-hidden">
+   <header className="shrink-0 px-5 pt-5 pb-4 border-b border-[#E6E9DE] flex items-center gap-3">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F0F5E5] text-[#596D32]"><Bookmark aria-hidden="true" className="h-5 w-5"/></span>
+    <div className="min-w-0 flex-1"><h2 className="text-base font-bold tracking-tight">프리셋 관리</h2><p className="mt-1 text-xs text-[#68735E]">자주 쓰는 문구를 나만의 그룹으로</p></div>
+    <button type="button" aria-label="프리셋 닫기" className="min-h-11 min-w-11 rounded-full flex items-center justify-center text-[#68735E] hover:bg-[#F3F5ED]" onClick={close}><X className="w-5 h-5"/></button>
+   </header>
+   {guard.confirming&&<DiscardPrompt actionLabel="프리셋 작성 취소" onContinue={guard.cancel} onDiscard={guard.discard}/>}
+   <div data-preset-content className="flex-1 p-5 min-h-0 overflow-y-auto overscroll-contain bg-white">
+    <PhraseManager presets={presets} presetGroups={groups} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} initialMode="manage" onDirtyChange={setDirty} onBusyChange={setBusy}/>
+   </div>
+  </div>
+ </div>;
 }
