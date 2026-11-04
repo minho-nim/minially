@@ -256,8 +256,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   return (
-    <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-2 sm:gap-4">
-      <div role="group" aria-label="일정 만들기" className="flex items-center justify-end gap-2">
+    <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-1.5 sm:gap-2">
+      <div role="group" aria-label="일정 만들기" className="flex items-center justify-end gap-1.5">
         {/* View Mode Toggle */}
         <div className="mr-auto flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
           <button
@@ -283,8 +283,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             주간
           </button>
         </div>
-        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-9 px-4 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
-        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-9 px-4 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
+        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-9 px-3 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
+        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-9 px-3 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
       </div>
       {/* Month/Week Navigation & Mode Controls */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2 pt-1">
