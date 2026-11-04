@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Schedule, CategoryItem } from '../../types';
 import { formatKoreanDate } from '../../utils/dateHelpers';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
-import { Search, X, Calendar, Clock, Star } from 'lucide-react';
+import { DatePicker } from '../common/DatePicker';
+import { Search, X, Calendar, CalendarRange, Clock, Star } from 'lucide-react';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -21,9 +22,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   onSelectSchedule,
 }) => {
   const [query, setQuery] = useState('');
+  const [from,setFrom]=useState(''),[to,setTo]=useState('');
+  const hasRange=Boolean(from||to);
+  const invalidRange=Boolean(from&&to&&from>to);
   const inputRef = useRef<HTMLInputElement>(null), modalRef = useRef<HTMLDivElement>(null);
   useScheduleDialog(isOpen, false, modalRef, onClose, onClose);
-  useEffect(() => setQuery(''), [sessionKey]);
+  useEffect(() => {setQuery('');setFrom('');setTo('');}, [sessionKey]);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,9 +44,11 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return [];
+    if ((!q&&!hasRange)||invalidRange) return [];
     return schedules
       .filter((s) => {
+        if ((from&&s.date<from)||(to&&s.date>to)) return false;
+        if(!q)return true;
         const titleMatch = s.title.toLowerCase().includes(q);
         const memoMatch = s.memo ? s.memo.toLowerCase().includes(q) : false;
         const catName = catMap.get(s.category) || '';
@@ -50,13 +56,14 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         return titleMatch || memoMatch || catMatch;
       })
       .sort((a, b) => b.date.localeCompare(a.date));
-  }, [schedules, query, catMap]);
+  }, [schedules, query, catMap, from, to, hasRange, invalidRange]);
 
   if (!isOpen) return null;
 
   return (
     <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 검색" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-3 sm:p-4 bg-[rgba(52,40,35,0.30)]">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(80dvh,var(--modal-height,100dvh))]">
+      <div style={{minHeight:'min(240px, calc(var(--modal-height, 100dvh) - 32px))'}} className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(80dvh,var(--modal-height,100dvh))]">
+        <header className="shrink-0 px-3 py-1.5 border-b border-app-line flex items-center justify-between"><h2 className="text-sm font-bold text-app-ink">일정 검색</h2><button type="button" aria-label="일정 검색 닫기" title="닫기" onClick={onClose} className="min-h-9 min-w-9 flex items-center justify-center rounded-lg text-app-muted hover:bg-app-soft"><X aria-hidden="true" className="h-4 w-4"/></button></header>
         {/* Search Input Bar */}
         <div className="px-3 py-2 border-b border-app-line flex items-center gap-2 bg-app-canvas">
           <Search className="w-4 h-4 text-app-accent shrink-0" />
@@ -67,7 +74,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="일정 제목, 메모, 카테고리 검색..."
-            className="w-full bg-transparent text-sm text-app-ink placeholder:text-app-muted/70 focus:outline-none"
+            className="w-full min-w-0 bg-transparent text-base sm:text-sm text-app-ink placeholder:text-app-muted/70 focus:outline-none"
           />
           {query && (
             <button
@@ -78,23 +85,19 @@ export const SearchModal: React.FC<SearchModalProps> = ({
               <X className="w-4 h-4" />
             </button>
           )}
-          <button
-            onClick={onClose}
-            className="shrink-0 whitespace-nowrap px-2 py-1 text-xs text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
-          >
-            닫기
-          </button>
+
         </div>
 
+        <details className="shrink-0 px-3 py-1 border-b border-app-line text-xs text-app-muted"><summary className="min-h-8 cursor-pointer py-1.5"><span className="inline-flex items-center gap-1"><CalendarRange aria-hidden="true" className="h-3.5 w-3.5"/>기간 검색{hasRange?' · 적용 중':''}</span></summary><div className="grid gap-2 pb-2 sm:grid-cols-2"><DatePicker label="검색 시작일" value={from} onChange={setFrom}/><DatePicker label="검색 종료일" value={to} onChange={setTo}/></div>{hasRange&&<button type="button" onClick={()=>{setFrom('');setTo('');}} className="min-h-8 text-xs text-app-accent">기간 초기화</button>}{invalidRange&&<p role="alert" className="pb-2 text-xs text-red-600">종료일은 시작일 이후로 선택해 주세요.</p>}</details>
         {/* Results List */}
-        <div className="px-3 py-2 overflow-y-auto space-y-1 min-h-0">
-          {!query.trim() ? (
+        <div className="flex-1 px-3 py-2 overflow-y-auto space-y-1 min-h-0">
+          {!query.trim()&&!hasRange ? (
             <div className="py-1.5 text-center text-xs text-app-muted">
-              검색어를 입력하면 전체 일정을 찾아드립니다.
+              검색어 또는 기간으로 일정을 찾아보세요.
             </div>
           ) : results.length === 0 ? (
             <div className="py-1.5 text-center text-xs text-app-muted">
-              '{query}'와 일치하는 일정이 없습니다.
+              조건에 맞는 일정이 없습니다.
             </div>
           ) : (
             <>
@@ -111,12 +114,12 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     onClose();
                     onSelectSchedule(item);
                   }}
-                  className="p-3 rounded-xl hover:bg-app-canvas transition-colors cursor-pointer flex items-center justify-between gap-3 border border-transparent hover:border-app-line"
+                  className="p-2 rounded-lg hover:bg-app-canvas transition-colors cursor-pointer flex items-center justify-between gap-3 border border-transparent hover:border-app-line"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
                       {item.isImportant && <Star aria-label="중요 일정" className="w-3.5 h-3.5 shrink-0 text-app-accent fill-current" />}
-                      <span className={`text-sm text-app-ink break-words ${item.isImportant ? 'font-bold' : 'font-medium'}`}>
+                      <span className={`text-sm text-app-ink break-words ${item.completed ? 'line-through text-app-muted' : item.isImportant ? 'font-bold' : 'font-medium'}`}>
                         {item.title}
                       </span>
                       {item.completed && (
@@ -125,7 +128,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-app-muted">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-app-muted">
                       <span className="flex items-center gap-1 font-mono">
                         <Calendar className="w-3 h-3 text-app-accent" />
                         {formatKoreanDate(item.date)}

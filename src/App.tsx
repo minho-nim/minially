@@ -96,6 +96,8 @@ export default function App() {
   const [categoryLibraryOpen, setCategoryLibraryOpen] = useState(false);
   const [todaySchedulesOpen, setTodaySchedulesOpen] = useState(false);
   const [taskSelectedDate, setTaskSelectedDate] = useState(getTodayDateString);
+  const [taskSelectedEndDate, setTaskSelectedEndDate] = useState(getTodayDateString);
+  const selectTaskDate = (date: string) => { setTaskSelectedDate(date); setTaskSelectedEndDate(date); };
   const [actionError, setActionError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
   const [taskDeleteTarget, setTaskDeleteTarget] = useState<Task | null>(null);
@@ -587,7 +589,7 @@ export default function App() {
         {activeTab === 'tasks' && (
           <TasksView
             tasks={tasks}
-            selectedDate={taskSelectedDate} onSelectDate={setTaskSelectedDate}
+            selectedDate={taskSelectedDate} selectedEndDate={taskSelectedEndDate} onSelectDate={selectTaskDate} onSelectRange={(start,end)=>{setTaskSelectedDate(start);setTaskSelectedEndDate(end);}}
             presets={presets}
             presetGroups={settings.presetGroups || []}
             onUsePreset={handleUsePreset}
@@ -615,7 +617,7 @@ export default function App() {
       {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-9 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
-      <TodaySchedulesModal date={taskSelectedDate} onDateChange={setTaskSelectedDate} open={todaySchedulesOpen} onClose={() => setTodaySchedulesOpen(false)} schedules={schedules} rules={recurrenceRules} exceptions={recurrenceExceptions} categories={categories} tasks={tasks} onToggleSchedule={async schedule=>{await handleToggleSchedule(schedule.id,schedule);}} onRegisterTask={handleRegisterScheduleAsTask} />
+      <TodaySchedulesModal date={taskSelectedDate} onDateChange={selectTaskDate} open={todaySchedulesOpen} onClose={() => setTodaySchedulesOpen(false)} schedules={schedules} rules={recurrenceRules} exceptions={recurrenceExceptions} categories={categories} tasks={tasks} onToggleSchedule={async schedule=>{await handleToggleSchedule(schedule.id,schedule);}} onRegisterTask={handleRegisterScheduleAsTask} />
       <CategoryLibraryModal open={categoryLibraryOpen} onClose={() => setCategoryLibraryOpen(false)} categories={categories} schedules={schedules} onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
       <DayScheduleSheet

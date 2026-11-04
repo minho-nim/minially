@@ -38,9 +38,7 @@ for (const width of [390,1280]) {
       await title.fill('어제 할 일');await title.press('Enter');await expect(title).toHaveValue('');
       const saved=await page.evaluate(async()=>{const path='/src/db/indexedDB.ts';return (await import(path)).getAllTasks();});
       expect(saved.find((t:any)=>t.title==='어제 할 일')?.dueDate).toBe(dates.past);
-      await page.getByRole('button',{name:'날짜 미정',exact:true}).click();await title.fill('나중에 할 일');await title.press('Enter');await expect(title).toHaveValue('');
-      const undated=await page.evaluate(async()=>{const path='/src/db/indexedDB.ts';return (await import(path)).getAllTasks();});
-      expect(undated.find((t:any)=>t.title==='나중에 할 일')?.dueDate).toBeUndefined();
+      await expect(page.getByRole('button',{name:'날짜 미정',exact:true})).toHaveCount(0);
     });
   });
 }

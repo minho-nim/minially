@@ -1,5 +1,5 @@
 import { TaskPlanningModal } from '../modals/TaskPlanningModal';
-import { DatePicker } from '../common/DatePicker';
+import { TaskDateFilter } from '../common/TaskDateFilter';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Task, TaskPriority, Preset, PresetGroup, TitleBlock } from '../../types';
 import { InlinePresetPicker } from '../common/InlinePresetPicker';
@@ -13,7 +13,7 @@ import {
   Square,
   ChevronDown,
   ChevronUp,
-  Settings2,
+  Settings2, Check, RotateCcw, ListChecks, X, Plus, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { getTodayDateString, formatKoreanDate } from '../../utils/dateHelpers';
 
@@ -24,6 +24,8 @@ interface TasksViewProps {
   onUsePreset: (id: string) => Promise<void> | void;
   onOpenPresetManager: () => void;
   selectedDate: string;
+  selectedEndDate: string;
+  onSelectRange: (start: string, end: string) => void;
   onSelectDate: (date: string) => void;
   onOpenCalendar: () => void;
   onRescheduleTask: (id: string, date: string) => Promise<void>;
@@ -38,7 +40,7 @@ interface TasksViewProps {
 type CompletionFilter = 'pending' | 'completed' | 'all';
 
 export const TasksView: React.FC<TasksViewProps> = ({
-  tasks, selectedDate, onSelectDate,
+  tasks, selectedDate, selectedEndDate, onSelectRange, onSelectDate,
   presets, presetGroups, onUsePreset, onOpenPresetManager, onOpenCalendar, onRescheduleTask,
   onToggleTaskStatus,
   onToggleTaskChecklist,
@@ -50,10 +52,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [dateTarget, setDateTarget] = useState<Task | null>(null);
   const [importing, setImporting] = useState(false);
   const todayStr = getTodayDateString();
-  const [undatedOnly, setUndatedOnly] = useState(false);
-  const chooseDate = (date: string) => { onSelectDate(date); setUndatedOnly(false); setSelectedTaskIds([]); setError(''); };
-  const shiftDate = (delta: number) => { const date=new Date(selectedDate+'T12:00:00');date.setDate(date.getDate()+delta);chooseDate(`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`); };
-  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('pending');
+  const chooseDate = (date: string) => { onSelectDate(date); setSelectedTaskIds([]); setError(''); };
+  const shiftDate = (delta: number) => { const a=new Date(selectedDate+'T12:00:00'),b=new Date(selectedEndDate+'T12:00:00');const count=Math.round((Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/86400000)+1; a.setDate(a.getDate()+delta*count);b.setDate(b.getDate()+delta*count);const fmt=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;onSelectRange(fmt(a),fmt(b)); };
+  const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
   const [quickTitle, setQuickTitle] = useState('');
   const [blocks,setBlocks] = useState<TitleBlock[]>([]);
   const [titleHistory,setTitleHistory] = useState<{text:string;blocks:TitleBlock[]}[]>([]);
@@ -68,7 +69,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [expandedChecklists, setExpandedChecklists] = useState<Record<string, boolean>>({});
-  useEffect(()=>{setSelectedTaskIds([]);},[selectedDate,undatedOnly]);
+  useEffect(()=>{setSelectedTaskIds([]);},[selectedDate,selectedEndDate,completionFilter]);
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
@@ -80,12 +81,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         // Date Scope
         const dueDate = t.dueDate;
-        if (undatedOnly ? Boolean(dueDate) : dueDate !== selectedDate) return false;
+        if (!dueDate || dueDate < selectedDate || dueDate > selectedEndDate) return false;
 
         return true;
       })
-      .sort((a, b) => (a.dueDate || '').localeCompare(b.dueDate || ''));
-  }, [tasks, selectedDate, undatedOnly, completionFilter]);
+      .sort((a, b) => Number(a.status==='done')-Number(b.status==='done') || (a.dueDate || '').localeCompare(b.dueDate || ''));
+  }, [tasks, selectedDate, selectedEndDate, completionFilter]);
 
   const toggleSelectTask = (id: string) => {
     setSelectedTaskIds((prev) =>
@@ -105,7 +106,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
     e.preventDefault();
     if (!quickTitle.trim() || composing.current) return;
     if(blocks.some(b=>!b.text.trim())){setError('빈 제목 블록을 입력하거나 제거해 주세요.');return;}
-    await run(async () => { await onQuickAddTask(quickTitle.trim(), undatedOnly?'':selectedDate, undefined, 'medium'); setQuickTitle('');setBlocks([]);setTitleHistory([]);setCompletionFilter('pending');requestAnimationFrame(()=>quickInput.current?.focus({preventScroll:true})); });
+    await run(async () => { await onQuickAddTask(quickTitle.trim(), selectedDate, undefined, 'medium'); setQuickTitle('');setBlocks([]);setTitleHistory([]);setCompletionFilter('pending');requestAnimationFrame(()=>quickInput.current?.focus({preventScroll:true})); });
   };
 
   const toggleExpand = (taskId: string) => {
@@ -145,59 +146,27 @@ export const TasksView: React.FC<TasksViewProps> = ({
   return (
     <fieldset aria-busy={pending} className="task-view max-w-4xl mx-auto space-y-3 min-w-0">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-      <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);if(date)chooseDate(date);else{setUndatedOnly(true);setSelectedTaskIds([]);}if(importing)setCompletionFilter('pending');}} />
+      <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);chooseDate(date||todayStr);if(importing)setCompletionFilter('pending');}} />
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
         <div role="group" aria-label="할 일 날짜 탐색" className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <button type="button" aria-label="이전 날짜 할 일" onClick={()=>shiftDate(-1)} className="min-h-9 px-2 rounded-lg hover:bg-app-soft">‹</button>
-          <div className="min-w-0 flex-1"><DatePicker label="볼 날짜" value={selectedDate} onChange={chooseDate}/></div>
-          <button type="button" aria-label="다음 날짜 할 일" onClick={()=>shiftDate(1)} className="min-h-9 px-2 rounded-lg hover:bg-app-soft">›</button>
-          <button type="button" aria-pressed={!undatedOnly&&selectedDate===todayStr} onClick={()=>chooseDate(todayStr)} className="min-h-9 rounded-lg px-2 text-xs text-app-accent">오늘</button>
-          <button type="button" aria-pressed={undatedOnly} onClick={()=>{setUndatedOnly(v=>!v);setSelectedTaskIds([]);}} className="min-h-9 rounded-lg px-2 text-xs text-app-accent">날짜 미정</button>
+          <button type="button" aria-label="이전 날짜 할 일" onClick={()=>shiftDate(-1)} className="min-h-9 px-2 rounded-lg hover:bg-app-soft"><ChevronLeft aria-hidden="true" className="h-4 w-4"/></button>
+          <div className="min-w-0"><TaskDateFilter start={selectedDate} end={selectedEndDate} onChange={onSelectRange}/></div>
+          <button type="button" aria-label="다음 날짜 할 일" onClick={()=>shiftDate(1)} className="min-h-9 px-2 rounded-lg hover:bg-app-soft"><ChevronRight aria-hidden="true" className="h-4 w-4"/></button>
+          <button type="button" aria-pressed={selectedDate===todayStr&&selectedDate===selectedEndDate} onClick={()=>chooseDate(todayStr)} className="min-h-9 rounded-lg px-2 text-xs text-app-accent">오늘</button>
         </div>
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={()=>setImporting(true)} className="min-h-9 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent">미완료 가져오기</button>
-          <button type="button" onClick={()=>{setUndatedOnly(false);onOpenCalendar();}} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" />캘린더</button>
-          <div className="flex items-center p-0.5 bg-app-soft rounded-xl border border-app-line text-xs">
-            <button
-              type="button"
-              onClick={() => setCompletionFilter('pending')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium ${
-                completionFilter === 'pending'
-                  ? 'bg-white text-app-ink shadow-2xs font-semibold'
-                  : 'text-app-muted hover:text-app-ink'
-              }`}
-            >
-              미완료
-            </button>
-            <button
-              type="button"
-              onClick={() => setCompletionFilter('completed')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium ${
-                completionFilter === 'completed'
-                  ? 'bg-white text-app-ink shadow-2xs font-semibold'
-                  : 'text-app-muted hover:text-app-ink'
-              }`}
-            >
-              완료
-            </button>
-            <button
-              type="button"
-              onClick={() => setCompletionFilter('all')}
-              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer font-medium ${
-                completionFilter === 'all'
-                  ? 'bg-white text-app-ink shadow-2xs font-semibold'
-                  : 'text-app-muted hover:text-app-ink'
-              }`}
-            >
-              모두
-            </button>
+          <button type="button" onClick={onOpenCalendar} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
+          <div role="group" aria-label="할 일 완료 필터" className="flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
+            {([['all','모두'],['pending','미완료'],['completed','완료']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={completionFilter===value} onClick={()=>setCompletionFilter(value)} className={'min-h-8 px-2.5 rounded-md '+(completionFilter===value?'bg-white font-semibold text-app-ink':'text-app-muted')}>{label}</button>)}
           </div>
 
           <button
             type="button"
+            aria-label={isSelectMode?'선택 취소':'선택'} title={isSelectMode?'선택 취소':'선택'}
             onClick={() => {
               setIsSelectMode(!isSelectMode);
               setSelectedTaskIds([]);
@@ -208,7 +177,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 : 'bg-white text-app-muted border-app-line hover:text-app-ink'
             }`}
           >
-            {isSelectMode ? '선택 취소' : '선택'}
+            {isSelectMode ? <X aria-hidden="true" className="h-4 w-4"/> : <ListChecks aria-hidden="true" className="h-4 w-4"/>}
           </button>
         </div>
       </div>
@@ -217,7 +186,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       <div className="bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {/* Quick Inline Add Bar */}
         <form aria-label="할 일 등록" onSubmit={handleQuickAdd} onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement&&e.target!==quickInput.current)e.preventDefault();}} className="p-3 space-y-2 border-b border-app-line bg-app-canvas/50">
-          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0"><p className="text-xs text-app-muted px-1">{undatedOnly?'날짜 미정':formatKoreanDate(selectedDate)} · 간편 등록</p></div><button type="button" onClick={onOpenPresetManager} className="min-h-9 px-2 flex items-center gap-1 text-xs text-app-accent rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/>프리셋 설정</button></div>
+          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0"><p className="text-xs text-app-muted px-1">{formatKoreanDate(selectedDate)} · 간편 등록</p></div><button type="button" onClick={onOpenPresetManager} aria-label="프리셋 설정" title="프리셋 설정" className="min-h-9 px-2 flex items-center gap-1 text-xs text-app-accent rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/></button></div>
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-app-line focus-within:border-app-accent transition-colors">
             <input
               type="text"
@@ -235,10 +204,11 @@ export const TasksView: React.FC<TasksViewProps> = ({
             <button type="button" disabled={pending} aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-9 px-2 text-xs text-app-accent bg-app-soft rounded-lg">프리셋</button>
             <button
               type="submit"
+              aria-label="추가" title="할 일 추가"
               disabled={pending || !quickTitle.trim()}
               className="px-2.5 py-1 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-lg transition-all cursor-pointer"
             >
-              추가
+              <Plus aria-hidden="true" className="h-4 w-4"/>
             </button>
           </div>
           {!!blocks.length && <TitleBlockEditor compact editable hideWordInput blocks={blocks} word="" onWordChange={()=>{}} onChange={next=>{setTitleHistory(history=>[...history,{text:quickTitle,blocks}]);setBlocks(next);setQuickTitle(next.map(b=>b.text).join(' '));}}/>}
@@ -291,7 +261,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
         {/* Cardless List of Tasks */}
         <div className="divide-y divide-app-line">
           {filteredTasks.length === 0 ? (
-            <div className="py-4 text-center text-xs text-app-muted">
+            <div className="py-2 text-center text-xs text-app-muted">
               등록된 할 일이 없습니다.
             </div>
           ) : (
@@ -306,13 +276,13 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 <div
                   key={task.id}
                   data-task-id={task.id}
-                  className={`px-4 py-3 flex items-center justify-between gap-3 transition-colors ${
+                  className={`px-3 py-1.5 flex items-center justify-between gap-2 transition-colors ${isDone ? 'bg-app-soft/70 border-l-[3px] border-l-app-accent' : ''} ${
                     isSelected
                       ? 'bg-app-soft/30'
                       : 'hover:bg-app-canvas'
                   }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* Checkbox (or select checkbox if in select mode) */}
                     {isSelectMode ? (
                       <button
@@ -353,8 +323,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
                       </p>
 
                       <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-app-muted">
-                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 미정'}</button>
-                        {isDone && <span className="text-[10px] rounded bg-app-soft px-1.5 text-app-accent">완료</span>}
+                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 선택'}</button>
+                        {isDone && <span className="inline-flex items-center gap-0.5 text-[11px] rounded bg-[#8F526C] px-1.5 py-0.5 font-semibold text-white"><Check aria-hidden="true" className="h-3 w-3"/>완료</span>}
 
                         {hasChecklist && (
                           <button
@@ -401,7 +371,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                   {/* Single Delete Action */}
                   {!isSelectMode && (
-                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} className="min-h-8 rounded-lg px-2 text-xs text-app-accent">{isDone?'완료 취소':'완료'}</button>
+                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} title={isDone?'완료 취소':'완료'} className="min-h-8 rounded-lg px-2 text-xs text-app-accent">{isDone?<RotateCcw aria-hidden="true" className="h-4 w-4"/>:<Check aria-hidden="true" className="h-4 w-4"/>}</button>
                     <button
                       type="button"
                       onClick={() => onDeleteTask(task.id)}
