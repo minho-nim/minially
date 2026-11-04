@@ -175,3 +175,17 @@
   min-height: 32px;
   padding-block: 4px;
 }
+
+/* Compact list actions without shrinking editing forms or other dialogs. */
+[data-preset-row] button,
+.app-modal [data-preset-row] button {
+  min-height: 28px;
+  min-width: 28px;
+  padding: 4px;
+}
+.preset-list-add,
+.app-modal .preset-list-add {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 11px;
+}
