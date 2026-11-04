@@ -17,10 +17,9 @@ for (const width of [390,1280]) {
       await page.getByRole('button',{name:'옮길 할 일 날짜 변경',exact:true}).click();
       const editor=page.getByRole('dialog',{name:'할 일 날짜 변경',exact:true});
       await editor.getByRole('button',{name:'내일',exact:true}).click();await editor.getByRole('button',{name:'날짜 저장'}).click();await expect(editor).toHaveCount(0);
-      await expect(page.getByRole('button',{name:'예정',exact:true})).toHaveAttribute('aria-pressed','true');
       await expect(page.locator('[data-task-id="today"]')).toContainText(dates.future);
       await page.getByRole('button',{name:'완료',exact:true}).click();
-      await page.getByRole('button',{name:'가져오기',exact:true}).click();
+      await page.getByRole('button',{name:'미완료 가져오기',exact:true}).click();
       const bring=page.getByRole('dialog',{name:'미완료 할 일 가져오기'});
       await expect(bring.getByText('어제 미완료',{exact:true})).toBeVisible();await expect(bring.getByText('어제 완료',{exact:true})).toHaveCount(0);await expect(bring.getByText('옮길 할 일',{exact:true})).toHaveCount(0);
       await bring.getByRole('button',{name:'어제 미완료 오늘로 가져오기'}).click();await expect(bring.getByText('어제 미완료',{exact:true})).toHaveCount(0);
@@ -30,7 +29,7 @@ for (const width of [390,1280]) {
       await page.getByRole('button',{name:'완료',exact:true}).click();await expect(row).toBeVisible();await expect(row.locator('p').first()).toHaveClass(/line-through/);
       const saved=await page.evaluate(async()=>{const path='/src/db/indexedDB.ts';return (await import(path)).getAllTasks();});
       expect(saved).toHaveLength(4);expect(saved.find((t:any)=>t.id==='past')).toMatchObject({dueDate:dates.today,status:'done',memo:'유지할 메모',checklist:[{id:'check',text:'준비',done:true}]});
-      await page.reload();await page.getByRole('button',{name:'할 일',exact:true}).filter({visible:true}).first().click();await page.getByRole('button',{name:'예정',exact:true}).click();await expect(page.locator('[data-task-id="today"]')).toContainText(dates.future);
+      await page.reload();await page.getByRole('button',{name:'할 일',exact:true}).filter({visible:true}).first().click();await page.getByRole('button',{name:'다음 날짜 할 일',exact:true}).click();await expect(page.locator('[data-task-id="today"]')).toContainText(dates.future);
     });
   });
 }

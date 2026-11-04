@@ -31,8 +31,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       await expect.poll(() => page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllCategories()).find((item: any) => item.id === 'custom')?.color; })).toBe('#123456');
       await category.getByRole('button', { name: '카테고리 관리 닫기' }).click();
       await page.getByRole('button', { name: '할 일', exact: true }).filter({ visible: true }).first().click();
-      await page.getByRole('button', { name: '캘린더 오늘 일정 보기', exact: true }).click();
-      const calendar = page.getByRole('dialog', { name: '오늘 캘린더 일정', exact: true });
+      await page.getByRole('button', { name: '캘린더 일정 가져오기', exact: true }).click();
+      const calendar = page.getByRole('dialog', { name: '캘린더 일정 가져오기', exact: true });
       await expect(calendar.getByRole('article')).toContainText('오늘 약속');
       await calendar.getByRole('button',{name:'오늘 약속 완료',exact:true}).click();
       await expect(calendar.getByRole('button',{name:'오늘 약속 완료 취소',exact:true})).toBeVisible();
@@ -40,8 +40,8 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       await calendar.getByRole('button',{name:'오늘 약속 완료 취소',exact:true}).click();
       await expect(calendar.getByRole('button',{name:'오늘 약속 완료',exact:true})).toBeVisible();
       expect(await calendar.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
-      await calendar.getByRole('button', { name: '오늘 약속 할 일에 등록', exact: true }).click();
-      await expect(calendar.getByRole('button', { name: '오늘 약속 할 일에 등록', exact: true })).toBeDisabled();
+      await calendar.getByRole('button', { name: '오늘 약속 일정 가져오기', exact: true }).click();
+      await expect(calendar.getByRole('button', { name: '오늘 약속 일정 가져오기', exact: true })).toBeDisabled();
       const data = await page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await import(path)).exportAllData(); });
       expect(data.tasks).toHaveLength(1);
       expect(data.tasks[0]).toMatchObject({ title: '오늘 약속', priority: 'high', memo: '준비물', linkedScheduleId: 'today-event' });
