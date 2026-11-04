@@ -19,6 +19,7 @@ for (const width of [390,1280]) {
       await editor.getByRole('button',{name:'내일',exact:true}).click();await editor.getByRole('button',{name:'날짜 저장'}).click();await expect(editor).toHaveCount(0);
       await expect(page.getByRole('button',{name:'예정',exact:true})).toHaveAttribute('aria-pressed','true');
       await expect(page.locator('[data-task-id="today"]')).toContainText(dates.future);
+      await page.getByRole('button',{name:'완료',exact:true}).click();
       await page.getByRole('button',{name:'가져오기',exact:true}).click();
       const bring=page.getByRole('dialog',{name:'미완료 할 일 가져오기'});
       await expect(bring.getByText('어제 미완료',{exact:true})).toBeVisible();await expect(bring.getByText('어제 완료',{exact:true})).toHaveCount(0);await expect(bring.getByText('옮길 할 일',{exact:true})).toHaveCount(0);

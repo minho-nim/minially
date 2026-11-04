@@ -146,7 +146,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   return (
     <fieldset disabled={pending} className="task-view max-w-4xl mx-auto space-y-3 min-w-0">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-      <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);setDateScope(!date || date<todayStr?'all':date===todayStr?'today':'upcoming');}} />
+      <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);setDateScope(!date || date<todayStr?'all':date===todayStr?'today':'upcoming');if(importing)setCompletionFilter('pending');}} />
       {/* Top Filter & Scope Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
         {/* Date Scope: 오늘 | 예정 | 전체 */}
