@@ -196,8 +196,17 @@
 /* Fit quick-entry actions to the popup width, including narrow phones. */
 .day-quick-entry { container: day-quick-entry / inline-size; }
 .day-quick-options > button { max-width: 100%; }
-@container day-quick-entry (max-width: 320px) {
-  .day-quick-entry-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+@container day-quick-entry (max-width: 400px) {
+  .day-quick-entry-row { grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px; }
   .day-quick-title { grid-column: 1 / -1; }
   .day-quick-presets { justify-self: end; }
 }
+
+/* Title actions share one small row; expand inline only when the form has room. */
+.schedule-title-section { container: schedule-title / inline-size; }
+@container schedule-title (min-width: 400px) {
+  .schedule-title-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .schedule-title-actions { grid-column: auto; }
+}
+.category-compact-control,
+.app-modal .category-compact-control { min-height: 32px; }

@@ -307,7 +307,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   return (
     <div ref={modalRef} data-schedule-overlay className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(52,40,35,0.30)]" role="dialog" aria-modal="true" aria-label={isEditing ? '일정 수정' : '새 일정'}>
       {/* Mobile Bottom Sheet & Desktop Compact Modal */}
-      <div ref={mobileSheet.surfaceRef} style={mobileSheet.style} className="w-full sm:max-w-md bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
+      <div ref={mobileSheet.surfaceRef} style={categoryPanel ? { ...mobileSheet.style, height: 'auto', minHeight: 0 } : mobileSheet.style} className="w-full sm:max-w-md bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(90dvh,var(--modal-height,100dvh))] pb-safe safe-bottom">
         {/* Mobile drag handle */}
         <button {...mobileSheet.handleProps} className="mobile-sheet-handle sm:hidden shrink-0 w-full flex items-center justify-center cursor-grab active:cursor-grabbing"><span className="w-10 h-1 bg-app-outline rounded-full"/></button>
 
@@ -315,8 +315,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         {panelGuard.confirming && <DiscardPrompt onContinue={panelGuard.cancel} onDiscard={panelGuard.discard} />}
         {closeGuard.confirming && <DiscardPrompt actionLabel={isEditing ? '수정 취소' : '등록 취소'} title={isEditing ? '수정을 취소할까요?' : '등록을 취소할까요?'} onContinue={closeGuard.cancel} onDiscard={closeGuard.discard} />}
         {saveError && <p role="alert" className="px-4 py-2 text-xs text-[#C4476B]">{saveError}</p>}
-        {panelOpen && <div data-schedule-panel className="p-4 overflow-y-auto min-h-0">
-          <div className="flex items-center justify-between mb-3"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-10 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
+        {panelOpen && <div data-schedule-panel className="px-3 py-2 overflow-y-auto min-h-0">
+          <div className="flex items-center justify-between mb-1.5"><h3 className="font-bold text-sm">{datePanel ? '여러 날짜 선택' : isPhraseModalOpen ? '프리셋 관리' : categoryPanel === 'manage' ? '카테고리 관리' : '카테고리 선택'}</h3><button type="button" className="min-h-9 px-2 text-sm" onClick={requestBack}>뒤로</button></div>
           {datePanel ? <div className="space-y-3">
             <p className="text-xs text-app-muted">같은 내용으로 등록할 날짜를 선택하세요. 작성 중인 내용은 유지됩니다.</p>
             <MultipleDateSelection baseDate={date} dates={allDates} onDone={returnToSchedule} onChange={(base,dates)=>{setDate(base);setExtraDates(dates.filter(value=>value!==base));}}/>
@@ -326,10 +326,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               onApplyComposition={undefined}
             />
           </> : categoryPanel === 'manage' ? <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={async id => { await onDeleteCategory(id); if (category === id) setCategory(''); }} onReorderCategories={onReorderCategories} onCreated={id => { setCategory(id); returnToSchedule(); }} /> : <div className="space-y-2">
-            <button type="button" className="block p-3 w-full text-left rounded-xl border border-app-line" aria-pressed={!category} onClick={() => { setCategory(''); returnToSchedule(); }}>미분류 (선택 해제)</button>
+            <button type="button" className="category-compact-control inline-flex items-center px-2 py-1 text-xs rounded-lg border border-app-line" aria-pressed={!category} onClick={() => { setCategory(''); returnToSchedule(); }}>미분류 (선택 해제)</button>
             <CategoryGrid categories={categories} value={category} onChange={id=>{setCategory(id);returnToSchedule();}}/>
-            <button type="button" className="min-h-10 px-3 text-app-accent-hover" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
-            <button type="button" className="min-h-9 px-3 text-app-accent-hover" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
+            <button type="button" className="category-compact-control px-2 text-xs text-app-accent-hover" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
+            <button type="button" className="category-compact-control px-2 text-xs text-app-accent-hover" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
           </div>}
         </div>}
         <div inert={saving} aria-busy={saving} className={panelOpen ? 'hidden' : 'flex flex-col min-h-0 min-w-0'}>
@@ -349,12 +349,12 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {/* Scrollable Body */}
-        <div data-sheet-scroll className="px-3 py-2.5 sm:px-4 space-y-2 overflow-y-auto min-h-0 flex-1">
+        <div data-sheet-scroll className="px-3 py-2 sm:px-4 space-y-1.5 overflow-y-auto min-h-0 flex-1">
           {/* 1. Title Input & Phrase Trigger */}
-          <div>
+          <div className="schedule-title-section">
             <label className="block text-xs font-semibold text-app-ink mb-1" htmlFor="schedule-title">일정 제목</label>
 
-            <div className="flex gap-2 items-center">
+            <div className="schedule-title-row grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-1.5 gap-y-1 items-center">
             <button type="button" aria-label="중요 일정" aria-pressed={isImportant} onClick={() => setIsImportant(v => !v)} className="shrink-0 text-app-accent-hover"><Star className={`w-5 h-5 ${isImportant ? 'fill-current' : ''}`} /></button>
             <input
               id="schedule-title"
@@ -364,10 +364,17 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               onChange={(e) => { setTitle(e.target.value); setTitleBlocks(e.target.value ? [{ id: crypto.randomUUID(), text: e.target.value }] : []); }}
               onKeyDown={handleKeyDown}
               placeholder="일정 제목을 입력하세요"
-              className="w-full min-w-0 px-3.5 py-2.5 text-base sm:text-sm bg-app-canvas border border-app-line rounded-xl focus:outline-none focus:border-app-accent text-app-ink placeholder:text-app-muted/70 transition-colors"
+              className="w-full min-w-0 px-3 py-1.5 text-base sm:text-sm bg-app-canvas border border-app-line rounded-xl focus:outline-none focus:border-app-accent text-app-ink placeholder:text-app-muted/70 transition-colors"
             />
 
-              <button type="button" className="shrink-0 min-h-9 px-3 bg-app-soft rounded-xl text-sm text-app-accent-hover" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
+              <div className="schedule-title-actions col-start-2 flex min-w-0 flex-wrap items-center gap-1.5">
+                <button type="button" className="shrink-0 min-h-9 px-2 bg-app-soft rounded-lg text-xs text-app-accent-hover" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
+                <button type="button" aria-label="카테고리 선택" title={categories.find(c => c.id === category)?.name || '카테고리 선택'} className="min-h-9 min-w-0 max-w-full flex items-center gap-1.5 px-2 border border-app-line rounded-lg text-xs text-app-ink" onClick={() => setCategoryPanel('select')}>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: categories.find(c => c.id === category)?.color || '#D6CCD0' }} />
+                  <span className="truncate max-w-28">{categories.find(c => c.id === category)?.name || '카테고리'}</span>
+                  <ChevronDown className="w-3 h-3 shrink-0" />
+                </button>
+              </div>
             </div>
             {(titleBlocks.length > 1 || titleBlocks.some(b => b.presetId)) && <div className="mt-2"><TitleBlockEditor blocks={titleBlocks} word="" onWordChange={() => {}} onChange={parts => { setTitleBlocks(parts); setTitle(parts.map(b => b.text).join(' ')); }} editable compact hideWordInput /></div>}
             {inlinePresetsOpen && <InlinePresetPicker selectedBlocks={titleBlocks} options={<label className="flex items-center gap-2 text-xs min-h-9">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-9 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
@@ -421,7 +428,6 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                   )}
                 </div>
 
-          <div><label className="block text-xs font-semibold mb-1">카테고리</label><button type="button" aria-label="카테고리 선택" className="w-full flex items-center gap-2 px-3 py-2.5 border border-app-line rounded-xl text-sm" onClick={() => setCategoryPanel('select')}><span className="w-2.5 h-2.5 rounded-full" style={{ background: categories.find(c => c.id === category)?.color || '#D6CCD0' }} />{categories.find(c => c.id === category)?.name || (isEditing ? '미분류' : '선택하세요')}<ChevronDown className="w-4 h-4 ml-auto" /></button></div>
           {/* 3. Collapsible Additional Options Toggle */}
           <div>
             <button
@@ -481,7 +487,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           <p>이 일정을 삭제할까요? 삭제 후 실행 취소할 수 있습니다.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(false)}>취소</button><button type="button" disabled={saving} onClick={async () => { if (!initialSchedule?.id || savingRef.current) return; savingRef.current = true; setSaving(true); try { await onDelete?.(initialSchedule.id); onClose(); } catch { setSaveError('일정을 삭제하지 못했습니다. 다시 시도해 주세요.'); } finally { savingRef.current = false; setSaving(false); } }} className="text-red-600 px-3">삭제</button></div>
         </div>}
         {/* Footer */}
-        <div className="px-3 py-2 border-t border-app-line bg-white flex items-center justify-between shrink-0">
+        <div className="px-3 py-1.5 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <div>
             {isEditing && onDelete ? (
               <button
