@@ -144,7 +144,7 @@
   max-height: calc(var(--modal-height, 100dvh) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 [data-preset-overlay] :focus-visible {
-  outline-color: #596D32;
+  outline-color: #92543F;
 }
 @media (prefers-reduced-motion: no-preference) {
   .preset-library-surface { animation: preset-popup-enter 160ms ease-out; }
