@@ -192,3 +192,12 @@
 
 /* Text actions should not add a full control row above a field. */
 .app-modal .schedule-inline-action { min-height: 24px; padding-block: 0; }
+
+/* Fit quick-entry actions to the popup width, including narrow phones. */
+.day-quick-entry { container: day-quick-entry / inline-size; }
+.day-quick-options > button { max-width: 100%; }
+@container day-quick-entry (max-width: 320px) {
+  .day-quick-entry-row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+  .day-quick-title { grid-column: 1 / -1; }
+  .day-quick-presets { justify-self: end; }
+}
