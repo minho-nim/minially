@@ -2,30 +2,30 @@
 
 /* Shared palette for the calendar, navigation, forms and preset library. */
 @theme {
-  --color-app-canvas: #FFFAF7;
-  --color-app-soft: #FFF0E8;
-  --color-app-line: #EADFD9;
-  --color-app-outline: #DCA78F;
-  --color-app-accent: #92543F;
-  --color-app-accent-hover: #7B4534;
-  --color-app-ink: #463631;
-  --color-app-muted: #786860;
-  --color-app-peach: #F6C3AE;
-  --color-app-peach-hover: #EDB299;
+  --color-app-canvas: #FFFAFB;
+  --color-app-soft: #F6E8ED;
+  --color-app-line: #F0E7EB;
+  --color-app-outline: #E9CDD8;
+  --color-app-accent: #CF8FA8;
+  --color-app-accent-hover: #BD7F98;
+  --color-app-ink: #3E3438;
+  --color-app-muted: #85777D;
+  --color-app-peach: #F4DCE5;
+  --color-app-peach-hover: #E9CDD8;
 }
 
 
 @layer base {
   :root {
-    --bg-main: #FFFAF7;
+    --bg-main: #FFFAFB;
     --surface: #FFFFFF;
-    --surface-muted: #FFF0E8;
-    --accent: #92543F;
-    --accent-hover: #7B4534;
-    --accent-soft: #FFF0E8;
-    --text-primary: #463631;
-    --text-secondary: #786860;
-    --divider: #EADFD9;
+    --surface-muted: #F6E8ED;
+    --accent: #CF8FA8;
+    --accent-hover: #BD7F98;
+    --accent-soft: #F4DCE5;
+    --text-primary: #3E3438;
+    --text-secondary: #85777D;
+    --divider: #F0E7EB;
   }
 
   body {
@@ -61,11 +61,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #DCA78F;
+  background: #E8D5DC;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #92543F;
+  background: #CF8FA8;
 }
 
 /* Keep primary actions reachable in the visual viewport, including when a keyboard opens. */
@@ -74,7 +74,7 @@
 .app-modal input:not([type='checkbox']):not([type='radio']):not([type='color']),
 .app-modal select { min-height: 44px; }
 .app-modal input[type='time'] { min-width: 0; }
-.app-modal :focus-visible { outline: 2px solid #7B4534; outline-offset: 2px; }
+.app-modal :focus-visible { outline: 2px solid #BD7F98; outline-offset: 2px; }
 @media (max-width: 639px) {
   .calendar-actions button { min-width: 44px; min-height: 44px; }
 }
@@ -84,7 +84,7 @@
 @media (max-width: 767px) {
   .task-view button { min-height: 44px; }
 }
-[data-sort-over='true'] { outline: 2px dashed #7B4534; outline-offset: 2px; }
+[data-sort-over='true'] { outline: 2px dashed #BD7F98; outline-offset: 2px; }
 [data-sort-dragging='true'] { opacity: 0.5; }
 
 .day-sheet {
@@ -159,7 +159,7 @@
   max-height: calc(var(--modal-height, 100dvh) - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
 }
 [data-preset-overlay] :focus-visible {
-  outline-color: #92543F;
+  outline-color: #BD7F98;
 }
 @media (prefers-reduced-motion: no-preference) {
   .preset-library-surface { animation: preset-popup-enter 160ms ease-out; }
