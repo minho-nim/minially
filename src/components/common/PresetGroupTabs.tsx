@@ -18,18 +18,18 @@ export function PresetGroupTabs({ groups, value, onChange, unclassified = false,
         {onManage && <button type="button" onClick={onManage} className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-app-accent hover:bg-app-soft focus-visible:outline-2 focus-visible:outline-app-accent"><Settings2 aria-hidden="true" className="h-3.5 w-3.5" />그룹 관리</button>}
       </div>
       {!visibleGroups.length && <p className="rounded-2xl border border-dashed border-app-outline bg-app-canvas p-4 text-xs leading-relaxed text-app-muted">그룹 관리에서 첫 그룹을 만들어 보세요.</p>}
-      <div className="grid min-w-0 grid-cols-2 gap-2.5">
+      <div className="flex min-w-0 flex-wrap gap-1.5">
         {visibleGroups.map(group => {
           const selected = value === group.id;
           const count = presets?.filter(p => (groups.some(g => g.id === p.groupId) ? p.groupId : '') === group.id).length;
           return (
             <button key={group.id} type="button" title={group.name} aria-pressed={selected} onClick={() => onChange(group.id)}
-              className={'group flex min-h-11 min-w-0 items-center gap-1.5 rounded-lg border px-3 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ' + (selected
+              className={'preset-group-chip inline-flex max-w-full items-center gap-1.5 rounded-lg border px-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-accent ' + (selected
                 ? 'border-app-outline bg-app-soft text-app-ink'
                 : 'border-app-line bg-white text-app-ink hover:border-app-outline hover:bg-app-canvas')}>
-              <span className="min-w-0 flex-1 break-words text-xs font-semibold leading-snug">{group.name}</span>
+              <span className="min-w-0 break-words text-xs font-medium leading-snug">{group.name}</span>
               {count !== undefined && <span className="shrink-0 text-[11px] tabular-nums text-app-muted">{count}개</span>}
-              {selected && <Check aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-app-accent" />}
+              {selected && <Check aria-hidden="true" className="h-3 w-3 shrink-0 text-app-accent" />}
             </button>
           );
         })}
