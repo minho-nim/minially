@@ -13,7 +13,7 @@ import {
   Square,
   ChevronDown,
   ChevronUp,
-  Settings2, Check, RotateCcw, ListChecks, X, Plus, ChevronLeft, ChevronRight,
+  Settings2, Check, RotateCcw, ListChecks, X, Plus,
 } from 'lucide-react';
 import { getTodayDateString, formatKoreanDate } from '../../utils/dateHelpers';
 
@@ -53,7 +53,6 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [importing, setImporting] = useState(false);
   const todayStr = getTodayDateString();
   const chooseDate = (date: string) => { onSelectDate(date); setSelectedTaskIds([]); setError(''); };
-  const shiftDate = (delta: number) => { const a=new Date(selectedDate+'T12:00:00'),b=new Date(selectedEndDate+'T12:00:00');const count=Math.round((Date.UTC(b.getFullYear(),b.getMonth(),b.getDate())-Date.UTC(a.getFullYear(),a.getMonth(),a.getDate()))/86400000)+1; a.setDate(a.getDate()+delta*count);b.setDate(b.getDate()+delta*count);const fmt=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;onSelectRange(fmt(a),fmt(b)); };
   const [completionFilter, setCompletionFilter] = useState<CompletionFilter>('all');
   const [quickTitle, setQuickTitle] = useState('');
   const [blocks,setBlocks] = useState<TitleBlock[]>([]);
@@ -148,13 +147,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
       <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);chooseDate(date||todayStr);if(importing)setCompletionFilter('pending');}} />
       {/* Top Filter & Scope Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
-        <div role="group" aria-label="할 일 날짜 탐색" className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <button type="button" aria-label="이전 날짜 할 일" onClick={()=>shiftDate(-1)} className="min-h-9 px-2 rounded-lg hover:bg-app-soft"><ChevronLeft aria-hidden="true" className="h-4 w-4"/></button>
-          <div className="min-w-0"><TaskDateFilter start={selectedDate} end={selectedEndDate} onChange={onSelectRange}/></div>
-          <button type="button" aria-label="다음 날짜 할 일" onClick={()=>shiftDate(1)} className="min-h-9 px-2 rounded-lg hover:bg-app-soft"><ChevronRight aria-hidden="true" className="h-4 w-4"/></button>
-          <button type="button" aria-pressed={selectedDate===todayStr&&selectedDate===selectedEndDate} onClick={()=>chooseDate(todayStr)} className="min-h-9 rounded-lg px-2 text-xs text-app-accent">오늘</button>
-        </div>
+      <div className="space-y-2 px-1">
+        <TaskDateFilter start={selectedDate} end={selectedEndDate} onChange={onSelectRange}/>
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex flex-wrap items-center gap-2">
