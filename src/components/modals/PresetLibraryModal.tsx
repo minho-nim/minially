@@ -20,7 +20,7 @@ export function PresetLibraryModal({open,onClose,presets,groups,onSavePreset,onD
    </header>
    {guard.confirming&&<DiscardPrompt actionLabel="프리셋 작성 취소" onContinue={guard.cancel} onDiscard={guard.discard}/>}
    <div data-preset-content className="flex-1 p-5 min-h-0 overflow-y-auto overscroll-contain bg-white">
-    <PhraseManager presets={presets} presetGroups={groups} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} hideSearch initialMode="manage" onDirtyChange={setDirty} onBusyChange={setBusy}/>
+    <PhraseManager presets={presets} presetGroups={groups} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} hideSearch groupNavigation initialType="all" initialMode="manage" onDirtyChange={setDirty} onBusyChange={setBusy}/>
    </div>
   </div>
  </div>;
