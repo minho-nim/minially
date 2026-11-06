@@ -8,12 +8,13 @@ interface Props {
   onPrevious: () => void;
   onNext: () => void;
   disabled?: boolean;
+  gap?: number;
   className?: string;
   'data-calendar-swipe'?: boolean;
   'data-task-swipe'?: boolean;
 }
 
-export function SwipePager({ pageKey, children, previous, next, onPrevious, onNext, disabled = false, className = '', ...attributes }: Props) {
+export function SwipePager({ pageKey, children, previous, next, onPrevious, onNext, disabled = false, gap = 0, className = '', ...attributes }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const gesture = useRef<{ id: number; x: number; y: number; time: number; horizontal: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -25,7 +26,7 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
   const settle = (direction: -1 | 0 | 1) => {
     const width = root.current?.clientWidth || 1;
     setPhase('settling');
-    setOffset(direction * -width);
+    setOffset(direction * -(width + gap));
     const duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220;
     timer.current = setTimeout(() => {
       if (direction < 0) onPrevious();
@@ -53,7 +54,7 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
       setPhase('dragging');
     }
     const width = root.current?.clientWidth || 1;
-    setOffset(Math.max(-width, Math.min(width, x)));
+    setOffset(Math.max(-width - gap, Math.min(width + gap, x)));
   };
   const up = (event: PointerEvent<HTMLDivElement>) => {
     const start = gesture.current;
@@ -67,7 +68,7 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
     settle(commit ? x < 0 ? 1 : -1 : 0);
   };
   return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction: 'pan-y pinch-zoom' }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
-    <div data-swipe-track className="flex h-full min-h-0 w-full" style={{ transform: `translate3d(calc(-100% + ${offset}px), 0, 0)`, transition: phase === 'settling' ? 'transform 220ms cubic-bezier(.22,.68,0,1)' : 'none', willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
+    <div data-swipe-track className="flex h-full min-h-0 w-full" style={{ columnGap: gap, transform: `translate3d(calc(-100% - ${gap}px + ${offset}px), 0, 0)`, transition: phase === 'settling' ? 'transform 220ms cubic-bezier(.22,.68,0,1)' : 'none', willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
       <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col bg-white">{phase !== 'idle' && previous}</div>
       <div data-swipe-current className="flex h-full min-h-0 w-full shrink-0 flex-col">{children}</div>
       <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col bg-white">{phase !== 'idle' && next}</div>

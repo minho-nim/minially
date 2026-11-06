@@ -33,14 +33,14 @@ for (const width of [390, 1280]) {
       await expect(sheet.getByRole('button', { name: '빠른 등록 카테고리 선택' })).toContainText('일');
       const composer = sheet.locator('[data-quick-composer]');
       const bounds = (await composer.boundingBox())!;
-      expect(bounds.y + bounds.height).toBeGreaterThanOrEqual(840);
+      expect(bounds.y + bounds.height).toBeGreaterThanOrEqual(832);
       await page.screenshot({path:`test-results/quick-composer-${width}.png`});
       await title.fill('작성 중 유지');
       await page.setViewportSize({width,height:500});
       await expect(title).toBeFocused();
       await expect(title).toHaveValue('작성 중 유지');
       const shortBounds = (await composer.boundingBox())!;
-      expect(shortBounds.y+shortBounds.height).toBeLessThanOrEqual(501);
+      await expect.poll(async()=>{const b=(await composer.boundingBox())!;return Math.abs(b.y+b.height-500);}).toBeLessThanOrEqual(1);
       await page.setViewportSize({width,height:844});
       await sheet.getByRole('button', { name: '간편 등록 닫기' }).click();
       await expect(sheet.locator('[data-day-schedule]')).toContainText('분류 필수 간편 일정');

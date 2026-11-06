@@ -2,8 +2,8 @@ import { RefObject, useEffect, useLayoutEffect, useRef } from 'react';
 
 // Finish retiring the previous modal's history entry before opening its replacement.
 let pendingBack: Promise<void> | null = null;
-export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<HTMLDivElement | null>, close: () => boolean | void, back: () => boolean | void, options: { lockScroll?: boolean; trapFocus?: boolean } = {}) {
-  const { lockScroll = true, trapFocus = true } = options;
+export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<HTMLDivElement | null>, close: () => boolean | void, back: () => boolean | void, options: { lockScroll?: boolean; trapFocus?: boolean; smoothViewport?: boolean } = {}) {
+  const { lockScroll = true, trapFocus = true, smoothViewport = false } = options;
   const state = useRef({ panel, close, back });
   // Event handlers follow committed UI, never an interrupted concurrent render.
   useLayoutEffect(() => { state.current = { panel, close, back }; }, [panel, close, back]);
@@ -48,16 +48,38 @@ export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<
       else if (!e.shiftKey && (document.activeElement === last || !ref.current?.contains(document.activeElement))) { e.preventDefault(); first?.focus(); }
     };
     const viewport = window.visualViewport;
-    const resize = () => {
-      ref.current?.style.setProperty('--modal-height', (viewport?.height ?? innerHeight) + 'px');
-      if (ref.current) ref.current.style.top = (viewport?.offsetTop ?? 0) + 'px';
+    const initialHeight = Math.max(viewport?.height ?? innerHeight, innerHeight);
+    let frame = 0;
+    let dockAnimation: Animation | undefined;
+    const resize = (animate = true) => {
+      const element = ref.current;
+      if (!element) return;
+      const dock = smoothViewport ? element.querySelector<HTMLElement>('[data-keyboard-dock]') : null;
+      const previous = dock?.getBoundingClientRect();
+      dockAnimation?.cancel();
+      const height = viewport?.height ?? innerHeight;
+      const editing = element.contains(document.activeElement) && Boolean(document.activeElement?.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, [contenteditable="true"]'));
+      element.dataset.keyboardOpen = String(editing && initialHeight - height > 120);
+      element.style.setProperty('--modal-height', height + 'px');
+      element.style.top = (viewport?.offsetTop ?? 0) + 'px';
+      if (animate && dock && previous && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const delta = previous.bottom - dock.getBoundingClientRect().bottom;
+        if (Math.abs(delta) > 1) {
+          dockAnimation = dock.animate([{transform:`translateY(${delta}px)`},{transform:'translateY(0)'}], {duration:160,easing:'cubic-bezier(.2,.7,.2,1)'});
+          dockAnimation.id = 'keyboard-dock';
+        }
+      }
     };
-    resize(); viewport?.addEventListener('resize', resize); viewport?.addEventListener('scroll', resize);
+    const scheduleResize = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => resize()); };
+    resize(false); viewport?.addEventListener('resize', scheduleResize); viewport?.addEventListener('scroll', scheduleResize);
+    ref.current?.addEventListener('focusin', scheduleResize); ref.current?.addEventListener('focusout', scheduleResize);
     window.addEventListener('popstate', pop); document.addEventListener('keydown', key, true);
     return () => {
       disposed = true;
       window.removeEventListener('popstate', pop); document.removeEventListener('keydown', key, true);
-      viewport?.removeEventListener('resize', resize); viewport?.removeEventListener('scroll', resize);
+      viewport?.removeEventListener('resize', scheduleResize); viewport?.removeEventListener('scroll', scheduleResize);
+      ref.current?.removeEventListener('focusin', scheduleResize); ref.current?.removeEventListener('focusout', scheduleResize);
+      cancelAnimationFrame(frame); dockAnimation?.cancel();
       if (lockScroll) document.body.style.overflow = overflow;
       if (active && history.state?.miniallyModal === token) {
         pendingBack = new Promise(resolve => {
@@ -67,6 +89,6 @@ export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<
       }
       if (focus?.isConnected) focus.focus({ preventScroll: true });
     };
-  }, [open, ref, lockScroll, trapFocus]);
+  }, [open, ref, lockScroll, trapFocus, smoothViewport]);
   useEffect(() => { if (panel) ref.current?.querySelector<HTMLElement>('[data-schedule-panel] button')?.focus(); }, [panel, ref]);
 }

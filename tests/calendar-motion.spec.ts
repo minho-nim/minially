@@ -1,0 +1,34 @@
+import { test, expect } from '@playwright/test';
+
+test.use({viewport:{width:390,height:844},hasTouch:true});
+test('pressed date opens from its position and the rounded composer docks to the visual viewport',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();
+  const cell=page.locator('[data-calendar-date]').nth(24), bounds=(await cell.boundingBox())!;
+  expect(await page.locator('[data-calendar-swipe] [data-swipe-track]').evaluate(el=>parseFloat(getComputedStyle(el).columnGap))).toBe(24);
+  await page.mouse.move(bounds.x+bounds.width/2,bounds.y+12);await page.mouse.down();
+  await expect(cell).toHaveAttribute('data-date-pressed','true');
+  await expect.poll(()=>cell.locator('[data-date-number]').evaluate(el=>Number(getComputedStyle(el).transform.match(/matrix\(([^,]+)/)?.[1]||1))).toBeLessThan(.95);
+  await page.screenshot({path:'test-results/date-pressed.png'});
+  await page.mouse.up();
+  const dialog=page.getByRole('dialog',{name:'날짜별 일정',exact:true});
+  const opening=await dialog.locator('.day-sheet').evaluate(el=>(el.getAnimations().find(a=>a.id==='day-from-date')?.effect as KeyframeEffect | undefined)?.getKeyframes());
+  expect(opening).toBeTruthy();expect(opening![0].transform).toContain('translate(');expect(opening![0].opacity).toBe('0.15');
+  await dialog.getByRole('button',{name:'일정 등록하기',exact:true}).click();
+  const composer=dialog.locator('[data-quick-composer]');
+  await expect.poll(()=>composer.evaluate(el=>parseFloat(getComputedStyle(el).borderBottomLeftRadius))).toBe(24);
+  await page.screenshot({path:'test-results/category-rounded.png'});
+  await dialog.getByRole('group',{name:'카테고리 목록'}).getByRole('button',{name:'일',exact:true}).click();
+  const title=dialog.getByRole('textbox',{name:'빠른 일정 제목'});await expect(title).toBeFocused();await title.fill('키보드 이동 중 보존');
+  await page.setViewportSize({width:390,height:500});
+  await expect(dialog).toHaveAttribute('data-keyboard-open','true');
+  await expect.poll(async()=>{const b=(await composer.boundingBox())!;return Math.abs(b.y+b.height-500);}).toBeLessThan(1);
+  await expect.poll(()=>composer.evaluate(el=>parseFloat(getComputedStyle(el).borderBottomLeftRadius))).toBe(0);
+  await expect(title).toHaveValue('키보드 이동 중 보존');await expect(title).toBeFocused();
+  await page.screenshot({path:'test-results/composer-docked.png'});
+  await page.setViewportSize({width:390,height:844});await expect(dialog).toHaveAttribute('data-keyboard-open','false');
+  await expect.poll(()=>composer.evaluate(el=>parseFloat(getComputedStyle(el).borderBottomLeftRadius))).toBe(24);
+  await dialog.getByRole('button',{name:'간편 등록 닫기'}).click();await dialog.getByRole('button',{name:'날짜 팝업 닫기'}).click();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await cell.click({position:{x:5,y:5}});
+  expect(await dialog.locator('.day-sheet').evaluate(el=>el.getAnimations().filter(a=>a.id==='day-from-date').length)).toBe(0);
+});

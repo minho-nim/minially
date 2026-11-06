@@ -1,3 +1,4 @@
+import { useDaySheetMotion } from '../../hooks/useDaySheetMotion';
 import { RegistrationNotice, type RegistrationNoticeData } from '../common/RegistrationNotice';
 import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { CategoryGrid } from '../common/CategoryGrid';
@@ -89,6 +90,7 @@ function ScheduleRows({ items, grouped, categories, onEdit, onMove, onToggle, on
 export function DayScheduleSheet(props: Props) {
   const { open, date, schedules, categories, presets, settings, onClose } = props;
   const root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), dropArea = useRef<HTMLDivElement>(null);
+  const daySurface = useRef<HTMLElement>(null), composerSurface = useRef<HTMLElement>(null);
   const expandPopup = React.useCallback(() => {}, []);
   const [drafts, setDrafts] = useState<Record<string, QuickDraft>>({});
   const draft = drafts[date] || emptyDraft();
@@ -121,7 +123,8 @@ export function DayScheduleSheet(props: Props) {
     });
   };
   const close = () => { if (guard.confirming) { guard.cancel(); return false; } if (savingRef.current || panelBusy || undoBusy) return false; return guard.request(() => { onClose(); requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-calendar-date="' + date + '"]')?.focus({ preventScroll: true })); }); };
-  useScheduleDialog(open, expanded || Boolean(panel)||dateMenuOpen, root, close, back);
+  useScheduleDialog(open, expanded || Boolean(panel)||dateMenuOpen, root, close, back, { smoothViewport: true });
+  useDaySheetMotion(open, date, expanded, panel, root, daySurface, composerSurface);
   useEffect(() => { if (!open) {setDateMenuOpen(false);changePanel(null);return;} if (open) { setDateMenuOpen(false);setPresetApplyMode('append'); setExpanded(false); changePanel(null); setNotice(''); setOldTitle(null); guard.cancel(); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('header button')?.focus({ preventScroll: true })); } }, [open, date]);
   const selectCategory = (category: string) => {
     flushSync(() => { update({ category }); setExpanded(true); changePanel(categoryReturn.current); });
@@ -166,7 +169,7 @@ export function DayScheduleSheet(props: Props) {
     if (e.target !== e.currentTarget || saving || panelBusy || undoBusy) return;
     e.preventDefault(); e.stopPropagation(); close();
   }}>
-    <section className="day-sheet w-full max-w-xl bg-white rounded-2xl shadow-xl border border-app-line flex flex-col overflow-hidden" inert={expanded || Boolean(panel)}>
+    <section ref={daySurface} className="day-sheet w-full max-w-xl bg-white rounded-2xl shadow-xl border border-app-line flex flex-col overflow-hidden" inert={expanded || Boolean(panel)}>
       <header className="px-4 pt-4 pb-2 flex items-center gap-1 shrink-0">
         <h2 className="text-sm font-bold flex-1 min-w-0">{formatKoreanDate(date)}</h2>
         <button ref={dateMenuAnchor} type="button" className={button} aria-label="날짜 작업" title="날짜 작업" aria-expanded={dateMenuOpen} disabled={saving||undoBusy} onClick={()=>setDateMenuOpen(value=>!value)}><MoreHorizontal className="w-5 h-5"/></button>
@@ -190,7 +193,7 @@ export function DayScheduleSheet(props: Props) {
     </section>
     {(expanded || panel) && <>
       <div className="absolute inset-0 z-10 bg-black/10" aria-hidden="true" onClick={closeComposer}/>
-      <section data-quick-composer aria-label={panel ? '간편 등록 설정' : '간편 일정 입력'} className="absolute bottom-0 inset-x-0 z-20 mx-auto w-full max-w-xl max-h-[min(75dvh,var(--modal-height,100dvh))] overflow-y-auto overscroll-contain rounded-t-3xl border border-app-line bg-app-canvas shadow-xl pb-safe">
+      <section ref={composerSurface} data-quick-composer data-keyboard-dock data-composer-mode={panel || 'input'} aria-label={panel ? '간편 등록 설정' : '간편 일정 입력'} className="quick-dock absolute z-20 mx-auto max-w-xl max-h-[min(75dvh,var(--modal-height,100dvh))] overflow-y-auto overscroll-contain rounded-3xl border border-app-line bg-app-canvas shadow-xl">
         <div className="relative flex items-center px-4 pt-2"><span aria-hidden="true" className="absolute left-1/2 top-3 h-1 w-10 -translate-x-1/2 rounded-full bg-app-outline"/><button type="button" aria-label="간편 등록 닫기" className={button+' ml-auto'} onClick={closeComposer}><X className="h-4 w-4"/></button></div>
         {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard}/>}
         {error && <p role="alert" className="px-4 py-1 text-xs text-[#C4476B]">{error}</p>}
@@ -202,7 +205,7 @@ export function DayScheduleSheet(props: Props) {
         {panel === 'categories' && <div className="pt-3 pb-3 space-y-2"><div className="flex justify-between items-center"><p className="text-xs text-app-muted">일정의 카테고리를 선택하세요</p><button type="button" className={button} onClick={() => changePanel('categoryManage')}>편집</button></div><CategoryGrid categories={categories} value={draft.category} onChange={selectCategory}/></div>}
         {panel === 'options' && <div className="pt-3 space-y-3"><p className="text-xs text-app-muted">{formatKoreanDate(date)} · 반복·여러 날짜 등록은 상세 등록에서 설정하세요.</p><label className="flex items-center gap-2 text-sm min-h-9"><input type="checkbox" checked={draft.timed} onChange={e => update({ timed: e.target.checked })} />시간 지정</label>{draft.timed && <div className="flex items-center gap-2"><TimeField label="시작 시간" value={draft.startTime} onChange={startTime => update({ startTime })} /><span>~</span><TimeField label="종료 시간" value={draft.endTime} onChange={endTime => update({ endTime })} /></div>}<button type="button" className={button + ' border border-app-line w-full text-left'} aria-label="카테고리 선택" onClick={() => {categoryReturn.current='options';changePanel('categories');}}>{categories.find(c => c.id === draft.category)?.name || '카테고리 선택하세요'}</button><textarea aria-label="빠른 등록 메모" placeholder="메모" className="w-full min-h-16 p-2 text-base border border-app-line rounded-xl" value={draft.memo} onChange={e => update({ memo: e.target.value })} /><button type="button" className={button} onClick={() => { props.onDetails({ title: draft.title, date, category: draft.category, isImportant: draft.isImportant, startTime: draft.timed ? draft.startTime : '', endTime: draft.timed ? draft.endTime : '', memo: draft.memo, titleBlocks: draft.blocks }, () => update({ title: '', blocks: undefined, isImportant: false, memo: '' })); }}>상세 등록 열기</button></div>}
         </div> : <div ref={dropArea} data-preset-drop className={'px-4 pb-3 min-w-0 ' + (dropOver ? 'bg-app-soft' : '')} onDragOver={event => { if (event.dataTransfer.types.includes('application/x-minially-preset')) { event.preventDefault(); setDropOver(true); } }} onDragLeave={() => setDropOver(false)} onDrop={event => { const preset = presets.find(item => item.id === event.dataTransfer.getData('application/x-minially-preset')); if (preset) { event.preventDefault(); apply(preset); } setDropOver(false); }}>
-          <form aria-label="빠른 일정 등록" className="min-w-0 space-y-2" onSubmit={event => { event.preventDefault(); void save(); }}>
+          <form data-composer-input aria-label="빠른 일정 등록" className="min-w-0 space-y-2" onSubmit={event => { event.preventDefault(); void save(); }}>
             <input data-quick-title ref={input} aria-label="빠른 일정 제목" placeholder="할 일을 입력하세요" enterKeyHint="send" autoComplete="off" readOnly={saving} value={draft.title} onChange={event => update({title:event.target.value,blocks:undefined})} onCompositionStart={() => {composing.current=true;}} onCompositionEnd={() => {composing.current=false;}} onKeyDown={event => {if(event.key==='Enter'&&(event.nativeEvent.isComposing||event.keyCode===229||composing.current))event.preventDefault();}} className="w-full min-w-0 min-h-11 px-1 text-base bg-transparent text-app-ink placeholder:text-app-muted focus:outline-none"/>
             {draft.blocks && <TitleBlockEditor compact editable hideWordInput blocks={draft.blocks} word="" onWordChange={()=>{}} onChange={blocks=>update({blocks,title:blocks.map(block=>block.text).join(' ')})}/>}
             <div className="flex flex-wrap items-center gap-1">

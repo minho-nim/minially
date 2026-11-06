@@ -66,6 +66,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [activeDateMenu, setActiveDateMenu] = useState<string | null>(null);
   const dateMenuAnchor = useRef<HTMLButtonElement|null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [pressedDate, setPressedDate] = useState<string | null>(null);
+  const pressStart = useRef<{x:number;y:number}|null>(null);
+  const datePressProps = (date: string, preview: boolean) => ({
+    'data-date-pressed': !preview && pressedDate === date,
+    onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => {
+      if (preview || (event.target as Element).closest('button')) return;
+      pressStart.current = {x:event.clientX,y:event.clientY}; setPressedDate(date);
+    },
+    onPointerMove: (event: React.PointerEvent<HTMLDivElement>) => { if (pressStart.current && Math.hypot(event.clientX-pressStart.current.x,event.clientY-pressStart.current.y)>10) { setPressedDate(null); pressStart.current=null; } },
+    onPointerUp: () => {setPressedDate(null);pressStart.current=null;},
+    onPointerCancel: () => {setPressedDate(null);pressStart.current=null;},
+  });
 
   const viewDate = new Date((selectedDate || todayStr) + 'T12:00:00');
   const year = viewDate.getFullYear();
@@ -176,7 +188,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               return (
                 <div
                   key={cell.dateStr}
-                  data-calendar-date={preview ? undefined : cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
+                  {...datePressProps(cell.dateStr, preview)} data-calendar-date={preview ? undefined : cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); } }}
                   onClick={() => {
                     onSelectDate(cell.dateStr); onOpenDay(cell.dateStr);
@@ -185,7 +197,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
-                  className={`calendar-day-cell min-h-0 min-w-0 overflow-hidden p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
+                  className={`calendar-date-cell calendar-day-cell min-h-0 min-w-0 overflow-hidden p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
                     isSelected
                       ? 'bg-app-soft/40'
                       : isDragTarget
@@ -197,7 +209,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 >
                   {/* Date Number Header */}
                   <div className="flex items-center justify-between leading-none mb-1">
-                    <span
+                    <span data-date-number
                       className={`inline-flex items-center justify-center text-xs font-semibold rounded-full w-6 h-6 transition-all ${
                         cell.isToday
                           ? 'bg-app-accent text-white shadow-2xs'
@@ -335,13 +347,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               return (
                 <div
                   key={cell.dateStr}
-                  data-calendar-date={preview ? undefined : cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
+                  {...datePressProps(cell.dateStr, preview)} data-calendar-date={preview ? undefined : cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); } }}
                   onClick={() => { onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); }}
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
-                  className={`min-w-0 min-h-0 overflow-hidden p-1 sm:p-2 transition-colors cursor-pointer flex flex-col justify-start ${
+                  className={`calendar-date-cell min-w-0 min-h-0 overflow-hidden p-1 sm:p-2 transition-colors cursor-pointer flex flex-col justify-start ${
                     isSelected
                       ? 'bg-app-soft/40'
                       : isDragTarget
@@ -353,7 +365,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <span className="text-[11px] font-semibold text-app-muted block">
                       {cell.dayName}
                     </span>
-                    <span
+                    <span data-date-number
                       className={`inline-flex items-center justify-center text-xs font-bold rounded-full w-6 h-6 mt-0.5 ${
                         cell.isToday
                           ? 'bg-app-accent text-white shadow-2xs'
@@ -473,7 +485,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <SwipePager pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
+      <SwipePager gap={24} pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {renderPage(selectedDate)}
       </SwipePager>
 
