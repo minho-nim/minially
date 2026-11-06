@@ -1,3 +1,5 @@
+import { useHorizontalSwipe } from '../../hooks/useHorizontalSwipe';
+import { shiftTaskDateRange } from '../../utils/taskDateRange';
 import { TaskPlanningModal } from '../modals/TaskPlanningModal';
 import { TaskDateFilter } from '../common/TaskDateFilter';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
@@ -142,6 +144,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
     });
   };
 
+  const swipe = useHorizontalSwipe(
+    () => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, -1)),
+    () => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, 1)),
+    pending || isSelectMode || Boolean(dateTarget) || importing,
+  );
+
   return (
     <fieldset aria-busy={pending} className="task-view max-w-4xl mx-auto space-y-3 min-w-0">
       {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
@@ -253,9 +261,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
         )}
 
         {/* Cardless List of Tasks */}
-        <div className="divide-y divide-app-line">
+        <div {...swipe} data-task-swipe className="divide-y divide-app-line">
           {filteredTasks.length === 0 ? (
-            <div className="py-2 text-center text-xs text-app-muted">
+            <div className="pt-3 pb-8 text-center text-xs text-app-muted">
               등록된 할 일이 없습니다.
             </div>
           ) : (

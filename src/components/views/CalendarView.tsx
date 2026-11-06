@@ -1,3 +1,4 @@
+import { useHorizontalSwipe } from '../../hooks/useHorizontalSwipe';
 import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { compareSchedules } from '../../utils/scheduleOrder';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
@@ -131,6 +132,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       setViewDate(new Date(d));
     }
   };
+
+  const swipe = useHorizontalSwipe(() => { setActiveDateMenu(null); handlePrev(); }, () => { setActiveDateMenu(null); handleNext(); });
 
   const handleGoToday = () => {
     setViewDate(new Date());
@@ -327,7 +330,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <div className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
+      <div {...swipe} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {/* Weekday Row */}
         <div className="grid grid-cols-7 border-b border-app-line text-center text-xs font-medium text-app-muted py-2 bg-white">
           {weekdayLabels.map((day, idx) => {

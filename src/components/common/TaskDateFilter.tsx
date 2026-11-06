@@ -1,3 +1,4 @@
+import { shiftTaskDateRange } from '../../utils/taskDateRange';
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DatePicker } from './DatePicker';
@@ -9,13 +10,7 @@ export function TaskDateFilter({ start, end, onChange }: { start: string; end: s
   const [range, setRange] = useState(start !== end);
   useEffect(() => { if (start !== end) setRange(true); }, [start, end]);
   const today = getTodayDateString();
-  const shift = (direction: number) => {
-    const a = new Date(start + 'T12:00:00'), b = new Date(end + 'T12:00:00');
-    const days = Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000) + 1;
-    a.setDate(a.getDate() + direction * days);
-    b.setDate(b.getDate() + direction * days);
-    onChange(format(a), format(b));
-  };
+  const shift = (direction: number) => onChange(...shiftTaskDateRange(start, end, direction));
   const shortcut = (kind: 'week' | 'month') => {
     const a = new Date(), b = new Date(a);
     if (kind === 'week') { a.setDate(a.getDate() - ((a.getDay() + 6) % 7)); b.setTime(a.getTime()); b.setDate(b.getDate() + 6); }
