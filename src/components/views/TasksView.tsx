@@ -1,4 +1,4 @@
-import { useHorizontalSwipe } from '../../hooks/useHorizontalSwipe';
+import { SwipePager } from '../common/SwipePager';
 import { shiftTaskDateRange } from '../../utils/taskDateRange';
 import { TaskPlanningModal } from '../modals/TaskPlanningModal';
 import { TaskDateFilter } from '../common/TaskDateFilter';
@@ -144,11 +144,135 @@ export const TasksView: React.FC<TasksViewProps> = ({
     });
   };
 
-  const swipe = useHorizontalSwipe(
-    () => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, -1)),
-    () => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, 1)),
-    pending || isSelectMode || Boolean(dateTarget) || importing,
-  );
+  const tasksForPage = (start: string, end: string) => tasks.filter(task => Boolean(task.dueDate && task.dueDate >= start && task.dueDate <= end) && (completionFilter === 'all' || (completionFilter === 'completed' ? task.status === 'done' : task.status !== 'done'))).sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || (a.dueDate || '').localeCompare(b.dueDate || ''));
+  const renderTaskPage = (filteredTasks: Task[], preview = false) => (
+    <div data-task-list style={{touchAction: 'pan-y pinch-zoom'}} className="h-full min-h-0 overflow-y-auto overscroll-contain divide-y divide-app-line bg-white">
+          {filteredTasks.length === 0 ? (
+            <div className="pt-3 text-center text-xs text-app-muted">
+              등록된 할 일이 없습니다.
+            </div>
+          ) : (
+            filteredTasks.map((task) => {
+              const isDone = task.status === 'done';
+              const isSelected = selectedTaskIds.includes(task.id);
+              const isExpanded = !!expandedChecklists[task.id];
+              const hasChecklist = task.checklist && task.checklist.length > 0;
+              const completedCount = task.checklist ? task.checklist.filter((c) => c.done).length : 0;
+
+              return (
+                <div
+                  key={task.id}
+                  data-task-id={preview ? undefined : task.id}
+                  className={`px-3 py-1.5 flex items-center justify-between gap-2 transition-colors ${isDone ? 'bg-app-soft/70 border-l-[3px] border-l-app-accent' : ''} ${
+                    isSelected
+                      ? 'bg-app-soft/30'
+                      : 'hover:bg-app-canvas'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {/* Checkbox (or select checkbox if in select mode) */}
+                    {isSelectMode ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectTask(task.id)}
+                        className="w-7 h-7 flex items-center justify-center text-app-accent cursor-pointer shrink-0"
+                      >
+                        {isSelected ? (
+                          <CheckSquare className="w-5 h-5 text-app-accent" />
+                        ) : (
+                          <Square className="w-5 h-5 text-app-muted/40" />
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void run(async () => { await onToggleTaskStatus(task.id); })}
+                        aria-label={isDone ? '할 일 완료 해제' : '할 일 완료'}
+                        aria-pressed={isDone}
+                        className="w-9 h-9 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent transition-colors cursor-pointer shrink-0"
+                      >
+                        {isDone ? (
+                          <CheckCircle2 className="w-5 h-5 text-app-accent fill-app-soft" />
+                        ) : (
+                          <Circle className="w-5 h-5 text-app-muted/40 hover:text-app-accent" />
+                        )}
+                      </button>
+                    )}
+
+                    {/* Task Title & Meta */}
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`text-sm font-medium whitespace-normal break-words ${
+                          isDone ? 'line-through text-app-muted' : 'text-app-ink'
+                        }`}
+                      >
+                        {task.title}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-app-muted">
+                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 선택'}</button>
+                        {isDone && <span className="inline-flex items-center gap-0.5 text-[11px] rounded bg-[#8F526C] px-1.5 py-0.5 font-semibold text-white"><Check aria-hidden="true" className="h-3 w-3"/>완료</span>}
+
+                        {hasChecklist && (
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(task.id)}
+                            className="flex items-center gap-1 text-app-accent hover:underline cursor-pointer"
+                          >
+                            <span>
+                              체크리스트 {completedCount}/{task.checklist?.length}
+                            </span>
+                            {isExpanded ? (
+                              <ChevronUp className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Expandable Checklist */}
+                      {isExpanded && hasChecklist && (
+                        <div className="mt-2 space-y-1 pl-1">
+                          {task.checklist?.map((item) => (
+                            <div
+                              key={item.id}
+                              onClick={() => void run(async () => { await onToggleTaskChecklist(task.id, item.id); })}
+                              className="flex items-center gap-2 text-xs cursor-pointer py-0.5 text-app-ink"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={item.done}
+                                onChange={() => {}}
+                                className="rounded text-app-accent focus:ring-0"
+                              />
+                              <span className={item.done ? 'line-through text-app-muted' : ''}>
+                                {item.text}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Single Delete Action */}
+                  {!isSelectMode && (
+                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} title={isDone?'완료 취소':'완료'} className="min-h-8 rounded-lg px-2 text-xs text-app-accent">{isDone?<RotateCcw aria-hidden="true" className="h-4 w-4"/>:<Check aria-hidden="true" className="h-4 w-4"/>}</button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteTask(task.id)}
+                      className="p-1.5 text-app-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                      title="삭제"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button></div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>);
 
   return (
     <fieldset aria-busy={pending} className="task-view max-w-4xl mx-auto space-y-3 min-w-0">
@@ -261,133 +385,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
         )}
 
         {/* Cardless List of Tasks */}
-        <div {...swipe} data-task-swipe className="divide-y divide-app-line">
-          {filteredTasks.length === 0 ? (
-            <div className="pt-3 pb-8 text-center text-xs text-app-muted">
-              등록된 할 일이 없습니다.
-            </div>
-          ) : (
-            filteredTasks.map((task) => {
-              const isDone = task.status === 'done';
-              const isSelected = selectedTaskIds.includes(task.id);
-              const isExpanded = !!expandedChecklists[task.id];
-              const hasChecklist = task.checklist && task.checklist.length > 0;
-              const completedCount = task.checklist ? task.checklist.filter((c) => c.done).length : 0;
-
-              return (
-                <div
-                  key={task.id}
-                  data-task-id={task.id}
-                  className={`px-3 py-1.5 flex items-center justify-between gap-2 transition-colors ${isDone ? 'bg-app-soft/70 border-l-[3px] border-l-app-accent' : ''} ${
-                    isSelected
-                      ? 'bg-app-soft/30'
-                      : 'hover:bg-app-canvas'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    {/* Checkbox (or select checkbox if in select mode) */}
-                    {isSelectMode ? (
-                      <button
-                        type="button"
-                        onClick={() => toggleSelectTask(task.id)}
-                        className="w-7 h-7 flex items-center justify-center text-app-accent cursor-pointer shrink-0"
-                      >
-                        {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-app-accent" />
-                        ) : (
-                          <Square className="w-5 h-5 text-app-muted/40" />
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void run(async () => { await onToggleTaskStatus(task.id); })}
-                        aria-label={isDone ? '할 일 완료 해제' : '할 일 완료'}
-                        aria-pressed={isDone}
-                        className="w-9 h-9 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent transition-colors cursor-pointer shrink-0"
-                      >
-                        {isDone ? (
-                          <CheckCircle2 className="w-5 h-5 text-app-accent fill-app-soft" />
-                        ) : (
-                          <Circle className="w-5 h-5 text-app-muted/40 hover:text-app-accent" />
-                        )}
-                      </button>
-                    )}
-
-                    {/* Task Title & Meta */}
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={`text-sm font-medium whitespace-normal break-words ${
-                          isDone ? 'line-through text-app-muted' : 'text-app-ink'
-                        }`}
-                      >
-                        {task.title}
-                      </p>
-
-                      <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-app-muted">
-                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 선택'}</button>
-                        {isDone && <span className="inline-flex items-center gap-0.5 text-[11px] rounded bg-[#8F526C] px-1.5 py-0.5 font-semibold text-white"><Check aria-hidden="true" className="h-3 w-3"/>완료</span>}
-
-                        {hasChecklist && (
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(task.id)}
-                            className="flex items-center gap-1 text-app-accent hover:underline cursor-pointer"
-                          >
-                            <span>
-                              체크리스트 {completedCount}/{task.checklist?.length}
-                            </span>
-                            {isExpanded ? (
-                              <ChevronUp className="w-3 h-3" />
-                            ) : (
-                              <ChevronDown className="w-3 h-3" />
-                            )}
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Expandable Checklist */}
-                      {isExpanded && hasChecklist && (
-                        <div className="mt-2 space-y-1 pl-1">
-                          {task.checklist?.map((item) => (
-                            <div
-                              key={item.id}
-                              onClick={() => void run(async () => { await onToggleTaskChecklist(task.id, item.id); })}
-                              className="flex items-center gap-2 text-xs cursor-pointer py-0.5 text-app-ink"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={item.done}
-                                onChange={() => {}}
-                                className="rounded text-app-accent focus:ring-0"
-                              />
-                              <span className={item.done ? 'line-through text-app-muted' : ''}>
-                                {item.text}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Single Delete Action */}
-                  {!isSelectMode && (
-                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} title={isDone?'완료 취소':'완료'} className="min-h-8 rounded-lg px-2 text-xs text-app-accent">{isDone?<RotateCcw aria-hidden="true" className="h-4 w-4"/>:<Check aria-hidden="true" className="h-4 w-4"/>}</button>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteTask(task.id)}
-                      className="p-1.5 text-app-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title="삭제"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button></div>
-                  )}
-                </div>
-              );
-            })
-          )}
-        </div>
+        <SwipePager data-task-swipe className="h-40" pageKey={selectedDate + selectedEndDate + completionFilter} disabled={pending || isSelectMode || Boolean(dateTarget) || importing} onPrevious={() => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, -1))} onNext={() => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, 1))} previous={renderTaskPage(tasksForPage(...shiftTaskDateRange(selectedDate, selectedEndDate, -1)), true)} next={renderTaskPage(tasksForPage(...shiftTaskDateRange(selectedDate, selectedEndDate, 1)), true)}>
+          {renderTaskPage(filteredTasks)}
+        </SwipePager>
       </div>
     </fieldset>
   );

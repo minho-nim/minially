@@ -7,13 +7,20 @@ async function swipe(page: Page, target: Locator, direction: 'left' | 'right' | 
   const y = box.y + box.height / 2;
   const start = { x: direction === 'left' ? right : left, y };
   const end = direction === 'vertical' ? { x: left + 4, y: y - 70 } : { x: direction === 'small' ? left + 20 : direction === 'left' ? left : right, y };
+  const initialX = (await target.locator('[data-swipe-current]').boundingBox())!.x;
   const session = await page.context().newCDPSession(page);
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [start] });
   for (let step = 1; step <= 6; step++) {
     await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x + (end.x - start.x) * step / 6, y: start.y + (end.y - start.y) * step / 6 }] });
   }
+  if (direction !== 'vertical') {
+    await expect(target).toHaveAttribute('data-swipe-phase','dragging');
+    await expect.poll(async () => { const movedX = (await target.locator('[data-swipe-current]').boundingBox())!.x; return Math.abs((movedX - initialX) - (end.x - start.x)); }).toBeLessThan(3);
+    if (direction === 'left') await page.screenshot({path:`test-results/drag-${await target.getAttribute('data-calendar-swipe')?'calendar':'tasks'}-${page.viewportSize()!.width}.png`});
+  }
   await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await session.detach();
+  await expect(target).toHaveAttribute('data-swipe-phase','idle');
 }
 
 for (const width of [390, 1280]) {
@@ -47,7 +54,9 @@ for (const width of [390, 1280]) {
       const list = page.locator('[data-task-swipe]');
       const empty = list.getByText('등록된 할 일이 없습니다.', { exact: true });
       await expect(empty).toBeVisible();
-      expect(await empty.evaluate(el => parseFloat(getComputedStyle(el).paddingBottom))).toBeGreaterThanOrEqual(32);
+      const initialHeight = (await list.boundingBox())!.height;
+      expect(initialHeight).toBeGreaterThanOrEqual(156);
+      await page.screenshot({path:`test-results/task-empty-reserved-${width}.png`});
       await swipe(page, list, 'left');
       await expectDate(page, '조회 날짜', current.tomorrow);
       await swipe(page, list, 'right');
@@ -66,10 +75,14 @@ for (const width of [390, 1280]) {
       await title.press('Enter');
       await expect(list.getByText('스와이프 후 등록', { exact: true })).toBeVisible();
       await expect(title).toBeFocused();
+      expect((await list.boundingBox())!.height).toBe(initialHeight);
       await swipe(page, list, 'left');
       await expect(list.getByText('스와이프 후 등록', { exact: true })).toHaveCount(0);
       await swipe(page, list, 'right');
       await expect(list.getByText('스와이프 후 등록', { exact: true })).toBeVisible();
+      for (let index=0; index<5; index++) { await title.fill('공간 채우기 '+index); await title.press('Enter'); await expect(title).toHaveValue(''); }
+      expect((await list.boundingBox())!.height).toBe(initialHeight);
+      expect(await list.locator('[data-task-list]').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
       expect(await page.locator('main').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
       await page.screenshot({ path: `test-results/task-swipe-${width}.png` });
     });

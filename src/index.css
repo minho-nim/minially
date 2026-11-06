@@ -204,3 +204,9 @@
 
 .category-compact-control,
 .app-modal .category-compact-control { min-height: 32px; }
+
+/* The bottom composer uses a plain text field with a visible caret. */
+.app-modal [data-quick-title]:focus-visible { outline: none; }
+@media (prefers-reduced-motion: reduce) {
+  [data-swipe-track] { transition: none !important; }
+}

@@ -42,7 +42,7 @@ export function useScheduleDialog(open: boolean, panel: boolean, ref: RefObject<
         if (calendarClose) { e.preventDefault(); e.stopPropagation(); calendarClose.click(); return; }
         if (state.current.panel || ref.current.querySelector('[data-schedule-panel]')) state.current.back(); else state.current.close(); }
       if (e.key !== 'Tab' || !trapFocus) return;
-      const elements = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length);
+      const elements = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []).filter(el => el.getClientRects().length && !el.closest('[inert], [aria-hidden="true"]'));
       const first = elements[0], last = elements.at(-1);
       if (e.shiftKey && (document.activeElement === first || !ref.current?.contains(document.activeElement))) { e.preventDefault(); last?.focus(); }
       else if (!e.shiftKey && (document.activeElement === last || !ref.current?.contains(document.activeElement))) { e.preventDefault(); first?.focus(); }

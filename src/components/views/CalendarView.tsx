@@ -1,7 +1,8 @@
-import { useHorizontalSwipe } from '../../hooks/useHorizontalSwipe';
+import { SwipePager } from '../common/SwipePager';
+import { calendarPageDays, shiftCalendarPage } from '../../utils/calendarPages';
 import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { compareSchedules } from '../../utils/scheduleOrder';
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Schedule,
   ScheduleCategory,
@@ -11,7 +12,6 @@ import {
 import {
   formatShortDate,
   getTodayDateString,
-  DAYS_KR,
 } from '../../utils/dateHelpers';
 import {
   ChevronLeft,
@@ -67,12 +67,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const dateMenuAnchor = useRef<HTMLButtonElement|null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
 
-  const [viewDate, setViewDate] = useState<Date>(() => {
-    const [y, m, d] = (selectedDate || todayStr).split('-').map(Number);
-    return new Date(y, m - 1, d || 1);
-  });
-
-  useEffect(() => { const [y, m, d] = selectedDate.split('-').map(Number); setViewDate(new Date(y, m - 1, d)); }, [selectedDate]);
+  const viewDate = new Date((selectedDate || todayStr) + 'T12:00:00');
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
@@ -104,129 +99,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return map;
   }, [visibleSchedules]);
 
-  // Month navigation
-  const handlePrev = () => {
-    if (viewMode === 'month') {
-      const day = Math.min(Number(selectedDate.slice(-2)), new Date(year, month, 0).getDate());
-      const next = new Date(year, month - 1, day);
-      onSelectDate(next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0'));
-    } else {
-      const d = new Date(selectedDate + 'T00:00:00');
-      d.setDate(d.getDate() - 7);
-      const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      onSelectDate(str);
-      setViewDate(new Date(d));
-    }
-  };
-
-  const handleNext = () => {
-    if (viewMode === 'month') {
-      const day = Math.min(Number(selectedDate.slice(-2)), new Date(year, month + 2, 0).getDate());
-      const next = new Date(year, month + 1, day);
-      onSelectDate(next.getFullYear() + '-' + String(next.getMonth() + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0'));
-    } else {
-      const d = new Date(selectedDate + 'T00:00:00');
-      d.setDate(d.getDate() + 7);
-      const str = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      onSelectDate(str);
-      setViewDate(new Date(d));
-    }
-  };
-
-  const swipe = useHorizontalSwipe(() => { setActiveDateMenu(null); handlePrev(); }, () => { setActiveDateMenu(null); handleNext(); });
+  const handlePrev = () => { setActiveDateMenu(null); onSelectDate(shiftCalendarPage(selectedDate, viewMode, -1)); };
+  const handleNext = () => { setActiveDateMenu(null); onSelectDate(shiftCalendarPage(selectedDate, viewMode, 1)); };
 
   const handleGoToday = () => {
-    setViewDate(new Date());
     onSelectDate(todayStr);
   };
 
   const startDayOffset = settings.startDayOfWeek; // 0: Sun, 1: Mon
 
-  // Month days array
-  const monthDays = useMemo(() => {
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-
-    let startingDayOfWeek = firstDay.getDay() - startDayOffset;
-    if (startingDayOfWeek < 0) startingDayOfWeek += 7;
-
-    const daysInMonth = lastDay.getDate();
-    const prevMonthLastDay = new Date(year, month, 0).getDate();
-    const days: { dateStr: string; dayNum: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
-
-    // Leading days
-    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
-      const pDay = prevMonthLastDay - i;
-      const prevDate = new Date(year, month - 1, pDay);
-      const mStr = String(prevDate.getMonth() + 1).padStart(2, '0');
-      const dStr = String(pDay).padStart(2, '0');
-      const dateStr = `${prevDate.getFullYear()}-${mStr}-${dStr}`;
-      days.push({
-        dateStr,
-        dayNum: pDay,
-        isCurrentMonth: false,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    // Days in current month
-    for (let d = 1; d <= daysInMonth; d++) {
-      const mStr = String(month + 1).padStart(2, '0');
-      const dStr = String(d).padStart(2, '0');
-      const dateStr = `${year}-${mStr}-${dStr}`;
-      days.push({
-        dateStr,
-        dayNum: d,
-        isCurrentMonth: true,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    // Trailing days
-    const remaining = (7 - (days.length % 7)) % 7;
-    for (let n = 1; n <= remaining; n++) {
-      const nextDate = new Date(year, month + 1, n);
-      const mStr = String(nextDate.getMonth() + 1).padStart(2, '0');
-      const dStr = String(n).padStart(2, '0');
-      const dateStr = `${nextDate.getFullYear()}-${mStr}-${dStr}`;
-      days.push({
-        dateStr,
-        dayNum: n,
-        isCurrentMonth: false,
-        isToday: dateStr === todayStr,
-      });
-    }
-
-    return days;
-  }, [year, month, todayStr, startDayOffset]);
-
-  // Week days array
-  const weekDays = useMemo(() => {
-    const [y, m, d] = selectedDate.split('-').map(Number);
-    const base = new Date(y, m - 1, d);
-    let dayOfWeek = base.getDay() - startDayOffset;
-    if (dayOfWeek < 0) dayOfWeek += 7;
-
-    const startOfWeek = new Date(base);
-    startOfWeek.setDate(base.getDate() - dayOfWeek);
-
-    const days: { dateStr: string; dayNum: number; dayName: string; isToday: boolean }[] = [];
-    for (let i = 0; i < 7; i++) {
-      const curr = new Date(startOfWeek);
-      curr.setDate(startOfWeek.getDate() + i);
-      const cy = curr.getFullYear();
-      const cm = String(curr.getMonth() + 1).padStart(2, '0');
-      const cd = String(curr.getDate()).padStart(2, '0');
-      const dateStr = `${cy}-${cm}-${cd}`;
-      days.push({
-        dateStr,
-        dayNum: curr.getDate(),
-        dayName: DAYS_KR[curr.getDay()],
-        isToday: dateStr === todayStr,
-      });
-    }
-    return days;
-  }, [selectedDate, todayStr, startDayOffset]);
+  const weekDays = useMemo(() => calendarPageDays(selectedDate, 'week', startDayOffset, todayStr), [selectedDate, startDayOffset, todayStr]);
 
   const weekdayLabels = useMemo(() => {
     if (startDayOffset === 1) {
@@ -260,78 +142,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
   };
 
-  return (
-    <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-1.5 sm:gap-2">
-      <div role="group" aria-label="일정 만들기" className="flex flex-wrap items-center justify-end gap-1.5">
-        {/* View Mode Toggle */}
-        <div className="mr-auto shrink-0 flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
-          <button
-            type="button"
-            onClick={() => setViewMode('month')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
-              viewMode === 'month'
-                ? 'bg-white text-app-ink shadow-2xs font-semibold'
-                : 'text-app-muted hover:text-app-ink'
-            }`}
-          >
-            월간
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode('week')}
-            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
-              viewMode === 'week'
-                ? 'bg-white text-app-ink shadow-2xs font-semibold'
-                : 'text-app-muted hover:text-app-ink'
-            }`}
-          >
-            주간
-          </button>
-        </div>
-        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-9 px-3 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
-        <button type="button" onClick={onOpenCategoryModal} className="min-h-9 shrink-0 whitespace-nowrap px-3 rounded-xl border border-app-outline bg-white text-sm text-app-accent">카테고리</button>
-        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-9 px-3 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
-      </div>
-      {/* Month/Week Navigation & Mode Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2 pt-1">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center">
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
-              title="이전"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <h2 className="text-base sm:text-lg font-bold text-app-ink px-1 select-none min-w-[120px] text-center">
-              {viewMode === 'month'
-                ? `${year}년 ${month + 1}월`
-                : `${formatShortDate(weekDays[0]?.dateStr || selectedDate)} ~ ${formatShortDate(weekDays[6]?.dateStr || selectedDate)}`}
-            </h2>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
-              title="다음"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleGoToday}
-            className="px-2.5 py-1 text-xs font-semibold text-app-accent bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
-          >
-            오늘
-          </button>
-        </div>
-      </div>
-
-      {/* Main Container: Unified Calendar Surface */}
-      <div {...swipe} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
-        {/* Weekday Row */}
+  const renderPage = (pageDate: string, preview = false) => {
+    const selectedDate = pageDate;
+    const monthDays = calendarPageDays(pageDate, 'month', startDayOffset, todayStr);
+    const weekDays = calendarPageDays(pageDate, 'week', startDayOffset, todayStr);
+    return <>        {/* Weekday Row */}
         <div className="grid grid-cols-7 border-b border-app-line text-center text-xs font-medium text-app-muted py-2 bg-white">
           {weekdayLabels.map((day, idx) => {
             const isSun = startDayOffset === 0 ? idx === 0 : idx === 6;
@@ -356,12 +171,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
               const daySchedules = schedulesByDate.get(cell.dateStr) || [];
-              const isMenuOpen = activeDateMenu === cell.dateStr;
+              const isMenuOpen = !preview && activeDateMenu === cell.dateStr;
 
               return (
                 <div
                   key={cell.dateStr}
-                  data-calendar-date={cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
+                  data-calendar-date={preview ? undefined : cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); } }}
                   onClick={() => {
                     onSelectDate(cell.dateStr); onOpenDay(cell.dateStr);
@@ -520,7 +335,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               return (
                 <div
                   key={cell.dateStr}
-                  data-calendar-date={cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
+                  data-calendar-date={preview ? undefined : cell.dateStr} role="button" tabIndex={0} aria-label={cell.dateStr + ' 일정 보기'}
                   onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); } }}
                   onClick={() => { onSelectDate(cell.dateStr); onOpenDay(cell.dateStr); }}
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
@@ -585,7 +400,82 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             })}
           </div>
         )}
+</>;
+  };
+
+  return (
+    <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-1.5 sm:gap-2">
+      <div role="group" aria-label="일정 만들기" className="flex flex-wrap items-center justify-end gap-1.5">
+        {/* View Mode Toggle */}
+        <div className="mr-auto shrink-0 flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode('month')}
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+              viewMode === 'month'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
+            }`}
+          >
+            월간
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('week')}
+            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+              viewMode === 'week'
+                ? 'bg-white text-app-ink shadow-2xs font-semibold'
+                : 'text-app-muted hover:text-app-ink'
+            }`}
+          >
+            주간
+          </button>
+        </div>
+        <button type="button" onClick={() => onOpenPresetModal()} className="min-h-9 px-3 rounded-xl border border-app-outline bg-white text-sm text-app-accent">프리셋</button>
+        <button type="button" onClick={onOpenCategoryModal} className="min-h-9 shrink-0 whitespace-nowrap px-3 rounded-xl border border-app-outline bg-white text-sm text-app-accent">카테고리</button>
+        <button type="button" onClick={() => onOpenNewScheduleModal(selectedDate)} className="min-h-9 px-3 rounded-xl bg-app-accent text-white text-sm font-semibold">일정 등록</button>
       </div>
+      {/* Month/Week Navigation & Mode Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1 sm:px-2 pt-1">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={handlePrev}
+              className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              title="이전"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-base sm:text-lg font-bold text-app-ink px-1 select-none min-w-[120px] text-center">
+              {viewMode === 'month'
+                ? `${year}년 ${month + 1}월`
+                : `${formatShortDate(weekDays[0]?.dateStr || selectedDate)} ~ ${formatShortDate(weekDays[6]?.dateStr || selectedDate)}`}
+            </h2>
+            <button
+              type="button"
+              onClick={handleNext}
+              className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              title="다음"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGoToday}
+            className="px-2.5 py-1 text-xs font-semibold text-app-accent bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+          >
+            오늘
+          </button>
+        </div>
+      </div>
+
+      {/* Main Container: Unified Calendar Surface */}
+      <SwipePager pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
+        {renderPage(selectedDate)}
+      </SwipePager>
 
     </div>
   );
