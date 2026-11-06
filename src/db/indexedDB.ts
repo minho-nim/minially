@@ -1,7 +1,7 @@
 import { sortPresets } from '../utils/phrases';
 import { hasCalendarTask, taskFromSchedule } from '../utils/calendarTasks';
 import { CATEGORY_LIMIT, nextCategoryColor, visibleCategories, resolveCategoryColor } from '../utils/categories';
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { openDB, DBSchema, IDBPDatabase, IDBPTransaction, StoreNames } from 'idb';
 import {
   Schedule,
   Preset,
@@ -57,7 +57,12 @@ interface DayFlowDBSchema extends DBSchema {
 const DB_NAME = 'DayFlowDB';
 const DB_VERSION = 1;
 
-export const DEFAULT_CATEGORIES: CategoryItem[] = [];
+export const DEFAULT_CATEGORIES: CategoryItem[] = [
+  { id: 'category-work', name: '일', color: '#A4ADD0', sortOrder: 0, isUserManaged: true },
+  { id: 'category-important', name: '중요', color: '#B4A2D3', sortOrder: 1, isUserManaged: true },
+  { id: 'category-other', name: '기타', color: '#D6C796', sortOrder: 2, isUserManaged: true },
+  { id: 'category-date', name: '데이트', color: '#CF8FA8', sortOrder: 3, isUserManaged: true },
+];
 
 export const DEFAULT_PRESETS: Preset[] = [];
 
@@ -229,6 +234,52 @@ export async function initializeDatabase(): Promise<void> {
     }
     await tx.done;
   }
+  await normalizeStoredCategories();
+}
+
+// Normalize legacy/backup data without deleting categories or changing schedule IDs.
+async function normalizeStoredCategories(): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(['categories', 'schedules', 'recurrenceExceptions', 'changeHistory'], 'readwrite');
+  await normalizeCategoryTransaction(tx);
+}
+
+async function normalizeCategoryTransaction(tx: IDBPTransaction<DayFlowDBSchema, StoreNames<DayFlowDBSchema>[], 'readwrite'>): Promise<void> {
+  try {
+    const storedCategories = await tx.objectStore('categories').getAll();
+    const schedules = await tx.objectStore('schedules').getAll();
+    const exceptions = await tx.objectStore('recurrenceExceptions').getAll();
+    const history = await tx.objectStore('changeHistory').getAll();
+    const used = new Set([...schedules.map(s => s.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
+    const categories = visibleCategories(storedCategories, used);
+    if (!categories.length) categories.push(...DEFAULT_CATEGORIES.map(cat => ({ ...cat })));
+    const assigned: CategoryItem[] = [];
+    for (const category of categories) {
+      if (!/^#[0-9a-f]{6}$/i.test(category.color || '') || assigned.some(cat => cat.color.toLowerCase() === category.color.toLowerCase())) category.color = nextCategoryColor([...categories, ...assigned]);
+      category.isUserManaged = true;
+      assigned.push(category);
+    }
+    const ids = new Set(categories.map(cat => cat.id));
+    const invalid = (schedule: Partial<Schedule>) => !ids.has(schedule.category || '');
+    const invalidException = (ex: RecurrenceException) => ex.modifiedSchedule?.category !== undefined && invalid(ex.modifiedSchedule);
+    const needsFallback = schedules.some(invalid) || exceptions.some(invalidException) || history.some(entry => [...entry.previousSchedules, ...entry.newSchedules].some(invalid) || [...(entry.previousExceptions || []), ...(entry.newExceptions || [])].some(invalidException));
+    let fallback = categories.find(cat => cat.name === '기타');
+    if (needsFallback && !fallback) {
+      fallback = { id: crypto.randomUUID(), name: '기타', color: nextCategoryColor(categories), isUserManaged: true, sortOrder: categories.length };
+      categories.push(fallback);
+    }
+    const fix = (schedule: Schedule): Schedule => invalid(schedule) ? { ...schedule, category: fallback!.id } : schedule;
+    const fixException = (ex: RecurrenceException): RecurrenceException => invalidException(ex) ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: fallback!.id } } : ex;
+    for (const cat of categories) await tx.objectStore('categories').put(cat);
+    for (const schedule of schedules) if (invalid(schedule)) await tx.objectStore('schedules').put(fix(schedule));
+    for (const ex of exceptions) if (invalidException(ex)) await tx.objectStore('recurrenceExceptions').put(fixException(ex));
+    for (const entry of history) await tx.objectStore('changeHistory').put({ ...entry, previousSchedules: entry.previousSchedules.map(fix), newSchedules: entry.newSchedules.map(fix), ...(entry.previousExceptions ? { previousExceptions: entry.previousExceptions.map(fixException) } : {}), ...(entry.newExceptions ? { newExceptions: entry.newExceptions.map(fixException) } : {}) });
+    await tx.done;
+  } catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
+}
+
+function requireCategory(schedule: Partial<Schedule>, categories: CategoryItem[]) {
+  if (!schedule.category || !categories.some(cat => cat.id === schedule.category)) throw new Error('카테고리를 선택해 주세요.');
 }
 
 // Schedule Operations
@@ -250,8 +301,7 @@ export async function getSchedulesByDate(date: string): Promise<Schedule[]> {
 }
 
 export async function saveSchedule(schedule: Schedule): Promise<void> {
-  const db = await getDB();
-  await db.put('schedules', schedule);
+  await batchSaveSchedules([schedule]);
 }
 
 export async function deleteSchedule(id: string): Promise<void> {
@@ -261,11 +311,13 @@ export async function deleteSchedule(id: string): Promise<void> {
 
 export async function batchSaveSchedules(schedules: Schedule[]): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction('schedules', 'readwrite');
-  for (const s of schedules) {
-    await tx.store.put(s);
-  }
-  await tx.done;
+  const tx = db.transaction(['schedules', 'categories'], 'readwrite');
+  try {
+    const categories = await tx.objectStore('categories').getAll();
+    for (const schedule of schedules) requireCategory(schedule, categories);
+    for (const schedule of schedules) await tx.objectStore('schedules').put(schedule);
+    await tx.done;
+  } catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
 }
 
 export async function batchDeleteSchedules(ids: string[]): Promise<void> {
@@ -446,20 +498,22 @@ export async function deleteCategory(id: string): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(['categories', 'schedules', 'recurrenceExceptions', 'presets', 'appSettings', 'changeHistory'], 'readwrite');
   try {
-    for (const schedule of await tx.objectStore('schedules').getAll()) {
-      if (schedule.category === id) await tx.objectStore('schedules').put({ ...schedule, category: '' });
-    }
-    for (const exception of await tx.objectStore('recurrenceExceptions').getAll()) {
-      if (exception.modifiedSchedule?.category === id) await tx.objectStore('recurrenceExceptions').put({ ...exception, modifiedSchedule: { ...exception.modifiedSchedule, category: '' } });
-    }
+    const categories = await tx.objectStore('categories').getAll();
+    const schedules = await tx.objectStore('schedules').getAll();
+    const exceptions = await tx.objectStore('recurrenceExceptions').getAll();
+    const used = new Set([...schedules.map(item => item.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
+    const remaining = visibleCategories(categories, used).filter(cat => cat.id !== id);
+    if (!remaining.length) throw new Error('마지막 카테고리는 삭제할 수 없습니다.');
+    if (schedules.some(item => item.category === id) || exceptions.some(ex => ex.modifiedSchedule?.category === id)) throw new Error('사용 중인 카테고리입니다. 일정의 카테고리를 먼저 변경해 주세요.');
+    const replacement = remaining.find(cat => cat.name === '기타')?.id || remaining[0].id;
     for (const preset of await tx.objectStore('presets').getAll()) {
       if (preset.defaultCategory === id) await tx.objectStore('presets').put({ ...preset, defaultCategory: '' });
     }
     const settings = await tx.objectStore('appSettings').get('global_settings');
     if (settings?.defaultCategory === id) await tx.objectStore('appSettings').put({ ...settings, defaultCategory: '' });
     for (const entry of await tx.objectStore('changeHistory').getAll()) {
-      const clearReference = (schedule: Schedule) => schedule.category === id ? { ...schedule, category: '' } : schedule;
-      const clearException = (ex: RecurrenceException) => ex.modifiedSchedule?.category === id ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: '' } } : ex;
+      const clearReference = (schedule: Schedule) => schedule.category === id ? { ...schedule, category: replacement } : schedule;
+      const clearException = (ex: RecurrenceException) => ex.modifiedSchedule?.category === id ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: replacement } } : ex;
       await tx.objectStore('changeHistory').put({ ...entry, previousSchedules: entry.previousSchedules.map(clearReference), newSchedules: entry.newSchedules.map(clearReference), ...(entry.previousExceptions ? { previousExceptions: entry.previousExceptions.map(clearException) } : {}), ...(entry.newExceptions ? { newExceptions: entry.newExceptions.map(clearException) } : {}) });
     }
     await tx.objectStore('categories').delete(id);
@@ -505,7 +559,12 @@ export async function getAllRecurrenceExceptions(): Promise<RecurrenceException[
 
 export async function saveRecurrenceException(exception: RecurrenceException): Promise<void> {
   const db = await getDB();
-  await db.put('recurrenceExceptions', exception);
+  const tx = db.transaction(['recurrenceExceptions', 'categories'], 'readwrite');
+  try {
+    if (exception.modifiedSchedule?.category !== undefined) requireCategory(exception.modifiedSchedule, await tx.objectStore('categories').getAll());
+    await tx.objectStore('recurrenceExceptions').put(exception);
+    await tx.done;
+  } catch (error) { try { tx.abort(); } catch {} await tx.done.catch(() => {}); throw error; }
 }
 
 // Tasks Operations
@@ -650,7 +709,7 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
     }
   }
   const db = await getDB();
-  const tx = db.transaction([...stores, 'appSettings'] as const, 'readwrite');
+  const tx = db.transaction([...stores, 'appSettings', 'changeHistory'] as const, 'readwrite');
   try {
     for (const store of stores) {
       const items = data[store];
@@ -659,7 +718,7 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
       for (const item of items) await tx.objectStore(store).put(item);
     }
     if (data.settings) await tx.objectStore('appSettings').put({ ...data.settings, id: 'global_settings' });
-    await tx.done;
+    await normalizeCategoryTransaction(tx);
   } catch (error) {
     try { tx.abort(); } catch { /* Transaction may already have aborted. */ }
     await tx.done.catch(() => {});
@@ -690,10 +749,12 @@ export async function resetDatabaseToDefault(): Promise<void> {
 // Commit the visible schedule change and its undo record as one durable operation.
 export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = false): Promise<void> {
   const db = await getDB();
-  const tx = db.transaction(['schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory'], 'readwrite');
+  const tx = db.transaction(['schedules', 'categories', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory'], 'readwrite');
   try {
     const before = undo ? entry.newSchedules : entry.previousSchedules;
     const after = undo ? entry.previousSchedules : entry.newSchedules;
+    const categories = await tx.objectStore('categories').getAll();
+    for (const schedule of after) requireCategory(schedule, categories);
     const ids = new Set(after.map(s => s.id));
     for (const schedule of before) if (!ids.has(schedule.id)) await tx.objectStore('schedules').delete(schedule.id);
     for (const schedule of after) await tx.objectStore('schedules').put(schedule);
@@ -701,7 +762,10 @@ export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = fal
     const afterExceptions = (undo ? entry.previousExceptions : entry.newExceptions) ?? [];
     const exceptionIds = new Set(afterExceptions.map(ex => ex.id));
     for (const ex of beforeExceptions) if (!exceptionIds.has(ex.id)) await tx.objectStore('recurrenceExceptions').delete(ex.id);
-    for (const ex of afterExceptions) await tx.objectStore('recurrenceExceptions').put(ex);
+    for (const ex of afterExceptions) {
+      if (ex.modifiedSchedule?.category !== undefined) requireCategory(ex.modifiedSchedule, categories);
+      await tx.objectStore('recurrenceExceptions').put(ex);
+    }
     const beforeRules = (undo ? entry.newRules : entry.previousRules) ?? [];
     const afterRules = (undo ? entry.previousRules : entry.newRules) ?? [];
     const ruleIds = new Set(afterRules.map(rule => rule.id));

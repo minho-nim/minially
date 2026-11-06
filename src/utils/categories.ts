@@ -11,8 +11,13 @@ export const CATEGORY_PALETTE = [
 ];
 
 export function nextCategoryColor(categories: CategoryItem[]) {
-  const used = new Set(categories.map(category => category.color.toLowerCase()));
-  return (CATEGORY_PALETTE.find(item => !used.has(item.color.toLowerCase())) || CATEGORY_PALETTE[categories.length % CATEGORY_PALETTE.length]).color;
+  const used = new Set(categories.map(category => typeof category.color === 'string' ? category.color.toLowerCase() : ''));
+  const available = CATEGORY_PALETTE.find(item => !used.has(item.color.toLowerCase()));
+  if (available) return available.color;
+  // Preserve unusually large legacy libraries without assigning a duplicate color.
+  let color = 0x968ba0;
+  while (used.has('#' + color.toString(16).padStart(6, '0'))) color++;
+  return '#' + color.toString(16).padStart(6, '0');
 }
 
 // These exact records were seeded by older releases. Keep used or edited records;
@@ -28,5 +33,12 @@ export function visibleCategories(categories: CategoryItem[], used: Set<string>)
 }
 
 export function resolveCategoryColor(requested: string, existing: string | undefined, categories: CategoryItem[]): string {
-  return /^#[0-9a-f]{6}$/i.test(requested || '') ? requested : existing || nextCategoryColor(categories);
+  if (existing) {
+    if (requested.toLowerCase() !== existing.toLowerCase()) throw new Error('카테고리 색상은 고정입니다. 이름을 수정해 주세요.');
+    return existing;
+  }
+  const color = requested || nextCategoryColor(categories);
+  if (!CATEGORY_PALETTE.some(item => item.color.toLowerCase() === color.toLowerCase())) throw new Error('정해진 카테고리 색상을 선택해 주세요.');
+  if (categories.some(item => item.color.toLowerCase() === color.toLowerCase())) throw new Error('이미 사용 중인 색상입니다. 다른 색상을 선택해 주세요.');
+  return color;
 }

@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
   test.describe(`calendar and category ${viewport.width}px`, () => {
     test.use({ viewport });
-    test('custom category color and today-to-task registration persist without duplicates', async ({ page }) => {
+    test('fixed category color and today-to-task registration persist without duplicates', async ({ page }) => {
       await page.route('**/fonts.googleapis.com/**', route => route.abort());
       await page.goto('/');
       await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
@@ -22,13 +22,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
       await page.getByRole('button', { name: '카테고리', exact: true }).click();
       const category = page.getByRole('dialog', { name: '카테고리 관리', exact: true });
       await category.locator('[data-category-id="custom"]').getByRole('button', { name: '수정', exact: true }).click();
-      await category.getByLabel('직접 색상 선택', { exact: true }).evaluate((element: HTMLInputElement) => {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(element, '#123456');
-        element.dispatchEvent(new Event('input', { bubbles: true }));
-        element.dispatchEvent(new Event('change', { bubbles: true }));
-      });
+      await expect(category.getByLabel('직접 색상 선택', { exact: true })).toHaveCount(0);
+      await category.getByPlaceholder('카테고리 이름').fill('이름 수정');
       await category.getByRole('button', { name: '변경사항 저장', exact: true }).click();
-      await expect.poll(() => page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllCategories()).find((item: any) => item.id === 'custom')?.color; })).toBe('#123456');
+      await expect.poll(() => page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllCategories()).find((item: any) => item.id === 'custom')?.color; })).toBe('#CF8FA8');
       await category.getByRole('button', { name: '카테고리 관리 닫기' }).click();
       await page.getByRole('button', { name: '할 일', exact: true }).filter({ visible: true }).first().click();
       await page.getByRole('button', { name: '캘린더 일정 가져오기', exact: true }).click();

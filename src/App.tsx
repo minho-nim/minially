@@ -401,10 +401,12 @@ export default function App() {
 
   const handleDeleteCategory = async (catId: string) => {
     await dbDeleteCategory(catId);
+    const remaining = await getAllCategories();
+    const replacement = remaining.find(cat => cat.name === '기타')?.id || remaining[0]?.id;
     setUndoNotice(notice => {
       if (!notice) return notice;
-      const clearReference = (schedule: Schedule) => schedule.category === catId ? { ...schedule, category: '' } : schedule;
-      const clearException = (ex: RecurrenceException) => ex.modifiedSchedule?.category === catId ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: '' } } : ex;
+      const clearReference = (schedule: Schedule) => schedule.category === catId ? { ...schedule, category: replacement } : schedule;
+      const clearException = (ex: RecurrenceException) => ex.modifiedSchedule?.category === catId ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: replacement } } : ex;
       return { ...notice, entry: { ...notice.entry, previousSchedules: notice.entry.previousSchedules.map(clearReference), newSchedules: notice.entry.newSchedules.map(clearReference), previousExceptions: notice.entry.previousExceptions?.map(clearException), newExceptions: notice.entry.newExceptions?.map(clearException) } };
     });
     await reloadData();

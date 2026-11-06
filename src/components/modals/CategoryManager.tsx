@@ -32,14 +32,15 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
   const run = async (action: () => Promise<void>) => {
     if (busy.current) return;
     busy.current = true; setPending(true); setError('');
-    try { await action(); } catch (error) { setError(error instanceof Error && error.message.includes('최대 12개') ? error.message : '저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.'); }
+    try { await action(); } catch (error) { setError(error instanceof Error ? error.message : '저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.'); }
     finally { busy.current = false; setPending(false); }
   };
   return <fieldset disabled={pending} className="space-y-3 min-w-0">
     {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
     {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+    <p className="text-xs text-app-muted">색상마다 한 개 · 색상은 고정이며 이름과 순서를 바꿀 수 있습니다.</p>
     <p className="text-xs text-app-muted">내 카테고리 {categories.length}/{CATEGORY_LIMIT}개{categories.length >= CATEGORY_LIMIT ? ' · 추가하려면 기존 카테고리를 삭제하세요.' : ''}</p>
-    <ul aria-label="카테고리 관리 목록" className="divide-y divide-app-line">
+    <ul aria-label="카테고리 관리 목록" className="divide-y divide-app-line rounded-xl border border-app-line px-2">
       {!categories.length && <li className="text-sm py-3">카테고리가 없습니다. 아래에서 추가하세요.</li>}
       {categories.map((cat, index) => <li key={cat.id} data-category-id={cat.id} className="py-2">
         <div className="flex items-center gap-1 flex-wrap">
@@ -51,8 +52,8 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
           })}>{direction < 0 ? '↑' : '↓'}</button>)}
         </div>
         {deleting === cat.id && <div role="group" aria-label="카테고리 삭제 확인" className="text-xs space-y-1 p-2 bg-app-canvas rounded-lg">
-          <p>이 카테고리를 사용하는 일정 {schedules.filter(s => s.category === cat.id).length}개는 삭제하지 않고 미분류로 변경합니다. 반복 일정의 변경 내역도 보존합니다.</p>
-          <button type="button" className={button} onClick={() => void run(async () => { await onDeleteCategory(cat.id); setDeleting(null); if (editing === cat.id) reset(); })}>삭제</button>
+          <p>{schedules.some(s => s.category === cat.id) ? '사용 중인 카테고리입니다. 일정의 카테고리를 먼저 변경해 주세요.' : '이 카테고리를 삭제할까요?'}</p>
+          <button type="button" disabled={categories.length <= 1 || schedules.some(s => s.category === cat.id)} className={button} onClick={() => void run(async () => { await onDeleteCategory(cat.id); setDeleting(null); if (editing === cat.id) reset(); })}>삭제</button>
           <button type="button" className={button} onClick={() => setDeleting(null)}>취소</button>
         </div>}
       </li>)}
@@ -73,8 +74,9 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
       <div role="group" aria-label="카테고리 색상" className="space-y-1.5">
         <span className="text-xs font-semibold">색상</span>
         <div className="flex flex-wrap items-center gap-1.5">
-          {CATEGORY_PALETTE.map(item => <button key={item.color} type="button" aria-label={item.name + ' 색상'} aria-pressed={color.toLowerCase() === item.color.toLowerCase()} title={item.name} onClick={() => setCustomColor(item.color)} className={'min-h-8 min-w-8 rounded-lg border flex items-center justify-center ' + (color.toLowerCase() === item.color.toLowerCase() ? 'border-app-accent bg-app-soft' : 'border-app-line bg-white')}><span aria-hidden="true" className="h-4 w-4 rounded-full" style={{background:item.color}} /></button>)}
-          <label className="flex items-center gap-1.5 text-xs text-app-muted"><input type="color" aria-label="직접 색상 선택" value={color} onChange={e => setCustomColor(e.target.value)} className="h-8 w-8 cursor-pointer rounded border border-app-line bg-white p-0.5" />직접 선택</label>
+          {!editing && CATEGORY_PALETTE.map(item => <button key={item.color} type="button" aria-label={item.name + ' 색상'} disabled={categories.some(cat => cat.color.toLowerCase() === item.color.toLowerCase())} aria-pressed={color.toLowerCase() === item.color.toLowerCase()} title={item.name} onClick={() => setCustomColor(item.color)} className={'min-h-8 min-w-8 rounded-lg border flex items-center justify-center disabled:opacity-20 ' + (color.toLowerCase() === item.color.toLowerCase() ? 'border-app-accent bg-app-soft' : 'border-app-line bg-white')}><span aria-hidden="true" className="h-4 w-4 rounded-full" style={{background:item.color}} /></button>)}
+          {editing && <span className="inline-flex items-center gap-2 text-xs text-app-muted"><span className="h-4 w-4 rounded-full" style={{background:color}}/>고정 색상</span>}
+
         </div>
       </div>
       <button type="submit" className={button + ' bg-app-soft'} disabled={!name.trim() || (!editing && categories.length >= CATEGORY_LIMIT)}>{editing ? '변경사항 저장' : '추가'}</button>
