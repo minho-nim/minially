@@ -351,7 +351,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     isDragTarget ? 'bg-app-soft/60' : 'bg-transparent'
                   }`}
                 >
-                  <div className="text-center pb-2 mb-2">
+                  <div className="shrink-0 text-center pb-2 mb-2">
                     <span className="text-[11px] font-semibold text-app-muted block">
                       {cell.dayName}
                     </span>
@@ -368,12 +368,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </span>
                   </div>
 
-                  <div className="space-y-1 overflow-hidden flex-1 min-h-0">
-                    {daySchedules.slice(0, 2).map((s) => {
+                  <div data-week-schedules={preview ? undefined : cell.dateStr} style={{touchAction: 'pan-y pinch-zoom'}} className="space-y-1 overflow-y-auto overscroll-contain flex-1 min-h-0">
+                    {daySchedules.map((s) => {
                       const cat = categoryMap.get(s.category);
                       return (
                         <div
                           key={s.id}
+                          data-week-schedule={preview ? undefined : s.id}
+                          title={s.title}
                           draggable="true"
                           onDragStart={(e) => handleDragStart(e, s.id)}
                           onClick={(e) => {
@@ -395,7 +397,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         </div>
                       );
                     })}
-                    {daySchedules.length > 2 && <p className="text-[10px] text-app-muted text-right">+{daySchedules.length - 2}개</p>}
                   </div>
                 </div>
               );
