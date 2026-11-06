@@ -1,7 +1,7 @@
 import { SwipePager } from '../common/SwipePager';
 import { shiftTaskDateRange } from '../../utils/taskDateRange';
 import { TaskPlanningModal } from '../modals/TaskPlanningModal';
-import { TaskDateFilter } from '../common/TaskDateFilter';
+import { DateRangeNavigation } from '../common/DateRangeNavigation';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Task, TaskPriority, Preset, PresetGroup, TitleBlock } from '../../types';
 import { InlinePresetPicker } from '../common/InlinePresetPicker';
@@ -146,7 +146,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
   const tasksForPage = (start: string, end: string) => tasks.filter(task => Boolean(task.dueDate && task.dueDate >= start && task.dueDate <= end) && (completionFilter === 'all' || (completionFilter === 'completed' ? task.status === 'done' : task.status !== 'done'))).sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || (a.dueDate || '').localeCompare(b.dueDate || ''));
   const renderTaskPage = (filteredTasks: Task[], preview = false) => (
-    <div data-task-list style={{touchAction: 'pan-y pinch-zoom'}} className="h-full min-h-0 overflow-y-auto overscroll-contain divide-y divide-app-line bg-white">
+    <div data-task-list style={{touchAction: 'pan-y pinch-zoom'}} className="divide-y divide-app-line bg-white">
           {filteredTasks.length === 0 ? (
             <div className="pt-3 text-center text-xs text-app-muted">
               등록된 할 일이 없습니다.
@@ -280,12 +280,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
       <TaskPlanningModal task={dateTarget} importing={importing} tasks={tasks} onClose={()=>{setDateTarget(null);setImporting(false);}} onSaveDate={async(id,date)=>{await onRescheduleTask(id,date);chooseDate(date||todayStr);if(importing)setCompletionFilter('pending');}} />
       {/* Top Filter & Scope Controls */}
       <div className="space-y-2 px-1">
-        <TaskDateFilter start={selectedDate} end={selectedEndDate} onChange={onSelectRange}/>
+        <DateRangeNavigation start={selectedDate} end={selectedEndDate} onChange={onSelectRange}/>
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" onClick={()=>setImporting(true)} className="min-h-9 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent">미완료 가져오기</button>
-          <button type="button" onClick={onOpenCalendar} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
+          <button type="button" onClick={()=>{setCompletionFilter('all');onOpenCalendar();}} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
           <div role="group" aria-label="할 일 완료 필터" className="flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
             {([['all','모두'],['pending','미완료'],['completed','완료']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={completionFilter===value} onClick={()=>setCompletionFilter(value)} className={'min-h-8 px-2.5 rounded-md '+(completionFilter===value?'bg-white font-semibold text-app-ink':'text-app-muted')}>{label}</button>)}
           </div>
@@ -385,7 +385,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
         )}
 
         {/* Cardless List of Tasks */}
-        <SwipePager data-task-swipe className="h-40" pageKey={selectedDate + selectedEndDate + completionFilter} disabled={pending || isSelectMode || Boolean(dateTarget) || importing} onPrevious={() => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, -1))} onNext={() => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, 1))} previous={renderTaskPage(tasksForPage(...shiftTaskDateRange(selectedDate, selectedEndDate, -1)), true)} next={renderTaskPage(tasksForPage(...shiftTaskDateRange(selectedDate, selectedEndDate, 1)), true)}>
+        <SwipePager data-task-swipe autoHeight minimumHeight={160} pageKey={selectedDate + selectedEndDate + completionFilter} disabled={pending || isSelectMode || Boolean(dateTarget) || importing} onPrevious={() => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, -1))} onNext={() => onSelectRange(...shiftTaskDateRange(selectedDate, selectedEndDate, 1))} previous={renderTaskPage(tasksForPage(...shiftTaskDateRange(selectedDate, selectedEndDate, -1)), true)} next={renderTaskPage(tasksForPage(...shiftTaskDateRange(selectedDate, selectedEndDate, 1)), true)}>
           {renderTaskPage(filteredTasks)}
         </SwipePager>
       </div>

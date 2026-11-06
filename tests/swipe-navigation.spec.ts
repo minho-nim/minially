@@ -81,8 +81,8 @@ for (const width of [390, 1280]) {
       await swipe(page, list, 'right');
       await expect(list.getByText('스와이프 후 등록', { exact: true })).toBeVisible();
       for (let index=0; index<5; index++) { await title.fill('공간 채우기 '+index); await title.press('Enter'); await expect(title).toHaveValue(''); }
-      expect((await list.boundingBox())!.height).toBe(initialHeight);
-      expect(await list.locator('[data-task-list]').evaluate(el=>el.scrollHeight>el.clientHeight)).toBe(true);
+      await expect.poll(async()=>(await list.boundingBox())!.height).toBeGreaterThan(initialHeight+80);
+      expect(await list.locator('[data-task-list]').evaluate(el=>el.scrollHeight<=el.clientHeight+1)).toBe(true);
       expect(await page.locator('main').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
       await page.screenshot({ path: `test-results/task-swipe-${width}.png` });
     });

@@ -9,18 +9,40 @@ interface Props {
   onNext: () => void;
   disabled?: boolean;
   gap?: number;
+  autoHeight?: boolean;
+  minimumHeight?: number;
   className?: string;
   'data-calendar-swipe'?: boolean;
   'data-task-swipe'?: boolean;
+  'data-import-swipe'?: boolean;
 }
 
-export function SwipePager({ pageKey, children, previous, next, onPrevious, onNext, disabled = false, gap = 0, className = '', ...attributes }: Props) {
+export function SwipePager({ pageKey, children, previous, next, onPrevious, onNext, disabled = false, gap = 0, autoHeight = false, minimumHeight = 160, className = '', ...attributes }: Props) {
   const root = useRef<HTMLDivElement>(null);
+  const panes = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
+  const measure = useRef<() => void>(() => {});
+  const [height, setHeight] = useState(minimumHeight);
   const gesture = useRef<{ id: number; x: number; y: number; time: number; horizontal: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ignoreClickUntil = useRef(0);
   const [offset, setOffset] = useState(0);
   const [phase, setPhase] = useState<'idle' | 'dragging' | 'settling'>('idle');
+  useLayoutEffect(() => {
+    measure.current = () => {
+      if (!autoHeight) return;
+      const current = Math.max(minimumHeight, panes[1].current?.getBoundingClientRect().height || 0);
+      const neighbor = Math.max(minimumHeight, panes[offset < 0 ? 2 : 0].current?.getBoundingClientRect().height || 0);
+      const progress = Math.min(1, Math.abs(offset) / ((root.current?.clientWidth || 1) + gap));
+      setHeight(current + (neighbor - current) * progress);
+    };
+    measure.current();
+  });
+  useLayoutEffect(() => {
+    if (!autoHeight) return;
+    const observer = new ResizeObserver(() => measure.current());
+    panes.forEach(pane => { if (pane.current) observer.observe(pane.current); });
+    return () => observer.disconnect();
+  }, [autoHeight]);
   const reset = () => { if (timer.current) clearTimeout(timer.current); gesture.current = null; setOffset(0); setPhase('idle'); };
   useLayoutEffect(() => { reset(); return () => { if (timer.current) clearTimeout(timer.current); }; }, [pageKey, disabled]);
   const settle = (direction: -1 | 0 | 1) => {
@@ -67,11 +89,11 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
     const commit = !disabled && (Math.abs(x) >= Math.min(92, width * 0.24) || (Math.abs(x) > 28 && velocity > 0.5));
     settle(commit ? x < 0 ? 1 : -1 : 0);
   };
-  return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction: 'pan-y pinch-zoom' }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
-    <div data-swipe-track className="flex h-full min-h-0 w-full" style={{ columnGap: gap, transform: `translate3d(calc(-100% - ${gap}px + ${offset}px), 0, 0)`, transition: phase === 'settling' ? 'transform 220ms cubic-bezier(.22,.68,0,1)' : 'none', willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
-      <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col">{phase !== 'idle' && previous}</div>
-      <div data-swipe-current className="flex h-full min-h-0 w-full shrink-0 flex-col">{children}</div>
-      <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col">{phase !== 'idle' && next}</div>
+  return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction: 'pan-y pinch-zoom', height: autoHeight ? height : undefined, transition: autoHeight && phase !== 'dragging' ? 'height 220ms cubic-bezier(.22,.68,0,1)' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
+    <div data-swipe-track className={autoHeight ? 'absolute top-0 left-0 flex w-full items-start' : 'flex h-full min-h-0 w-full'} style={{ columnGap: gap, transform: `translate3d(calc(-100% - ${gap}px + ${offset}px), 0, 0)`, transition: phase === 'settling' ? 'transform 220ms cubic-bezier(.22,.68,0,1)' : 'none', willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
+      <div ref={panes[0]} aria-hidden="true" inert className={'flex min-h-0 w-full shrink-0 flex-col' + (autoHeight ? '' : ' h-full')}>{phase !== 'idle' && previous}</div>
+      <div ref={panes[1]} data-swipe-current className={'flex min-h-0 w-full shrink-0 flex-col' + (autoHeight ? '' : ' h-full')}>{children}</div>
+      <div ref={panes[2]} aria-hidden="true" inert className={'flex min-h-0 w-full shrink-0 flex-col' + (autoHeight ? '' : ' h-full')}>{phase !== 'idle' && next}</div>
     </div>
   </div>;
 }

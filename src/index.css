@@ -237,3 +237,5 @@
   .quick-dock, [data-composer-input] { animation: none; transition: none; }
   .calendar-date-cell [data-date-number] { transition: none; }
 }
+
+@media (prefers-reduced-motion: reduce) { [data-swipe-phase] { transition: none !important; } }

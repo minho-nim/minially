@@ -1,20 +1,22 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, X, Clock, Check } from 'lucide-react';
 import type { CategoryItem, Schedule, Task, RecurrenceRule, RecurrenceException } from '../../types';
-import { getTodayDateString, formatKoreanDate } from '../../utils/dateHelpers';
+import { getTodayDateString, formatKoreanDate, formatShortDate } from '../../utils/dateHelpers';
 import { compareSchedules } from '../../utils/scheduleOrder';
-import { calendarSchedulesForDate, hasCalendarTask } from '../../utils/calendarTasks';
-import { DatePicker } from '../common/DatePicker';
+import { calendarSchedulesForRange, hasCalendarTask } from '../../utils/calendarTasks';
+import { DateRangeNavigation } from '../common/DateRangeNavigation';
+import { SwipePager } from '../common/SwipePager';
+import { shiftTaskDateRange } from '../../utils/taskDateRange';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 
 interface Props {
-  date?: string; onDateChange?: (date: string) => void;
+  date?: string; endDate?: string; onDateChange?: (date: string) => void; onRangeChange?: (start: string, end: string) => void;
   open: boolean; onClose: () => void; schedules: Schedule[]; categories: CategoryItem[]; tasks: Task[];
   rules: RecurrenceRule[]; exceptions: RecurrenceException[];
   onRegisterTask: (schedule: Schedule) => Promise<void>;
   onToggleSchedule: (schedule: Schedule) => Promise<void>;
 }
-export function TodaySchedulesModal({ date, onDateChange, open, onClose, schedules, categories, tasks, rules, exceptions, onRegisterTask, onToggleSchedule }: Props) {
+export function TodaySchedulesModal({ date, endDate, onDateChange, onRangeChange, open, onClose, schedules, categories, tasks, rules, exceptions, onRegisterTask, onToggleSchedule }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const busy = useRef(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -44,7 +46,12 @@ export function TodaySchedulesModal({ date, onDateChange, open, onClose, schedul
     return () => { clearTimeout(timer); document.removeEventListener('visibilitychange', resume); };
   }, [open]);
   const selectedDay = date || today;
-  const items = useMemo(() => open ? calendarSchedulesForDate(schedules, rules, exceptions, selectedDay).sort((a,b)=>Number(a.completed)-Number(b.completed)||compareSchedules(a,b)) : [], [open, schedules, rules, exceptions, selectedDay]);
+  const selectedEnd = endDate || selectedDay;
+  const itemsForRange = (start: string, end: string) => calendarSchedulesForRange(schedules, rules, exceptions, start, end).sort((a,b)=>a.date.localeCompare(b.date)||Number(a.completed)-Number(b.completed)||compareSchedules(a,b));
+  const items = useMemo(() => open ? itemsForRange(selectedDay, selectedEnd) : [], [open, schedules, rules, exceptions, selectedDay, selectedEnd]);
+  const selectRange = (start: string, end: string) => { if (busy.current) return; if (onRangeChange) onRangeChange(start,end); else onDateChange?.(start); };
+  const shift = (direction: number) => selectRange(...shiftTaskDateRange(selectedDay,selectedEnd,direction));
+  useEffect(()=>{setError('');setMessage('');},[selectedDay,selectedEnd]);
   if (!open) return null;
   const register = async (schedule: Schedule) => {
     if (busy.current) return;
@@ -60,22 +67,12 @@ export function TodaySchedulesModal({ date, onDateChange, open, onClose, schedul
     catch {setError('완료 상태를 저장하지 못했습니다. 다시 시도해 주세요.');}
     finally {busy.current=false;setPendingId(null);}
   };
-  return <div ref={root} role="dialog" aria-modal="true" aria-label="캘린더 일정 가져오기" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={e => { if (e.target === e.currentTarget) close(); }}>
-    <section className="w-full max-w-lg max-h-[min(80dvh,var(--modal-height,100dvh))] rounded-2xl border border-app-line bg-white text-app-ink shadow-xl flex flex-col overflow-hidden">
-      <header className="shrink-0 flex items-center gap-2 border-b border-app-line px-3 py-2">
-        <Calendar aria-hidden="true" className="w-4 h-4 text-app-accent" />
-        <div className="min-w-0 flex-1"><h2 className="text-sm font-bold">일정 가져오기</h2><p className="text-[11px] text-app-muted">{formatKoreanDate(selectedDay)} · {items.length}개</p></div>
-        <button type="button" aria-label="일정 가져오기 닫기" disabled={pendingId !== null} onClick={close} className="min-h-9 min-w-9 rounded-lg flex items-center justify-center text-app-muted hover:bg-app-soft"><X className="w-5 h-5" /></button>
-      </header>
-      <div className="min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2">
-        {onDateChange && <DatePicker label="가져올 일정 날짜" value={selectedDay} onChange={onDateChange}/> }
-        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-        {message && <p role="status" className="text-xs text-app-accent-hover">{message}</p>}
-        {!items.length && <p className="py-2 text-center text-xs text-app-muted">선택한 날짜에 등록된 일정이 없습니다.</p>}
+  const renderItems = (items: Schedule[], start: string, end: string, preview = false) => <div style={{touchAction:'pan-y pinch-zoom'}} className="h-full min-h-0 overflow-y-auto overscroll-contain px-1 space-y-2">
+        {!items.length && <p className="py-2 text-center text-xs text-app-muted">{start===end?'선택한 날짜에':'선택한 기간에'} 등록된 일정이 없습니다.</p>}
         {items.map((schedule,index) => {
           const category = categories.find(item => item.id === schedule.category);
           const added = hasCalendarTask(tasks, schedule);
-          return <React.Fragment key={schedule.id}>{(index===0||items[index-1].completed!==schedule.completed)&&<h3 className="pt-1 text-xs font-semibold text-app-muted">{schedule.completed?'완료':'미완료'}</h3>}<article className="flex flex-wrap items-center gap-2 rounded-lg border border-app-line p-2">
+          return <React.Fragment key={schedule.id}>{(index===0||items[index-1].date!==schedule.date||items[index-1].completed!==schedule.completed)&&<h3 className="pt-1 text-xs font-semibold text-app-muted">{start!==end ? formatKoreanDate(schedule.date)+' · ' : ''}{schedule.completed?'완료':'미완료'}</h3>}<article data-import-schedule={preview ? undefined : schedule.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-app-line p-2">
             <div className="min-w-0 flex-1 basis-36">
               <p className={'break-words text-sm ' + (schedule.completed ? 'text-app-muted line-through' : 'text-app-ink')}>{schedule.isImportant && '★ '}{schedule.title}</p>
               <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] text-app-muted">
@@ -87,6 +84,21 @@ export function TodaySchedulesModal({ date, onDateChange, open, onClose, schedul
             <button type="button" aria-label={schedule.title + ' 일정 가져오기'} disabled={added || pendingId !== null} onClick={() => void register(schedule)} className="ml-auto min-h-8 shrink-0 whitespace-nowrap rounded-lg bg-app-soft px-2 text-xs text-app-accent-hover disabled:opacity-50 inline-flex items-center gap-1">{added && <Check aria-hidden="true" className="h-3 w-3" />}{added ? '가져옴' : pendingId === schedule.id ? '가져오는 중' : '일정 가져오기'}</button>
           </article></React.Fragment>;
         })}
+  </div>;
+  return <div ref={root} role="dialog" aria-modal="true" aria-label="캘린더 일정 가져오기" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={e => { if (e.target === e.currentTarget) close(); }}>
+    <section className="w-full max-w-lg max-h-[min(80dvh,var(--modal-height,100dvh))] rounded-2xl border border-app-line bg-white text-app-ink shadow-xl flex flex-col overflow-hidden">
+      <header className="shrink-0 flex items-center gap-2 border-b border-app-line px-3 py-2">
+        <Calendar aria-hidden="true" className="w-4 h-4 text-app-accent" />
+        <div className="min-w-0 flex-1"><h2 className="text-sm font-bold">일정 가져오기</h2><p className="text-[11px] text-app-muted">{selectedDay===selectedEnd?formatKoreanDate(selectedDay):formatShortDate(selectedDay)+' ~ '+formatShortDate(selectedEnd)} · {items.length}개</p></div>
+        <button type="button" aria-label="일정 가져오기 닫기" disabled={pendingId !== null} onClick={close} className="min-h-9 min-w-9 rounded-lg flex items-center justify-center text-app-muted hover:bg-app-soft"><X className="w-5 h-5" /></button>
+      </header>
+      <div className="min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2">
+        {(onDateChange || onRangeChange) && <fieldset disabled={pendingId!==null}><DateRangeNavigation start={selectedDay} end={selectedEnd} onChange={selectRange} label="일정 가져오기 날짜 및 기간 선택" previousLabel="이전 날짜 일정" nextLabel="다음 날짜 일정" dateLabel="가져올 일정 날짜"/></fieldset>}
+        {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
+        {message && <p role="status" className="text-xs text-app-accent-hover">{message}</p>}
+        <SwipePager data-import-swipe gap={16} className="h-64 max-h-[45dvh]" pageKey={selectedDay+selectedEnd} disabled={pendingId!==null || (!onDateChange && !onRangeChange)} onPrevious={()=>shift(-1)} onNext={()=>shift(1)} previous={renderItems(itemsForRange(...shiftTaskDateRange(selectedDay,selectedEnd,-1)),...shiftTaskDateRange(selectedDay,selectedEnd,-1),true)} next={renderItems(itemsForRange(...shiftTaskDateRange(selectedDay,selectedEnd,1)),...shiftTaskDateRange(selectedDay,selectedEnd,1),true)}>
+          {renderItems(items,selectedDay,selectedEnd)}
+        </SwipePager>
       </div>
     </section>
   </div>;

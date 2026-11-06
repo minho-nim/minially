@@ -16,5 +16,5 @@ export async function readDate(scope: Scope, label: string) {
 }
 export async function expectDate(scope: Scope, label: string, value: string) {
   const [year, month, day] = value.split('-').map(Number);
-  await expect(scope.getByRole('button', { name: label, exact: true })).toContainText(`${year}년 ${month}월 ${day}일`);
+  await expect(scope.getByRole('button', { name: label, exact: true })).toHaveAttribute('aria-description', new RegExp(`^${year}년 ${month}월 ${day}일`));
 }

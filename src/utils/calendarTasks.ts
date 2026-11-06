@@ -2,10 +2,14 @@ import type { Schedule, Task, RecurrenceRule, RecurrenceException } from '../typ
 import { expandRecurringSchedules } from './recurrenceEngine.ts';
 
 export function calendarSchedulesForDate(schedules: Schedule[], rules: RecurrenceRule[], exceptions: RecurrenceException[], date: string): Schedule[] {
-  // Include the source dates of occurrences moved onto this day, even from the future.
-  const sourceDates = exceptions.filter(item => item.action === 'modified' && item.modifiedSchedule?.date === date).map(item => item.originalDate);
-  const dates = [date, ...sourceDates].sort();
-  return expandRecurringSchedules(schedules, rules, exceptions, dates[0], dates[dates.length - 1]).filter(item => item.date === date);
+  return calendarSchedulesForRange(schedules, rules, exceptions, date, date);
+}
+
+export function calendarSchedulesForRange(schedules: Schedule[], rules: RecurrenceRule[], exceptions: RecurrenceException[], start: string, end: string): Schedule[] {
+  // Also expand source occurrences moved into the selected range.
+  const sources = exceptions.filter(item => item.action === 'modified' && item.modifiedSchedule?.date && item.modifiedSchedule.date >= start && item.modifiedSchedule.date <= end).map(item => item.originalDate);
+  const dates = [start, end, ...sources].sort();
+  return expandRecurringSchedules(schedules, rules, exceptions, dates[0], dates[dates.length - 1]).filter(item => item.date >= start && item.date <= end);
 }
 
 export function calendarTaskId(schedule: Pick<Schedule, 'id' | 'date'>): string {
