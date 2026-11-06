@@ -69,9 +69,9 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
   };
   return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction: 'pan-y pinch-zoom' }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
     <div data-swipe-track className="flex h-full min-h-0 w-full" style={{ columnGap: gap, transform: `translate3d(calc(-100% - ${gap}px + ${offset}px), 0, 0)`, transition: phase === 'settling' ? 'transform 220ms cubic-bezier(.22,.68,0,1)' : 'none', willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
-      <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col bg-white">{phase !== 'idle' && previous}</div>
+      <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col">{phase !== 'idle' && previous}</div>
       <div data-swipe-current className="flex h-full min-h-0 w-full shrink-0 flex-col">{children}</div>
-      <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col bg-white">{phase !== 'idle' && next}</div>
+      <div aria-hidden="true" inert className="flex h-full min-h-0 w-full shrink-0 flex-col">{phase !== 'idle' && next}</div>
     </div>
   </div>;
 }

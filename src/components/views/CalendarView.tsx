@@ -159,7 +159,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const monthDays = calendarPageDays(pageDate, 'month', startDayOffset, todayStr);
     const weekDays = calendarPageDays(pageDate, 'week', startDayOffset, todayStr);
     return <>        {/* Weekday Row */}
-        <div className="grid grid-cols-7 border-b border-app-line text-center text-xs font-medium text-app-muted py-2 bg-white">
+        <div className="grid grid-cols-7 text-center text-xs font-medium text-app-muted py-2">
           {weekdayLabels.map((day, idx) => {
             const isSun = startDayOffset === 0 ? idx === 0 : idx === 6;
             const isSat = startDayOffset === 0 ? idx === 6 : idx === 5;
@@ -178,7 +178,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
         {/* Unified Calendar Grid (Natural Grid without heavy per-day card borders) */}
         {viewMode === 'month' ? (
-          <div className="calendar-month-grid min-h-0 flex-1 grid grid-cols-7 divide-x divide-y divide-app-line" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
+          <div className="calendar-month-grid min-h-0 flex-1 grid grid-cols-7" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
             {monthDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -198,13 +198,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
                   className={`calendar-date-cell calendar-day-cell min-h-0 min-w-0 overflow-hidden p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
-                    isSelected
-                      ? 'bg-app-soft/40'
-                      : isDragTarget
-                      ? 'bg-app-soft'
-                      : cell.isCurrentMonth
-                      ? 'bg-white hover:bg-app-canvas'
-                      : 'bg-app-canvas/50'
+                    isDragTarget ? 'bg-app-soft/60' : 'bg-transparent'
                   }`}
                 >
                   {/* Date Number Header */}
@@ -338,7 +332,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </div>
         ) : (
           /* Week View: 7 columns */
-          <div className="grid min-h-0 flex-1 grid-cols-7 divide-x divide-app-line overflow-hidden">
+          <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
             {weekDays.map((cell) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
@@ -354,14 +348,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
                   className={`calendar-date-cell min-w-0 min-h-0 overflow-hidden p-1 sm:p-2 transition-colors cursor-pointer flex flex-col justify-start ${
-                    isSelected
-                      ? 'bg-app-soft/40'
-                      : isDragTarget
-                      ? 'bg-app-soft'
-                      : 'bg-white hover:bg-app-canvas'
+                    isDragTarget ? 'bg-app-soft/60' : 'bg-transparent'
                   }`}
                 >
-                  <div className="text-center pb-2 border-b border-app-line mb-2">
+                  <div className="text-center pb-2 mb-2">
                     <span className="text-[11px] font-semibold text-app-muted block">
                       {cell.dayName}
                     </span>
@@ -485,7 +475,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <SwipePager gap={24} pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
+      <SwipePager gap={24} pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
         {renderPage(selectedDate)}
       </SwipePager>
 
