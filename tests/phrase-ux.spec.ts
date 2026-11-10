@@ -127,6 +127,7 @@ test('모바일 긴 프리셋 전체 확인, 작은 화면 저장 버튼·한국
 });
 
 test('전체 앱: 제목만 저장·수정·검색·날짜 복사·이동·삭제와 새로고침', async ({ page }) => {
+  test.setTimeout(60000); // 단계가 많아 동시 실행 시 30초를 넘길 수 있음
   const dialog = await seed(page);
   await dialog.getByLabel('일정 제목', { exact: true }).fill('전체 흐름 일정');
   await page.screenshot({ path: 'test-results/minially-desktop.png' });
