@@ -1,4 +1,5 @@
 import { chooseDate, readDate, expectDate } from './helpers/date';
+import {pickCategory} from './helpers/category';
 import { test, expect, Page } from '@playwright/test';
 import type { AppData } from '../src/types';
 async function data(page: Page): Promise<AppData> { return page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await import(path)).exportAllData(); }); }
@@ -18,7 +19,7 @@ test('등록 진입 하나, 카테고리 미선택·직접 추가, 09~10시·5�
   await page.getByRole('button', { name: '일정 등록', exact: true }).click(); const dialog = page.getByRole('dialog', { name: '새 일정', exact: true });
   await expect(dialog.getByRole('checkbox', { name: '종일 (시간 없음)' })).not.toBeChecked(); await expect(dialog.getByLabel('시작 시간 시', { exact: true })).toHaveValue('09'); await expect(dialog.getByLabel('종료 시간 시', { exact: true })).toHaveValue('10'); await expect(dialog.getByRole('button', { name: '카테고리 선택', exact: true })).toContainText('선택하세요');
   expect(await dialog.getByLabel('시작 시간 분', { exact: true }).locator('option').evaluateAll(items => items.map(e => (e as HTMLOptionElement).value))).toEqual(['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']);
-  await dialog.getByLabel('일정 제목', { exact: true }).fill('다섯 분 일정'); await dialog.getByLabel('시작 시간 분', { exact: true }).selectOption('05'); await dialog.getByLabel('종료 시간 분', { exact: true }).selectOption('10');
+  await dialog.getByLabel('일정 제목', { exact: true }).fill('다섯 분 일정');await pickCategory(dialog); await dialog.getByLabel('시작 시간 분', { exact: true }).selectOption('05'); await dialog.getByLabel('종료 시간 분', { exact: true }).selectOption('10');
   await dialog.getByRole('button', { name: '카테고리 선택', exact: true }).click(); await picker(page).getByRole('button', { name: '새 카테고리 추가', exact: true }).click(); await picker(page).getByPlaceholder('카테고리 이름').fill('새 분류'); await picker(page).getByRole('button', { name: '추가', exact: true }).click(); await expect(dialog.getByRole('button', { name: '카테고리 선택', exact: true })).toContainText('새 분류');
   await dialog.getByRole('button', { name: '취소', exact: true }).click(); await expect(dialog.getByRole('button', { name: '등록 취소', exact: true })).toBeVisible(); await expect(dialog.getByText('변경사항 버리기', { exact: true })).toHaveCount(0); await dialog.getByRole('button', { name: '계속 작성', exact: true }).click(); await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
   const stored = await data(page); expect(stored.schedules[0]).toMatchObject({ title: '다섯 분 일정', startTime: '09:05', endTime: '10:10', category: stored.categories.find(c => c.name === '새 분류')!.id });
@@ -60,7 +61,7 @@ test('날짜와 시간은 선택만 가능, 달력 Escape·뒤로가기와 날�
   await expect(dialog.locator('input[type="date"], input[type="time"], input[type="number"]')).toHaveCount(0);
   await dialog.getByRole('button', { name: '일정 날짜', exact: true }).click(); await expect(dialog.getByRole('group', { name: '일정 날짜 달력', exact: true })).toBeVisible(); await page.keyboard.press('Escape'); await expect(dialog.getByRole('group', { name: '일정 날짜 달력', exact: true })).toHaveCount(0); await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: '일정 날짜', exact: true }).click(); await page.goBack(); await expect(dialog.getByRole('group', { name: '일정 날짜 달력', exact: true })).toHaveCount(0); await expect(dialog).toBeVisible();
-  await chooseDate(dialog, '일정 날짜', '2026-12-31'); await expectDate(dialog, '일정 날짜', '2026-12-31'); await dialog.getByLabel('일정 제목', { exact: true }).fill('선택으로 등록'); await dialog.getByLabel('시작 시간 분', { exact: true }).selectOption('05'); await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0); expect((await data(page)).schedules[0]).toMatchObject({ title: '선택으로 등록', date: '2026-12-31', startTime: '09:05', endTime: '10:00' });
+  await chooseDate(dialog, '일정 날짜', '2026-12-31'); await expectDate(dialog, '일정 날짜', '2026-12-31'); await dialog.getByLabel('일정 제목', { exact: true }).fill('선택으로 등록');await pickCategory(dialog); await dialog.getByLabel('시작 시간 분', { exact: true }).selectOption('05'); await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0); expect((await data(page)).schedules[0]).toMatchObject({ title: '선택으로 등록', date: '2026-12-31', startTime: '09:05', endTime: '10:00' });
 });
 
 test('할 일 날짜도 선택 전용이며 달력 Escape·뒤로가기·바깥 클릭 후 초안 유지', async ({ page }) => {

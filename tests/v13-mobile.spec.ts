@@ -1,4 +1,5 @@
 import { presetSearch } from './helpers/preset-actions';
+import {pickCategory} from './helpers/category';
 import {chooseMultipleDate} from './helpers/multiple-dates';
 import { presetMode } from './helpers/preset-actions';
 import { test, expect, Page, Locator } from '@playwright/test';
@@ -208,6 +209,6 @@ test('상세 반복 등록·원자적 실패·일별 표시·실행 취소와 �
 
 test('상세 반복 연속 등록은 독립 시리즈이며 저장 후 빈 초안으로 닫기', async ({ page }) => {
   await page.getByRole('button', { name: '일정 등록', exact: true }).click(); const editor = page.getByRole('dialog', { name: '새 일정', exact: true }); await editor.getByRole('button', { name: '+ 상세 옵션 (메모)', exact: true }).click(); await editor.getByLabel('반복', { exact: true }).selectOption('weekly'); await editor.getByRole('checkbox', { name: '계속 등록', exact: true }).check();
-  await editor.getByLabel('일정 제목', { exact: true }).fill('첫 번째 주간 일정'); await editor.getByRole('button', { name: '등록 후 계속', exact: true }).click(); await expect(editor.getByLabel('일정 제목', { exact: true })).toHaveValue(''); await editor.getByLabel('일정 제목', { exact: true }).fill('두 번째 주간 일정'); await editor.getByRole('button', { name: '등록 후 계속', exact: true }).click(); await editor.getByRole('button', { name: '닫기', exact: true }).click(); await expect(editor).toHaveCount(0); await expect(page.getByText('등록을 취소할까요?', { exact: true })).toHaveCount(0);
+  await editor.getByLabel('일정 제목', { exact: true }).fill('첫 번째 주간 일정');await pickCategory(editor); await editor.getByRole('button', { name: '등록 후 계속', exact: true }).click(); await expect(editor.getByLabel('일정 제목', { exact: true })).toHaveValue(''); await editor.getByLabel('일정 제목', { exact: true }).fill('두 번째 주간 일정');await pickCategory(editor); await editor.getByRole('button', { name: '등록 후 계속', exact: true }).click(); await editor.getByRole('button', { name: '닫기', exact: true }).click(); await expect(editor).toHaveCount(0); await expect(page.getByText('등록을 취소할까요?', { exact: true })).toHaveCount(0);
   const stored = await data(page); expect(stored.schedules).toHaveLength(2); expect(stored.recurrenceRules).toHaveLength(2); expect(new Set(stored.schedules.map(s => s.recurrenceRuleId)).size).toBe(2); expect(stored.recurrenceRules.every(r => stored.schedules.some(s => s.id === r.scheduleId))).toBe(true);
 });
