@@ -12,4 +12,4 @@ coverage/
 !.env.example
 .dev.vars
 .wrangler/
-.pw-local.config.ts
+.pw-*.config.ts
