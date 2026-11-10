@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {closeSheet} from './helpers/category';
 
 test.use({viewport:{width:390,height:844},hasTouch:true});
 test('pressed date opens from its position and the rounded composer docks to the visual viewport',async({page})=>{
@@ -27,7 +28,7 @@ test('pressed date opens from its position and the rounded composer docks to the
   await page.screenshot({path:'test-results/composer-docked.png'});
   await page.setViewportSize({width:390,height:844});await expect(dialog).toHaveAttribute('data-keyboard-open','false');
   await expect.poll(()=>composer.evaluate(el=>parseFloat(getComputedStyle(el).borderBottomLeftRadius))).toBe(24);
-  await dialog.getByRole('button',{name:'간편 등록 닫기'}).click();await dialog.getByRole('button',{name:'날짜 팝업 닫기'}).click();
+  await dialog.getByRole('button',{name:'간편 등록 닫기'}).click();await closeSheet(dialog);
   await page.emulateMedia({reducedMotion:'reduce'});
   await cell.click({position:{x:5,y:5}});
   expect(await dialog.locator('.day-sheet').evaluate(el=>el.getAnimations().filter(a=>a.id==='day-from-date').length)).toBe(0);

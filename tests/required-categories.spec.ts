@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import {closeSheet} from './helpers/category';
 
 for (const width of [390, 1280]) {
   test.describe(`required categories ${width}`, () => {
@@ -44,7 +45,7 @@ for (const width of [390, 1280]) {
       await page.setViewportSize({width,height:844});
       await sheet.getByRole('button', { name: '간편 등록 닫기' }).click();
       await expect(sheet.locator('[data-day-schedule]')).toContainText('분류 필수 간편 일정');
-      await sheet.getByRole('button', { name: '날짜 팝업 닫기' }).click();
+      await closeSheet(sheet);
       await page.getByRole('button', { name: '일정 등록', exact: true }).click();
       const detail = page.getByRole('dialog', { name: '새 일정', exact: true });
       await detail.getByPlaceholder('일정 제목을 입력하세요').fill('분류 필수 상세 일정');

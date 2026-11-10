@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Locator } from '@playwright/test';
+import {closeSheet} from './helpers/category';
 import { chooseDate, expectDate } from './helpers/date';
 
 async function swipe(page: Page, target: Locator, direction: 'left' | 'right' | 'vertical' | 'small') {
@@ -49,7 +50,7 @@ for (const width of [390, 1280]) {
       await expect(heading).toHaveText(current.month);
       await page.locator(`[data-calendar-date="${current.today}"]`).click({ position: { x: 5, y: 5 } });
       await expect(page.getByRole('dialog', { name: '날짜별 일정', exact: true })).toBeVisible();
-      await page.getByRole('button', { name: '날짜 팝업 닫기' }).click();
+      await closeSheet(page);
       await page.getByRole('button', { name: '할 일', exact: true }).filter({ visible: true }).first().click();
       const list = page.locator('[data-task-swipe]');
       const empty = list.getByText('등록된 할 일이 없습니다.', { exact: true });

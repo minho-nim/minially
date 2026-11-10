@@ -111,7 +111,8 @@ export function DayScheduleSheet(props: Props) {
   const changePanel = (next: typeof panel) => { setPanel(next); setPanelDirty(false); setPanelBusy(false); setError(''); };
   const closeComposer = () => guard.request(() => { setExpanded(false); changePanel(null); });
   const back = () => {
-    if (dateMenuOpen) { setDateMenuOpen(false); return true; }
+    // 날짜 작업 메뉴를 Esc·뒤로가기로 닫으면 메뉴 버튼으로 포커스를 돌려준다(키보드 사용)
+    if (dateMenuOpen) { setDateMenuOpen(false); requestAnimationFrame(() => dateMenuAnchor.current?.focus({ preventScroll: true })); return true; }
     if (guard.confirming) { guard.cancel(); return false; }
     return guard.request(() => {
       if (panel === 'categoryManage') { changePanel('categories'); return; }
