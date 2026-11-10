@@ -2,6 +2,7 @@ import {test,expect,Page} from '@playwright/test';
 import type {AppData} from '../src/types';
 import {expectDate,readDate} from './helpers/date';
 import {chooseMultipleDate} from './helpers/multiple-dates';
+import {pickCategory} from './helpers/category';
 async function read(page:Page):Promise<AppData>{return page.evaluate(async()=>{const path='/src/db/indexedDB.ts';return(await import(path)).exportAllData();});}
 test.beforeEach(async({page})=>{
  await page.route('**/fonts.googleapis.com/**',r=>r.abort());await page.goto('/',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();
@@ -16,7 +17,7 @@ for(const width of [320,1280])test.describe(width+'px 여러 날짜',()=>{
  });
 });
 test('윤년·같은 날짜 두 번·첫 날짜만 고르고 완료',async({page})=>{
- const open=async(title:string)=>{await page.getByRole('button',{name:'일정 등록',exact:true}).click();const editor=page.getByRole('dialog',{name:'새 일정',exact:true});await editor.getByLabel('일정 제목',{exact:true}).fill(title);await editor.getByRole('button',{name:'여러 날짜 선택',exact:true}).click();const panel=editor.locator('[data-schedule-panel]');await panel.getByRole('button',{name:'시작일~종료일',exact:true}).click();return {editor,panel};};
+ const open=async(title:string)=>{await page.getByRole('button',{name:'일정 등록',exact:true}).click();const editor=page.getByRole('dialog',{name:'새 일정',exact:true});await editor.getByLabel('일정 제목',{exact:true}).fill(title);await pickCategory(editor,'분류');await editor.getByRole('button',{name:'여러 날짜 선택',exact:true}).click();const panel=editor.locator('[data-schedule-panel]');await panel.getByRole('button',{name:'시작일~종료일',exact:true}).click();return {editor,panel};};
  let {editor,panel}=await open('윤년 기간');await chooseMultipleDate(panel,'2028-02-28');await chooseMultipleDate(panel,'2028-03-01');await panel.getByRole('button',{name:'3일 선택 완료',exact:true}).click();await editor.getByRole('button',{name:'3개 등록',exact:true}).click();await expect(editor).toHaveCount(0);expect((await read(page)).schedules.map(s=>s.date).sort()).toEqual(['2028-02-28','2028-02-29','2028-03-01']);
  ({editor,panel}=await open('하루 기간'));await chooseMultipleDate(panel,'2028-03-02');await chooseMultipleDate(panel,'2028-03-02');await panel.getByRole('button',{name:'1일 선택 완료',exact:true}).click();await editor.getByRole('button',{name:'등록',exact:true}).click();await expect(editor).toHaveCount(0);
  ({editor,panel}=await open('한 번만 선택'));await chooseMultipleDate(panel,'2028-03-03');await panel.getByRole('button',{name:'1일 선택 완료',exact:true}).click();await expectDate(editor,'일정 날짜','2028-03-03');await editor.getByRole('button',{name:'등록',exact:true}).click();await expect(editor).toHaveCount(0);const data=await read(page);expect(data.schedules).toHaveLength(5);expect(data.schedules.find(s=>s.title==='하루 기간')?.date).toBe('2028-03-02');expect(data.schedules.find(s=>s.title==='한 번만 선택')?.date).toBe('2028-03-03');
