@@ -74,6 +74,8 @@ npm test
 4. Save and Deploy. 끝나면 `https://<이름>.pages.dev` 주소가 생깁니다.
 5. 브랜치마다 미리보기 사이트가 생기지 않게: Settings → Builds → Branch control → Preview branches를 **None**으로.
 
+배포 훅(권장): Cloudflare Pages → minially → Settings → Builds → **Deploy hooks** → 브랜치 `release`로 만들고, 주소를 GitHub 저장소 Settings → Secrets and variables → Actions에 `CLOUDFLARE_DEPLOY_HOOK`으로 저장합니다. Actions가 올린 push를 Cloudflare가 놓칠 때가 있어 운영 배포가 이 훅으로 빌드를 직접 요청합니다.
+
 배포: GitHub Actions → **운영 배포(release)** → Run workflow. main 최신 커밋의 검사가 통과했을 때만 `release`를 `main`으로 앞당깁니다(fast-forward만). 직접 할 때는 `git fetch origin && git push origin origin/main:refs/heads/release`.
 
 ## GitHub Pages 배포
