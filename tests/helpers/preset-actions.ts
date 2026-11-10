@@ -21,3 +21,12 @@ export async function saveCurrentTitle(root: Locator) {
  if(!await save.isVisible())await root.getByRole('button',{name:'+ 상세 옵션 (메모)',exact:true}).click();
  await save.click();
 }
+
+/** 프리셋 창에서 그룹 펼치기(11-04 #8·#10부터 그룹을 눌러야 목록이 보임). 이름을 안 주면 펼쳐진 게 없을 때 첫 그룹 */
+export async function openGroup(root: Locator, name?: string) {
+  const groups = root.getByRole('group', { name: '프리셋 그룹 선택' });
+  await groups.waitFor();
+  if (name) { await groups.getByRole('button', { name: new RegExp('^' + name + ' \\d+개') }).click(); return; }
+  if (await groups.locator('button[aria-pressed="true"]').count()) return;
+  await groups.getByRole('button', { name: /\d+개$/ }).first().click();
+}
