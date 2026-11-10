@@ -413,7 +413,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         <div className="mr-auto shrink-0 flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
           <button
             type="button"
-            onClick={() => setViewMode('month')}
+            onClick={() => setViewMode('month')} data-shortcut="month"
             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
               viewMode === 'month'
                 ? 'bg-white text-app-ink shadow-2xs font-semibold'
@@ -424,7 +424,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('week')}
+            onClick={() => setViewMode('week')} data-shortcut="week"
             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
               viewMode === 'week'
                 ? 'bg-white text-app-ink shadow-2xs font-semibold'
@@ -444,7 +444,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <div className="flex items-center">
             <button
               type="button"
-              onClick={handlePrev}
+              onClick={handlePrev} data-shortcut="prev"
               className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="이전"
             >
@@ -457,7 +457,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </h2>
             <button
               type="button"
-              onClick={handleNext}
+              onClick={handleNext} data-shortcut="next"
               className="p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="다음"
             >
@@ -467,7 +467,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
           <button
             type="button"
-            onClick={handleGoToday}
+            onClick={handleGoToday} data-shortcut="today"
             className="px-2.5 py-1 text-xs font-semibold text-app-accent bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             오늘

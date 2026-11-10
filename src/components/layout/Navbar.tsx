@@ -19,7 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { isInstallable, promptInstall } = usePWAInstall();
 
   return (
-    <header className="sticky top-0 z-30 bg-app-canvas/95 backdrop-blur-md border-b border-app-line safe-top transition-all">
+    <header className="app-titlebar sticky top-0 z-30 bg-app-canvas/95 backdrop-blur-md border-b border-app-line safe-top transition-all">
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
         {/* Brand */}
         <div className="flex items-center gap-2 select-none shrink-0">

@@ -22,6 +22,15 @@ export default defineConfig(({ mode }) => {
           theme_color: '#FFF8FA',
           background_color: '#FFF8FA',
           display: 'standalone',
+          // PC 설치 앱: 창 제목 표시줄 자리까지 앱 화면으로 쓴다(지원하지 않으면 standalone).
+          display_override: ['window-controls-overlay', 'standalone'],
+          // 작업 표시줄·시작 메뉴 아이콘 오른쪽 클릭 메뉴
+          shortcuts: [
+            { name: '새 일정', short_name: '새 일정', url: `${base}?action=new`, icons: [{ src: `${base}pwa-192x192.png`, sizes: '192x192', type: 'image/png' }] },
+            { name: '오늘 일정', short_name: '오늘', url: `${base}?action=today`, icons: [{ src: `${base}pwa-192x192.png`, sizes: '192x192', type: 'image/png' }] },
+            { name: '할 일', short_name: '할 일', url: `${base}?tab=tasks`, icons: [{ src: `${base}pwa-192x192.png`, sizes: '192x192', type: 'image/png' }] },
+            { name: '검색', short_name: '검색', url: `${base}?action=search`, icons: [{ src: `${base}pwa-192x192.png`, sizes: '192x192', type: 'image/png' }] },
+          ],
           start_url: base,
           scope: base,
           icons: [

@@ -52,6 +52,8 @@ import { ScheduleMoveModal } from './components/modals/ScheduleMoveModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { LoginScreen, devSkipLogin } from './components/layout/LoginScreen';
+import { ShortcutHelp } from './components/modals/ShortcutHelp';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
@@ -67,7 +69,20 @@ export default function App() {
   const [isReady, setIsReady] = useState(false);
   const [loggedIn, setLoggedIn] = useState(() => syncEngine.connected || devSkipLogin());
   useEffect(() => syncEngine.subscribe(status => setLoggedIn(status.kind !== 'off' || devSkipLogin())), []);
-  const [activeTab, setActiveTab] = useState<ActiveNavTab>('calendar');
+  // 마지막에 보던 탭을 기억한다. 설치한 앱을 좁은 창으로 처음 열면 '할 일'부터 보여 준다(메모장처럼 옆에 띄워 쓰기).
+  const [activeTab, setActiveTabState] = useState<ActiveNavTab>(() => {
+    try {
+      const saved = localStorage.getItem('minially-last-tab');
+      if (saved === 'calendar' || saved === 'tasks') return saved;
+    } catch { /* 저장소를 못 쓰면 기본값 */ }
+    const installed = window.matchMedia?.('(display-mode: standalone), (display-mode: window-controls-overlay)').matches;
+    return installed && window.innerWidth <= 520 ? 'tasks' : 'calendar';
+  });
+  const setActiveTab = useCallback((tab: ActiveNavTab) => {
+    setActiveTabState(tab);
+    try { localStorage.setItem('minially-last-tab', tab); } catch { /* 무시 */ }
+  }, []);
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateString());
 
   // IndexedDB data states
@@ -540,6 +555,35 @@ export default function App() {
     handleEditSchedule(schedule);
   };
 
+  const shortcutActions = useMemo(() => ({
+    newSchedule: () => handleOpenNewScheduleModal(selectedDate),
+    search: openSearch,
+    settings: () => setSettingsModalOpen(true),
+    today: () => { setActiveTab('calendar'); setSelectedDate(getTodayDateString()); },
+    calendarTab: () => setActiveTab('calendar'),
+    tasksTab: () => setActiveTab('tasks'),
+    todaySchedules: () => { selectTaskDate(getTodayDateString()); setTodaySchedulesOpen(true); },
+    help: () => setShortcutHelpOpen(open => !open),
+    isCalendar: activeTab === 'calendar',
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [selectedDate, activeTab, isReady]);
+  useKeyboardShortcuts(shortcutActions);
+
+  // 작업 표시줄 빠른 메뉴(manifest shortcuts)로 열었을 때: ?action=new|search|today, ?tab=tasks
+  const launchHandled = useRef(false);
+  useEffect(() => {
+    if (!isReady || !loggedIn || launchHandled.current) return;
+    launchHandled.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action'), tab = params.get('tab');
+    if (!action && !tab) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    if (tab === 'tasks') setActiveTab('tasks');
+    if (action === 'new') shortcutActions.newSchedule();
+    if (action === 'search') shortcutActions.search();
+    if (action === 'today') shortcutActions.todaySchedules();
+  }, [isReady, loggedIn, shortcutActions, setActiveTab]);
+
   if (!loggedIn) return <LoginScreen />;
 
   if (!isReady) {
@@ -701,6 +745,8 @@ export default function App() {
         categories={categories}
         onSelectSchedule={handleSelectScheduleFromSearch}
       />
+
+      <ShortcutHelp open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
 
       {/* Settings Modal (Presets CRUD, Categories, Calendar, Backup/Restore, PWA) */}
       <SettingsModal
