@@ -159,7 +159,7 @@ test('시트 관리 패널 반복 전환·프리셋 편집·카테고리 이름 
     await expect(page.getByRole('dialog')).toHaveCount(1); await expect(page.locator('[data-day-overlay]')).toHaveCount(1); await expect(title(page)).toHaveValue('계속 작성할 초안');
   }
   await sheet(page).getByRole('button', { name: '프리셋', exact: true }).click(); await sheet(page).getByRole('button', { name: '프리셋 관리', exact: true }).click();
-  await sheet(page).getByRole('button', { name: '새 프리셋 추가', exact: true }).click(); await sheet(page).getByPlaceholder('프리셋 내용을 입력하세요').fill('시트에서 새 문구'); await sheet(page).getByRole('button', { name: '프리셋 저장', exact: true }).click();
+  await sheet(page).getByRole('button',{name:'프리셋 추가', exact: true }).click(); await sheet(page).getByPlaceholder('프리셋 내용을 입력하세요').fill('시트에서 새 문구'); await sheet(page).getByRole('button', { name: '프리셋 저장', exact: true }).click();
   const phrase = sheet(page).locator('[data-phrase-id]').filter({ hasText: '시트에서 새 문구' }); await phrase.getByRole('button', { name: '프리셋 수정', exact: true }).click(); await sheet(page).getByRole('textbox', { name: '프리셋 수정 내용' }).fill('수정 중인 문구'); await page.goBack();
   await expect(sheet(page).getByRole('button', { name: '계속 작성', exact: true })).toBeVisible(); await sheet(page).getByRole('button', { name: '계속 작성', exact: true }).click(); await expect(sheet(page).getByRole('textbox', { name: '프리셋 수정 내용' })).toHaveValue('수정 중인 문구'); await sheet(page).getByRole('button', { name: '변경사항 저장' }).click();
   await sheet(page).getByRole('button', { name: '일정 목록으로' }).click(); await expect(title(page)).toHaveValue('계속 작성할 초안');

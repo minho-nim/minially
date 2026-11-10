@@ -630,7 +630,9 @@ export async function getAppSettings(): Promise<AppSettings> {
     if(JSON.stringify(groups)!==JSON.stringify(settings.presetGroups))await tx.store.put({...res,presetGroups:groups});
     settings.presetGroups=groups;
   }
-  await tx.done; return settings;
+  await tx.done;
+  // 일부 값만 있는 설정(예: 일부만 담긴 백업)도 빠진 값은 기본값으로 채운다. 시작 요일이 없으면 달력 칸이 그려지지 않았다.
+  return { ...DEFAULT_SETTINGS, ...settings };
 }
 
 export async function saveAppSettings(settings: AppSettings): Promise<void> {

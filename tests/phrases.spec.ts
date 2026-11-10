@@ -27,7 +27,7 @@ async function readData(page: Page): Promise<AppData> {
   return page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await import(path)).exportAllData(); });
 }
 async function addPhrase(modal: ReturnType<Page['getByRole']>, text: string) {
-  if (!(await modal.getByLabel('새 프리셋', { exact: true }).isVisible())) await modal.getByRole('button', { name: '새 프리셋 추가', exact: true }).click();
+  if (!(await modal.getByLabel('새 프리셋', { exact: true }).isVisible())) await modal.getByRole('button',{name:'프리셋 추가', exact: true }).click();
   await modal.getByLabel('새 프리셋', { exact: true }).fill(text);
   await modal.getByRole('button', { name: '프리셋 저장', exact: true }).click();
   await expect(modal.getByText(text, { exact: true })).toBeVisible();
@@ -160,7 +160,7 @@ test('비동기 저장 실패 시 프리셋 초안과 기존 데이터 유지', 
       return original.apply(this, args);
     };
   });
-  await modal.getByRole('button', { name: '새 프리셋 추가', exact: true }).click();
+  await modal.getByRole('button',{name:'프리셋 추가', exact: true }).click();
   await modal.getByLabel('새 프리셋', { exact: true }).fill('실패해도 남는 초안');
   await modal.getByRole('button', { name: '프리셋 저장', exact: true }).click();
   await expect(modal.getByRole('alert')).toContainText('다시 시도');
@@ -199,7 +199,7 @@ test('모바일 설정 관리, 프리셋 관리·삭제 실패와 재시도, 메
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
   await page.locator('header').getByRole('button', { name: '설정 및 프리셋' }).click();
-  await page.getByRole('button', { name: '새 프리셋 추가', exact: true }).click();
+  await page.getByRole('button',{name:'프리셋 추가', exact: true }).click();
   await page.getByLabel('새 프리셋', { exact: true }).fill('모바일 설정 프리셋');
   await page.getByRole('button', { name: '프리셋 저장', exact: true }).click();
   await expect(page.getByText('모바일 설정 프리셋', { exact: true })).toBeVisible();

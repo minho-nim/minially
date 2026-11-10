@@ -39,10 +39,10 @@ test('제목 아래 그룹 목록에서 묶음 적용·블록 드래그·다른 
 });
 
 test('프리셋 저장 실패·중복 안내에서 입력 유지, 일정 생성 없음', async ({ page }) => {
-  await seed(page); await page.getByRole('button', { name: '프리셋', exact: true }).click(); await library(page).getByRole('button',{name:'새 프리셋 추가'}).click(); await library(page).getByLabel('새 프리셋', { exact: true }).fill('실패해도 보존');
+  await seed(page); await page.getByRole('button', { name: '프리셋', exact: true }).click(); await library(page).getByRole('button',{name:'프리셋 추가'}).click(); await library(page).getByLabel('새 프리셋', { exact: true }).fill('실패해도 보존');
   await page.evaluate(() => { const put = IDBObjectStore.prototype.put; (window as any).restore = () => IDBObjectStore.prototype.put = put; IDBObjectStore.prototype.put = function (...args) { if (this.name === 'presets') throw new DOMException('Full', 'QuotaExceededError'); return put.apply(this, args); }; });
   await library(page).getByRole('button', { name: '프리셋 저장' }).click(); await expect(library(page).getByRole('alert')).toContainText('저장하지 못'); await expect(library(page).getByLabel('새 프리셋', { exact: true })).toHaveValue('실패해도 보존'); expect((await data(page)).schedules).toHaveLength(1); await page.evaluate(() => (window as any).restore()); await library(page).getByRole('button', { name: '프리셋 저장' }).dblclick(); await expect.poll(async () => (await data(page)).presets.filter(p => p.text === '실패해도 보존').length).toBe(1);
-  await library(page).getByRole('button',{name:'새 프리셋 추가'}).click(); await library(page).getByLabel('새 프리셋', { exact: true }).fill('실패해도 보존'); await library(page).getByRole('button', { name: '프리셋 저장' }).click(); await expect(library(page).getByRole('alert')).toContainText('이미 저장'); expect((await data(page)).schedules).toHaveLength(1);
+  await library(page).getByRole('button',{name:'프리셋 추가'}).click(); await library(page).getByLabel('새 프리셋', { exact: true }).fill('실패해도 보존'); await library(page).getByRole('button', { name: '프리셋 저장' }).click(); await expect(library(page).getByRole('alert')).toContainText('이미 저장'); expect((await data(page)).schedules).toHaveLength(1);
 });
 
 test('카테고리 12색 고정·최대 12개·동시 생성 제한·삭제 후 추가·기존 자료 보존', async ({ page }) => {
