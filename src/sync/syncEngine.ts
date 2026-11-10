@@ -238,7 +238,7 @@ class SyncEngine {
     window.addEventListener('online', kick);
     document.addEventListener('visibilitychange', kick);
     window.addEventListener('focus', kick);
-    setInterval(kick, 60_000);
+    setInterval(kick, 30_000); // 화면을 보고 있는 동안 30초마다 확인
     kick();
   }
 }
