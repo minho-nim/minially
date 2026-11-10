@@ -20,7 +20,8 @@ function statusText(status: SyncStatus) {
   }
 }
 
-export const SyncPanel: React.FC = () => {
+export const SyncPanel: React.FC<{ variant?: 'settings' | 'login' }> = ({ variant = 'settings' }) => {
+  const login = variant === 'login';
   const [status, setStatus] = useState<SyncStatus>(syncEngine.getStatus());
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -34,7 +35,7 @@ export const SyncPanel: React.FC = () => {
     try {
       await syncEngine.connect(value, mode);
       setCode(''); setChoice(null);
-      setMessage(mode === 'server' ? '서버 데이터를 불러왔어요.' : '연결했어요. 이 기기 데이터를 서버에 올렸어요.');
+      setMessage(mode === 'server' ? '서버 데이터를 불러왔어요.' : '로그인했어요. 이 기기 데이터를 서버에 올렸어요.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '연결하지 못했어요.');
     } finally { setBusy(false); }
@@ -58,22 +59,28 @@ export const SyncPanel: React.FC = () => {
     <div className="p-3.5 border border-app-line bg-app-canvas rounded-xl space-y-2.5" aria-label="기기 연결">
       <div className="flex items-center gap-1.5">
         <Link2 className="w-4 h-4 text-app-accent" />
-        <h4 className="text-sm font-bold text-app-ink">PC·폰 연결</h4>
+        <h4 className="text-sm font-bold text-app-ink">{login ? '코드로 로그인' : '로그인·기기 연결'}</h4>
       </div>
 
       {connected ? (
         <>
           <p role="status" className={`text-xs ${status.kind === 'error' ? 'text-red-600' : 'text-app-muted'}`}>{statusText(status)}</p>
-          <p className="text-[11px] text-app-muted">같은 코드를 입력한 기기끼리 일정·할 일·문구·카테고리·설정이 자동으로 맞춰져요.</p>
+          <p className="text-[11px] text-app-muted">로그인되어 있어요. 같은 코드로 로그인한 기기끼리 일정·할 일·문구·카테고리·설정이 자동으로 맞춰져요.</p>
           <div className="flex gap-2">
             <button type="button" disabled={status.kind === 'syncing'} onClick={() => void syncEngine.syncNow()}
               className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg bg-app-accent text-white disabled:opacity-60 cursor-pointer">
               <RefreshCw className={`w-3.5 h-3.5 ${status.kind === 'syncing' ? 'animate-spin' : ''}`} /> 지금 맞추기
             </button>
-            <button type="button" onClick={() => {
-              if (window.confirm('이 기기의 연결을 해제할까요? 이 기기 데이터는 그대로 남고, 서버 데이터도 지워지지 않아요.')) { syncEngine.disconnect(); setMessage('연결을 해제했어요.'); }
-            }} className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-app-line text-app-muted hover:text-app-ink cursor-pointer">
-              <Unlink className="w-3.5 h-3.5" /> 연결 해제
+            <button type="button" disabled={busy} onClick={async () => {
+              if (!window.confirm('로그아웃할까요? 서버와 맞춘 뒤 이 기기의 데이터를 지우고, 다시 코드를 입력해야 해요. 서버 데이터는 그대로 남아요.')) return;
+              setBusy(true); setMessage('');
+              try { await syncEngine.logout(); window.location.reload(); }
+              catch (error) {
+                if (window.confirm(`${error instanceof Error ? error.message : '서버와 맞추지 못했어요.'}\n그래도 로그아웃할까요? 이 기기에서 아직 올라가지 않은 변경은 사라져요.`)) { await syncEngine.logout(true); window.location.reload(); }
+                else setBusy(false);
+              }
+            }} className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-app-line text-app-muted hover:text-app-ink disabled:opacity-60 cursor-pointer">
+              <Unlink className="w-3.5 h-3.5" /> 로그아웃
             </button>
           </div>
         </>
@@ -94,14 +101,14 @@ export const SyncPanel: React.FC = () => {
         </div>
       ) : (
         <>
-          <p className="text-[11px] text-app-muted">받은 연결 코드를 입력하면 같은 코드를 쓰는 PC와 폰의 데이터가 자동으로 맞춰져요.</p>
+          <p className="text-[11px] text-app-muted">받은 코드를 입력하세요. 한 번 로그인하면 이 기기에 저장되어 다음부터 자동으로 로그인돼요. 같은 코드를 쓰는 PC와 폰은 데이터가 자동으로 맞춰져요.</p>
           <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (!busy && code.trim()) void start(); }}>
-            <input value={code} onChange={e => setCode(e.target.value)} placeholder="연결 코드" aria-label="연결 코드"
+            <input value={code} onChange={e => setCode(e.target.value)} placeholder="코드" aria-label="연결 코드"
               autoComplete="off" autoCapitalize="characters" spellCheck={false}
               className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line bg-white tracking-wider uppercase" />
             <button type="submit" disabled={busy || !code.trim()}
               className="px-4 py-2 text-xs font-bold rounded-lg bg-app-accent text-white disabled:opacity-60 cursor-pointer">
-              {busy ? '확인 중…' : '연결'}
+              {busy ? '확인 중…' : login ? '로그인' : '연결'}
             </button>
           </form>
         </>

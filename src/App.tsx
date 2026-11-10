@@ -51,7 +51,7 @@ import { DateCopyModal } from './components/modals/DateCopyModal';
 import { ScheduleMoveModal } from './components/modals/ScheduleMoveModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
-import { FirstRunSyncModal } from './components/modals/FirstRunSyncModal';
+import { LoginScreen, devSkipLogin } from './components/layout/LoginScreen';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
@@ -65,6 +65,8 @@ import { syncEngine } from './sync/syncEngine';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(() => syncEngine.connected || devSkipLogin());
+  useEffect(() => syncEngine.subscribe(status => setLoggedIn(status.kind !== 'off' || devSkipLogin())), []);
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('calendar');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateString());
 
@@ -538,6 +540,8 @@ export default function App() {
     handleEditSchedule(schedule);
   };
 
+  if (!loggedIn) return <LoginScreen />;
+
   if (!isReady) {
     return (
       <div className="min-h-dvh bg-app-canvas flex items-center justify-center">
@@ -697,8 +701,6 @@ export default function App() {
         categories={categories}
         onSelectSchedule={handleSelectScheduleFromSearch}
       />
-
-      <FirstRunSyncModal />
 
       {/* Settings Modal (Presets CRUD, Categories, Calendar, Backup/Restore, PWA) */}
       <SettingsModal

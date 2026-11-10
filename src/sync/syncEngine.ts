@@ -232,6 +232,24 @@ class SyncEngine {
     this.setStatus({ kind: 'off' });
   }
 
+  /**
+   * 로그아웃: 먼저 서버와 맞춘 뒤 이 기기의 데이터를 지우고 연결을 끊는다(서버 데이터는 남음).
+   * 맞추지 못하면(오프라인 등) 이 기기에만 있는 변경이 사라질 수 있어 force 없이는 멈춘다.
+   */
+  async logout(force = false) {
+    if (!this.state) return;
+    await this.syncNow();
+    if (!force && (this.status.kind === 'error' || this.status.kind === 'offline')) {
+      throw new SyncError('서버와 맞추지 못했어요. 인터넷 연결을 확인해 주세요.');
+    }
+    const db = await getDB();
+    const all = [...STORES, 'changeHistory'] as const;
+    const tx = db.transaction([...all], 'readwrite');
+    for (const store of all) await tx.objectStore(store).clear();
+    await tx.done;
+    this.disconnect();
+  }
+
   /** 앱 시작 시: 화면에 돌아오거나 인터넷이 다시 연결되면 동기화 */
   start() {
     const kick = () => { if (document.visibilityState === 'visible') void this.syncNow(); };
