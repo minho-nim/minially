@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SyncPanel } from '../common/SyncPanel';
+import { SharePanel } from '../common/SharePanel';
 import {
   Preset,
   CategoryItem,
@@ -15,6 +16,7 @@ import {
   Upload,
   Smartphone,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { CategoryActions, CategoryManager } from './CategoryManager';
 import { PhraseManager } from './PhraseManageModal';
@@ -38,7 +40,7 @@ interface SettingsModalProps extends CategoryActions {
   onResetData: () => Promise<void> | void;
 }
 
-type SettingsTab = 'presets' | 'categories' | 'calendar' | 'backup' | 'pwa';
+type SettingsTab = 'presets' | 'categories' | 'calendar' | 'share' | 'backup' | 'pwa';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -141,6 +143,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <Sliders className="w-3.5 h-3.5" />
             <span>달력 설정</span>
+          </button>
+          <button
+            onClick={() => changeTab('share')}
+            className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'share'
+                ? 'border-app-accent text-app-accent'
+                : 'border-transparent text-app-muted hover:text-app-ink'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>공유</span>
           </button>
           <button
             onClick={() => changeTab('backup')}
@@ -311,6 +324,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
 
           {/* TAB 5: PWA INSTALL */}
+          {activeTab === 'share' && <SharePanel settings={settings} categories={categories} onUpdateSettings={onUpdateSettings} />}
+
           {activeTab === 'pwa' && (
             <div className="space-y-3">
               <div>

@@ -53,6 +53,8 @@ import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { LoginScreen, devSkipLogin } from './components/layout/LoginScreen';
 import { ShortcutHelp } from './components/modals/ShortcutHelp';
+import { SharedScheduleDetail } from './components/modals/SharedScheduleDetail';
+import { useSharedViews, isSharedId, sharedOwner } from './sync/shared';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
@@ -195,6 +197,18 @@ export default function App() {
     );
   }, [schedules, recurrenceRules, recurrenceExceptions, selectedDate]);
 
+  // 공유 받은 일정(보기 전용)을 내 달력·할 일에 겹쳐 보여 준다.
+  const shared = useSharedViews(settings.sharedViews);
+  const viewSchedules = useMemo(() => {
+    if (!shared.schedules.length) return expandedSchedules;
+    const [y] = selectedDate.split('-').map(Number);
+    return [...expandedSchedules, ...expandRecurringSchedules(shared.schedules, shared.rules, shared.exceptions, `${y - 1}-01-01`, `${y + 1}-12-31`)];
+  }, [expandedSchedules, shared, selectedDate]);
+  const viewCategories = useMemo(() => shared.categories.length ? [...categories, ...shared.categories] : categories, [categories, shared.categories]);
+  const viewTasks = useMemo(() => shared.tasks.length ? [...tasks, ...shared.tasks] : tasks, [tasks, shared.tasks]);
+  const [sharedDetail, setSharedDetail] = useState<Schedule | null>(null);
+  const readOnly = (id?: string) => { if (!isSharedId(id)) return false; setActionError('공유 받은 일정·할 일은 볼 수만 있어요.'); return true; };
+
   // Schedule Actions with Undo
   const handleOpenNewScheduleModal = (defaultDate?: string) => {
     const targetDate = defaultDate || selectedDate || getTodayDateString();
@@ -209,6 +223,7 @@ export default function App() {
   };
 
   const handleEditSchedule = (schedule: Schedule) => {
+    if (isSharedId(schedule.id)) { setSharedDetail(schedule); return; }
     setInitialBatch(false);
     setEditingSchedule(schedule);
     setScheduleSelectedDate(schedule.date);
@@ -253,6 +268,7 @@ export default function App() {
   };
 
   const handleToggleSchedule = async (scheduleId: string, occurrence?: Schedule) => {
+    if (readOnly(scheduleId)) return;
     const target = occurrence || expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target) return;
 
@@ -269,6 +285,7 @@ export default function App() {
 
   // Move schedule to new date (via drag & drop or move modal)
   const handleMoveSchedule = async (scheduleId: string, newDate: string) => {
+    if (readOnly(scheduleId)) return;
     const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target || target.date === newDate) return;
 
@@ -444,6 +461,7 @@ export default function App() {
   const handleUpdateSettings = async (newSettings: AppSettings) => {
     await dbSaveAppSettings(newSettings);
     setSettings(newSettings);
+    syncEngine.schedule(); // 설정(공유 범위·같이 보기 등)도 내 다른 기기와 맞춘다
   };
 
   // Backup & Restore
@@ -476,6 +494,7 @@ export default function App() {
 
   // Tasks Handlers
   const handleToggleTaskStatus = async (taskId: string) => {
+    if (readOnly(taskId)) return;
     const t = tasks.find((item) => item.id === taskId);
     if (!t) return;
     const updated: Task = {
@@ -487,6 +506,7 @@ export default function App() {
   };
 
   const handleToggleTaskChecklist = async (taskId: string, checklistId: string) => {
+    if (readOnly(taskId)) return;
     const t = tasks.find((item) => item.id === taskId);
     if (!t || !t.checklist) return;
     const updated: Task = {
@@ -525,11 +545,13 @@ export default function App() {
   };
 
   const handleBatchDeleteTasks = async (taskIds: string[]) => {
+    taskIds = taskIds.filter(id => !isSharedId(id));
     setUndoNotice(await recordTaskDeletion(tasks.filter(t => taskIds.includes(t.id))));
     await reloadData();
   };
 
   const handleBatchToggleTasks = async (taskIds: string[], targetDone: boolean) => {
+    taskIds = taskIds.filter(id => !isSharedId(id));
     for (const id of taskIds) {
       const t = tasks.find((item) => item.id === id);
       if (t) {
@@ -619,8 +641,8 @@ export default function App() {
         {/* 1. Calendar View (Default) */}
         {activeTab === 'calendar' && (
           <CalendarView
-            schedules={expandedSchedules}
-            categories={categories}
+            schedules={viewSchedules}
+            categories={viewCategories}
             settings={settings}
             selectedDate={selectedDate}
             onSelectDate={(date) => setSelectedDate(date)}
@@ -629,10 +651,11 @@ export default function App() {
             onEditSchedule={handleEditSchedule}
             onToggleSchedule={id => void runAction(() => handleToggleSchedule(id))}
             onMoveSchedule={(id, date) => void runAction(() => handleMoveSchedule(id, date))}
-            onDeleteSchedule={id => setDeleteTarget(expandedSchedules.find(s => s.id === id) || null)}
+            onDeleteSchedule={id => { if (!readOnly(id)) setDeleteTarget(expandedSchedules.find(s => s.id === id) || null); }}
             onOpenDateCopyModal={handleOpenDateCopyModal}
             onOpenBatchDateModal={handleOpenBatchDateModal}
             onOpenMoveModal={(sch) => {
+              if (readOnly(sch.id)) return;
               setMovingSchedule(sch);
               setMoveModalOpen(true);
             }}
@@ -644,17 +667,17 @@ export default function App() {
         {/* 2. Tasks View */}
         {activeTab === 'tasks' && (
           <TasksView
-            tasks={tasks}
+            tasks={viewTasks}
             selectedDate={taskSelectedDate} selectedEndDate={taskSelectedEndDate} onSelectDate={selectTaskDate} onSelectRange={selectTaskRange}
             presets={presets}
             presetGroups={settings.presetGroups || []}
             onUsePreset={handleUsePreset}
             onOpenPresetManager={()=>setPresetLibraryOpen(true)}
             onOpenCalendar={() => setTodaySchedulesOpen(true)}
-            onRescheduleTask={async(id,date)=>{await dbRescheduleTask(id,date);await reloadData();}}
+            onRescheduleTask={async(id,date)=>{if(readOnly(id))return;await dbRescheduleTask(id,date);await reloadData();}}
             onToggleTaskStatus={handleToggleTaskStatus}
             onToggleTaskChecklist={handleToggleTaskChecklist}
-            onDeleteTask={id => { setTaskDeleteTarget(tasks.find(t => t.id === id) || null); }}
+            onDeleteTask={id => { if (!readOnly(id)) setTaskDeleteTarget(tasks.find(t => t.id === id) || null); }}
             onQuickAddTask={handleQuickAddTask}
             onBatchDeleteTasks={handleBatchDeleteTasks}
             onBatchToggleTasks={handleBatchToggleTasks}
@@ -680,13 +703,13 @@ export default function App() {
         registrationNotice={registrationNotice} onDismissRegistration={()=>setRegistrationNotice(null)} onUndoRegistration={registrationNotice?.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}
         open={daySheetOpen && activeTab === 'calendar' && !categoryLibraryOpen && !presetLibraryOpen && !scheduleModalOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
         date={selectedDate} onSelectDate={setSelectedDate} onClose={() => setDaySheetOpen(false)}
-        schedules={expandedSchedules} categorySchedules={schedules} categories={categories} presets={presets} settings={settings}
+        schedules={viewSchedules} categorySchedules={schedules} categories={categories} extraCategories={shared.categories} presets={presets} settings={settings}
         undoLabel={undoNotice?.message} onUndo={async () => { if (undoNotice) await handleUndo(undoNotice); }}
         onSave={schedule => handleSaveSchedule(schedule, true)} onEdit={handleEditSchedule}
-        onToggle={handleToggleSchedule} onMove={schedule => { setMovingSchedule(schedule); setMoveModalOpen(true); }}
+        onToggle={handleToggleSchedule} onMove={schedule => { if (readOnly(schedule.id)) return; setMovingSchedule(schedule); setMoveModalOpen(true); }}
         onCopyDate={() => handleOpenDateCopyModal(selectedDate)}
         onDetails={(draft, saved, batch=false) => { handleOpenNewScheduleModal(selectedDate); setInitialBatch(batch); setEditingSchedule(draft); dayDetailSaved.current = saved; }}
-        onReorder={async next => { const previous = next.map(s => expandedSchedules.find(item => item.id === s.id)!).filter(Boolean); setUndoNotice(await recordOccurrenceHistory('UPDATE', '일정 순서 변경됨', previous, next, recurrenceExceptions)); await reloadData(); }}
+        onReorder={async next => { next = next.filter(s => !isSharedId(s.id)); const previous = next.map(s => expandedSchedules.find(item => item.id === s.id)!).filter(Boolean); setUndoNotice(await recordOccurrenceHistory('UPDATE', '일정 순서 변경됨', previous, next, recurrenceExceptions)); await reloadData(); }}
         onSettings={handleUpdateSettings} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} onUsePreset={handleUsePreset}
         onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
       />
@@ -747,6 +770,7 @@ export default function App() {
       />
 
       <ShortcutHelp open={shortcutHelpOpen} onClose={() => setShortcutHelpOpen(false)} />
+      <SharedScheduleDetail schedule={sharedDetail} owner={sharedDetail ? sharedOwner(sharedDetail.id, shared.owners) : ''} color={sharedDetail ? shared.categories.find(c => c.id === sharedDetail.category)?.color : undefined} onClose={() => setSharedDetail(null)} />
 
       {/* Settings Modal (Presets CRUD, Categories, Calendar, Backup/Restore, PWA) */}
       <SettingsModal

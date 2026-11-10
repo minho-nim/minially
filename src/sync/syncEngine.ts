@@ -119,6 +119,8 @@ class SyncEngine {
   private onRemoteChange: () => void | Promise<void> = () => {};
 
   get connected() { return !!this.state; }
+  /** 내 코드(서버 요청용). 로그인 전이면 null */
+  get code() { return this.state?.code ?? null; }
   getStatus() { return this.status; }
   subscribe(listener: Listener) { this.listeners.add(listener); listener(this.status); return () => { this.listeners.delete(listener); }; }
   setRemoteChangeHandler(handler: () => void | Promise<void>) { this.onRemoteChange = handler; }

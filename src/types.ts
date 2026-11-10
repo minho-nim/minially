@@ -147,7 +147,26 @@ export interface ChangeHistoryEntry {
   newSchedules: Schedule[];
 }
 
+/** 내 일정 공유(보기 전용 공유 코드). code는 내 기기끼리 보여 주려고 내 설정에 저장한다. */
+export interface ShareSettings {
+  code?: string;
+  name: string;
+  categoryIds: string[];
+  includeTasks: boolean;
+}
+
+/** 공유 받은 사람(같이 보기). 내 PC·폰끼리 맞춰진다. */
+export interface SharedView {
+  id: string;
+  code: string;
+  label: string;
+  color: string;
+  visible: boolean;
+}
+
 export interface AppSettings {
+  share?: ShareSettings;
+  sharedViews?: SharedView[];
   presetGroups?: PresetGroup[];
   dayScheduleView?: 'category' | 'list';
   startDayOfWeek: 0 | 1; // 0: Sunday, 1: Monday

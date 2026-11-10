@@ -30,6 +30,7 @@ interface Props extends CategoryActions {
   date: string;
   presets: Preset[];
   categorySchedules: Schedule[];
+  extraCategories?: CategoryItem[];
   settings: AppSettings;
   onClose: () => void;
   onSelectDate: (date: string) => void;
@@ -88,6 +89,8 @@ function ScheduleRows({ items, grouped, categories, onEdit, onMove, onToggle, on
 
 export function DayScheduleSheet(props: Props) {
   const { open, date, schedules, categories, presets, settings, onClose } = props;
+  // 목록 색상·묶음 표시용: 내 카테고리 + 공유 받은 사람(선택·관리 목록에는 넣지 않음)
+  const displayCategories = props.extraCategories?.length ? [...categories, ...props.extraCategories] : categories;
   const root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), dropArea = useRef<HTMLDivElement>(null);
   const daySurface = useRef<HTMLElement>(null), composerSurface = useRef<HTMLElement>(null);
   const [drafts, setDrafts] = useState<Record<string, QuickDraft>>({});
@@ -162,7 +165,7 @@ export function DayScheduleSheet(props: Props) {
   if (!open) return null;
   const items = schedules.filter(s => s.date === date).sort(compareSchedules);
   const grouped = (settings.dayScheduleView || 'category') === 'category';
-  const groups = [...categories.map(c => ({ id: c.id, name: c.name, color: c.color, items: items.filter(s => s.category === c.id) })), { id: '', name: '미분류', color: '#A69BA1', items: items.filter(s => !categories.some(c => c.id === s.category)) }].filter(g => g.items.length);
+  const groups = [...displayCategories.map(c => ({ id: c.id, name: c.name, color: c.color, items: items.filter(s => s.category === c.id) })), { id: '', name: '미분류', color: '#A69BA1', items: items.filter(s => !displayCategories.some(c => c.id === s.category)) }].filter(g => g.items.length);
   const shiftDate = (delta: number) => { const day = new Date(date + 'T12:00:00'); day.setDate(day.getDate() + delta); props.onSelectDate(`${day.getFullYear()}-${String(day.getMonth()+1).padStart(2,'0')}-${String(day.getDate()).padStart(2,'0')}`); };
   return <div ref={root} data-day-overlay role="dialog" aria-modal="true" aria-label="날짜별 일정" className="app-modal day-overlay fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 bg-[rgba(52,40,35,0.30)] flex items-center justify-center p-4" onClick={e => {
     if (e.target !== e.currentTarget || saving || panelBusy || undoBusy) return;
@@ -186,7 +189,7 @@ export function DayScheduleSheet(props: Props) {
       {!expanded && !panel && error && <p role="alert" className="px-4 py-1.5 text-xs text-[#C4476B] shrink-0">{error}</p>}
       {<div className="px-4 flex items-center gap-1 shrink-0 border-b border-app-line"><span className="text-xs text-app-muted flex-1">{items.length}개 일정</span>{(['category', 'list'] as const).map(view => <button key={view} type="button" aria-pressed={(settings.dayScheduleView || 'category') === view} onClick={() => void props.onSettings({ ...settings, dayScheduleView: view }).catch(() => setError('보기 방식을 저장하지 못했습니다.'))} className={button + ((settings.dayScheduleView || 'category') === view ? ' text-app-accent bg-app-canvas font-semibold' : '')}>{view === 'category' ? '카테고리형' : '목록형'}</button>)}{props.undoLabel && <button type="button" disabled={undoBusy || saving} aria-label="실행 취소" title={props.undoLabel} className={button} onClick={async () => { if (undoBusy) return; setUndoBusy(true); try { await props.onUndo?.(); } finally { setUndoBusy(false); } }}><RotateCcw className="w-4 h-4" /></button>}</div>}
       <div data-day-scroll className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 pb-3">
-        {!items.length ? <p className="text-center py-3 text-xs text-app-muted">등록된 일정이 없습니다.</p> : grouped ? groups.map(group => <section key={group.id} aria-label={group.name}><h3 className="flex gap-2 items-center text-xs font-semibold pt-4 pb-1 px-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: group.color }} />{group.name}</h3><ScheduleRows items={group.items} grouped categories={categories} onEdit={props.onEdit} onMove={props.onMove} onToggle={props.onToggle} onReorder={props.onReorder} onError={setError} /></section>) : <ScheduleRows items={items} grouped={false} categories={categories} onEdit={props.onEdit} onMove={props.onMove} onToggle={props.onToggle} onReorder={props.onReorder} onError={setError} />}
+        {!items.length ? <p className="text-center py-3 text-xs text-app-muted">등록된 일정이 없습니다.</p> : grouped ? groups.map(group => <section key={group.id} aria-label={group.name}><h3 className="flex gap-2 items-center text-xs font-semibold pt-4 pb-1 px-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: group.color }} />{group.name}</h3><ScheduleRows items={group.items} grouped categories={displayCategories} onEdit={props.onEdit} onMove={props.onMove} onToggle={props.onToggle} onReorder={props.onReorder} onError={setError} /></section>) : <ScheduleRows items={items} grouped={false} categories={displayCategories} onEdit={props.onEdit} onMove={props.onMove} onToggle={props.onToggle} onReorder={props.onReorder} onError={setError} />}
       </div>
       <div className="shrink-0 px-4 pt-2 pb-4"><button type="button" className="w-full min-h-11 px-4 bg-app-soft rounded-xl text-sm text-app-muted flex items-center justify-start gap-1" onClick={() => { setExpanded(true); categoryReturn.current = null; changePanel('categories'); }}><Plus className="w-4 h-4"/>일정 등록하기</button></div>
     </section>

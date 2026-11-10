@@ -2,56 +2,12 @@
 // 코드 하나 = 데이터 공간 하나. 서버는 코드 원문을 모르고 SHA-256 해시만 비밀값(SYNC_CODE_HASHES)으로 가진다.
 // 항목마다 마지막으로 올린 값이 이긴다. seq는 공간별로 올라가는 번호로, 기기는 마지막으로 받은 seq 이후만 받는다.
 
-interface D1Result<T> { results: T[] }
-interface D1PreparedStatement {
-  bind(...values: unknown[]): D1PreparedStatement;
-  all<T>(): Promise<D1Result<T>>;
-  first<T>(): Promise<T | null>;
-}
-interface D1Database {
-  prepare(sql: string): D1PreparedStatement;
-  batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
-}
-interface Env { DB?: D1Database; SYNC_CODE_HASHES?: string }
-interface Context { request: Request; env: Env }
+import { json, spaceFor, ensureSchema, type D1Database, type Context } from '../_lib';
 
 const STORES = new Set(['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings']);
 const MAX_CHANGES = 5000;
 const MAX_RECORD_BYTES = 256 * 1024;
 const CHUNK = 200;
-
-let schemaReady = false;
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
-
-async function sha256Hex(text: string) {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function normalizeCode(code: string) {
-  return code.toUpperCase().replace(/[^0-9A-Z]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
-}
-
-async function spaceFor(request: Request, env: Env) {
-  const header = request.headers.get('authorization') ?? '';
-  const code = normalizeCode(header.replace(/^Bearer\s+/i, ''));
-  if (code.length < 12) return null;
-  const hash = await sha256Hex(code);
-  const allowed = (env.SYNC_CODE_HASHES ?? '').split(/[\s,]+/).map(h => h.trim().toLowerCase()).filter(Boolean);
-  return allowed.includes(hash) ? hash.slice(0, 16) : null;
-}
-
-async function ensureSchema(db: D1Database) {
-  if (schemaReady) return;
-  await db.batch([
-    db.prepare('CREATE TABLE IF NOT EXISTS sync_meta (space TEXT PRIMARY KEY, seq INTEGER NOT NULL)'),
-    db.prepare('CREATE TABLE IF NOT EXISTS sync_records (space TEXT NOT NULL, store TEXT NOT NULL, id TEXT NOT NULL, data TEXT, seq INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (space, store, id))'),
-    db.prepare('CREATE INDEX IF NOT EXISTS sync_records_seq ON sync_records (space, seq)'),
-  ]);
-  schemaReady = true;
-}
 
 interface Change { store: string; id: string; data: unknown }
 
