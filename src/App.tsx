@@ -56,6 +56,7 @@ import { ShortcutHelp } from './components/modals/ShortcutHelp';
 import { SharedScheduleDetail } from './components/modals/SharedScheduleDetail';
 import { useSharedViews, isSharedId, sharedOwner } from './sync/shared';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useScheduleReminders } from './hooks/useScheduleReminders';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
@@ -209,6 +210,7 @@ export default function App() {
   const viewCategories = useMemo(() => shared.categories.length ? [...categories, ...shared.categories] : categories, [categories, shared.categories]);
   const viewTasks = useMemo(() => shared.tasks.length ? [...tasks, ...shared.tasks] : tasks, [tasks, shared.tasks]);
   const [sharedDetail, setSharedDetail] = useState<Schedule | null>(null);
+  useScheduleReminders(expandedSchedules, settings.reminder);
   const readOnly = (id?: string) => { if (!isSharedId(id)) return false; setActionError('공유 받은 일정·할 일은 볼 수만 있어요.'); return true; };
 
   // Schedule Actions with Undo

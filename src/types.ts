@@ -164,7 +164,14 @@ export interface SharedView {
   visible: boolean;
 }
 
+/** 일정 알림(앱이 열려 있을 때). 기기마다 알림 권한은 따로 허용해야 한다. */
+export interface ReminderSettings {
+  enabled: boolean;
+  minutesBefore: number;
+}
+
 export interface AppSettings {
+  reminder?: ReminderSettings;
   share?: ShareSettings;
   sharedViews?: SharedView[];
   presetGroups?: PresetGroup[];

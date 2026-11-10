@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SyncPanel } from '../common/SyncPanel';
 import { SharePanel } from '../common/SharePanel';
+import { ReminderSetting } from '../common/ReminderSetting';
 import {
   Preset,
   CategoryItem,
@@ -196,6 +197,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <fieldset disabled={settingsSaving} className="space-y-2.5">
+                <ReminderSetting settings={settings} onChange={next => void updateSettings(next)} />
                 <div className="p-3 bg-app-canvas border border-app-line rounded-xl flex items-center justify-between">
                   <div>
                     <p className="text-xs font-bold text-app-ink">시작 요일</p>
