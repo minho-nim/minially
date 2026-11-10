@@ -88,11 +88,14 @@ test('20회 개폐·Escape·뒤로가기·다른 날짜·세션 초안·스크�
     await sheet(page).getByRole('button', { name: '날짜 팝업 닫기' }).click(); await expect(sheet(page)).toHaveCount(0);
     expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
   }
-  await open(page); await startQuick(sheet(page));await title(page).fill('아직 저장하지 않은 문구');
-  await sheet(page).getByRole('button', { name: '날짜 작업', exact: true }).click(); await sheet(page).getByRole('group', { name: '날짜 작업 메뉴' }).getByRole('button', { name: '다음 날짜' }).click(); await expect(title(page)).toHaveValue('');
-  await sheet(page).getByRole('button', { name: '날짜 작업', exact: true }).click(); await sheet(page).getByRole('group', { name: '날짜 작업 메뉴' }).getByRole('button', { name: '이전 날짜' }).click(); await expect(title(page)).toHaveValue('아직 저장하지 않은 문구');
+  // 11-06부터 간편 입력은 날짜 팝업 위의 별도 시트이고 초안은 닫으면 사라진다. 날짜 이동은 날짜 작업 메뉴에서.
+  await open(page); const heading = await sheet(page).locator('h2').innerText();
+  await sheet(page).getByRole('button', { name: '날짜 작업', exact: true }).click(); await sheet(page).getByRole('group', { name: '날짜 작업 메뉴' }).getByRole('button', { name: '다음 날짜' }).click(); await expect(sheet(page).locator('h2')).not.toHaveText(heading);
+  await sheet(page).getByRole('button', { name: '날짜 작업', exact: true }).click(); await sheet(page).getByRole('group', { name: '날짜 작업 메뉴' }).getByRole('button', { name: '이전 날짜' }).click(); await expect(sheet(page).locator('h2')).toHaveText(heading);
+  await startQuick(sheet(page)); await title(page).fill('아직 저장하지 않은 문구');
+  await page.keyboard.press('Escape'); await expect(title(page)).toHaveCount(0); await expect(sheet(page)).toBeVisible();
   await page.keyboard.press('Escape'); await expect(sheet(page)).toHaveCount(0); expect((await data(page)).schedules).toHaveLength(0);
-  await open(page); await expect(title(page)).toHaveValue('아직 저장하지 않은 문구'); await page.goBack(); await expect(sheet(page)).toHaveCount(0);
+  await open(page); await page.goBack(); await expect(sheet(page)).toHaveCount(0);
   const cell = page.locator(`[data-calendar-date="${day}"]`); await cell.focus(); await open(page); await sheet(page).click({ position: { x: 8, y: 3 } }); await expect(sheet(page)).toHaveCount(0); await expect(cell).toBeFocused();
 });
 
@@ -106,14 +109,17 @@ test('빠른 프리셋 선택·검색·마우스 드롭·복구·관리·다른 
   await sheet(page).getByRole('button',{name:'간편 입력으로',exact:true}).click(); await startQuick(sheet(page));await title(page).press('Enter'); await expect.poll(async () => (await data(page)).schedules.length).toBe(8); expect((await data(page)).schedules.find(s => s.title === '준비 회의')).toMatchObject({ startTime: '09:05', endTime: '10:00', memo: '유지할 메모' });
 });
 
-test('시트 안 카테고리 추가·이름·고정 색상·삭제, 상세 등록 복귀와 초안 유지', async ({ page }) => {
-  await open(page); await startQuick(sheet(page));await title(page).fill('직접 분류할 일정');
-  const categories = async () => { await sheet(page).getByRole('button', { name: '상세 옵션', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 선택', exact: true }).click(); await sheet(page).getByRole('button',{name:'편집',exact:true}).click(); };
-  await categories(); await sheet(page).getByPlaceholder('카테고리 이름').fill('내 분류'); await expect(sheet(page).getByLabel('HEX 색상')).toHaveCount(0); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); await expect(sheet(page).getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류'); await expect(title(page)).toHaveValue('직접 분류할 일정');
+test('시트 안 카테고리 추가·이름·고정 색상·사용 중 삭제 막기, 상세 등록 이어받기', async ({ page }) => {
+  await open(page); await startQuick(sheet(page)); await title(page).fill('직접 분류할 일정');
+  const categories = async () => { await startQuick(sheet(page)); await sheet(page).getByRole('button', { name: '상세 옵션', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 선택', exact: true }).click(); await sheet(page).getByRole('button', { name: '편집', exact: true }).click(); };
+  await categories(); await sheet(page).getByPlaceholder('카테고리 이름').fill('내 분류'); await expect(sheet(page).getByLabel('HEX 색상')).toHaveCount(0); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); await expect(sheet(page).getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류');
   await sheet(page).getByRole('button', { name: '상세 등록 열기' }).click(); const editor = page.getByRole('dialog', { name: '새 일정', exact: true }); await expect(page.getByRole('dialog')).toHaveCount(1); await expect(editor.getByLabel('일정 제목', { exact: true })).toHaveValue('직접 분류할 일정'); await expect(editor.getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류');
-  await editor.getByRole('button', { name: '중요 일정', exact: true }).click(); await pickCategory(editor);await pickCategory(editor);await editor.getByRole('button', { name: '등록', exact: true }).click(); await expect(sheet(page)).toBeVisible(); await expect(title(page)).toHaveValue('');
-  await categories(); const row = sheet(page).locator('[data-category-id]'); await row.getByRole('button', { name: '수정', exact: true }).click(); await sheet(page).getByPlaceholder('카테고리 이름').fill('수정한 분류'); await sheet(page).getByRole('button', { name: '변경사항 저장', exact: true }).click();
-  await row.getByRole('button', { name: '삭제', exact: true }).click(); const confirmation = row.getByRole('group', { name: '카테고리 삭제 확인' }); await expect(confirmation).toContainText('일정 1개'); await confirmation.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toHaveCount(0); expect((await data(page)).schedules[0]).toMatchObject({ title: '직접 분류할 일정', category: 'category-work', isImportant: true });
+  await editor.getByRole('button', { name: '중요 일정', exact: true }).click(); await editor.getByRole('button', { name: '등록', exact: true }).click(); await expect(sheet(page)).toBeVisible();
+  const saved = (await data(page)).schedules.find(s => s.title === '직접 분류할 일정')!; expect(saved).toMatchObject({ isImportant: true }); const mine = (await data(page)).categories.find(c => c.name === '내 분류')!; expect(saved.category).toBe(mine.id);
+  await categories(); const row = sheet(page).locator(`[data-category-id="${mine.id}"]`); await row.getByRole('button', { name: '수정', exact: true }).click(); await sheet(page).getByPlaceholder('카테고리 이름').fill('수정한 분류'); await sheet(page).getByRole('button', { name: '변경사항 저장', exact: true }).click(); await expect(row).toContainText('수정한 분류');
+  // 11-06부터 일정이 쓰는 카테고리는 지울 수 없다
+  await row.getByRole('button', { name: '삭제', exact: true }).click(); const confirmation = row.getByRole('group', { name: '카테고리 삭제 확인' }); await expect(confirmation).toContainText('사용 중인 카테고리입니다'); await confirmation.getByRole('button', { name: '취소', exact: true }).click(); await expect(row).toHaveCount(1);
+  expect((await data(page)).schedules.find(s => s.title === '직접 분류할 일정')).toMatchObject({ category: mine.id, isImportant: true });
 });
 
 test('일정 드래그·동일 시간 순서·다른 시간 거부·새로고침 유지', async ({ page }) => {
