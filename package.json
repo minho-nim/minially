@@ -11,8 +11,7 @@
     "lint": "tsc --noEmit",
     "test": "playwright test",
     "test:e2e": "playwright test",
-    "build:pages": "vite build --mode github-pages",
-    "deploy:cf": "vite build && wrangler deploy"
+    "build:pages": "vite build --mode github-pages"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -39,7 +38,6 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
-    "vite-plugin-pwa": "^2.0.0",
-    "wrangler": "^4.159.0"
+    "vite-plugin-pwa": "^2.0.0"
   }
 }

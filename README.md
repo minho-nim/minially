@@ -42,6 +42,19 @@ npm test
 
 테스트에는 문구 추가·수정·삭제와 취소, 새로고침, 일정 제목 적용과 편집·저장, 기존 일정 보존, JSON 백업·복원, 즐겨찾기·순서, 저장 오류와 재시도, 이전 데이터 이관, 잘못된 복원 롤백이 포함됩니다.
 
+## Cloudflare Pages 배포
+
+**배포 규칙:** Cloudflare는 `release` 브랜치만 운영 배포합니다. `main`에 병합해도 Cloudflare 사이트는 바뀌지 않습니다(GitHub Pages는 main 기준 그대로).
+
+처음 한 번 연결:
+1. [Cloudflare 대시보드](https://dash.cloudflare.com) → Workers & Pages → Create → **Pages** → **Connect to Git** → `minho-nim/minially` 선택
+2. 빌드 설정: Production branch **`release`**, Framework preset Vite(또는 None), Build command `npm run build`, Build output directory `dist`
+3. Node 버전은 저장소의 `.node-version`(24)을 따릅니다. 필요하면 환경 변수 `NODE_VERSION` = `24`를 넣습니다.
+4. Save and Deploy. 끝나면 `https://<이름>.pages.dev` 주소가 생깁니다.
+5. 브랜치마다 미리보기 사이트가 생기지 않게: Settings → Builds → Branch control → Preview branches를 **None**으로.
+
+배포: GitHub Actions → **운영 배포(release)** → Run workflow. main 최신 커밋의 검사가 통과했을 때만 `release`를 `main`으로 앞당깁니다(fast-forward만). 직접 할 때는 `git fetch origin && git push origin origin/main:refs/heads/release`.
+
 ## GitHub Pages 배포
 
 실사용 주소: https://minho-nim.github.io/minially/

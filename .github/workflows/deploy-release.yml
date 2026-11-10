@@ -1,0 +1,53 @@
+# 운영 배포 버튼(소유자가 직접 누름): release 브랜치를 main으로 앞당긴다. Cloudflare Pages는 release만 배포한다.
+# PC 명령 `git fetch origin && git push origin origin/main:refs/heads/release`와 같다. 휴대폰 GitHub 앱·브라우저에서
+# Actions → "운영 배포(release)" → Run workflow로 실행한다. 자동으로는 돌지 않는다.
+# fast-forward만 한다(강제 푸시 없음): release에 main에 없는 커밋이 있으면 실패하고 아무것도 바꾸지 않는다.
+# main의 최신 커밋이 타입 검사·빌드(GitHub Pages 배포 워크플로)를 통과했을 때만 배포한다.
+name: 운영 배포(release)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: deploy-release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: main의 검사(타입 검사·빌드) 통과 확인
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(git rev-parse origin/main)
+          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${sha}&per_page=20" \
+            --jq '[.workflow_runs[] | select(.name == "Deploy Minially to GitHub Pages")][0].conclusion // "none"')
+          echo "main ${sha:0:7} 검사: ${conclusion}"
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::main 최신 커밋의 검사가 성공이 아닙니다(${conclusion}). 끝날 때까지 기다리거나 오류를 고친 뒤 다시 실행하세요."
+            exit 1
+          fi
+      - name: release를 main으로 앞당기기(fast-forward만)
+        run: |
+          if git rev-parse --verify -q origin/release >/dev/null; then
+            if ! git merge-base --is-ancestor origin/release origin/main; then
+              echo "::error::release가 main과 갈라져 있습니다(release에만 있는 커밋). 덮어쓰지 않습니다."
+              exit 1
+            fi
+            if [ "$(git rev-parse origin/release)" = "$(git rev-parse origin/main)" ]; then
+              echo "release가 이미 main과 같습니다. 배포할 것이 없습니다."
+              exit 0
+            fi
+          fi
+          from=$(git rev-parse --short origin/release 2>/dev/null || echo none)
+          git push origin origin/main:refs/heads/release
+          echo "release: ${from} → $(git rev-parse --short origin/main). Cloudflare 빌드가 끝나면(1~2분) 사이트에 반영됩니다."
