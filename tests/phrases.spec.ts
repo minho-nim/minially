@@ -1,4 +1,5 @@
 import { presetAction, presetMode } from './helpers/preset-actions';
+import { pickCategory } from './helpers/category';
 import { chooseDate, readDate, expectDate } from './helpers/date';
 import { test, expect, Page } from '@playwright/test';
 import type { AppData, Preset } from '../src/types';
@@ -80,6 +81,7 @@ test('요청한 12단계: 프리셋 CRUD, 새로고침, 일정 연동, 백업과
   await expectTime(schedule, '종료 시간', '15:45');
   await expect(schedule.getByPlaceholder('상세 내용을 메모하세요')).toHaveValue('기존 메모');
   await schedule.getByPlaceholder('일정 제목을 입력하세요').fill('수정한 주간 회의 — 자료 검토'); // 8
+  await pickCategory(schedule); // 11-06부터 일정 카테고리 필수
   await schedule.getByRole('button', { name: '등록', exact: true }).click(); // 9
   await expect(schedule).toHaveCount(0);
   await expect(page.getByText('수정한 주간 회의 — 자료 검토', { exact: true }).first()).toBeVisible(); // 10
@@ -132,7 +134,7 @@ test('즐겨찾기·지정 순서·사용 순서와 빈 목록 유지', async ({
   await expect(rowB.getByRole('button', { name: '즐겨찾기 해제', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await usePhrase(page, '순서 B');
   modal = await openPhrases(page);
-  await modal.getByText('보기 설정 · 즐겨찾기 / 정렬',{exact:true}).click(); await modal.getByLabel('프리셋 정렬').selectOption('usage');
+  await modal.getByText('필터',{exact:true}).click(); await modal.getByLabel('프리셋 정렬').selectOption('usage');
   await expect(modal.locator('li').first()).toHaveAttribute('data-phrase-id', b.id);
   await page.reload({ waitUntil: 'domcontentloaded' });
   data = await readData(page);
