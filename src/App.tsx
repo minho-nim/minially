@@ -51,6 +51,7 @@ import { DateCopyModal } from './components/modals/DateCopyModal';
 import { ScheduleMoveModal } from './components/modals/ScheduleMoveModal';
 import { SearchModal } from './components/modals/SearchModal';
 import { SettingsModal } from './components/modals/SettingsModal';
+import { FirstRunSyncModal } from './components/modals/FirstRunSyncModal';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
@@ -696,6 +697,8 @@ export default function App() {
         categories={categories}
         onSelectSchedule={handleSelectScheduleFromSearch}
       />
+
+      <FirstRunSyncModal />
 
       {/* Settings Modal (Presets CRUD, Categories, Calendar, Backup/Restore, PWA) */}
       <SettingsModal
