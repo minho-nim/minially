@@ -54,7 +54,7 @@ test('프리셋 선택·검색·복구·이어 붙이기·현재 제목 저장�
   await expectDate(dialog, '일정 날짜', '2026-10-30'); await expectTime(dialog, '시작 시간', '11:10');
   await expect(dialog.getByPlaceholder('상세 내용을 메모하세요')).toHaveValue('작성하던 메모');
   await pickCategory(dialog);await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
-  const stored = await data(page); expect(stored.schedules.find(s => s.title === '작성하던 제목 운동')).toMatchObject({ date: '2026-10-30', startTime: '11:10', endTime: '12:20', memo: '작성하던 메모', category: '' });
+  const stored = await data(page); expect(stored.schedules.find(s => s.title === '작성하던 제목 운동')).toMatchObject({ date: '2026-10-30', startTime: '11:10', endTime: '12:20', memo: '작성하던 메모', category: expect.stringMatching(/.+/) });
   expect(stored.schedules.find(s => s.id === 'old')?.recurrenceRuleId).toBe('rule');
 });
 
@@ -70,11 +70,11 @@ test('카테고리 생성·선택·수정·고정 색상·순서·취소·삭제
   await row.getByRole('button', { name: '수정', exact: true }).click(); await manager.getByPlaceholder('카테고리 이름').fill('생활'); await manager.getByRole('button', { name: '변경사항 저장', exact: true }).click();
   await expect(row).toContainText('생활'); expect((await data(page)).categories.find(c => c.id === 'a')).toMatchObject({ name: '생활', color: '#112233' });
   await row.getByRole('button', { name: '카테고리 아래로 이동', exact: true }).click(); await expect(manager.getByRole('listitem').first()).toHaveAttribute('data-category-id', 'b');
-  await row.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toContainText('일정 1개');
-  await row.getByRole('group', { name: '카테고리 삭제 확인' }).getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toHaveCount(0);
-  const result = await data(page); expect(result.schedules.find(s => s.id === 'old')).toMatchObject({ category: '', title: '기존 반복 일정', recurrenceRuleId: 'rule' });
-  expect(result.recurrenceExceptions[0].modifiedSchedule).toMatchObject({ category: '', title: '반복 수정' }); expect(result.recurrenceRules).toHaveLength(1);
-  await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect((await data(page)).categories.some(c => c.id === 'a')).toBe(false);
+  // 11-06부터 일정이 쓰는 카테고리는 지울 수 없다(일정 카테고리 필수). 안내 후 취소하면 참조가 그대로 남는다.
+  await row.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toContainText('사용 중인 카테고리입니다');
+  await row.getByRole('group', { name: '카테고리 삭제 확인' }).getByRole('button', { name: '취소', exact: true }).click(); await expect(row).toHaveCount(1);
+  const result = await data(page); expect(result.schedules.find(s => s.id === 'old')).toMatchObject({ category: 'a', title: '기존 반복 일정', recurrenceRuleId: 'rule' }); expect(result.recurrenceRules).toHaveLength(1);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect((await data(page)).categories.some(c => c.id === 'a')).toBe(true);
 });
 
 test('등록창·프리셋·카테고리 각각 20회 반복, Escape·뒤로가기·포커스·스크롤 복구', async ({ page }) => {
@@ -82,13 +82,13 @@ test('등록창·프리셋·카테고리 각각 20회 반복, Escape·뒤로가�
   const trigger = page.getByRole('button', { name: '일정 등록', exact: true });
   for (let i = 0; i < 20; i++) {
     const dialog = await open(page); await expect(page.locator('[data-schedule-overlay]')).toHaveCount(1);
-    await expect(page.locator('[data-schedule-overlay]')).toHaveCSS('background-color', 'rgba(45, 35, 40, 0.25)');
+    await expect(page.locator('[data-schedule-overlay]')).toHaveCSS('background-color', 'rgba(52, 40, 35, 0.3)');
     await dialog.getByRole('button', { name: '일정 등록창 닫기', exact: true }).click(); await expect(page.locator('[data-schedule-overlay]')).toHaveCount(0);
     await expect(trigger).toBeFocused(); expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
   }
   const dialog = await open(page); await dialog.getByLabel('일정 제목', { exact: true }).fill('반복 사용 초안');
   for (let i = 0; i < 20; i++) {
-    await dialog.getByRole('button', { name: '프리셋', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(1); await expect(page.locator('[data-schedule-overlay]')).toHaveCSS('background-color', 'rgba(45, 35, 40, 0.25)');
+    await dialog.getByRole('button', { name: '프리셋', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(1); await expect(page.locator('[data-schedule-overlay]')).toHaveCSS('background-color', 'rgba(52, 40, 35, 0.3)');
     await page.keyboard.press('Escape'); await expect(panel(page)).toHaveCount(0);
     await dialog.getByRole('button', { name: '카테고리 선택', exact: true }).click(); await expect(page.getByRole('dialog')).toHaveCount(1); await page.keyboard.press('Escape'); await expect(panel(page)).toHaveCount(0);
   }
@@ -100,15 +100,15 @@ test('등록창·프리셋·카테고리 각각 20회 반복, Escape·뒤로가�
 test('카테고리 삭제 실패는 원자적으로 복구, 빈 목록·백업 왕복 보존', async ({ page }) => {
   await seed(page);
   await page.evaluate(async () => {
-    const path = '/src/db/indexedDB.ts'; const db = await import(path); const before = await db.exportAllData();
+    const path = '/src/db/indexedDB.ts'; const db = await import(path); await db.importAllData({ schedules: [], recurrenceRules: [], recurrenceExceptions: [] }); const before = await db.exportAllData();
     const remove = IDBObjectStore.prototype.delete;
     IDBObjectStore.prototype.delete = function (...args) { if (this.name === 'categories') throw new Error('삭제 실패 주입'); return remove.apply(this, args); };
     let failed = false; try { await db.deleteCategory('a'); } catch { failed = true; } finally { IDBObjectStore.prototype.delete = remove; }
     if (!failed || JSON.stringify(await db.exportAllData()) !== JSON.stringify(before)) throw new Error('원자성 실패');
-    await db.deleteCategory('a'); await db.deleteCategory('b');
+    await db.deleteCategory('a'); /* 11-06부터 마지막 카테고리는 지울 수 없어 b는 남긴다 */
   });
-  await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect((await data(page)).categories).toEqual([]);
-  const manager = await categories(page); await manager.getByPlaceholder('카테고리 이름').fill('빈 목록에서 추가'); await manager.getByRole('button', { name: '추가', exact: true }).click(); await expect(panel(page)).toHaveCount(0);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect((await data(page)).categories.map(c => c.id)).toEqual(['b']);
+  const manager = await categories(page); await manager.getByPlaceholder('카테고리 이름').fill('하나 남은 목록에서 추가'); await manager.getByRole('button', { name: '추가', exact: true }).click(); await expect(panel(page)).toHaveCount(0);
   const before = await data(page); await page.evaluate(async backup => { const path = '/src/db/indexedDB.ts'; await (await import(path)).importAllData(JSON.parse(backup)); }, JSON.stringify(before));
   await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect(await data(page)).toEqual(before);
 });
@@ -123,7 +123,7 @@ test('모바일 긴 프리셋 전체 확인, 작은 화면 저장 버튼·한국
   await page.setViewportSize({ width: 390, height: 420 }); await title.fill('모바일 최종 일정');
   const save = dialog.getByRole('button', { name: '등록', exact: true }); await expect(save).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: 'test-results/minially-mobile.png' }); await save.click(); await expect(dialog).toHaveCount(0);
+  await page.screenshot({ path: 'test-results/minially-mobile.png' }); await pickCategory(dialog); await save.click(); await expect(dialog).toHaveCount(0);
 });
 
 test('전체 앱: 제목만 저장·수정·검색·날짜 복사·이동·삭제와 새로고침', async ({ page }) => {
@@ -132,13 +132,15 @@ test('전체 앱: 제목만 저장·수정·검색·날짜 복사·이동·삭�
   await page.screenshot({ path: 'test-results/minially-desktop.png' });
   const initialDate = await readDate(dialog, '일정 날짜');
   await pickCategory(dialog);await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
-  const row = () => page.locator('[draggable=true]').filter({ has: page.getByTitle('수정', { exact: true }) }).filter({ hasText: '전체 흐름 일정' });
-  await row().hover(); await row().getByTitle('수정', { exact: true }).click();
+  // 11-04부터 PC 오른쪽 일정 목록 대신: 수정은 달력의 일정을 눌러서, 복사·이동은 날짜 팝업에서
+  await page.locator('.calendar-view').getByText('전체 흐름 일정', { exact: true }).first().click();
   const edit = page.getByRole('dialog', { name: '일정 수정', exact: true }); await edit.getByLabel('일정 제목', { exact: true }).fill('전체 흐름 일정 수정'); await edit.getByRole('button', { name: '변경사항 저장', exact: true }).click(); await expect(edit).toHaveCount(0);
-  await page.getByRole('button', { name: '일정 검색', exact: true }).click(); await page.getByPlaceholder('일정 제목, 메모, 카테고리 검색...').fill('전체 흐름 일정 수정'); await expect(page.getByText('1건', { exact: true })).toBeVisible(); await page.getByText('닫기', { exact: true }).click();
-  await page.getByTitle('이 날짜 일정 전체 복사', { exact: true }).click(); await page.getByRole('button', { name: '복사', exact: true }).click();
+  await page.getByRole('button', { name: '일정 검색', exact: true }).click(); await page.getByPlaceholder('일정 제목, 메모, 카테고리 검색...').fill('전체 흐름 일정 수정'); await expect(page.getByText('1건', { exact: true })).toBeVisible(); await page.getByRole('button', { name: '일정 검색 닫기', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: '날짜별 일정', exact: true }); await page.locator(`[data-calendar-date="${initialDate}"]`).click({ position: { x: 5, y: 5 } });
+  await sheet.getByRole('button', { name: '날짜 작업', exact: true }).click(); await sheet.getByRole('group', { name: '날짜 작업 메뉴' }).getByRole('button', { name: '일정 전체 복사', exact: true }).click(); await page.getByRole('dialog', { name: '일정 복사', exact: true }).getByRole('button', { name: '복사', exact: true }).click();
   await expect.poll(async () => (await data(page)).schedules.filter(s => s.title === '전체 흐름 일정 수정').length).toBe(2);
-  await row().hover(); await row().getByTitle('이동/복사', { exact: true }).click();
+  if (!(await sheet.isVisible())) await page.locator(`[data-calendar-date="${initialDate}"]`).click({ position: { x: 5, y: 5 } });
+  await sheet.locator('[data-day-schedule]').filter({ hasText: '전체 흐름 일정 수정' }).first().getByRole('button', { name: '전체 흐름 일정 수정 이동/복사' }).click();
   await chooseDate(page, '대상 날짜', '2026-12-31'); await page.getByRole('button', { name: '이동', exact: true }).click();
   await expect.poll(async () => (await data(page)).schedules.find(s => s.title === '전체 흐름 일정 수정' && s.date === '2026-12-31')?.date).toBe('2026-12-31');
   expect((await data(page)).schedules.filter(s => s.title === '전체 흐름 일정 수정' && s.date === initialDate)).toHaveLength(0);
