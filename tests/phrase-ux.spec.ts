@@ -1,4 +1,5 @@
 import { presetSearch, saveCurrentTitle } from './helpers/preset-actions';
+import { pickCategory } from './helpers/category';
 import { presetMode } from './helpers/preset-actions';
 import { chooseDate, readDate, expectDate } from './helpers/date';
 import { test, expect, Page } from '@playwright/test';
@@ -52,7 +53,7 @@ test('프리셋 선택·검색·복구·이어 붙이기·현재 제목 저장�
   await saveCurrentTitle(dialog); await expect(dialog.getByRole('status', { name: '프리셋 알림', exact: true })).toContainText('이미 저장');
   await expectDate(dialog, '일정 날짜', '2026-10-30'); await expectTime(dialog, '시작 시간', '11:10');
   await expect(dialog.getByPlaceholder('상세 내용을 메모하세요')).toHaveValue('작성하던 메모');
-  await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await pickCategory(dialog);await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
   const stored = await data(page); expect(stored.schedules.find(s => s.title === '작성하던 제목 운동')).toMatchObject({ date: '2026-10-30', startTime: '11:10', endTime: '12:20', memo: '작성하던 메모', category: '' });
   expect(stored.schedules.find(s => s.id === 'old')?.recurrenceRuleId).toBe('rule');
 });
@@ -130,7 +131,7 @@ test('전체 앱: 제목만 저장·수정·검색·날짜 복사·이동·삭�
   await dialog.getByLabel('일정 제목', { exact: true }).fill('전체 흐름 일정');
   await page.screenshot({ path: 'test-results/minially-desktop.png' });
   const initialDate = await readDate(dialog, '일정 날짜');
-  await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
+  await pickCategory(dialog);await dialog.getByRole('button', { name: '등록', exact: true }).click(); await expect(dialog).toHaveCount(0);
   const row = () => page.locator('[draggable=true]').filter({ has: page.getByTitle('수정', { exact: true }) }).filter({ hasText: '전체 흐름 일정' });
   await row().hover(); await row().getByTitle('수정', { exact: true }).click();
   const edit = page.getByRole('dialog', { name: '일정 수정', exact: true }); await edit.getByLabel('일정 제목', { exact: true }).fill('전체 흐름 일정 수정'); await edit.getByRole('button', { name: '변경사항 저장', exact: true }).click(); await expect(edit).toHaveCount(0);
