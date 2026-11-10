@@ -1,14 +1,31 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { execSync } from 'child_process';
+import { defineConfig, type Plugin } from 'vite';
+
+// 배포 확인용 버전: Cloudflare 빌드는 CF_PAGES_COMMIT_SHA, 그 밖에는 git 커밋
+function commitSha() {
+  if (process.env.CF_PAGES_COMMIT_SHA) return process.env.CF_PAGES_COMMIT_SHA.slice(0, 7);
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try { return execSync('git rev-parse --short=7 HEAD').toString().trim(); } catch { return 'dev'; }
+}
+const APP_VERSION = commitSha();
+const versionFile = (): Plugin => ({
+  name: 'minially-version-file',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ commit: APP_VERSION, builtAt: new Date().toISOString() }) });
+  },
+});
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
   const base = mode === 'github-pages' ? '/minially/' : '/';
   return {
     base,
+    define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
     plugins: [
+      versionFile(),
       react(),
       tailwindcss(),
       VitePWA({

@@ -370,6 +370,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           )}
+          <p className="pt-4 text-center text-[10px] text-app-muted" aria-label="앱 버전">미니어리 버전 {__APP_VERSION__} · 단축키 ?</p>
         </div>
       </div>
     </div>

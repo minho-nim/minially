@@ -48,6 +48,8 @@ export async function ensureSchema(db: D1Database) {
     db.prepare('CREATE INDEX IF NOT EXISTS sync_records_seq ON sync_records (space, seq)'),
     // 공유 코드(보기 전용): 공간마다 하나. 코드 원문 대신 해시만 저장.
     db.prepare('CREATE TABLE IF NOT EXISTS sync_shares (share_hash TEXT PRIMARY KEY, space TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL)'),
+    // 틀린 코드 시도 횟수(IP별, 10분 창)
+    db.prepare('CREATE TABLE IF NOT EXISTS sync_attempts (ip TEXT PRIMARY KEY, window_start INTEGER NOT NULL, failures INTEGER NOT NULL)'),
   ]);
   schemaReady = true;
 }
@@ -59,3 +61,24 @@ export function randomCode() {
   const raw = [...bytes].map(b => ALPHABET[b % 32]).join('');
   return raw.match(/.{4}/g)!.join('-');
 }
+
+// 코드 맞히기 막기: 같은 IP에서 10분 안에 20번 넘게 틀리면 그 10분이 끝날 때까지 막는다.
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_FAILURES = 20;
+const clientIp = (request: Request) => request.headers.get('cf-connecting-ip') ?? 'local';
+
+export async function blocked(db: D1Database, request: Request) {
+  const row = await db.prepare('SELECT window_start, failures FROM sync_attempts WHERE ip = ?').bind(clientIp(request)).first<{ window_start: number; failures: number }>();
+  return !!row && Date.now() - row.window_start < WINDOW_MS && row.failures >= MAX_FAILURES;
+}
+
+export async function recordFailure(db: D1Database, request: Request) {
+  const now = Date.now();
+  await db.prepare(
+    'INSERT INTO sync_attempts (ip, window_start, failures) VALUES (?, ?, 1) ON CONFLICT(ip) DO UPDATE SET ' +
+      'failures = CASE WHEN ? - window_start >= ? THEN 1 ELSE failures + 1 END, ' +
+      'window_start = CASE WHEN ? - window_start >= ? THEN ? ELSE window_start END',
+  ).bind(clientIp(request), now, now, WINDOW_MS, now, WINDOW_MS, now).run();
+}
+
+export const tooManyResponse = () => json({ error: '코드를 너무 많이 틀렸어요. 10분 뒤에 다시 시도해 주세요.' }, 429);

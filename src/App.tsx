@@ -176,6 +176,8 @@ export default function App() {
       await reloadData();
       syncEngine.setRemoteChangeHandler(async () => { setUndoNotice(null); await reloadData(); });
       syncEngine.start();
+      // 브라우저가 저장 공간이 부족할 때 이 사이트 데이터를 지우지 않도록 요청(특히 아이폰)
+      void navigator.storage?.persist?.().catch(() => false);
     }
     init();
   }, [reloadData]);
@@ -613,7 +615,7 @@ export default function App() {
       <div className="min-h-dvh bg-app-canvas flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-app-accent text-white flex items-center justify-center font-bold text-base shadow-2xs animate-pulse">
-            D
+            M
           </div>
           <span className="text-xs font-semibold text-app-muted">미니어리 준비 중...</span>
         </div>

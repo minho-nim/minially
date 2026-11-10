@@ -62,3 +62,22 @@ jobs:
           fi
           echo "::add-mask::$HOOK"
           curl -fsS -X POST "$HOOK" >/dev/null && echo "Cloudflare에 빌드를 요청했어요."
+      - name: 운영 반영 확인(버전)
+        # 사이트의 version.json 커밋이 main과 같아질 때까지 최대 10분 확인. 5분이 지나도 그대로면 배포 훅으로 한 번 더 빌드를 요청한다.
+        env:
+          SITE: ${{ vars.SITE_URL || 'https://minially.pages.dev' }}
+          HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        run: |
+          want=$(git rev-parse --short=7 origin/main)
+          echo "기대 버전: ${want}"
+          kicked=0
+          for i in $(seq 1 40); do
+            have=$(curl -fsS "${SITE}/version.json?nc=${RANDOM}" 2>/dev/null | sed -n 's/.*"commit":"\([0-9a-f]*\)".*/\1/p' || true)
+            if [ "$have" = "$want" ]; then echo "운영 사이트가 ${want}로 바뀌었어요($((i * 15))초)."; exit 0; fi
+            if [ "$i" -eq 20 ] && [ -n "$HOOK" ] && [ "$kicked" -eq 0 ]; then
+              echo "5분이 지나도 그대로(${have:-없음})라 Cloudflare에 다시 빌드를 요청해요."; curl -fsS -X POST "$HOOK" >/dev/null && kicked=1 || true
+            fi
+            sleep 15
+          done
+          echo "::error::10분이 지나도 운영 사이트가 ${want}가 아니에요(지금 ${have:-확인 불가}). Cloudflare Deployments에서 빌드 상태를 확인하세요."
+          exit 1
