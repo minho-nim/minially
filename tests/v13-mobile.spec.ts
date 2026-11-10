@@ -147,7 +147,7 @@ test('긴 목록 내부 스크롤·축소 키보드 영역·입력 및 등록 �
   await page.screenshot({ path: 'test-results/v13-keyboard-area.png' }); await startQuick(sheet(page));await title(page).press('Enter'); await expect.poll(async () => (await data(page)).schedules.some(s => s.title === '작은 키보드 공간')).toBe(true);
 });
 
-test('실제 터치 길게 드래그로 일정 순서 및 프리셋 입력 적용', async ({ page, context }) => {
+test('실제 터치 길게 드래그로 일정 순서 변경 및 프리셋 눌러 입력', async ({ page, context }) => {
   await seed(page); await open(page); await sheet(page).getByRole('button', { name: '목록형', exact: true }).click();
   const cdp = await context.newCDPSession(page);
   async function drag(from: Locator, to: Locator) {
@@ -157,9 +157,11 @@ test('실제 터치 길게 드래그로 일정 순서 및 프리셋 입력 적�
     for (let i=1;i<=15;i++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: start.x+(end.x-start.x)*i/15, y: start.y+(end.y-start.y)*i/15 }] }); await page.waitForTimeout(17); }
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   }
+  await expect.poll(() => rows(page).locator('[data-schedule-title]').allTextContents()).toEqual(['오전 업무', '같은 시간 업무', '학습 일정', '오후 개인', '건강 일정', '시간 없는 첫째', '시간 없는 둘째']); await page.waitForTimeout(400);
   await drag(sheet(page).getByRole('button', { name: '같은 시간 업무 일정 순서 이동' }), rows(page).filter({ hasText: '오전 업무' })); await expect(rows(page).first()).toContainText('같은 시간 업무');
-  await sheet(page).getByRole('button', { name: '프리셋', exact: true }).click();
-  await drag(sheet(page).getByRole('button', { name: '집중 업무 입력창으로 드래그' }), sheet(page).locator('[data-preset-drop]')); await expect(title(page)).toHaveValue('집중 업무'); expect((await data(page)).schedules).toHaveLength(7);
+  await startQuick(sheet(page)); await sheet(page).getByRole('button', { name: '프리셋', exact: true }).click();
+  // 프리셋 끌어 넣기 손잡이는 11-03에 없어지고 누르면 바로 들어간다
+  await sheet(page).getByRole('button', { name: '집중 업무', exact: true }).click(); await expect(title(page)).toHaveValue('집중 업무'); expect((await data(page)).schedules).toHaveLength(7);
 });
 
 test('시트 관리 패널 반복 전환·프리셋 편집·카테고리 이름 입력 취소와 초안 보존', async ({ page }) => {
@@ -185,8 +187,8 @@ test('저장 실패 시 일정 순서 롤백·동시 전송 방지·시트 안 �
   await sheet(page).getByRole('button', { name: '같은 시간 업무 일정 순서 이동', exact: true }).dragTo(rows(page).filter({ hasText: '오전 업무' })); await expect(sheet(page).getByRole('alert')).toContainText('저장하지 못'); await expect(rows(page).first()).toContainText('오전 업무'); expect((await data(page)).schedules).toEqual(before); await page.evaluate(() => (window as any).restore());
   await startQuick(sheet(page));await title(page).fill('중복 요청 없이 한 번');
   await title(page).evaluate((el: HTMLInputElement) => { el.form!.requestSubmit(); el.form!.requestSubmit(); }); await expect.poll(async () => (await data(page)).schedules.length).toBe(8); await expect(title(page)).toHaveValue('');
-  await page.setViewportSize({ width: 320, height: 430 }); await expect(title(page)).toBeInViewport(); await expect(sheet(page).getByRole('button', { name: '등록', exact: true })).toBeInViewport(); await expect(sheet(page).getByRole('button', { name: '실행 취소', exact: true }).first()).toBeVisible(); await page.screenshot({ path: 'test-results/v13-saved-small.png' });
-  await sheet(page).getByRole('button', { name: '실행 취소', exact: true }).first().click(); await expect.poll(async () => (await data(page)).schedules.length).toBe(7); await expect(title(page)).toHaveValue('');
+  await page.setViewportSize({ width: 320, height: 430 }); await expect(title(page)).toBeInViewport(); await expect(sheet(page).getByRole('button', { name: '등록', exact: true })).toBeInViewport(); await expect(sheet(page).getByRole('button', { name: '실행 취소', exact: true }).last()).toBeVisible(); await page.screenshot({ path: 'test-results/v13-saved-small.png' });
+  await sheet(page).getByRole('button', { name: '실행 취소', exact: true }).last().click(); await expect.poll(async () => (await data(page)).schedules.length).toBe(7); await expect(title(page)).toHaveValue('');
 });
 
 test('반복 일정 이동·복사와 원본 시리즈 보존', async ({ page }) => {
