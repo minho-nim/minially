@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['apple-touch-icon.png', 'icon.svg', 'minially-share-20261110.png'],
         manifest: {
           id: base,
           name: '미니어리 (Minially) · 간편 일정관리',

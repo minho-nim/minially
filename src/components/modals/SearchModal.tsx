@@ -61,7 +61,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 검색" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-3 sm:p-4 bg-[rgba(52,40,35,0.30)]">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="일정 검색" onClick={event=>{if(event.target===event.currentTarget){event.preventDefault();event.stopPropagation();onClose();}}} className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-3 sm:p-4 bg-[rgba(52,40,35,0.30)]">
       <div style={{minHeight:'min(240px, calc(var(--modal-height, 100dvh) - 32px))'}} className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[min(80dvh,var(--modal-height,100dvh))]">
         <header className="shrink-0 px-3 py-1.5 border-b border-app-line flex items-center justify-between"><h2 className="text-sm font-bold text-app-ink">일정 검색</h2><button type="button" aria-label="일정 검색 닫기" title="닫기" onClick={onClose} className="min-h-9 min-w-9 flex items-center justify-center rounded-lg text-app-muted hover:bg-app-soft"><X aria-hidden="true" className="h-4 w-4"/></button></header>
         {/* Search Input Bar */}

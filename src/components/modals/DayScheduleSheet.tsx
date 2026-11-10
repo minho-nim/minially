@@ -9,7 +9,6 @@ import { AppSettings, CategoryItem, Preset, Schedule, TitleBlock } from '../../t
 import { formatKoreanDate, formatShortDate } from '../../utils/dateHelpers';
 import { compareSchedules, canReorderSchedules } from '../../utils/scheduleOrder';
 import { getPresetBlocks } from '../../utils/phrases';
-import { useRevealSheetPanel } from '../../hooks/useMobileSheet';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { useDragOrder } from '../../hooks/useDragOrder';
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
@@ -91,7 +90,6 @@ export function DayScheduleSheet(props: Props) {
   const { open, date, schedules, categories, presets, settings, onClose } = props;
   const root = useRef<HTMLDivElement>(null), input = useRef<HTMLInputElement>(null), dropArea = useRef<HTMLDivElement>(null);
   const daySurface = useRef<HTMLElement>(null), composerSurface = useRef<HTMLElement>(null);
-  const expandPopup = React.useCallback(() => {}, []);
   const [drafts, setDrafts] = useState<Record<string, QuickDraft>>({});
   const draft = drafts[date] || emptyDraft();
   const update = (patch: Partial<QuickDraft>) => setDrafts(all => ({ ...all, [date]: { ...(all[date] || emptyDraft()), ...patch } }));
@@ -101,7 +99,6 @@ export function DayScheduleSheet(props: Props) {
   const [panel, setPanel] = useState<'presets' | 'presetManage' | 'categories' | 'categoryManage' | 'options' | null>(null);
   const categoryReturn = useRef<'options' | null>(null);
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
-  useRevealSheetPanel(open && panel==='presets',root,expandPopup);
   const [undoBusy, setUndoBusy] = useState(false);
   const [error, setError] = useState(''), [saving, setSaving] = useState(false), [notice, setNotice] = useState('');
   const [presetApplyMode,setPresetApplyMode] = useState<'replace'|'append'>('append');
@@ -135,7 +132,9 @@ export function DayScheduleSheet(props: Props) {
     if (draft.title !== preset.text) setOldTitle({ text: draft.title, blocks: draft.blocks });
     const parts=getPresetBlocks(preset), current=draft.blocks?.map(b=>b.text).join(' ')===draft.title?draft.blocks:draft.title.trim()?[{id:crypto.randomUUID(),text:draft.title}]:[];
     const next=presetApplyMode==='append'?[...(current || []),...parts]:parts;
-    update({ title: next.map(b=>b.text).join(' '), blocks: next }); setExpanded(true); setPresetApplyMode('append'); setNotice('');
+    const title = next.map(b=>b.text).join(' ');
+    flushSync(() => { update({ title, blocks: next }); setExpanded(true); setPresetApplyMode('append'); setNotice(''); });
+    input.current?.focus({preventScroll:true}); input.current?.setSelectionRange(title.length,title.length);
     void props.onUsePreset(preset.id).catch(() => setError('프리셋 사용 내역을 저장하지 못했습니다. 제목은 유지됩니다.'));
   };
   const touch = useRef<{ preset: Preset; x: number; y: number; since: number; moving: boolean } | null>(null);
@@ -193,32 +192,34 @@ export function DayScheduleSheet(props: Props) {
     </section>
     {(expanded || panel) && <>
       <div className="absolute inset-0 z-10 bg-black/10" aria-hidden="true" onClick={closeComposer}/>
-      <section ref={composerSurface} data-quick-composer data-keyboard-dock data-composer-mode={panel || 'input'} aria-label={panel ? '간편 등록 설정' : '간편 일정 입력'} className="quick-dock absolute z-20 mx-auto max-w-xl max-h-[min(75dvh,var(--modal-height,100dvh))] overflow-y-auto overscroll-contain rounded-3xl border border-app-line bg-app-canvas shadow-xl">
-        <div className="relative flex items-center px-4 pt-2"><span aria-hidden="true" className="absolute left-1/2 top-3 h-1 w-10 -translate-x-1/2 rounded-full bg-app-outline"/><button type="button" aria-label="간편 등록 닫기" className={button+' ml-auto'} onClick={closeComposer}><X className="h-4 w-4"/></button></div>
+      <section ref={composerSurface} data-quick-composer data-keyboard-dock data-composer-mode={panel || 'input'} aria-label={panel && panel !== 'presets' ? '간편 등록 설정' : '간편 일정 입력'} className="quick-dock absolute z-20 mx-auto max-w-xl max-h-[min(75dvh,var(--modal-height,100dvh))] flex flex-col overflow-hidden rounded-3xl border border-app-line bg-app-canvas shadow-xl">
+        <div className="relative flex shrink-0 items-center px-4 pt-2"><span aria-hidden="true" className="absolute left-1/2 top-3 h-1 w-10 -translate-x-1/2 rounded-full bg-app-outline"/><button type="button" aria-label="간편 등록 닫기" className={button+' ml-auto'} onClick={closeComposer}><X className="h-4 w-4"/></button></div>
         {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard}/>}
         {error && <p role="alert" className="px-4 py-1 text-xs text-[#C4476B]">{error}</p>}
-        {panel ? <div data-schedule-panel={panel} className="px-4 pb-4">
+        {panel && panel !== 'presets' ? <div data-schedule-panel={panel} className="min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
           <div className="flex items-center gap-2"><button type="button" aria-label="간편 입력으로" onClick={back} className={button}><ArrowLeft className="h-4 w-4"/></button><h3 className="text-sm font-semibold">{panel === 'categories' ? '카테고리 선택' : panel === 'categoryManage' ? '카테고리 관리' : panel === 'options' ? '빠른 등록 옵션' : '프리셋'}</h3></div>
-        {panel === 'presets' && <div className="pt-3 min-w-0"><InlinePresetPicker selectedBlocks={draft.blocks || []} options={<label className="text-xs flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" className="min-h-9 border rounded-lg bg-white px-2" value={presetApplyMode} onChange={e=>setPresetApplyMode(e.target.value as 'replace'|'append')}><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={settings.presetGroups || []} dragProps={presetDrag} onAdd={(_,preset)=>apply(preset)} onManage={()=>changePanel('presetManage')} onClose={()=>{changePanel(null);focusTitle();}}/></div>}
+
         {panel === 'presetManage' && <div className="pt-3"><PhraseManager hideSearch presets={presets} presetGroups={settings.presetGroups || []} initialMode="manage" onSavePreset={props.onSavePreset} onDeletePreset={props.onDeletePreset} onReorderPresets={props.onReorderPresets} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} /></div>}
         {panel === 'categoryManage' && <div className="pt-3"><CategoryManager categories={categories} schedules={props.categorySchedules} onSaveCategory={props.onSaveCategory} onDeleteCategory={async id => { await props.onDeleteCategory(id); if (draft.category === id) update({ category: '' }); }} onReorderCategories={props.onReorderCategories} onCreated={id => { update({ category: id }); changePanel(categoryReturn.current);if(!categoryReturn.current)focusTitle(); }} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} /></div>}
         {panel === 'categories' && <div className="pt-3 pb-3 space-y-2"><div className="flex justify-between items-center"><p className="text-xs text-app-muted">일정의 카테고리를 선택하세요</p><button type="button" className={button} onClick={() => changePanel('categoryManage')}>편집</button></div><CategoryGrid categories={categories} value={draft.category} onChange={selectCategory}/></div>}
         {panel === 'options' && <div className="pt-3 space-y-3"><p className="text-xs text-app-muted">{formatKoreanDate(date)} · 반복·여러 날짜 등록은 상세 등록에서 설정하세요.</p><label className="flex items-center gap-2 text-sm min-h-9"><input type="checkbox" checked={draft.timed} onChange={e => update({ timed: e.target.checked })} />시간 지정</label>{draft.timed && <div className="flex items-center gap-2"><TimeField label="시작 시간" value={draft.startTime} onChange={startTime => update({ startTime })} /><span>~</span><TimeField label="종료 시간" value={draft.endTime} onChange={endTime => update({ endTime })} /></div>}<button type="button" className={button + ' border border-app-line w-full text-left'} aria-label="카테고리 선택" onClick={() => {categoryReturn.current='options';changePanel('categories');}}>{categories.find(c => c.id === draft.category)?.name || '카테고리 선택하세요'}</button><textarea aria-label="빠른 등록 메모" placeholder="메모" className="w-full min-h-16 p-2 text-base border border-app-line rounded-xl" value={draft.memo} onChange={e => update({ memo: e.target.value })} /><button type="button" className={button} onClick={() => { props.onDetails({ title: draft.title, date, category: draft.category, isImportant: draft.isImportant, startTime: draft.timed ? draft.startTime : '', endTime: draft.timed ? draft.endTime : '', memo: draft.memo, titleBlocks: draft.blocks }, () => update({ title: '', blocks: undefined, isImportant: false, memo: '' })); }}>상세 등록 열기</button></div>}
-        </div> : <div ref={dropArea} data-preset-drop className={'px-4 pb-3 min-w-0 ' + (dropOver ? 'bg-app-soft' : '')} onDragOver={event => { if (event.dataTransfer.types.includes('application/x-minially-preset')) { event.preventDefault(); setDropOver(true); } }} onDragLeave={() => setDropOver(false)} onDrop={event => { const preset = presets.find(item => item.id === event.dataTransfer.getData('application/x-minially-preset')); if (preset) { event.preventDefault(); apply(preset); } setDropOver(false); }}>
+        </div> : <>
+        {panel === 'presets' && <div data-composer-presets data-schedule-panel="presets" className="min-h-0 max-h-48 overflow-y-auto overscroll-contain px-4 pb-2" onPointerDownCapture={event=>{if(document.activeElement===input.current && (event.target as Element).closest('button, summary'))event.preventDefault();}}><InlinePresetPicker selectedBlocks={draft.blocks || []} options={<label className="text-xs flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" className="min-h-9 border rounded-lg bg-white px-2" value={presetApplyMode} onChange={e=>setPresetApplyMode(e.target.value as 'replace'|'append')}><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={settings.presetGroups || []} dragProps={presetDrag} onAdd={(_,preset)=>apply(preset)} onManage={()=>changePanel('presetManage')} onClose={()=>{changePanel(null);focusTitle();}}/></div>}
+        <div ref={dropArea} data-preset-drop className={'shrink-0 px-4 pb-3 min-w-0 ' + (dropOver ? 'bg-app-soft' : '')} onDragOver={event => { if (event.dataTransfer.types.includes('application/x-minially-preset')) { event.preventDefault(); setDropOver(true); } }} onDragLeave={() => setDropOver(false)} onDrop={event => { const preset = presets.find(item => item.id === event.dataTransfer.getData('application/x-minially-preset')); if (preset) { event.preventDefault(); apply(preset); } setDropOver(false); }}>
           <form data-composer-input aria-label="빠른 일정 등록" className="min-w-0 space-y-2" onSubmit={event => { event.preventDefault(); void save(); }}>
             <input data-quick-title ref={input} aria-label="빠른 일정 제목" placeholder="할 일을 입력하세요" enterKeyHint="send" autoComplete="off" readOnly={saving} value={draft.title} onChange={event => update({title:event.target.value,blocks:undefined})} onCompositionStart={() => {composing.current=true;}} onCompositionEnd={() => {composing.current=false;}} onKeyDown={event => {if(event.key==='Enter'&&(event.nativeEvent.isComposing||event.keyCode===229||composing.current))event.preventDefault();}} className="w-full min-w-0 min-h-11 px-1 text-base bg-transparent text-app-ink placeholder:text-app-muted focus:outline-none"/>
-            {draft.blocks && <TitleBlockEditor compact editable hideWordInput blocks={draft.blocks} word="" onWordChange={()=>{}} onChange={blocks=>update({blocks,title:blocks.map(block=>block.text).join(' ')})}/>}
+            {draft.blocks && <div className="max-h-24 overflow-y-auto overscroll-contain"><TitleBlockEditor compact editable hideWordInput blocks={draft.blocks} word="" onWordChange={()=>{}} onChange={blocks=>update({blocks,title:blocks.map(block=>block.text).join(' ')})}/></div>}
             <div className="flex flex-wrap items-center gap-1">
               <span className="inline-flex min-h-9 items-center gap-1 rounded-full bg-white px-2 text-xs text-app-accent"><Calendar className="h-4 w-4"/>{formatShortDate(date)}</span>
               <button type="button" aria-label="중요 일정" aria-pressed={draft.isImportant} className={button} disabled={saving} onClick={()=>update({isImportant:!draft.isImportant})}><Star className={'h-4 w-4 text-app-accent '+(draft.isImportant?'fill-current':'')}/></button>
-              <button type="button" className={button+' text-app-accent'} disabled={saving} onClick={()=>changePanel('presets')}>프리셋</button>
+              <button type="button" className={button+' text-app-accent'} disabled={saving} aria-expanded={panel==='presets'} onPointerDown={event=>{if(document.activeElement===input.current)event.preventDefault();}} onClick={()=>changePanel(panel==='presets'?null:'presets')}>프리셋</button>
               <button type="button" aria-label="빠른 등록 카테고리 선택" className={button+' inline-flex items-center gap-1 rounded-full bg-white'} disabled={saving} onClick={()=>{categoryReturn.current=null;changePanel('categories');}}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{background:categories.find(cat=>cat.id===draft.category)?.color}}/>{categories.find(cat=>cat.id===draft.category)?.name || '카테고리'}</button>
               <button type="button" aria-label="상세 옵션" title="상세 옵션" className={button} disabled={saving} onClick={()=>changePanel('options')}><SlidersHorizontal className="h-4 w-4 text-app-accent"/></button>
               <button type="submit" disabled={saving||!draft.title.trim()} className="ml-auto min-h-9 rounded-full bg-app-accent px-3 text-xs font-semibold text-white disabled:opacity-40">{saving?'저장 중':'등록'}</button>
             </div>
             {oldTitle !== null && <button type="button" className={button} aria-label="이전 제목 복구" onClick={()=>{update({title:oldTitle.text,blocks:oldTitle.blocks});setOldTitle(null);focusTitle();}}><RotateCcw className="h-4 w-4"/></button>}
           </form>
-        </div>}
+        </div></>}
       </section>
     </>}
   </div>;
