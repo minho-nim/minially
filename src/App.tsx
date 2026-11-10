@@ -60,6 +60,7 @@ import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
 import { DayScheduleSheet } from './components/modals/DayScheduleSheet';
 import { TodaySchedulesModal } from './components/modals/TodaySchedulesModal';
 import { getTodayDateString } from './utils/dateHelpers';
+import { syncEngine } from './sync/syncEngine';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
@@ -141,6 +142,7 @@ export default function App() {
       setTasks(loadedTasks);
       setSettings(loadedSettings);
       setIsReady(true);
+      syncEngine.schedule();
     } catch (err) {
       console.error('Failed to load data from IndexedDB', err);
       throw err;
@@ -152,6 +154,8 @@ export default function App() {
     async function init() {
       await initializeDatabase();
       await reloadData();
+      syncEngine.setRemoteChangeHandler(async () => { setUndoNotice(null); await reloadData(); });
+      syncEngine.start();
     }
     init();
   }, [reloadData]);

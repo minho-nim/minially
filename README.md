@@ -42,6 +42,27 @@ npm test
 
 테스트에는 문구 추가·수정·삭제와 취소, 새로고침, 일정 제목 적용과 편집·저장, 기존 일정 보존, JSON 백업·복원, 즐겨찾기·순서, 저장 오류와 재시도, 이전 데이터 이관, 잘못된 복원 롤백이 포함됩니다.
 
+## PC·폰 연결 (서버 동기화)
+
+설정 → **백업/복원** → **PC·폰 연결**에 연결 코드를 입력하면 같은 코드를 쓰는 기기끼리 일정·할 일·문구·카테고리·설정이 자동으로 맞춰집니다. 코드가 없으면 지금처럼 이 브라우저에만 저장합니다.
+
+- 코드 하나가 데이터 공간 하나입니다. 다른 코드의 데이터는 보이지 않습니다.
+- 기기에 먼저 저장하고, 인터넷이 연결되면 서버와 맞춥니다(오프라인에서도 사용 가능). 같은 항목을 두 기기에서 고치면 나중에 맞춘 쪽이 남습니다.
+- 처음 연결할 때 서버와 이 기기에 모두 데이터가 있으면 **합치기** 또는 **서버 데이터로 바꾸기**를 고릅니다.
+- 실행 취소 기록은 기기마다 따로 둡니다.
+
+서버는 Cloudflare Pages Functions(`functions/api/sync.ts`)와 D1입니다. 서버는 코드 원문을 모르고 SHA-256 해시만 가집니다. 표는 첫 요청 때 자동으로 만듭니다.
+
+처음 한 번 설정(Cloudflare 대시보드):
+1. **Storage & Databases → D1 → Create database**, 이름 `minially`
+2. Pages 프로젝트 **minially → Settings → Bindings → Add → D1 database**, 변수 이름 `DB`, 데이터베이스 `minially` (Production)
+3. **Settings → Variables and Secrets → Add**, 종류 **Secret**, 이름 `SYNC_CODE_HASHES`, 값은 코드 해시들을 쉼표로 이은 것
+4. 다시 배포(운영 배포 실행 또는 Deployments에서 Retry)
+
+코드 해시 만들기: `printf '%s' 'ABCD1234EFGH5678' | sha256sum` (대문자, `-` 없이)
+
+로컬 시험: `.dev.vars`에 `SYNC_CODE_HASHES=<해시>`를 넣고 `npm run build && npx wrangler pages dev dist --d1 DB=minially-local`.
+
 ## Cloudflare Pages 배포
 
 **배포 규칙:** Cloudflare는 `release` 브랜치만 운영 배포합니다. `main`에 병합해도 Cloudflare 사이트는 바뀌지 않습니다(GitHub Pages는 main 기준 그대로).

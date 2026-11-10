@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { SyncPanel } from '../common/SyncPanel';
 import {
   Preset,
   CategoryItem,
@@ -242,6 +243,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 4: BACKUP & RESTORE */}
           {activeTab === 'backup' && (
             <div className="space-y-3">
+              <SyncPanel />
               <div>
                 <h4 className="text-sm font-bold text-app-ink">데이터 백업 및 복원</h4>
                 <p className="text-xs text-app-muted">
