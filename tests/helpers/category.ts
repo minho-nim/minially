@@ -1,4 +1,4 @@
-import type { Locator } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 /** 일정 등록 창에서 카테고리 고르기(11월부터 일정 카테고리는 필수). 이름을 안 주면 첫 카테고리 */
 export async function pickCategory(modal: Locator, name?: string) {
@@ -19,7 +19,7 @@ export async function startQuick(sheet: Locator, name?: string) {
 }
 
 /** 날짜 팝업 닫기: 간편 입력 시트가 위에 떠 있으면 먼저 닫는다(11-06부터 입력 시트가 날짜 팝업 위에 따로 뜸) */
-export async function closeSheet(sheet: Locator) {
+export async function closeSheet(sheet: Locator | Page) {
   const composer = sheet.getByRole('button', { name: '간편 등록 닫기', exact: true });
   if (await composer.isVisible()) await composer.click();
   await sheet.getByRole('button', { name: '날짜 팝업 닫기' }).click();
