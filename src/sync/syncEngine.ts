@@ -264,3 +264,15 @@ class SyncEngine {
 }
 
 export const syncEngine = new SyncEngine();
+
+/** 확인 → 서버와 맞춘 뒤 로그아웃 → 새로고침. 맞추지 못하면 한 번 더 묻는다. 취소하면 false */
+export async function confirmAndLogout(): Promise<boolean> {
+  if (!window.confirm('로그아웃할까요? 서버와 맞춘 뒤 이 기기의 데이터를 지우고, 다시 코드를 입력해야 해요. 서버 데이터는 그대로 남아요.')) return false;
+  try { await syncEngine.logout(); }
+  catch (error) {
+    if (!window.confirm(`${error instanceof Error ? error.message : '서버와 맞추지 못했어요.'}\n그래도 로그아웃할까요? 이 기기에서 아직 올라가지 않은 변경은 사라져요.`)) return false;
+    await syncEngine.logout(true);
+  }
+  window.location.reload();
+  return true;
+}

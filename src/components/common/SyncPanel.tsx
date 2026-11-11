@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link2, RefreshCw, Unlink } from 'lucide-react';
-import { syncEngine, type SyncStatus } from '../../sync/syncEngine';
+import { syncEngine, confirmAndLogout, type SyncStatus } from '../../sync/syncEngine';
 
 function timeLabel(at?: number) {
   if (!at) return '';
@@ -72,13 +72,8 @@ export const SyncPanel: React.FC<{ variant?: 'settings' | 'login' }> = ({ varian
               <RefreshCw className={`w-3.5 h-3.5 ${status.kind === 'syncing' ? 'animate-spin' : ''}`} /> 지금 맞추기
             </button>
             <button type="button" disabled={busy} onClick={async () => {
-              if (!window.confirm('로그아웃할까요? 서버와 맞춘 뒤 이 기기의 데이터를 지우고, 다시 코드를 입력해야 해요. 서버 데이터는 그대로 남아요.')) return;
               setBusy(true); setMessage('');
-              try { await syncEngine.logout(); window.location.reload(); }
-              catch (error) {
-                if (window.confirm(`${error instanceof Error ? error.message : '서버와 맞추지 못했어요.'}\n그래도 로그아웃할까요? 이 기기에서 아직 올라가지 않은 변경은 사라져요.`)) { await syncEngine.logout(true); window.location.reload(); }
-                else setBusy(false);
-              }
+              if (!(await confirmAndLogout())) setBusy(false);
             }} className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-app-line text-app-muted hover:text-app-ink disabled:opacity-60 cursor-pointer">
               <Unlink className="w-3.5 h-3.5" /> 로그아웃
             </button>

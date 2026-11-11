@@ -19,9 +19,9 @@ test('코드 로그인: 틀린 코드 거절, 로그인 후 자동 로그인, �
   await expect(pc.getByRole('button', { name: '일정 등록' })).toBeVisible();
   await expect(loginDialog).toHaveCount(0);
 
+  // 설정 창 아래쪽의 로그아웃 단추(어느 탭에서나 보임)
   await pc.getByRole('button', { name: '설정 및 프리셋' }).click();
-  await pc.getByRole('button', { name: '백업/복원' }).click();
-  await pc.getByRole('button', { name: '로그아웃' }).click();
+  await pc.getByRole('dialog', { name: '설정', exact: true }).getByRole('button', { name: '로그아웃', exact: true }).last().click();
   await expect(loginDialog).toBeVisible({ timeout: 10000 });
   expect(await titles(pc)).toEqual([]);
 

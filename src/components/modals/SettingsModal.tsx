@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { SyncPanel } from '../common/SyncPanel';
 import { SharePanel } from '../common/SharePanel';
 import { ReminderSetting } from '../common/ReminderSetting';
+import { syncEngine, confirmAndLogout } from '../../sync/syncEngine';
 import {
   Preset,
   CategoryItem,
@@ -97,7 +98,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]">
+    <div ref={modalRef} role="dialog" aria-modal="true" aria-label="설정" className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-50 flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={event => { if (event.target === event.currentTarget) requestClose(); }}>
       <div className="w-full sm:max-w-xl bg-white rounded-2xl shadow-xl border border-app-line overflow-hidden flex flex-col max-h-[calc(var(--modal-height,100dvh)-40px)] pb-safe safe-bottom">
 
         {/* Header */}
@@ -375,7 +376,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             </div>
           )}
-          <p className="pt-4 text-center text-[10px] text-app-muted" aria-label="앱 버전">미니어리 버전 {__APP_VERSION__} · 단축키 ?</p>
+          <div className="pt-4 flex items-center justify-between gap-2">
+            <p className="text-[10px] text-app-muted" aria-label="앱 버전">미니어리 버전 {__APP_VERSION__} · 단축키 ?</p>
+            {syncEngine.connected && <button type="button" onClick={() => void confirmAndLogout()} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-app-line text-app-muted hover:text-red-600 hover:border-red-200 cursor-pointer">로그아웃</button>}
+          </div>
         </div>
       </div>
     </div>

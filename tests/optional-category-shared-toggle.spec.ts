@@ -52,3 +52,14 @@ test('캘린더의 같이 보기 전환으로 공유 일정 켜고 끄기, 설�
   await expect(page.getByRole('dialog', { name: '단축키', exact: true })).toContainText('새 일정');
   await expect(page.getByRole('dialog', { name: '설정', exact: true })).toHaveCount(0);
 });
+
+test('설정 창 바깥을 누르면 닫히고, 저장 안 한 변경이 있으면 먼저 확인', async ({ page }) => {
+  const settings = page.getByRole('dialog', { name: '설정', exact: true });
+  await page.getByRole('button', { name: '설정 및 프리셋' }).click(); await expect(settings).toBeVisible();
+  await page.mouse.click(5, 5); await expect(settings).toHaveCount(0);
+  await page.getByRole('button', { name: '설정 및 프리셋' }).click();
+  await settings.getByRole('button', { name: '카테고리', exact: true }).click();
+  await settings.getByPlaceholder('카테고리 이름').fill('저장 안 한 이름');
+  await page.mouse.click(5, 5); await expect(settings).toBeVisible(); // 작성 중이면 바로 닫지 않음
+  await expect(page.getByText(/버리|계속 작성/).first()).toBeVisible();
+});
