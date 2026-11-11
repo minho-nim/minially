@@ -70,11 +70,11 @@ test('카테고리 생성·선택·수정·고정 색상·순서·취소·삭제
   await row.getByRole('button', { name: '수정', exact: true }).click(); await manager.getByPlaceholder('카테고리 이름').fill('생활'); await manager.getByRole('button', { name: '변경사항 저장', exact: true }).click();
   await expect(row).toContainText('생활'); expect((await data(page)).categories.find(c => c.id === 'a')).toMatchObject({ name: '생활', color: '#112233' });
   await row.getByRole('button', { name: '카테고리 아래로 이동', exact: true }).click(); await expect(manager.getByRole('listitem').first()).toHaveAttribute('data-category-id', 'b');
-  // 11-06부터 일정이 쓰는 카테고리는 지울 수 없다(일정 카테고리 필수). 안내 후 취소하면 참조가 그대로 남는다.
-  await row.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toContainText('사용 중인 카테고리입니다');
-  await row.getByRole('group', { name: '카테고리 삭제 확인' }).getByRole('button', { name: '취소', exact: true }).click(); await expect(row).toHaveCount(1);
-  const result = await data(page); expect(result.schedules.find(s => s.id === 'old')).toMatchObject({ category: 'a', title: '기존 반복 일정', recurrenceRuleId: 'rule' }); expect(result.recurrenceRules).toHaveLength(1);
-  await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect((await data(page)).categories.some(c => c.id === 'a')).toBe(true);
+  // 일정이 쓰는 카테고리를 지우면 그 일정은 미분류가 된다(일정·반복 규칙은 그대로)
+  await row.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toContainText('일정 1개는 미분류가 됩니다');
+  await row.getByRole('group', { name: '카테고리 삭제 확인' }).getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toHaveCount(0);
+  const result = await data(page); expect(result.schedules.find(s => s.id === 'old')).toMatchObject({ category: '', title: '기존 반복 일정', recurrenceRuleId: 'rule' }); expect(result.recurrenceExceptions[0].modifiedSchedule).toMatchObject({ category: '', title: '반복 수정' }); expect(result.recurrenceRules).toHaveLength(1);
+  await page.reload({ waitUntil: 'domcontentloaded' }); await open(page); expect((await data(page)).categories.some(c => c.id === 'a')).toBe(false); expect((await data(page)).schedules.find(s => s.id === 'old')?.category).toBe('');
 });
 
 test('등록창·프리셋·카테고리 각각 20회 반복, Escape·뒤로가기·포커스·스크롤 복구', async ({ page }) => {

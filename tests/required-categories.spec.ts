@@ -49,14 +49,19 @@ for (const width of [390, 1280]) {
       await page.getByRole('button', { name: '일정 등록', exact: true }).click();
       const detail = page.getByRole('dialog', { name: '새 일정', exact: true });
       await detail.getByPlaceholder('일정 제목을 입력하세요').fill('분류 필수 상세 일정');
+      // 카테고리는 선택 사항: 고르지 않으면 미분류로 등록된다
+      await expect(detail.getByRole('button', { name: '카테고리 선택', exact: true })).toContainText('미분류');
       await detail.getByRole('button', { name: '등록', exact: true }).click();
-      await expect(detail.getByRole('group', { name: '카테고리 목록' })).toBeVisible();
-      expect(await page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllSchedules()).length; })).toBe(1);
+      await expect(detail).toHaveCount(0);
+      await expect.poll(() => page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllSchedules()).find((s: any) => s.title === '분류 필수 상세 일정')?.category; })).toBe('');
+      await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+      await detail.getByPlaceholder('일정 제목을 입력하세요').fill('분류한 상세 일정');
+      await detail.getByRole('button', { name: '카테고리 선택', exact: true }).click();
       await detail.getByRole('group', { name: '카테고리 목록' }).getByRole('button', { name: '기타', exact: true }).click();
       await detail.getByRole('button', { name: '등록', exact: true }).click();
       await expect(detail).toHaveCount(0);
       await page.reload();
-      await expect.poll(() => page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllSchedules()).find((s: any) => s.title === '분류 필수 상세 일정')?.category; })).toBe('category-other');
+      await expect.poll(() => page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await (await import(path)).getAllSchedules()).find((s: any) => s.title === '분류한 상세 일정')?.category; })).toBe('category-other');
     });
   });
 }
@@ -75,22 +80,27 @@ test('legacy schedules, backup imports, atomic validation and fixed unique color
     const attempt = async (action: () => Promise<unknown>) => { try { await action(); } catch (error) { errors.push(String(error)); } };
     await attempt(() => db.saveCategory({ ...migrated.categories.find((c: any) => c.id === 'a'), color: '#B4A2D3' }));
     await attempt(() => db.saveCategory({ id: 'duplicate', name: '중복', color: '#CF8FA8' }));
-    await attempt(() => db.saveSchedule({ id: 'invalid', title: '미분류 차단', date: '2026-11-06', category: '' }));
+    await db.saveSchedule({ id: 'uncategorized', title: '미분류 허용', date: '2026-11-06', category: '' });
     await attempt(() => db.batchSaveSchedules([{ id: 'valid', title: '배치도 원자적', date: '2026-11-06', category: 'a' }, { id: 'invalid2', title: '잘못된 분류', date: '2026-11-06', category: 'missing' }]));
-    await attempt(() => db.applyScheduleHistory({ id: 'h', timestamp: Date.now(), action: 'CREATE', description: '', previousSchedules: [], newSchedules: [{ id: 'invalid-history', title: '실행 취소 경로', date: '2026-11-06', category: '' }] }));
+    await attempt(() => db.applyScheduleHistory({ id: 'h', timestamp: Date.now(), action: 'CREATE', description: '', previousSchedules: [], newSchedules: [{ id: 'invalid-history', title: '실행 취소 경로', date: '2026-11-06', category: 'missing' }] }));
     const freeColor = '#9DB6A2';
     const concurrent = await Promise.allSettled(['one','two'].map(id => db.saveCategory({ id, name: id, color: freeColor })));
     const after = await db.exportAllData();
-    await attempt(() => db.deleteCategory(after.schedules[0].category));
-    return { migrated, after, errors, concurrent: concurrent.map(r => r.status) };
+    await db.saveSchedule({ id: 'uses-a', title: 'A 사용', date: '2026-11-06', category: 'a' }); await db.deleteCategory('a');
+    const deleted = await db.exportAllData();
+    return { migrated, after, deleted, errors, concurrent: concurrent.map(r => r.status) };
   });
   expect(result.migrated.categories.map((c: any) => c.id)).toEqual(expect.arrayContaining(['a', 'b']));
   expect(new Set(result.after.categories.map((c: any) => c.color.toLowerCase())).size).toBe(result.after.categories.length);
-  const fallback = result.migrated.categories.find((c: any) => c.name === '기타');
-  expect(result.migrated.schedules[0]).toMatchObject({ id: 'old', category: fallback.id, memo: '보존' });
-  expect(result.migrated.recurrenceExceptions[0].modifiedSchedule.category).toBe(fallback.id);
-  expect(result.after.schedules).toHaveLength(1);
+  // 카테고리는 선택 사항: 미분류(빈 값)는 그대로 두고 '기타'를 만들지 않는다
+  expect(result.migrated.categories.some((c: any) => c.name === '기타')).toBe(false);
+  expect(result.migrated.schedules[0]).toMatchObject({ id: 'old', category: '', memo: '보존' });
+  expect(result.migrated.recurrenceExceptions[0].modifiedSchedule.category).toBe('');
+  expect(result.after.schedules.map((s: any) => s.id).sort()).toEqual(['old', 'uncategorized']);
+  // 쓰던 카테고리를 지우면 그 일정은 미분류가 된다
+  expect(result.deleted.categories.some((c: any) => c.id === 'a')).toBe(false);
+  expect(result.deleted.schedules.find((s: any) => s.id === 'uses-a').category).toBe('');
   expect(result.after.categories.find((c: any) => c.id === 'a').color).toBe('#CF8FA8');
-  expect(result.errors).toHaveLength(6);
+  expect(result.errors).toHaveLength(4); // 색 변경·중복 색·없는 카테고리(일괄 저장)·없는 카테고리(실행 취소 경로)
   expect(result.concurrent.sort()).toEqual(['fulfilled','rejected']);
 });

@@ -17,7 +17,7 @@ export async function pickCategory(modal: Locator, name?: string) {
   await ensureCategories(modal);
   const button = modal.getByRole('button', { name: '카테고리 선택', exact: true });
   // 이름을 안 줬고 이미 골라 둔 카테고리가 있으면 그대로 둔다
-  if (!name && !(await button.innerText()).includes('선택하세요')) return;
+  if (!name && !(await button.innerText()).includes('미분류')) return;
   await button.click();
   const grid = modal.getByRole('group', { name: '카테고리 목록' });
   await (name ? grid.getByRole('button', { name, exact: true }) : grid.getByRole('button').first()).click();

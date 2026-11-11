@@ -40,6 +40,8 @@ interface CalendarViewProps {
   onOpenMoveModal: (schedule: Schedule) => void;
   onOpenPresetModal: () => void;
   onOpenCategoryModal: () => void;
+  /** 달 이동 줄 오른쪽에 놓는 추가 단추(같이 보기 전환 등) */
+  headerExtra?: React.ReactNode;
 }
 
 type CalendarMode = 'month' | 'week';
@@ -60,6 +62,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   onOpenMoveModal,
   onOpenPresetModal,
   onOpenCategoryModal,
+  headerExtra,
 }) => {
   const todayStr = getTodayDateString();
   const [viewMode, setViewMode] = useState<CalendarMode>(settings.defaultView || 'month');
@@ -473,6 +476,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             오늘
           </button>
         </div>
+        {headerExtra}
       </div>
 
       {/* Main Container: Unified Calendar Surface */}

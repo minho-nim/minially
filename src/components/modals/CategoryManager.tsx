@@ -52,8 +52,8 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
           })}>{direction < 0 ? '↑' : '↓'}</button>)}
         </div>
         {deleting === cat.id && <div role="group" aria-label="카테고리 삭제 확인" className="text-xs space-y-1 p-2 bg-app-canvas rounded-lg">
-          <p>{schedules.some(s => s.category === cat.id) ? '사용 중인 카테고리입니다. 일정의 카테고리를 먼저 변경해 주세요.' : '이 카테고리를 삭제할까요?'}</p>
-          <button type="button" disabled={categories.length <= 1 || schedules.some(s => s.category === cat.id)} className={button} onClick={() => void run(async () => { await onDeleteCategory(cat.id); setDeleting(null); if (editing === cat.id) reset(); })}>삭제</button>
+          <p>{schedules.some(s => s.category === cat.id) ? `이 카테고리를 쓰는 일정 ${schedules.filter(s => s.category === cat.id).length}개는 미분류가 됩니다. 삭제할까요?` : '이 카테고리를 삭제할까요?'}</p>
+          <button type="button" className={button} onClick={() => void run(async () => { await onDeleteCategory(cat.id); setDeleting(null); if (editing === cat.id) reset(); })}>삭제</button>
           <button type="button" className={button} onClick={() => setDeleting(null)}>취소</button>
         </div>}
       </li>)}

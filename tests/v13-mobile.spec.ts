@@ -58,7 +58,7 @@ test('신규 사용자 빈 카테고리, 부분 시트·보기 저장·카테고
   expect(await page.evaluate(() => scrollY)).toBe(scrollBefore);
   /* 11-04 가운데 팝업: 열림 움직임이 끝난 뒤 높이 */ await expect.poll(async () => (await sheet(page).locator('.day-sheet').boundingBox())!.height).toBeGreaterThan(844 * .45); expect((await sheet(page).locator('.day-sheet').boundingBox())!.height).toBeLessThan(844 * .7);
   await expect(sheet(page).getByRole('region', { name: '업무', exact: true })).toBeVisible();
-  expect(await sheet(page).locator('h3').allTextContents()).toEqual(['업무', '개인', '학습', '건강', '기타']);
+  expect(await sheet(page).locator('h3').allTextContents()).toEqual(['업무', '개인', '학습', '건강', '미분류']);
   await expect(rows(page).filter({ hasText: '오전 업무' }).locator('[data-schedule-title]')).toHaveCSS('font-weight', '700');
   await sheet(page).getByRole('button', { name: '목록형', exact: true }).click();
   await expect.poll(() => rows(page).locator('[data-schedule-title]').allTextContents()).toEqual(['오전 업무', '같은 시간 업무', '학습 일정', '오후 개인', '건강 일정', '시간 없는 첫째', '시간 없는 둘째']);
@@ -109,7 +109,7 @@ test('빠른 프리셋 선택·검색·마우스 드롭·복구·관리·다른 
   await sheet(page).getByRole('button',{name:'간편 입력으로',exact:true}).click(); await startQuick(sheet(page));await title(page).press('Enter'); await expect.poll(async () => (await data(page)).schedules.length).toBe(8); expect((await data(page)).schedules.find(s => s.title === '준비 회의')).toMatchObject({ startTime: '09:05', endTime: '10:00', memo: '유지할 메모' });
 });
 
-test('시트 안 카테고리 추가·이름·고정 색상·사용 중 삭제 막기, 상세 등록 이어받기', async ({ page }) => {
+test('시트 안 카테고리 추가·이름·고정 색상·사용 중 삭제 시 미분류, 상세 등록 이어받기', async ({ page }) => {
   await open(page); await startQuick(sheet(page)); await title(page).fill('직접 분류할 일정');
   const categories = async () => { await startQuick(sheet(page)); await sheet(page).getByRole('button', { name: '상세 옵션', exact: true }).click(); await sheet(page).getByRole('button', { name: '카테고리 선택', exact: true }).click(); await sheet(page).getByRole('button', { name: '편집', exact: true }).click(); };
   await categories(); await sheet(page).getByPlaceholder('카테고리 이름').fill('내 분류'); await expect(sheet(page).getByLabel('HEX 색상')).toHaveCount(0); await sheet(page).getByRole('button', { name: '추가', exact: true }).click(); await expect(sheet(page).getByRole('button', { name: '카테고리 선택', exact: true })).toHaveText('내 분류');
@@ -117,9 +117,9 @@ test('시트 안 카테고리 추가·이름·고정 색상·사용 중 삭제 �
   await editor.getByRole('button', { name: '중요 일정', exact: true }).click(); await editor.getByRole('button', { name: '등록', exact: true }).click(); await expect(sheet(page)).toBeVisible();
   const saved = (await data(page)).schedules.find(s => s.title === '직접 분류할 일정')!; expect(saved).toMatchObject({ isImportant: true }); const mine = (await data(page)).categories.find(c => c.name === '내 분류')!; expect(saved.category).toBe(mine.id);
   await categories(); const row = sheet(page).locator(`[data-category-id="${mine.id}"]`); await row.getByRole('button', { name: '수정', exact: true }).click(); await sheet(page).getByPlaceholder('카테고리 이름').fill('수정한 분류'); await sheet(page).getByRole('button', { name: '변경사항 저장', exact: true }).click(); await expect(row).toContainText('수정한 분류');
-  // 11-06부터 일정이 쓰는 카테고리는 지울 수 없다
-  await row.getByRole('button', { name: '삭제', exact: true }).click(); const confirmation = row.getByRole('group', { name: '카테고리 삭제 확인' }); await expect(confirmation).toContainText('사용 중인 카테고리입니다'); await confirmation.getByRole('button', { name: '취소', exact: true }).click(); await expect(row).toHaveCount(1);
-  expect((await data(page)).schedules.find(s => s.title === '직접 분류할 일정')).toMatchObject({ category: mine.id, isImportant: true });
+  // 일정이 쓰는 카테고리를 지우면 그 일정은 미분류가 된다
+  await row.getByRole('button', { name: '삭제', exact: true }).click(); const confirmation = row.getByRole('group', { name: '카테고리 삭제 확인' }); await expect(confirmation).toContainText('일정 1개는 미분류가 됩니다'); await confirmation.getByRole('button', { name: '삭제', exact: true }).click(); await expect(row).toHaveCount(0);
+  expect((await data(page)).schedules.find(s => s.title === '직접 분류할 일정')).toMatchObject({ category: '', isImportant: true });
 });
 
 test('일정 드래그·동일 시간 순서·다른 시간 거부·새로고침 유지', async ({ page }) => {

@@ -654,6 +654,17 @@ export default function App() {
             }}
             onOpenPresetModal={() => setPresetLibraryOpen(true)}
             onOpenCategoryModal={() => setCategoryLibraryOpen(true)}
+            headerExtra={!!settings.sharedViews?.length && (
+              <div role="group" aria-label="같이 보기 전환" className="flex flex-wrap items-center justify-end gap-1">
+                {settings.sharedViews.map(view => (
+                  <button key={view.id} type="button" aria-pressed={view.visible} title={view.visible ? `${view.label} 일정 숨기기` : `${view.label} 일정 보기`}
+                    onClick={() => void handleUpdateSettings({ ...settings, sharedViews: settings.sharedViews!.map(v => v.id === view.id ? { ...v, visible: !v.visible } : v) })}
+                    className={`inline-flex items-center gap-1 min-h-8 px-2.5 rounded-full border text-xs cursor-pointer transition-colors ${view.visible ? 'border-app-outline bg-white text-app-ink font-semibold' : 'border-app-line bg-transparent text-app-muted line-through'}`}>
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: view.visible ? view.color : 'transparent', border: `1.5px solid ${view.color}` }} />{view.label}
+                  </button>
+                ))}
+              </div>
+            )}
           />
         )}
 
@@ -769,6 +780,7 @@ export default function App() {
       <SettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
+        onOpenShortcuts={() => { setSettingsModalOpen(false); setShortcutHelpOpen(true); }}
         presets={presets}
         categories={categories}
         settings={settings}

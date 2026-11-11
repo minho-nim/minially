@@ -279,16 +279,11 @@ async function normalizeCategoryTransaction(tx: IDBPTransaction<DayFlowDBSchema,
       assigned.push(category);
     }
     const ids = new Set(categories.map(cat => cat.id));
-    const invalid = (schedule: Partial<Schedule>) => !ids.has(schedule.category || '');
+    // 없는 카테고리를 가리키는 일정은 미분류(빈 값)로 돌린다.
+    const invalid = (schedule: Partial<Schedule>) => !!schedule.category && !ids.has(schedule.category);
     const invalidException = (ex: RecurrenceException) => ex.modifiedSchedule?.category !== undefined && invalid(ex.modifiedSchedule);
-    const needsFallback = schedules.some(invalid) || exceptions.some(invalidException) || history.some(entry => [...entry.previousSchedules, ...entry.newSchedules].some(invalid) || [...(entry.previousExceptions || []), ...(entry.newExceptions || [])].some(invalidException));
-    let fallback = categories.find(cat => cat.name === '기타');
-    if (needsFallback && !fallback) {
-      fallback = { id: crypto.randomUUID(), name: '기타', color: nextCategoryColor(categories), isUserManaged: true, sortOrder: categories.length };
-      categories.push(fallback);
-    }
-    const fix = (schedule: Schedule): Schedule => invalid(schedule) ? { ...schedule, category: fallback!.id } : schedule;
-    const fixException = (ex: RecurrenceException): RecurrenceException => invalidException(ex) ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: fallback!.id } } : ex;
+    const fix = (schedule: Schedule): Schedule => invalid(schedule) ? { ...schedule, category: '' } : schedule;
+    const fixException = (ex: RecurrenceException): RecurrenceException => invalidException(ex) ? { ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: '' } } : ex;
     for (const cat of categories) await tx.objectStore('categories').put(cat);
     for (const schedule of schedules) if (invalid(schedule)) await tx.objectStore('schedules').put(fix(schedule));
     for (const ex of exceptions) if (invalidException(ex)) await tx.objectStore('recurrenceExceptions').put(fixException(ex));
@@ -298,7 +293,8 @@ async function normalizeCategoryTransaction(tx: IDBPTransaction<DayFlowDBSchema,
 }
 
 function requireCategory(schedule: Partial<Schedule>, categories: CategoryItem[]) {
-  if (!schedule.category || !categories.some(cat => cat.id === schedule.category)) throw new Error('카테고리를 선택해 주세요.');
+  // 카테고리는 선택 사항(빈 값 = 미분류). 고른 경우에는 있는 카테고리여야 한다.
+  if (schedule.category && !categories.some(cat => cat.id === schedule.category)) throw new Error('없는 카테고리입니다. 다시 선택해 주세요.');
 }
 
 // Schedule Operations
@@ -520,10 +516,10 @@ export async function deleteCategory(id: string): Promise<void> {
     const categories = await tx.objectStore('categories').getAll();
     const schedules = await tx.objectStore('schedules').getAll();
     const exceptions = await tx.objectStore('recurrenceExceptions').getAll();
-    const used = new Set([...schedules.map(item => item.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
-    const remaining = visibleCategories(categories, used).filter(cat => cat.id !== id);
-    if (schedules.some(item => item.category === id) || exceptions.some(ex => ex.modifiedSchedule?.category === id)) throw new Error('사용 중인 카테고리입니다. 일정의 카테고리를 먼저 변경해 주세요.');
-    const replacement = remaining.find(cat => cat.name === '기타')?.id || remaining[0]?.id || '';
+    // 이 카테고리를 쓰던 일정은 미분류(빈 값)가 된다.
+    for (const item of schedules) if (item.category === id) await tx.objectStore('schedules').put({ ...item, category: '' });
+    for (const ex of exceptions) if (ex.modifiedSchedule?.category === id) await tx.objectStore('recurrenceExceptions').put({ ...ex, modifiedSchedule: { ...ex.modifiedSchedule, category: '' } });
+    const replacement = '';
     for (const preset of await tx.objectStore('presets').getAll()) {
       if (preset.defaultCategory === id) await tx.objectStore('presets').put({ ...preset, defaultCategory: '' });
     }

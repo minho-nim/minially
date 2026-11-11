@@ -29,6 +29,7 @@ import { usePWAInstall } from '../../hooks/usePWAInstall';
 interface SettingsModalProps extends CategoryActions {
   isOpen: boolean;
   onClose: () => void;
+  onOpenShortcuts?: () => void;
   presets: Preset[];
   categories: CategoryItem[];
   settings: AppSettings;
@@ -46,6 +47,7 @@ type SettingsTab = 'presets' | 'categories' | 'calendar' | 'share' | 'backup' | 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
+  onOpenShortcuts,
   presets,
   categories,
   schedules, onReorderCategories,
@@ -101,6 +103,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Header */}
         <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <h3 className="text-base font-bold text-app-ink">설정</h3>
+          {onOpenShortcuts && <button type="button" onClick={() => { if (requestClose() !== false) onOpenShortcuts(); }} aria-label="단축키 도움말" title="단축키 도움말" className="ml-auto mr-1 w-7 h-7 flex items-center justify-center rounded-full border border-app-line text-sm font-bold text-app-muted hover:text-app-ink hover:bg-app-soft cursor-pointer">?</button>}
           <button
             onClick={requestClose}
             aria-label="설정 닫기"

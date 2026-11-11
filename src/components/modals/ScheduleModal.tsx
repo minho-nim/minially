@@ -240,7 +240,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     const trimmedTitle = (composition ? composition.map(b => b.text).join(' ') : title).trim();
     if (!trimmedTitle || savingRef.current) return false;
     if (titleBlocks.some(b => !b.text.trim())) { setSaveError('빈 제목 블록을 입력하거나 제거해 주세요.'); return false; }
-    if (!categories.some(cat => cat.id === category)) { setSaveError('카테고리를 선택해 주세요.'); setCategoryPanel('select'); return false; }
+    if (category && !categories.some(cat => cat.id === category)) { setSaveError('없는 카테고리입니다. 다시 선택해 주세요.'); setCategoryPanel('select'); return false; }
     if (!date) { setSaveError('날짜를 선택해 주세요.'); return false; }
     if (!occurrence && repeat !== 'none' && repeatEnd && repeatEnd < date) { setSaveError('반복 종료일은 시작 날짜 이후로 선택해 주세요.'); return false; }
     if (!isEditing && allDates.length > 1 && repeat !== 'none') { setSaveError('반복 일정은 하나의 기준 날짜로 등록해 주세요.'); return false; }
@@ -328,6 +328,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             />
           </> : categoryPanel === 'manage' ? <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={async id => { await onDeleteCategory(id); if (category === id) setCategory(''); }} onReorderCategories={onReorderCategories} onCreated={id => { setCategory(id); returnToSchedule(); }} /> : <div className="space-y-2">
             <CategoryGrid categories={categories} value={category} onChange={id=>{setCategory(id);returnToSchedule();}}/>
+            <button type="button" aria-pressed={!category} className="w-full min-h-10 px-3 rounded-xl border border-app-line text-sm" onClick={()=>{setCategory('');returnToSchedule();}}>카테고리 없음 (미분류)</button>
             <button type="button" className="min-h-10 px-3 text-app-accent-hover" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
             <button type="button" className="min-h-9 px-3 text-app-accent-hover" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
           </div>}
@@ -421,7 +422,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                   )}
                 </div>
 
-          <div><label className="block text-xs font-semibold mb-1">카테고리</label><button type="button" aria-label="카테고리 선택" className="w-full flex items-center gap-2 px-3 py-2.5 border border-app-line rounded-xl text-sm" onClick={() => setCategoryPanel('select')}><span className="w-2.5 h-2.5 rounded-full" style={{ background: categories.find(c => c.id === category)?.color || '#D6CCD0' }} />{categories.find(c => c.id === category)?.name || (isEditing ? '미분류' : '선택하세요')}<ChevronDown className="w-4 h-4 ml-auto" /></button></div>
+          <div><label className="block text-xs font-semibold mb-1">카테고리</label><button type="button" aria-label="카테고리 선택" className="w-full flex items-center gap-2 px-3 py-2.5 border border-app-line rounded-xl text-sm" onClick={() => setCategoryPanel('select')}><span className="w-2.5 h-2.5 rounded-full" style={{ background: categories.find(c => c.id === category)?.color || '#D6CCD0' }} />{categories.find(c => c.id === category)?.name || '미분류'}<ChevronDown className="w-4 h-4 ml-auto" /></button></div>
           {/* 3. Collapsible Additional Options Toggle */}
           <div>
             <button
