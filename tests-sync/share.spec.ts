@@ -18,8 +18,8 @@ test('일정 공유: 고른 카테고리만 보기 전용으로 보이고, 코�
   await a.getByRole('button', { name: '공유', exact: true }).click();
   await a.getByRole('button', { name: '공유 코드 만들기' }).click();
   const shareCode = (await a.getByLabel('내 공유 코드').innerText()).trim();
-  await a.getByPlaceholder('예: 민호').fill('민호');
-  await a.getByPlaceholder('예: 민호').blur();
+  await a.getByLabel('상대에게 보일 내 이름').fill('민호');
+  await a.getByLabel('상대에게 보일 내 이름').blur();
   await a.locator('label', { hasText: '약속' }).click();
   await a.getByText('할 일도 공유하기').click();
   await a.keyboard.press('Escape');

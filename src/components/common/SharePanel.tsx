@@ -67,7 +67,7 @@ export const SharePanel: React.FC<Props> = ({ settings, categories, onUpdateSett
               <button type="button" className={btn} onClick={() => { void navigator.clipboard?.writeText(share.code!); setMessage('공유 코드를 복사했어요.'); }}><Copy className="w-3.5 h-3.5" />복사</button>
             </div>
             <label className="block text-xs text-app-muted">상대에게 보일 내 이름
-              <input value={name} maxLength={20} onChange={e => setName(e.target.value)} onBlur={() => { if (name.trim() !== share.name) void saveShare({ name: name.trim() }); }} placeholder="예: 민호" className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-app-line bg-white text-app-ink" />
+              <input value={name} maxLength={20} onChange={e => setName(e.target.value)} onBlur={() => { if (name.trim() !== share.name) void saveShare({ name: name.trim() }); }} className="mt-1 w-full px-3 py-2 text-sm rounded-lg border border-app-line bg-white text-app-ink" />
             </label>
             <fieldset>
               <legend className="text-xs text-app-muted mb-1">공유할 카테고리</legend>
