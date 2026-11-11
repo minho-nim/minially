@@ -49,8 +49,8 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(async ({ page }) => expect(errors.get(page)).toEqual([]));
 
 test('신규 사용자 빈 카테고리, 부분 시트·보기 저장·카테고리 색상 및 중요 표시', async ({ page }) => {
-  // 11-06부터 신규 사용자에게 기본 카테고리 4개(일·중요·기타·데이트)를 준다
-  expect((await data(page)).categories.map(c => c.name).sort()).toEqual(['기타', '데이트', '일', '중요']);
+  // 신규 사용자는 카테고리가 비어 있다(기본 카테고리를 넣지 않음)
+  expect((await data(page)).categories).toEqual([]);
   await seed(page); const cell = page.locator(`[data-calendar-date="${day}"]`);
   await expect(cell.locator('[data-mobile-calendar-titles] [data-calendar-title]')).toHaveCount(2);
   await expect(cell.getByText('+5개', { exact: true })).toBeVisible(); await expect(cell.locator('[data-mobile-calendar-titles]').getByLabel('오전 업무',{exact:true})).toBeVisible();

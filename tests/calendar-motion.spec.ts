@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import {closeSheet} from './helpers/category';
+import {closeSheet, ensureCategories } from './helpers/category';
 
 test.use({viewport:{width:390,height:844},hasTouch:true});
 test('pressed date opens from its position and the rounded composer docks to the visual viewport',async({page})=>{
-  await page.goto('/');await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();
+  await page.goto('/');await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();await ensureCategories(page);
   const cell=page.locator('[data-calendar-date]').nth(24), bounds=(await cell.boundingBox())!;
   expect(await page.locator('[data-calendar-swipe] [data-swipe-track]').evaluate(el=>parseFloat(getComputedStyle(el).columnGap))).toBe(24);
   await page.mouse.move(bounds.x+bounds.width/2,bounds.y+12);await page.mouse.down();

@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test';
-import {closeSheet} from './helpers/category';
+import {closeSheet, ensureCategories } from './helpers/category';
 
 for (const width of [390, 1280]) {
   test.describe(`required categories ${width}`, () => {
     test.use({ viewport: { width, height: 844 } });
     test('quick entry starts with category cards and detailed entry requires a category', async ({ page }) => {
       await page.goto('/');
-      await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+      await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();await ensureCategories(page);
       const cell = page.locator('[data-calendar-date]').nth(15);
       await cell.click({ position: { x: 5, y: 5 } });
       const sheet = page.getByRole('dialog', { name: '날짜별 일정', exact: true });

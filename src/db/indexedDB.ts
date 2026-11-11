@@ -57,6 +57,7 @@ interface DayFlowDBSchema extends DBSchema {
 const DB_NAME = 'DayFlowDB';
 const DB_VERSION = 1;
 
+// 예전 버전이 새 사용자에게 자동으로 넣던 기본 카테고리(지금은 넣지 않음). 남아 있는 것을 알아보는 데만 쓴다.
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
   { id: 'category-work', name: '일', color: '#A4ADD0', sortOrder: 0, isUserManaged: true },
   { id: 'category-important', name: '중요', color: '#B4A2D3', sortOrder: 1, isUserManaged: true },
@@ -234,7 +235,26 @@ export async function initializeDatabase(): Promise<void> {
     }
     await tx.done;
   }
+  await removeUnusedDefaultCategories();
   await normalizeStoredCategories();
+}
+
+// 기본 카테고리는 더 이상 넣지 않는다. 예전에 자동으로 들어간 기본 카테고리 중 이름을 바꾸지 않았고
+// 쓰는 일정이 없는 것은 기기마다 한 번만 지운다(그 뒤에 직접 만든 카테고리는 건드리지 않음).
+async function removeUnusedDefaultCategories(): Promise<void> {
+  const FLAG = 'minially-default-categories-cleared';
+  try { if (localStorage.getItem(FLAG)) return; } catch { return; }
+  const db = await getDB();
+  const tx = db.transaction(['categories', 'schedules', 'recurrenceExceptions'], 'readwrite');
+  const schedules = await tx.objectStore('schedules').getAll();
+  const exceptions = await tx.objectStore('recurrenceExceptions').getAll();
+  const used = new Set([...schedules.map(s => s.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
+  for (const base of DEFAULT_CATEGORIES) {
+    const stored = await tx.objectStore('categories').get(base.id);
+    if (stored && stored.name === base.name && !used.has(base.id)) await tx.objectStore('categories').delete(base.id);
+  }
+  await tx.done;
+  try { localStorage.setItem(FLAG, '1'); } catch { /* 다음 실행 때 다시 시도 */ }
 }
 
 // Normalize legacy/backup data without deleting categories or changing schedule IDs.
@@ -252,7 +272,6 @@ async function normalizeCategoryTransaction(tx: IDBPTransaction<DayFlowDBSchema,
     const history = await tx.objectStore('changeHistory').getAll();
     const used = new Set([...schedules.map(s => s.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
     const categories = visibleCategories(storedCategories, used);
-    if (!categories.length) categories.push(...DEFAULT_CATEGORIES.map(cat => ({ ...cat })));
     const assigned: CategoryItem[] = [];
     for (const category of categories) {
       if (!/^#[0-9a-f]{6}$/i.test(category.color || '') || assigned.some(cat => cat.color.toLowerCase() === category.color.toLowerCase())) category.color = nextCategoryColor([...categories, ...assigned]);
@@ -503,9 +522,8 @@ export async function deleteCategory(id: string): Promise<void> {
     const exceptions = await tx.objectStore('recurrenceExceptions').getAll();
     const used = new Set([...schedules.map(item => item.category), ...exceptions.map(ex => ex.modifiedSchedule?.category || '')]);
     const remaining = visibleCategories(categories, used).filter(cat => cat.id !== id);
-    if (!remaining.length) throw new Error('마지막 카테고리는 삭제할 수 없습니다.');
     if (schedules.some(item => item.category === id) || exceptions.some(ex => ex.modifiedSchedule?.category === id)) throw new Error('사용 중인 카테고리입니다. 일정의 카테고리를 먼저 변경해 주세요.');
-    const replacement = remaining.find(cat => cat.name === '기타')?.id || remaining[0].id;
+    const replacement = remaining.find(cat => cat.name === '기타')?.id || remaining[0]?.id || '';
     for (const preset of await tx.objectStore('presets').getAll()) {
       if (preset.defaultCategory === id) await tx.objectStore('presets').put({ ...preset, defaultCategory: '' });
     }

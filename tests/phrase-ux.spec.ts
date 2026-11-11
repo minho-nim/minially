@@ -140,8 +140,10 @@ test('전체 앱: 제목만 저장·수정·검색·날짜 복사·이동·삭�
   const sheet = page.getByRole('dialog', { name: '날짜별 일정', exact: true }); await page.locator(`[data-calendar-date="${initialDate}"]`).click({ position: { x: 5, y: 5 } });
   await sheet.getByRole('button', { name: '날짜 작업', exact: true }).click(); await sheet.getByRole('group', { name: '날짜 작업 메뉴' }).getByRole('button', { name: '일정 전체 복사', exact: true }).click(); await page.getByRole('dialog', { name: '일정 복사', exact: true }).getByRole('button', { name: '복사', exact: true }).click();
   await expect.poll(async () => (await data(page)).schedules.filter(s => s.title === '전체 흐름 일정 수정').length).toBe(2);
-  if (!(await sheet.isVisible())) await page.locator(`[data-calendar-date="${initialDate}"]`).click({ position: { x: 5, y: 5 } });
-  await sheet.locator('[data-day-schedule]').filter({ hasText: '전체 흐름 일정 수정' }).first().getByRole('button', { name: '전체 흐름 일정 수정 이동/복사' }).click();
+  await expect(sheet).toBeVisible(); // 복사 창이 닫히면 날짜 팝업이 다시 나타난다
+  // 복사 직후 목록이 다시 그려지는 중에 누르면 놓칠 수 있어, 이동 창이 뜰 때까지 다시 누른다
+  const moveDialog = page.getByRole('dialog', { name: '일정 이동 / 복사', exact: true });
+  await expect(async () => { if (!(await moveDialog.isVisible())) await sheet.locator('[data-day-schedule]').filter({ hasText: '전체 흐름 일정 수정' }).first().getByRole('button', { name: '전체 흐름 일정 수정 이동/복사' }).click({ timeout: 2000 }); await expect(moveDialog).toBeVisible({ timeout: 2000 }); }).toPass();
   await chooseDate(page, '대상 날짜', '2026-12-31'); await page.getByRole('button', { name: '이동', exact: true }).click();
   await expect.poll(async () => (await data(page)).schedules.find(s => s.title === '전체 흐름 일정 수정' && s.date === '2026-12-31')?.date).toBe('2026-12-31');
   expect((await data(page)).schedules.filter(s => s.title === '전체 흐름 일정 수정' && s.date === initialDate)).toHaveLength(0);

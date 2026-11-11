@@ -1,6 +1,6 @@
 import { chooseDate, readDate, expectDate } from './helpers/date';
 import { openGroup } from './helpers/preset-actions';
-import {pickCategory} from './helpers/category';
+import {pickCategory, ensureCategories } from './helpers/category';
 import { test, expect, Page } from '@playwright/test';
 import type { AppData } from '../src/types';
 async function data(page: Page): Promise<AppData> { return page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; return (await import(path)).exportAllData(); }); }
@@ -42,7 +42,7 @@ test('저장 프리셋 드래그 정렬·키보드 이동·새로고침 유지',
 });
 
 test('기존 1분 단위 일정은 열기·메모 수정만으로 반올림하지 않음', async ({ page }) => {
-  await seed(page); await page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; const db = await import(path); await db.saveSchedule({ id: 'legacy-minute', title: '예전 시간', date: '2026-10-28', startTime: '09:02', endTime: '10:03', category: 'category-work', completed: false, memo: '원래 메모' }); }); await page.reload({ waitUntil: 'domcontentloaded' }); await page.getByRole('button', { name: '일정 검색', exact: true }).click(); const search = page.getByRole('dialog', { name: '일정 검색', exact: true }); await search.getByLabel('일정 검색어', { exact: true }).fill('예전 시간'); await search.getByRole('button', { name: /예전 시간/ }).click(); const edit = page.getByRole('dialog', { name: '일정 수정', exact: true }); await expect(edit.getByLabel('시작 시간 분', { exact: true })).toHaveValue('02'); await expect(edit.getByLabel('종료 시간 분', { exact: true })).toHaveValue('03'); await edit.getByPlaceholder('상세 내용을 메모하세요').fill('메모만 수정'); await edit.getByRole('button', { name: '변경사항 저장', exact: true }).click(); await expect(edit).toHaveCount(0); expect((await data(page)).schedules[0]).toMatchObject({ id: 'legacy-minute', startTime: '09:02', endTime: '10:03', memo: '메모만 수정' });
+  await seed(page); await ensureCategories(page); await page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; const db = await import(path); await db.saveSchedule({ id: 'legacy-minute', title: '예전 시간', date: '2026-10-28', startTime: '09:02', endTime: '10:03', category: 'category-work', completed: false, memo: '원래 메모' }); }); await page.reload({ waitUntil: 'domcontentloaded' }); await page.getByRole('button', { name: '일정 검색', exact: true }).click(); const search = page.getByRole('dialog', { name: '일정 검색', exact: true }); await search.getByLabel('일정 검색어', { exact: true }).fill('예전 시간'); await search.getByRole('button', { name: /예전 시간/ }).click(); const edit = page.getByRole('dialog', { name: '일정 수정', exact: true }); await expect(edit.getByLabel('시작 시간 분', { exact: true })).toHaveValue('02'); await expect(edit.getByLabel('종료 시간 분', { exact: true })).toHaveValue('03'); await edit.getByPlaceholder('상세 내용을 메모하세요').fill('메모만 수정'); await edit.getByRole('button', { name: '변경사항 저장', exact: true }).click(); await expect(edit).toHaveCount(0); expect((await data(page)).schedules[0]).toMatchObject({ id: 'legacy-minute', startTime: '09:02', endTime: '10:03', memo: '메모만 수정' });
 });
 
 test.describe('모바일 블록', () => {
