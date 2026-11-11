@@ -29,10 +29,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       # 서버까지 포함한 시험(로그인·PC·폰 동기화·공유). 실패하면 배포하지 않는다.
-      # 시스템 패키지 서버가 잠깐 안 잡힐 때가 있어 두 번 더 시도하고, 그래도 안 되면 브라우저만 설치한다(실행기에 기본 라이브러리는 있음)
-      - run: |
-          for i in 1 2 3; do npx playwright install --with-deps chromium && exit 0; echo "설치 재시도 $i"; sleep 20; done
-          npx playwright install chromium
+      # 시스템 패키지 서버가 안 잡힐 때가 있어, 3분 안에 안 끝나면 브라우저만 설치한다(실행기에 기본 라이브러리는 있음)
+      - run: timeout 180 npx playwright install --with-deps chromium || npx playwright install chromium
       - run: npm run test:sync -- --trace off
         env:
           PLAYWRIGHT_CHANNEL: chromium
