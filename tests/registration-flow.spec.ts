@@ -32,7 +32,7 @@ test('할 일 조회 날짜로 등록 날짜 지정, 날짜를 바꿔도 제목 
 // 날짜 팝업의 높이 손잡이는 11-04·11-10 가운데 팝업으로 바뀌며 없어져, 일정 등록 창의 높이 저장만 확인한다.
 test('일정 등록 창 높이 저장·새로고침 유지',async({page})=>{
  await page.getByRole('button',{name:'일정 등록',exact:true}).click();const editor=page.getByRole('dialog',{name:'새 일정',exact:true}),other=editor.getByRole('slider',{name:'팝업 높이 조절'});
- await expect(other).toHaveAttribute('aria-valuenow','90');await other.press('Home');const min=Number(await other.getAttribute('aria-valuemin'));await expect(other).toHaveAttribute('aria-valuenow',String(min));for(let i=0;i<4;i++)await other.press('ArrowUp');const saved=(await other.getAttribute('aria-valuenow'))!;expect(Number(saved)).toBeGreaterThan(min);await editor.getByRole('button',{name:'취소',exact:true}).click();
+ await expect(other).toHaveAttribute('aria-valuenow','90');const min=Number(await other.getAttribute('aria-valuemin'));/* 창이 열리는 중에 누른 키가 먹히지 않을 수 있어 값이 바뀔 때까지 다시 누름 */await expect(async()=>{await other.press('Home');await expect(other).toHaveAttribute('aria-valuenow',String(min),{timeout:1000});}).toPass();for(let i=0;i<4;i++)await other.press('ArrowUp');const saved=(await other.getAttribute('aria-valuenow'))!;expect(Number(saved)).toBeGreaterThan(min);await editor.getByRole('button',{name:'취소',exact:true}).click();
  await page.reload({waitUntil:'domcontentloaded'});await page.getByRole('button',{name:'일정 등록',exact:true}).click();await expect(other).toHaveAttribute('aria-valuenow',saved);
 });
 
