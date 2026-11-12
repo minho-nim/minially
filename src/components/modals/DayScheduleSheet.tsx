@@ -125,6 +125,32 @@ export function DayScheduleSheet(props: Props) {
   const close = () => { if (guard.confirming) { guard.cancel(); return false; } if (savingRef.current || panelBusy || undoBusy) return false; return guard.request(() => { onClose(); requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-calendar-date="' + date + '"]')?.focus({ preventScroll: true })); }); };
   useScheduleDialog(open, expanded || Boolean(panel)||dateMenuOpen, root, close, back, { smoothViewport: true });
   useDaySheetMotion(open, date, expanded, panel, root, daySurface, composerSurface);
+  // 입력 시트가 열려 있는 동안 바깥을 끌어도 뒤 화면이 스크롤되지 않게 한다(아이폰은 키보드가 열리면 화면 전체가 끌림).
+  // 입력 시트 안에서 실제로 스크롤되는 목록(프리셋 등)은 그대로 둔다.
+  useEffect(() => {
+    const el = root.current;
+    if (!open || !expanded || !el) return;
+    const block = (event: TouchEvent) => {
+      const target = event.target as Element | null, surface = composerSurface.current;
+      if (target && surface?.contains(target)) {
+        for (let node: Element | null = target; node && node !== surface; node = node.parentElement) {
+          if (node.scrollHeight > node.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(node).overflowY)) return;
+        }
+        if (target.closest('input, textarea, select')) return;
+      }
+      if (event.cancelable) event.preventDefault();
+    };
+    el.addEventListener('touchmove', block, { passive: false });
+    return () => el.removeEventListener('touchmove', block);
+  }, [open, expanded]);
+  // 키보드가 열린 채 바깥을 누르면 키보드만 내린다(입력 시트·날짜 팝업은 닫지 않음)
+  const keyboardTap = useRef(false);
+  const backdropDown = (event: React.PointerEvent) => {
+    const active = document.activeElement as HTMLElement | null;
+    keyboardTap.current = !!active && composerSurface.current?.contains(active) === true && active.matches('input, textarea');
+    if (keyboardTap.current) { event.preventDefault(); active!.blur(); }
+  };
+  const backdropClick = () => { if (keyboardTap.current) { keyboardTap.current = false; return; } closeComposer(); };
   useEffect(() => { if (!open) {setDateMenuOpen(false);changePanel(null);return;} if (open) { setDateMenuOpen(false);setPresetApplyMode('append'); setExpanded(false); changePanel(null); setNotice(''); setOldTitle(null); guard.cancel(); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('header button')?.focus({ preventScroll: true })); } }, [open, date]);
   const selectCategory = (category: string) => {
     flushSync(() => { update({ category }); setExpanded(true); changePanel(categoryReturn.current); });
@@ -193,7 +219,7 @@ export function DayScheduleSheet(props: Props) {
       <div className="shrink-0 px-4 pt-2 pb-4"><button type="button" className="w-full min-h-11 px-4 bg-app-soft rounded-xl text-sm text-app-muted flex items-center justify-start gap-1" onClick={() => { setExpanded(true); categoryReturn.current = null; changePanel(categories.length ? 'categories' : null); if (!categories.length) focusTitle(); }}><Plus className="w-4 h-4"/>일정 등록하기</button></div>
     </section>
     {(expanded || panel) && <>
-      <div className="absolute inset-0 z-10 bg-black/10" aria-hidden="true" onClick={closeComposer}/>
+      <div data-composer-backdrop className="absolute inset-0 z-10 bg-black/10 touch-none" aria-hidden="true" onPointerDown={backdropDown} onClick={backdropClick}/>
       <section ref={composerSurface} data-quick-composer data-keyboard-dock data-composer-mode={panel || 'input'} aria-label={panel && panel !== 'presets' ? '간편 등록 설정' : '간편 일정 입력'} className="quick-dock absolute z-20 mx-auto max-w-xl max-h-[min(75dvh,var(--modal-height,100dvh))] flex flex-col overflow-hidden rounded-3xl border border-app-line bg-app-canvas shadow-xl">
         <div className="relative flex shrink-0 items-center px-4 pt-2"><span aria-hidden="true" className="absolute left-1/2 top-3 h-1 w-10 -translate-x-1/2 rounded-full bg-app-outline"/><button type="button" aria-label="간편 등록 닫기" className={button+' ml-auto'} onClick={closeComposer}><X className="h-4 w-4"/></button></div>
         {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard}/>}
