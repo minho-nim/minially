@@ -56,6 +56,7 @@ import { ShortcutHelp } from './components/modals/ShortcutHelp';
 import { SharedScheduleDetail } from './components/modals/SharedScheduleDetail';
 import { useSharedViews, isSharedId, sharedOwner } from './sync/shared';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useKeyboardOutsideGuard } from './hooks/useKeyboardOutsideGuard';
 import { useScheduleReminders } from './hooks/useScheduleReminders';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
@@ -583,6 +584,7 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [selectedDate, activeTab, isReady]);
   useKeyboardShortcuts(shortcutActions);
+  useKeyboardOutsideGuard();
 
   // 작업 표시줄 빠른 메뉴(manifest shortcuts)로 열었을 때: ?action=new|search|today, ?tab=tasks
   const launchHandled = useRef(false);

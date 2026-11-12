@@ -77,6 +77,8 @@ for (const width of [390, 1280]) {
       await expect(list.getByText('스와이프 후 등록', { exact: true })).toBeVisible();
       await expect(title).toBeFocused();
       expect((await list.boundingBox())!.height).toBe(initialHeight);
+      // 키보드가 열린 동안의 첫 터치는 키보드만 내린다(앱 공통 규칙). 키보드를 내린 뒤 넘긴다.
+      await title.blur();
       await swipe(page, list, 'left');
       await expect(list.getByText('스와이프 후 등록', { exact: true })).toHaveCount(0);
       await swipe(page, list, 'right');

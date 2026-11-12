@@ -26,3 +26,35 @@ test('입력 시트: 키보드가 열린 채 바깥을 누르면 키보드만 �
   await title.evaluate((el: HTMLElement) => el.blur());
   await page.touchscreen.tap(195, 120); await expect(composer).toHaveCount(0); await expect(sheet).toBeVisible();
 });
+
+async function moves(page: import('@playwright/test').Page, context: import('@playwright/test').BrowserContext, from: { x: number; y: number }) {
+  await page.evaluate(() => { (window as any).__moves = []; document.addEventListener('touchmove', e => (window as any).__moves.push(e.defaultPrevented), { passive: true }); });
+  const cdp = await context.newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] });
+  for (let i = 1; i <= 6; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from.x, y: from.y + i * 30 }] });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  return page.evaluate(() => (window as any).__moves as boolean[]);
+}
+
+test('검색: 키보드가 열린 채 바깥을 누르면 키보드만 내리고 창은 그대로, 바깥 끌기 막힘', async ({ page, context }) => {
+  await page.route('**/fonts.googleapis.com/**', r => r.abort());
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('navigation', { name: '하단 메뉴' }).getByRole('button', { name: '검색', exact: true }).tap();
+  const search = page.getByRole('dialog', { name: '일정 검색', exact: true }); const box = search.getByLabel('일정 검색어', { exact: true });
+  await box.fill('회의'); await box.focus(); await expect(box).toBeFocused();
+  const drag = await moves(page, context, { x: 195, y: 790 }); expect(drag.length).toBeGreaterThan(0); expect(drag.every(Boolean)).toBe(true);
+  await box.focus(); await expect(box).toBeFocused(); // 끌기에서 키보드가 내려갔으므로 다시 연 상태로
+  await page.touchscreen.tap(195, 830);
+  await expect(box).not.toBeFocused(); await expect(search).toBeVisible(); await expect(box).toHaveValue('회의');
+});
+
+test('할 일: 키보드가 열린 채 바깥(하단 메뉴 등)을 누르면 키보드만 내리고 화면 이동 없음', async ({ page }) => {
+  await page.route('**/fonts.googleapis.com/**', r => r.abort());
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  const nav = page.getByRole('navigation', { name: '하단 메뉴' });
+  await nav.getByRole('button', { name: '할 일', exact: true }).tap();
+  const title = page.getByRole('form', { name: '할 일 등록' }).getByLabel('새 할 일 제목'); await title.fill('작성 중인 할 일'); await title.focus();
+  await nav.getByRole('button', { name: '캘린더', exact: true }).tap();
+  await expect(title).not.toBeFocused(); await expect(title).toBeVisible(); await expect(title).toHaveValue('작성 중인 할 일');
+  await nav.getByRole('button', { name: '캘린더', exact: true }).tap(); await expect(title).toHaveCount(0); // 키보드가 내려간 뒤에는 정상 동작
+});
