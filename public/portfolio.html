@@ -194,10 +194,10 @@ footer { padding-block:40px 48px; color:var(--muted); font-size:.8rem }
     <div class="sec-head"><span class="role">성취가</span><h2>결과</h2></div>
     <div class="stats">
       <div class="stat"><span class="n">17<small>일</small></span><span class="k">만든 기간</span><span class="s">첫 커밋 2026-10-28 ~ 마지막 커밋 2026-11-13 · git log, 11-13 기준</span></div>
-      <div class="stat"><span class="n">99<small>개</small></span><span class="k">커밋</span><span class="s">git rev-list --count HEAD · 2026-11-13</span></div>
+      <div class="stat"><span class="n">101<small>개</small></span><span class="k">커밋</span><span class="s">git rev-list --count HEAD · 2026-11-13 (이 페이지 수정 포함)</span></div>
       <div class="stat"><span class="n">22<small>개</small></span><span class="k">PR (모두 병합)</span><span class="s">GitHub API pulls?state=all · 2026-11-13. 그중 5개는 작업 도구(스킬) 넣기</span></div>
-      <div class="stat"><span class="n">9,535<small>줄</small></span><span class="k">앱 코드</span><span class="s">src·functions·vite.config의 ts·tsx·js, 시험·작업 도구 폴더 제외 · 2026-11-13</span></div>
-      <div class="stat"><span class="n">100<small>개</small></span><span class="k">자동 시험</span><span class="s">tests·tests-sync 33개 파일의 test( 개수 · 2026-11-13</span></div>
+      <div class="stat"><span class="n">9,648<small>줄</small></span><span class="k">앱 코드</span><span class="s">src·functions·vite.config의 ts·tsx·js, 시험·작업 도구 폴더 제외 · 2026-11-13</span></div>
+      <div class="stat"><span class="n">101<small>개</small></span><span class="k">자동 시험</span><span class="s">tests·tests-sync 34개 파일의 test( 개수 · 2026-11-13</span></div>
       <div class="stat"><span class="n">0<small>원</small></span><span class="k">추가 비용</span><span class="s">src·functions에 유료 API 호출 없음(검색) · Cloudflare·GitHub 무료 기능만 사용 · 2026-11-13</span></div>
     </div>
     <p class="note">버전 번호는 따로 매기지 않았습니다(package.json 0.0.0, CHANGELOG 없음). 대신 배포할 때마다 커밋 번호를 설정 화면에 표시하고, 배포 뒤 운영 사이트가 그 번호로 바뀌었는지 자동으로 확인합니다.</p>
@@ -210,32 +210,35 @@ footer { padding-block:40px 48px; color:var(--muted); font-size:.8rem }
       <button type="button" role="tab" id="tab-biz" aria-controls="panel-biz" aria-selected="false" tabindex="-1">창업/비즈니스</button>
     </div>
     <div class="panel" role="tabpanel" id="panel-tech" aria-labelledby="tab-tech">
-      <div><h3>어떻게 만들었나</h3><ul>
-        <li>기록은 먼저 기기 안(IndexedDB)에 저장합니다. 인터넷이 없어도 쓸 수 있습니다.</li>
-        <li>서버(Cloudflare D1)는 바뀐 항목만 받고, 항목마다 마지막에 올린 값이 이깁니다.</li>
-        <li>서버는 로그인 코드 원문을 모르고 SHA-256 해시만 가집니다. 10분에 20번 틀리면 막습니다.</li>
+      <div><h3>질문 1. 두 기기에서 고친 내용이 다르면 어느 쪽이 맞을까?</h3><ul>
+        <li>항목마다 마지막에 저장한 값이 이기게 했습니다.</li>
+        <li>인터넷이 끊겨도 먼저 기기 안에 저장하고, 다시 연결되면 바뀐 항목만 서버와 맞춥니다.</li>
+        <li>두 기기에서 같은 일정을 동시에 고치는 경우는 아직 탐구 중입니다. <span class="wip">(만드는 중)</span></li>
       </ul></div>
-      <div><h3>어떻게 확인하나</h3><ul>
-        <li>화면 시험과 서버까지 포함한 시험(로그인·동기화·공유)이 배포 전에 자동으로 돕니다.</li>
+      <div><h3>질문 2. 누가 로그인 코드를 알아내려 하면?</h3><ul>
+        <li>서버는 코드 원문 대신 SHA-256 해시만 가집니다.</li>
+        <li>10분에 20번 틀리면 그 접속을 막습니다.</li>
+        <li>체험 모드는 서버에 아무것도 보내지 않습니다.</li>
+      </ul></div>
+      <div><h3>질문 3. 코딩을 모르는데 잘 됐는지 어떻게 알지?</h3><ul>
+        <li>사람 대신 자동 시험 101개가 확인합니다.</li>
         <li>시험이 하나라도 실패하면 운영에 올리지 않습니다.</li>
-      </ul></div>
-      <div><h3>아직 확인 못 한 것</h3><ul>
-        <li>실제 아이폰에서 키보드 동작 확인 <span class="wip">(만드는 중)</span></li>
-        <li>두 기기에서 같은 일정을 동시에 고칠 때의 처리 <span class="wip">(만드는 중)</span></li>
+        <li>실제 아이폰에서 직접 확인하는 일은 아직 남았습니다. <span class="wip">(만드는 중)</span></li>
       </ul></div>
     </div>
     <div class="panel" role="tabpanel" id="panel-biz" aria-labelledby="tab-biz" hidden>
-      <div><h3>누구를 위한 앱인가</h3><ul>
-        <li>지금 사용자는 저와, 제가 코드를 준 사람입니다. 코드는 2개만 만들었습니다.</li>
-        <li>매일 비슷한 일정을 반복해서 적는 사람에게 맞춰 만들었습니다.</li>
+      <div><h3>문제</h3><ul>
+        <li>같은 일정을 매번 다시 적어야 했습니다.</li>
+        <li>PC와 휴대폰 기록이 따로 놀았습니다.</li>
       </ul></div>
-      <div><h3>운영 구조</h3><ul>
-        <li>추가 비용 0원으로 운영합니다. 호스팅·서버·DB 모두 무료 기능 안에서 돌아갑니다.</li>
-        <li>코드를 받은 사람만 들어올 수 있어, 처음부터 가입 화면을 만들 필요가 없었습니다.</li>
+      <div><h3>해결</h3><ul>
+        <li>자주 쓰는 문구를 프리셋으로 저장해 눌러서 입력합니다.</li>
+        <li>같은 코드로 로그인하면 PC와 휴대폰이 자동으로 맞춰집니다.</li>
+        <li>추가 비용 0원으로 운영합니다.</li>
       </ul></div>
-      <div><h3>다음에 해 볼 것</h3><ul>
-        <li>같이 보기를 가족·친구 단위로 넓히기 <span class="wip">(만드는 중)</span></li>
-        <li>프리셋으로 등록한 비율을 재서 시간이 얼마나 줄었는지 확인하기 <span class="wip">(만드는 중)</span></li>
+      <div><h3>검증할 것 <span class="wip">(만드는 중)</span></h3><ul>
+        <li>일정을 프리셋으로 등록한 비율</li>
+        <li>일정 하나를 등록하는 데 걸리는 시간</li>
       </ul></div>
     </div>
   </section>
