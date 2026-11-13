@@ -73,7 +73,9 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-          navigateFallbackDenylist: [/\/api\//],
+          globIgnores: ['**/portfolio/index.html'],
+          // 포트폴리오 페이지(/portfolio)는 앱 화면으로 가로채지 않는다. 체험 주소 /demo 는 앱이 연다.
+          navigateFallbackDenylist: [/\/api\//, /^\/portfolio\/?(index\.html)?$/],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

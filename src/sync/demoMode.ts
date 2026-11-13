@@ -121,10 +121,10 @@ export async function endDemo() {
   window.location.replace('/');
 }
 
-export const DEMO_PATH = '/portfolio/demo';
+export const DEMO_PATH = '/demo';
 
 /**
- * 체험 주소(/portfolio/demo)로 들어오면 체험을 시작한다. 체험은 이 주소로만 시작할 수 있다.
+ * 체험 주소(/demo)로 들어오면 체험을 시작한다. 체험은 이 주소로만 시작할 수 있다.
  * 이미 코드로 로그인한 기기라면 그 기기 데이터를 지우면 안 되므로 체험을 시작하지 않고 앱 첫 화면으로 보낸다.
  * 체험을 시작하면 새로고침되므로 true(화면을 그리지 말 것)를 돌려준다.
  */

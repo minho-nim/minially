@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// 체험은 /portfolio/demo 주소로만 시작한다. 로그인 우회(minially-sync-skip) 없이 실제 첫 화면에서 시작한다.
+// 체험은 /demo 주소로만 시작한다. 로그인 우회(minially-sync-skip) 없이 실제 첫 화면에서 시작한다.
 test.use({ storageState: { cookies: [], origins: [] }, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
 const countSchedules = (page: Page) => page.evaluate(() => new Promise<number>(resolve => {
@@ -19,7 +19,7 @@ test('체험 주소로 들어오면 예시 데이터가 보이고, 서버에 요
   const apiCalls: string[] = [];
   page.on('request', r => { if (r.url().includes('/api/')) apiCalls.push(r.url()); });
   await page.route('**/fonts.googleapis.com/**', r => r.abort());
-  await page.goto('/portfolio/demo', { waitUntil: 'domcontentloaded' });
+  await page.goto('/demo', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByText('체험 모드', { exact: true })).toBeVisible({ timeout: 15000 });
   await expect(page.locator('[data-calendar-date]').first()).toBeVisible();
@@ -82,7 +82,7 @@ test('코드로 로그인한 기기에서 체험 주소를 열어도 내 데이�
       };
     });
   });
-  await page.goto('/portfolio/demo', { waitUntil: 'domcontentloaded' });
+  await page.goto('/demo', { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText('체험 모드', { exact: true })).toHaveCount(0);
   await page.waitForTimeout(1000);
