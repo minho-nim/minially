@@ -3,6 +3,7 @@ import { Copy, Eye, EyeOff, RefreshCw, Share2, Trash2, Users } from 'lucide-reac
 import type { AppSettings, CategoryItem, ShareSettings, SharedView } from '../../types';
 import { disableShare, fetchShared, rotateShareCode, SHARED_COLORS } from '../../sync/shared';
 import { normalizeCode } from '../../sync/syncEngine';
+import { isDemo } from '../../sync/demoMode';
 
 interface Props { settings: AppSettings; categories: CategoryItem[]; onUpdateSettings: (settings: AppSettings) => Promise<void> | void }
 
@@ -10,7 +11,13 @@ const box = 'p-3.5 border border-app-line bg-app-canvas rounded-xl space-y-2.5';
 const btn = 'inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-app-line bg-white text-app-ink hover:bg-app-soft disabled:opacity-60 cursor-pointer';
 const primary = 'inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-app-accent text-white disabled:opacity-60 cursor-pointer';
 
-export const SharePanel: React.FC<Props> = ({ settings, categories, onUpdateSettings }) => {
+export const SharePanel: React.FC<Props> = (props) => {
+  // 공유는 서버를 쓰므로 체험 모드에서는 막는다.
+  if (isDemo()) return <div className={box}><p className="text-xs text-app-muted">체험 모드에서는 일정 공유(같이 보기)를 쓸 수 없어요. 코드로 로그인하면 쓸 수 있어요.</p></div>;
+  return <SharePanelInner {...props} />;
+};
+
+const SharePanelInner: React.FC<Props> = ({ settings, categories, onUpdateSettings }) => {
   const share: ShareSettings = settings.share ?? { name: '', categoryIds: [], includeTasks: false };
   const views = settings.sharedViews ?? [];
   const [busy, setBusy] = useState(false);

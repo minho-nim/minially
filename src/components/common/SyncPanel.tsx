@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link2, RefreshCw, Unlink } from 'lucide-react';
 import { syncEngine, confirmAndLogout, type SyncStatus } from '../../sync/syncEngine';
+import { isDemo, endDemo } from '../../sync/demoMode';
 
 function timeLabel(at?: number) {
   if (!at) return '';
@@ -62,7 +63,12 @@ export const SyncPanel: React.FC<{ variant?: 'settings' | 'login' }> = ({ varian
         <h4 className="text-sm font-bold text-app-ink">{login ? '코드로 로그인' : '로그인·기기 연결'}</h4>
       </div>
 
-      {connected ? (
+      {!connected && isDemo() ? (
+        <>
+          <p className="text-[11px] text-app-muted">지금은 체험 모드예요. 체험 기록은 이 기기에만 있고 다른 기기와 맞추지 않아요. 코드로 로그인하려면 체험을 끝내 주세요(체험 데이터는 지워져요).</p>
+          <button type="button" onClick={() => void endDemo()} className="w-full py-2 text-xs font-bold rounded-lg bg-app-accent text-white cursor-pointer">체험 끝내고 로그인하기</button>
+        </>
+      ) : connected ? (
         <>
           <p role="status" className={`text-xs ${status.kind === 'error' ? 'text-red-600' : 'text-app-muted'}`}>{statusText(status)}</p>
           <p className="text-[11px] text-app-muted">로그인되어 있어요. 같은 코드로 로그인한 기기끼리 일정·할 일·문구·카테고리·설정이 자동으로 맞춰져요.</p>

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { SyncPanel } from '../common/SyncPanel';
+import { isDemo, endDemo } from '../../sync/demoMode';
 import { SharePanel } from '../common/SharePanel';
 import { ReminderSetting } from '../common/ReminderSetting';
 import { syncEngine, confirmAndLogout } from '../../sync/syncEngine';
@@ -378,6 +379,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
           <div className="pt-4 flex items-center justify-between gap-2">
             <p className="text-[10px] text-app-muted" aria-label="앱 버전">미니어리 버전 {__APP_VERSION__} · 단축키 ?</p>
+            {isDemo() && <button type="button" onClick={() => void endDemo()} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-app-line text-app-muted hover:text-red-600 hover:border-red-200 cursor-pointer">체험 끝내기</button>}
             {syncEngine.connected && <button type="button" onClick={() => void confirmAndLogout()} className="px-3 py-1.5 text-xs font-bold rounded-lg border border-app-line text-app-muted hover:text-red-600 hover:border-red-200 cursor-pointer">로그아웃</button>}
           </div>
         </div>

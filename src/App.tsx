@@ -68,11 +68,12 @@ import { DayScheduleSheet } from './components/modals/DayScheduleSheet';
 import { TodaySchedulesModal } from './components/modals/TodaySchedulesModal';
 import { getTodayDateString } from './utils/dateHelpers';
 import { syncEngine } from './sync/syncEngine';
+import { isDemo, endDemo } from './sync/demoMode';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(() => syncEngine.connected || devSkipLogin());
-  useEffect(() => syncEngine.subscribe(status => setLoggedIn(status.kind !== 'off' || devSkipLogin())), []);
+  const [loggedIn, setLoggedIn] = useState(() => syncEngine.connected || isDemo() || devSkipLogin());
+  useEffect(() => syncEngine.subscribe(status => setLoggedIn(status.kind !== 'off' || isDemo() || devSkipLogin())), []);
   // 앱을 켜면 항상 캘린더부터 보여 준다.
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('calendar');
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
@@ -620,6 +621,12 @@ export default function App() {
     <div className={`${activeTab === 'calendar' ? 'h-dvh overflow-hidden' : 'min-h-dvh'} bg-app-canvas text-app-ink flex flex-col selection:bg-app-soft`}>
       {/* Offline Alert Banner */}
       <OfflineIndicator />
+      {isDemo() && (
+        <div role="status" className="shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] bg-app-soft text-app-ink">
+          <span><b>체험 모드</b> · 예시 데이터예요. 기록은 이 기기에만 저장돼요.</span>
+          <button type="button" onClick={() => void endDemo()} className="font-bold underline text-app-accent-hover cursor-pointer">체험 끝내기</button>
+        </div>
+      )}
 
       {/* Top Navbar */}
       <Navbar

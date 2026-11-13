@@ -86,6 +86,12 @@ Edge·Chrome 주소창의 **앱 설치**로 설치하면 별도 창·시작 메�
 
 로컬 시험: `.dev.vars`에 `SYNC_CODE_HASHES=<해시>`를 넣고 `npm run build && npx wrangler pages dev dist --d1 DB=minially-local`.
 
+## 체험 모드와 포트폴리오
+
+- 로그인 화면의 **코드 없이 체험하기**를 누르면 예시 데이터로 앱이 열립니다. 체험 기록은 그 기기(IndexedDB)에만 저장되고 서버로 보내지 않습니다(`src/sync/demoMode.ts`). 공유(같이 보기)는 체험 중에 막힙니다.
+- 위쪽 띠나 설정의 **체험 끝내기**를 누르면 체험 데이터를 지우고 로그인 화면으로 돌아갑니다.
+- 포트폴리오 페이지: `public/portfolio.html` → https://minially.pages.dev/portfolio.html (서비스 워커 저장·가로채기 대상에서 뺌).
+
 ## Cloudflare Pages 배포
 
 **배포 규칙:** Cloudflare는 `release` 브랜치만 운영 배포합니다. `main`에 병합해도 Cloudflare 사이트는 바뀌지 않습니다(GitHub Pages는 main 기준 그대로).
