@@ -2,7 +2,7 @@
 // 기록은 이 기기(IndexedDB)에만 저장되고 서버와 맞추지 않는다(syncEngine에 코드가 없으므로 동기화 요청이 나가지 않음).
 // 체험을 끝내면 이 기기의 체험 데이터를 모두 지우고 로그인 화면으로 돌아간다.
 import { getDB } from '../db/indexedDB';
-import type { CategoryItem, Schedule, Task } from '../types';
+import type { CategoryItem, PhrasePreset, PresetGroup, Schedule, Task } from '../types';
 
 const DEMO_KEY = 'minially-demo';
 const CLEAR_STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'changeHistory'] as const;
@@ -23,49 +23,89 @@ function ymd(base: Date, offset: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** 오늘 날짜 기준으로 예시 데이터를 만든다(언제 열어도 이번 주 근처에 일정이 보이게). */
+/**
+ * 오늘 날짜 기준으로 예시 데이터를 만든다. 지난달 1일 ~ 다음 달 말일(3개월)만 채운다.
+ * 반복 일정은 프리셋을 눌러 넣은 것처럼 presetId·제목 블록을 함께 넣는다. 오늘 이전 일정은 완료로 둔다.
+ */
 export function demoData(today = new Date()) {
+  const todayKey = ymd(today, 0);
   const categories: CategoryItem[] = [
     { id: 'demo-study', name: '공부', color: '#CF8FA8', sortOrder: 0, isUserManaged: true },
     { id: 'demo-exercise', name: '운동', color: '#8FB8CF', sortOrder: 1, isUserManaged: true },
     { id: 'demo-meet', name: '약속', color: '#E3B07C', sortOrder: 2, isUserManaged: true },
   ];
-  const s = (n: number, offset: number, title: string, category: string, extra: Partial<Schedule> = {}): Schedule =>
-    ({ id: `demo-s${n}`, date: ymd(today, offset), title, category, completed: false, ...extra });
-  const schedules: Schedule[] = [
-    s(1, 0, '영어 학원', 'demo-study', { startTime: '17:00', endTime: '18:00', completed: true }),
-    s(2, 0, '수학 학원', 'demo-study', { startTime: '19:00', endTime: '21:00' }),
-    s(3, 0, '영어 단어 30개', 'demo-study', { isImportant: true }),
-    s(4, 0, '저녁 산책', 'demo-exercise'),
-    s(5, -2, '도서관', 'demo-study', { startTime: '14:00' }),
-    s(6, -1, '수영', 'demo-exercise', { startTime: '07:00' }),
-    s(7, 1, '친구 생일', 'demo-meet', { isImportant: true }),
-    s(8, 3, '과학 수행평가', 'demo-study', { isImportant: true }),
-    s(9, 5, '수영', 'demo-exercise', { startTime: '07:00' }),
-    s(10, 6, '독서 모임', 'demo-meet', { startTime: '16:00' }),
-    s(11, 8, '영어 학원', 'demo-study', { startTime: '18:00' }),
-    s(12, -6, '영어 학원', 'demo-study', { startTime: '18:00' }),
-  ];
-  const t = (n: number, title: string, priority: Task['priority'], status: Task['status'] = 'todo'): Task =>
-    ({ id: `demo-t${n}`, title, startDate: ymd(today, 0), dueDate: ymd(today, 0), status, priority });
-  const tasks: Task[] = [t(1, '수행평가 자료 찾기', 'high'), t(2, '독후감 초안 쓰기', 'medium'), t(3, '문제집 3단원 풀기', 'medium'), t(4, '운동화 빨기', 'low', 'done')];
   const now = Date.now();
-  const presets = ['영어 학원', '수학 학원', '도서관', '수영', '단어 30개', '독서 모임'].map((text, i) => ({
-    id: `demo-p${i + 1}`, type: 'title' as const, text, isFavorite: i < 2, usageCount: 6 - i, createdAt: now, updatedAt: now, sortOrder: i,
+  const presetGroups: PresetGroup[] = [
+    { id: 'demo-g-study', name: '공부', sortOrder: 0, createdAt: now, updatedAt: now },
+    { id: 'demo-g-exercise', name: '운동', sortOrder: 1, createdAt: now, updatedAt: now },
+    { id: 'demo-g-meet', name: '약속', sortOrder: 2, createdAt: now, updatedAt: now },
+  ];
+  // [프리셋 id, 문구, 그룹, 카테고리]
+  const presetDefs = [
+    ['demo-p-english', '영어 학원', 'demo-g-study', 'demo-study'],
+    ['demo-p-math', '수학 학원', 'demo-g-study', 'demo-study'],
+    ['demo-p-library', '도서관', 'demo-g-study', 'demo-study'],
+    ['demo-p-swim', '수영', 'demo-g-exercise', 'demo-exercise'],
+    ['demo-p-walk', '저녁 산책', 'demo-g-exercise', 'demo-exercise'],
+    ['demo-p-club', '동아리', 'demo-g-meet', 'demo-meet'],
+    ['demo-p-book', '독서 모임', 'demo-g-meet', 'demo-meet'],
+  ] as const;
+  const usage = new Map<string, number>();
+
+  const schedules: Schedule[] = [];
+  const add = (date: string, title: string, category: string, extra: Partial<Schedule> = {}) => {
+    schedules.push({ id: `demo-s${schedules.length + 1}`, date, title, category, completed: date < todayKey, ...extra });
+  };
+  const fromPreset = (date: string, presetId: string, extra: Partial<Schedule> = {}) => {
+    const def = presetDefs.find(d => d[0] === presetId)!;
+    usage.set(presetId, (usage.get(presetId) ?? 0) + 1);
+    add(date, def[1], def[3], { presetId, titleBlocks: [{ id: `demo-b${schedules.length + 1}`, text: def[1], presetId }], ...extra });
+  };
+
+  const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const last = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+  for (let d = new Date(first), week = 0; d <= last; d.setDate(d.getDate() + 1)) {
+    const date = ymd(d, 0), day = d.getDay();
+    if (day === 0) week++;
+    if (day === 1 || day === 3 || day === 5) fromPreset(date, 'demo-p-swim', { startTime: '07:00', endTime: '08:00' });
+    if (day === 2 || day === 4) fromPreset(date, 'demo-p-english', { startTime: '18:00', endTime: '19:30' });
+    if (day === 3) fromPreset(date, 'demo-p-math', { startTime: '19:00', endTime: '21:00' });
+    if (day === 5 && week % 2 === 0) fromPreset(date, 'demo-p-club', { startTime: '15:30' });
+    if (day === 6 && week % 2 === 1) fromPreset(date, 'demo-p-library', { startTime: '14:00' });
+    if (day === 6 && d.getDate() >= 15 && d.getDate() <= 21) fromPreset(date, 'demo-p-book', { startTime: '16:00' });
+  }
+  // 오늘과 가까운 날의 한 번뿐인 일정
+  fromPreset(todayKey, 'demo-p-walk');
+  add(todayKey, '영어 단어 30개', 'demo-study', { isImportant: true });
+  add(ymd(today, 1), '친구 생일', 'demo-meet', { isImportant: true });
+  add(ymd(today, 3), '과학 수행평가', 'demo-study', { isImportant: true });
+  add(ymd(today, 11), '모의고사', 'demo-study', { isImportant: true });
+  add(ymd(today, 14), '가족 저녁', 'demo-meet', { startTime: '18:00' });
+  add(ymd(today, -9), '치과', 'demo-meet', { startTime: '16:30' });
+
+  const t = (n: number, offset: number, title: string, priority: Task['priority'], status: Task['status'] = 'todo'): Task =>
+    ({ id: `demo-t${n}`, title, startDate: ymd(today, offset), dueDate: ymd(today, offset), status, priority });
+  const tasks: Task[] = [
+    t(1, 0, '수행평가 자료 찾기', 'high'), t(2, 0, '독후감 초안 쓰기', 'medium'), t(3, 0, '문제집 3단원 풀기', 'medium'),
+    t(4, 0, '운동화 빨기', 'low', 'done'), t(5, -1, '영어 숙제', 'medium', 'done'), t(6, 1, '생일 선물 포장', 'medium'),
+  ];
+  const presets: PhrasePreset[] = presetDefs.map(([id, text, groupId], i) => ({
+    id, type: 'title', text, groupId, isFavorite: i < 2, usageCount: usage.get(id) ?? 0, createdAt: now, updatedAt: now, sortOrder: i,
   }));
-  return { categories, schedules, tasks, presets };
+  return { categories, schedules, tasks, presets, presetGroups };
 }
 
 /** 체험 시작: 이 기기 데이터를 비우고 예시 데이터를 넣은 뒤 새로고침 */
 export async function startDemo() {
   await clearLocal();
-  const { categories, schedules, tasks, presets } = demoData();
+  const { categories, schedules, tasks, presets, presetGroups } = demoData();
   const db = await getDB();
-  const tx = db.transaction(['categories', 'schedules', 'tasks', 'presets'], 'readwrite');
+  const tx = db.transaction(['categories', 'schedules', 'tasks', 'presets', 'appSettings'], 'readwrite');
+  await tx.objectStore('appSettings').put({ id: 'global_settings', presetGroups } as never);
   for (const c of categories) await tx.objectStore('categories').put(c);
   for (const x of schedules) await tx.objectStore('schedules').put(x);
   for (const x of tasks) await tx.objectStore('tasks').put(x);
-  for (const x of presets) await tx.objectStore('presets').put(x as never);
+  for (const x of presets) await tx.objectStore('presets').put(x);
   await tx.done;
   try {
     localStorage.setItem(DEMO_KEY, '1');
