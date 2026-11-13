@@ -25,30 +25,32 @@ function ymd(base: Date, offset: number) {
 
 /**
  * 오늘 날짜 기준으로 예시 데이터를 만든다. 지난달 1일 ~ 다음 달 말일(3개월)만 채운다.
- * 반복 일정은 프리셋을 눌러 넣은 것처럼 presetId·제목 블록을 함께 넣는다. 오늘 이전 일정은 완료로 둔다.
+ * 반복 일정은 프리셋 낱말 블록 두 개('영어' + '학원')를 눌러 넣은 것처럼 presetId·제목 블록을 함께 넣는다. 오늘 이전 일정은 완료로 둔다.
  */
 export function demoData(today = new Date()) {
   const todayKey = ymd(today, 0);
   const categories: CategoryItem[] = [
     { id: 'demo-study', name: '공부', color: '#CF8FA8', sortOrder: 0, isUserManaged: true },
     { id: 'demo-exercise', name: '운동', color: '#8FB8CF', sortOrder: 1, isUserManaged: true },
-    { id: 'demo-meet', name: '약속', color: '#E3B07C', sortOrder: 2, isUserManaged: true },
+    { id: 'demo-pay', name: '결제', color: '#9DBF9E', sortOrder: 2, isUserManaged: true },
+    { id: 'demo-meet', name: '약속', color: '#E3B07C', sortOrder: 3, isUserManaged: true },
   ];
   const now = Date.now();
+  // 프리셋은 낱말 블록이다. '영어' + '학원'처럼 두 블록을 눌러 제목을 만든다.
   const presetGroups: PresetGroup[] = [
-    { id: 'demo-g-study', name: '공부', sortOrder: 0, createdAt: now, updatedAt: now },
-    { id: 'demo-g-exercise', name: '운동', sortOrder: 1, createdAt: now, updatedAt: now },
-    { id: 'demo-g-meet', name: '약속', sortOrder: 2, createdAt: now, updatedAt: now },
+    { id: 'demo-g-what', name: '항목', sortOrder: 0, createdAt: now, updatedAt: now },
+    { id: 'demo-g-kind', name: '종류', sortOrder: 1, createdAt: now, updatedAt: now },
   ];
-  // [프리셋 id, 문구, 그룹, 카테고리]
+  // [프리셋 id, 낱말, 그룹]
   const presetDefs = [
-    ['demo-p-english', '영어 학원', 'demo-g-study', 'demo-study'],
-    ['demo-p-math', '수학 학원', 'demo-g-study', 'demo-study'],
-    ['demo-p-library', '도서관', 'demo-g-study', 'demo-study'],
-    ['demo-p-swim', '수영', 'demo-g-exercise', 'demo-exercise'],
-    ['demo-p-walk', '저녁 산책', 'demo-g-exercise', 'demo-exercise'],
-    ['demo-p-club', '동아리', 'demo-g-meet', 'demo-meet'],
-    ['demo-p-book', '독서 모임', 'demo-g-meet', 'demo-meet'],
+    ['demo-p-english', '영어', 'demo-g-what'],
+    ['demo-p-swim', '수영', 'demo-g-what'],
+    ['demo-p-tennis', '테니스', 'demo-g-what'],
+    ['demo-p-netflix', '넷플릭스', 'demo-g-what'],
+    ['demo-p-phone', '휴대폰', 'demo-g-what'],
+    ['demo-p-academy', '학원', 'demo-g-kind'],
+    ['demo-p-club', '동아리', 'demo-g-kind'],
+    ['demo-p-payday', '결제일', 'demo-g-kind'],
   ] as const;
   const usage = new Map<string, number>();
 
@@ -56,26 +58,28 @@ export function demoData(today = new Date()) {
   const add = (date: string, title: string, category: string, extra: Partial<Schedule> = {}) => {
     schedules.push({ id: `demo-s${schedules.length + 1}`, date, title, category, completed: date < todayKey, ...extra });
   };
-  const fromPreset = (date: string, presetId: string, extra: Partial<Schedule> = {}) => {
-    const def = presetDefs.find(d => d[0] === presetId)!;
-    usage.set(presetId, (usage.get(presetId) ?? 0) + 1);
-    add(date, def[1], def[3], { presetId, titleBlocks: [{ id: `demo-b${schedules.length + 1}`, text: def[1], presetId }], ...extra });
+  /** 프리셋 블록 여러 개를 눌러 만든 일정 */
+  const fromPresets = (date: string, presetIds: string[], category: string, extra: Partial<Schedule> = {}) => {
+    const n = schedules.length + 1;
+    const titleBlocks = presetIds.map((presetId, i) => {
+      usage.set(presetId, (usage.get(presetId) ?? 0) + 1);
+      return { id: `demo-b${n}-${i}`, text: presetDefs.find(d => d[0] === presetId)![1], presetId };
+    });
+    add(date, titleBlocks.map(b => b.text).join(' '), category, { presetId: presetIds[0], titleBlocks, ...extra });
   };
 
   const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
   const last = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-  for (let d = new Date(first), week = 0; d <= last; d.setDate(d.getDate() + 1)) {
-    const date = ymd(d, 0), day = d.getDay();
-    if (day === 0) week++;
-    if (day === 1 || day === 3 || day === 5) fromPreset(date, 'demo-p-swim', { startTime: '07:00', endTime: '08:00' });
-    if (day === 2 || day === 4) fromPreset(date, 'demo-p-english', { startTime: '18:00', endTime: '19:30' });
-    if (day === 3) fromPreset(date, 'demo-p-math', { startTime: '19:00', endTime: '21:00' });
-    if (day === 5 && week % 2 === 0) fromPreset(date, 'demo-p-club', { startTime: '15:30' });
-    if (day === 6 && week % 2 === 1) fromPreset(date, 'demo-p-library', { startTime: '14:00' });
-    if (day === 6 && d.getDate() >= 15 && d.getDate() <= 21) fromPreset(date, 'demo-p-book', { startTime: '16:00' });
+  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
+    const date = ymd(d, 0), day = d.getDay(), dom = d.getDate();
+    if (day === 1 || day === 3) fromPresets(date, ['demo-p-swim', 'demo-p-club'], 'demo-exercise', { startTime: '07:00', endTime: '08:00' });
+    if (day === 2 || day === 4) fromPresets(date, ['demo-p-english', 'demo-p-academy'], 'demo-study', { startTime: '18:00', endTime: '19:30' });
+    if (day === 6) fromPresets(date, ['demo-p-tennis', 'demo-p-academy'], 'demo-exercise', { startTime: '10:00', endTime: '11:00' });
+    if (dom === 5) fromPresets(date, ['demo-p-netflix', 'demo-p-payday'], 'demo-pay');
+    if (dom === 25) fromPresets(date, ['demo-p-phone', 'demo-p-payday'], 'demo-pay');
   }
-  // 오늘과 가까운 날의 한 번뿐인 일정
-  fromPreset(todayKey, 'demo-p-walk');
+  // 오늘과 가까운 날의 한 번뿐인 일정(직접 입력)
+  add(todayKey, '저녁 산책', 'demo-exercise');
   add(todayKey, '영어 단어 30개', 'demo-study', { isImportant: true });
   add(ymd(today, 1), '친구 생일', 'demo-meet', { isImportant: true });
   add(ymd(today, 3), '과학 수행평가', 'demo-study', { isImportant: true });
@@ -90,7 +94,7 @@ export function demoData(today = new Date()) {
     t(4, 0, '운동화 빨기', 'low', 'done'), t(5, -1, '영어 숙제', 'medium', 'done'), t(6, 1, '생일 선물 포장', 'medium'),
   ];
   const presets: PhrasePreset[] = presetDefs.map(([id, text, groupId], i) => ({
-    id, type: 'title', text, groupId, isFavorite: i < 2, usageCount: usage.get(id) ?? 0, createdAt: now, updatedAt: now, sortOrder: i,
+    id, type: 'title', text, groupId, isFavorite: i === 0 || i === 5, usageCount: usage.get(id) ?? 0, createdAt: now, updatedAt: now, sortOrder: i,
   }));
   return { categories, schedules, tasks, presets, presetGroups };
 }

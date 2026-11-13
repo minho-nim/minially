@@ -26,14 +26,15 @@ test('체험 주소로 들어오면 예시 데이터가 보이고, 서버에 요
   await expect(page.getByText('친구', { exact: false }).first()).toBeVisible();
 
   // 예시 데이터: 지난달~다음 달 3개월치, 반복 일정은 프리셋으로 넣었고 프리셋 그룹이 있다
-  const info = await page.evaluate(() => new Promise<{ months: string[]; fromPreset: number; groups: string[]; presets: number }>(resolve => {
+  const info = await page.evaluate(() => new Promise<{ months: string[]; fromPreset: number; titles: string[]; groups: string[]; presets: number }>(resolve => {
     const req = indexedDB.open('DayFlowDB');
     req.onsuccess = () => {
       const tx = req.result.transaction(['schedules', 'presets', 'appSettings']);
       const s = tx.objectStore('schedules').getAll(), p = tx.objectStore('presets').getAll(), a = tx.objectStore('appSettings').get('global_settings');
       tx.oncomplete = () => resolve({
         months: [...new Set((s.result as { date: string }[]).map(x => x.date.slice(0, 7)))].sort(),
-        fromPreset: (s.result as { presetId?: string }[]).filter(x => x.presetId).length,
+        fromPreset: (s.result as { presetId?: string; titleBlocks?: unknown[] }[]).filter(x => x.presetId && x.titleBlocks?.length === 2).length,
+        titles: [...new Set((s.result as { presetId?: string; title: string }[]).filter(x => x.presetId).map(x => x.title))].sort(),
         groups: ((a.result?.presetGroups ?? []) as { name: string }[]).map(g => g.name),
         presets: (p.result as unknown[]).length,
       });
@@ -42,8 +43,9 @@ test('체험 주소로 들어오면 예시 데이터가 보이고, 서버에 요
   const now = new Date(), m = (o: number) => { const d = new Date(now.getFullYear(), now.getMonth() + o, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
   expect(info.months).toEqual([m(-1), m(0), m(1)]);
   expect(info.fromPreset).toBeGreaterThan(30);
-  expect(info.groups).toEqual(['공부', '운동', '약속']);
-  expect(info.presets).toBe(7);
+  expect(info.titles).toEqual(['넷플릭스 결제일', '수영 동아리', '영어 학원', '테니스 학원', '휴대폰 결제일']);
+  expect(info.groups).toEqual(['항목', '종류']);
+  expect(info.presets).toBe(8);
 
   // 새로고침해도 체험이 이어지고, 체험 중 만든 기록이 예시 데이터로 덮이지 않는다
   const before = await countSchedules(page);
