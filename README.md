@@ -88,9 +88,10 @@ Edge·Chrome 주소창의 **앱 설치**로 설치하면 별도 창·시작 메�
 
 ## 체험 모드와 포트폴리오
 
-- 로그인 화면의 **코드 없이 체험하기**를 누르면 예시 데이터로 앱이 열립니다. 체험 기록은 그 기기(IndexedDB)에만 저장되고 서버로 보내지 않습니다(`src/sync/demoMode.ts`). 공유(같이 보기)는 체험 중에 막힙니다.
+- 체험 주소 https://minially.pages.dev/portfolio/demo 로 들어오면 예시 데이터로 앱이 열립니다(로그인 화면에는 체험 단추가 없습니다). 체험 기록은 그 기기(IndexedDB)에만 저장되고 서버로 보내지 않습니다(`src/sync/demoMode.ts`). 공유(같이 보기)는 체험 중에 막힙니다.
+- 이미 코드로 로그인한 기기에서 체험 주소를 열면 내 데이터를 지우지 않고 앱 첫 화면으로 보냅니다.
 - 위쪽 띠나 설정의 **체험 끝내기**를 누르면 체험 데이터를 지우고 로그인 화면으로 돌아갑니다.
-- 포트폴리오 페이지: `public/portfolio.html` → https://minially.pages.dev/portfolio.html (서비스 워커 저장·가로채기 대상에서 뺌).
+- 포트폴리오 페이지: `public/portfolio/index.html` → https://minially.pages.dev/portfolio (서비스 워커 저장·가로채기 대상에서 뺌).
 
 ## Cloudflare Pages 배포
 
