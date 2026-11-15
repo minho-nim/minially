@@ -75,7 +75,8 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           globIgnores: ['**/portfolio/index.html'],
           // 포트폴리오 페이지(/portfolio)는 앱 화면으로 가로채지 않는다. 체험 주소 /demo 는 앱이 연다.
-          navigateFallbackDenylist: [/\/api\//, /^\/portfolio\/?(index\.html)?$/],
+          // 쉼표로 붙은 주소(/portfolio,...)는 저장된 앱 화면을 내지 않고 서버로 보내 MinLab으로 바로 넘어가게 한다.
+          navigateFallbackDenylist: [/\/api\//, /^\/portfolio\/?(index\.html)?$/, /^\/portfolio(,|%2C)/i],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

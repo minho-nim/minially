@@ -10,6 +10,13 @@ test('쉼표로 붙은 포트폴리오 주소는 MinLab으로 보낸다', async 
   await expect(page).toHaveURL(MINLAB);
 });
 
+test('쉼표가 %2C로 바뀐 주소도 MinLab으로 보낸다', async ({ page }) => {
+  await page.route('**/fonts.googleapis.com/**', r => r.abort());
+  await page.route(`${MINLAB}**`, r => r.fulfill({ status: 200, contentType: 'text/html', body: '<title>MinLab</title>' }));
+  await page.goto('/portfolio%2C%20https://minlab-ai-office.pages.dev/portfolio%2C%20https://minho-nim.github.io/MinLab/', { waitUntil: 'domcontentloaded' });
+  await expect(page).toHaveURL(MINLAB);
+});
+
 test('쉼표 없는 /portfolio 는 MinLab으로 보내지 않는다', async ({ page }) => {
   await page.route('**/fonts.googleapis.com/**', r => r.abort());
   await page.goto('/portfolio', { waitUntil: 'domcontentloaded' });
