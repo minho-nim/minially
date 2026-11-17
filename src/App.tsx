@@ -41,7 +41,8 @@ import {
   DEFAULT_SETTINGS,
 } from './db/indexedDB';
 import { expandRecurringSchedules } from './utils/recurrenceEngine';
-import { recordHistory, recordOccurrenceHistory, recordTaskDeletion, revertHistoryEntry, UndoNotice } from './utils/undoManager';
+import { baseIdOf, isOccurrence, planSeriesChange, type SeriesScope } from './utils/seriesEdit';
+import { recordHistory, recordOccurrenceHistory, recordSeriesHistory, recordTaskDeletion, revertHistoryEntry, UndoNotice } from './utils/undoManager';
 import { Navbar } from './components/layout/Navbar';
 import { BottomTabBar } from './components/layout/BottomTabBar';
 import { CalendarView } from './components/views/CalendarView';
@@ -225,9 +226,27 @@ export default function App() {
     setScheduleModalOpen(true);
   };
 
-  const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false, rule?: RecurrenceRule | null) => {
+  /** 반복 일정 '이후 모두 / 전체' 수정(edited) 또는 삭제(edited 없음) */
+  const applySeriesScope = async (occurrence: Schedule, scope: Exclude<SeriesScope, 'this'>, edited?: Schedule, newRule?: RecurrenceRule | null) => {
+    const rule = recurrenceRules.find(r => r.id === occurrence.recurrenceRuleId);
+    const base = schedules.find(s => s.id === baseIdOf(occurrence));
+    if (!rule || !base) throw new Error('반복 일정을 찾지 못했습니다.');
+    const change = planSeriesChange({ occurrence, base, rule, exceptions: recurrenceExceptions, scope, edited, newRule });
+    const what = scope === 'all' ? '모든 반복' : '이후 반복';
+    const notice = await recordSeriesHistory(edited ? 'UPDATE' : 'DELETE', `'${occurrence.title}' ${what} ${edited ? '수정됨' : '삭제됨'}`, change);
+    setUndoNotice(notice);
+    await reloadData();
+    return notice;
+  };
+
+  const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false, rule?: RecurrenceRule | null, scope: SeriesScope = 'this') => {
     setRegistrationNotice(null);
     const prev = expandedSchedules.find((s) => s.id === schedule.id) || schedules.find((s) => s.id === schedule.id);
+    if (scope !== 'this' && prev && isOccurrence(prev)) {
+      await applySeriesScope(prev, scope, schedule, rule);
+      if (!keepOpen) setScheduleModalOpen(false);
+      return;
+    }
     if (rule !== undefined) {
       schedule = { ...schedule };
       if (rule) schedule.recurrenceRuleId = rule.id;
@@ -253,9 +272,10 @@ export default function App() {
     setRegistrationNotice({undoId:notice.id,id:crypto.randomUUID(),message:prev?'일정이 수정되었습니다':'일정이 등록되었습니다',title:schedule.title,dates:[schedule.date],startTime:schedule.startTime,endTime:schedule.endTime});
   };
 
-  const handleDeleteSchedule = async (scheduleId: string) => {
+  const handleDeleteSchedule = async (scheduleId: string, scope: SeriesScope = 'this') => {
     const target = expandedSchedules.find((s) => s.id === scheduleId) || schedules.find((s) => s.id === scheduleId);
     if (!target) return;
+    if (scope !== 'this' && isOccurrence(target)) { await applySeriesScope(target, scope); return; }
 
     const notice = await recordOccurrenceHistory('DELETE', `'${target.title}' 삭제됨`, [target], [], recurrenceExceptions);
     setUndoNotice(notice);
@@ -708,7 +728,7 @@ export default function App() {
 
       {actionError && <div role="alert" className="mx-auto max-w-4xl p-3 text-sm text-red-600">{actionError}<button type="button" aria-label="오류 알림 닫기" onClick={() => setActionError('')} className="min-h-9 px-3">닫기</button></div>}
       <ConfirmDeleteDialog noun="할 일" target={taskDeleteTarget} busy={deleteBusy} onClose={() => setTaskDeleteTarget(null)} onDelete={async () => { if (!taskDeleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteTask(taskDeleteTarget.id); setTaskDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
-      <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} onDelete={async () => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
+      <ConfirmDeleteDialog target={deleteTarget} busy={deleteBusy} onClose={() => setDeleteTarget(null)} repeating={isOccurrence(deleteTarget)} onDelete={async (scope = 'this') => { if (!deleteTarget || deleteBusy) return; setDeleteBusy(true); try { await handleDeleteSchedule(deleteTarget.id, scope); setDeleteTarget(null); } finally { setDeleteBusy(false); } }} />
       <TodaySchedulesModal date={taskSelectedDate} endDate={taskSelectedEndDate} onDateChange={selectTaskDate} onRangeChange={selectTaskRange} open={todaySchedulesOpen} onClose={() => setTodaySchedulesOpen(false)} schedules={schedules} rules={recurrenceRules} exceptions={recurrenceExceptions} categories={categories} tasks={tasks} onToggleSchedule={async schedule=>{await handleToggleSchedule(schedule.id,schedule);}} onRegisterTask={handleRegisterScheduleAsTask} />
       <CategoryLibraryModal open={categoryLibraryOpen} onClose={() => setCategoryLibraryOpen(false)} categories={categories} schedules={schedules} onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories} />
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
@@ -718,7 +738,7 @@ export default function App() {
         date={selectedDate} onSelectDate={setSelectedDate} onClose={() => setDaySheetOpen(false)}
         schedules={viewSchedules} categorySchedules={schedules} categories={categories} extraCategories={shared.categories} presets={presets} settings={settings}
         undoLabel={undoNotice?.message} onUndo={async () => { if (undoNotice) await handleUndo(undoNotice); }}
-        onSave={schedule => handleSaveSchedule(schedule, true)} onEdit={handleEditSchedule}
+        onSave={(schedule, rule) => handleSaveSchedule(schedule, true, rule)} onEdit={handleEditSchedule}
         onToggle={handleToggleSchedule} onMove={schedule => { if (readOnly(schedule.id)) return; setMovingSchedule(schedule); setMoveModalOpen(true); }}
         onCopyDate={() => handleOpenDateCopyModal(selectedDate)}
         onDetails={(draft, saved, batch=false) => { handleOpenNewScheduleModal(selectedDate); setInitialBatch(batch); setEditingSchedule(draft); dayDetailSaved.current = saved; }}

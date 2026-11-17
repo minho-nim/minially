@@ -25,24 +25,25 @@ test('체험 주소로 들어오면 예시 데이터가 보이고, 서버에 요
   await expect(page.locator('[data-calendar-date]').first()).toBeVisible();
   await expect(page.getByText('친구', { exact: false }).first()).toBeVisible();
 
-  // 예시 데이터: 지난달~다음 달 3개월치, 반복 일정은 프리셋으로 넣었고 프리셋 그룹이 있다
-  const info = await page.evaluate(() => new Promise<{ months: string[]; fromPreset: number; titles: string[]; groups: string[]; presets: number }>(resolve => {
-    const req = indexedDB.open('DayFlowDB');
-    req.onsuccess = () => {
-      const tx = req.result.transaction(['schedules', 'presets', 'appSettings']);
-      const s = tx.objectStore('schedules').getAll(), p = tx.objectStore('presets').getAll(), a = tx.objectStore('appSettings').get('global_settings');
-      tx.oncomplete = () => resolve({
-        months: [...new Set((s.result as { date: string }[]).map(x => x.date.slice(0, 7)))].sort(),
-        fromPreset: (s.result as { presetId?: string; titleBlocks?: unknown[] }[]).filter(x => x.presetId && x.titleBlocks?.length === 2).length,
-        titles: [...new Set((s.result as { presetId?: string; title: string }[]).filter(x => x.presetId).map(x => x.title))].sort(),
-        groups: ((a.result?.presetGroups ?? []) as { name: string }[]).map(g => g.name),
-        presets: (p.result as unknown[]).length,
-      });
+  // 예시 데이터: 지난달~다음 달 3개월치, 반복 일정은 실제 반복 규칙(제목은 프리셋 블록 두 개)이고 프리셋 그룹이 있다
+  const info = await page.evaluate(async () => {
+    const dbPath = '/src/db/indexedDB.ts', enginePath = '/src/utils/recurrenceEngine.ts';
+    const db = await import(dbPath), engine = await import(enginePath);
+    const all = await db.exportAllData();
+    const expanded = engine.expandRecurringSchedules(all.schedules, all.recurrenceRules, all.recurrenceExceptions, '2000-01-01', '2100-12-31') as { date: string; presetId?: string; titleBlocks?: unknown[]; title: string; recurrenceRuleId?: string }[];
+    return {
+      months: [...new Set(expanded.map(x => x.date.slice(0, 7)))].sort(),
+      repeatedFromPreset: expanded.filter(x => x.recurrenceRuleId && x.presetId && x.titleBlocks?.length === 2).length,
+      rules: all.recurrenceRules.length,
+      titles: [...new Set(all.schedules.filter((x: { presetId?: string }) => x.presetId).map((x: { title: string }) => x.title))].sort(),
+      groups: ((all.settings.presetGroups ?? []) as { name: string }[]).map(g => g.name),
+      presets: all.presets.length,
     };
-  }));
+  });
   const now = new Date(), m = (o: number) => { const d = new Date(now.getFullYear(), now.getMonth() + o, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
   expect(info.months).toEqual([m(-1), m(0), m(1)]);
-  expect(info.fromPreset).toBeGreaterThan(30);
+  expect(info.rules).toBe(5);
+  expect(info.repeatedFromPreset).toBeGreaterThan(30);
   expect(info.titles).toEqual(['넷플릭스 결제일', '수영 동아리', '영어 학원', '테니스 학원', '휴대폰 결제일']);
   expect(info.groups).toEqual(['항목', '종류']);
   expect(info.presets).toBe(8);

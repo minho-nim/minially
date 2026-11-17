@@ -9,7 +9,7 @@ export interface CategoryItem {
   sortOrder?: number;
 }
 
-export type RecurrenceFrequency = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom';
+export type RecurrenceFrequency = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 export type RecurrenceType = RecurrenceFrequency;
 
 export interface RecurrenceRule {
@@ -21,6 +21,8 @@ export interface RecurrenceRule {
   startDate: string; // YYYY-MM-DD
   endDate?: string; // YYYY-MM-DD
   count?: number;
+  /** 매월·매년 반복에서 그 날짜가 없는 달(예: 31일, 2월 29일): 'last' 그 달 말일(기본), 'skip' 건너뛰기 */
+  missingDay?: 'last' | 'skip';
 }
 
 export interface RecurrenceException {

@@ -2,7 +2,8 @@
 // 기록은 이 기기(IndexedDB)에만 저장되고 서버와 맞추지 않는다(syncEngine에 코드가 없으므로 동기화 요청이 나가지 않음).
 // 체험을 끝내면 이 기기의 체험 데이터를 모두 지우고 로그인 화면으로 돌아간다.
 import { getDB } from '../db/indexedDB';
-import type { CategoryItem, PhrasePreset, PresetGroup, Schedule, Task } from '../types';
+import type { CategoryItem, PhrasePreset, PresetGroup, RecurrenceException, RecurrenceRule, Schedule, Task } from '../types';
+import { expandRecurringSchedules } from '../utils/recurrenceEngine';
 
 const DEMO_KEY = 'minially-demo';
 const CLEAR_STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'changeHistory'] as const;
@@ -25,7 +26,7 @@ function ymd(base: Date, offset: number) {
 
 /**
  * 오늘 날짜 기준으로 예시 데이터를 만든다. 지난달 1일 ~ 다음 달 말일(3개월)만 채운다.
- * 반복 일정은 프리셋 낱말 블록 두 개('영어' + '학원')를 눌러 넣은 것처럼 presetId·제목 블록을 함께 넣는다. 오늘 이전 일정은 완료로 둔다.
+ * 반복 일정은 실제 반복 규칙으로 넣고, 제목은 프리셋 낱말 블록 두 개('영어' + '학원')를 눌러 만든 것처럼 presetId·제목 블록을 함께 넣는다. 오늘 이전 일정은 완료로 둔다.
  */
 export function demoData(today = new Date()) {
   const todayKey = ymd(today, 0);
@@ -58,26 +59,30 @@ export function demoData(today = new Date()) {
   const add = (date: string, title: string, category: string, extra: Partial<Schedule> = {}) => {
     schedules.push({ id: `demo-s${schedules.length + 1}`, date, title, category, completed: date < todayKey, ...extra });
   };
-  /** 프리셋 블록 여러 개를 눌러 만든 일정 */
-  const fromPresets = (date: string, presetIds: string[], category: string, extra: Partial<Schedule> = {}) => {
-    const n = schedules.length + 1;
+  const rules: RecurrenceRule[] = [], exceptions: RecurrenceException[] = [];
+  const first = ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1), 0);
+  const last = ymd(new Date(today.getFullYear(), today.getMonth() + 2, 0), 0);
+  /** 프리셋 블록 두 개를 눌러 만든 반복 일정(지난달 1일 ~ 다음 달 말일). 오늘 이전 회차는 완료로 둔다. */
+  const repeating = (presetIds: string[], category: string, rule: Pick<RecurrenceRule, 'frequency' | 'weekdays'> & { startDate?: string }, extra: Partial<Schedule> = {}) => {
+    const n = schedules.length + 1, id = `demo-s${n}`;
+    const full: RecurrenceRule = { id: id + '-repeat', scheduleId: id, startDate: rule.startDate || first, endDate: last, frequency: rule.frequency, ...(rule.weekdays ? { weekdays: rule.weekdays } : {}) };
+    const dates = expandRecurringSchedules([{ id, title: '', date: full.startDate, category, completed: false }], [full], [], first, last).map(s => s.date);
     const titleBlocks = presetIds.map((presetId, i) => {
-      usage.set(presetId, (usage.get(presetId) ?? 0) + 1);
+      usage.set(presetId, (usage.get(presetId) ?? 0) + dates.length);
       return { id: `demo-b${n}-${i}`, text: presetDefs.find(d => d[0] === presetId)![1], presetId };
     });
-    add(date, titleBlocks.map(b => b.text).join(' '), category, { presetId: presetIds[0], titleBlocks, ...extra });
+    schedules.push({ id, date: dates[0], title: titleBlocks.map(b => b.text).join(' '), category, completed: false, presetId: presetIds[0], titleBlocks, recurrenceRuleId: full.id, ...extra });
+    rules.push(full);
+    for (const date of dates.filter(d => d < todayKey)) exceptions.push({ id: `${id}-done-${date}`, ruleId: full.id, originalDate: date, action: 'modified', modifiedSchedule: { completed: true } });
   };
+  const monthDay = (day: number) => first.slice(0, 8) + String(day).padStart(2, '0');
 
-  const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const last = new Date(today.getFullYear(), today.getMonth() + 2, 0);
-  for (let d = new Date(first); d <= last; d.setDate(d.getDate() + 1)) {
-    const date = ymd(d, 0), day = d.getDay(), dom = d.getDate();
-    if (day === 1 || day === 3) fromPresets(date, ['demo-p-swim', 'demo-p-club'], 'demo-exercise', { startTime: '07:00', endTime: '08:00' });
-    if (day === 2 || day === 4) fromPresets(date, ['demo-p-english', 'demo-p-academy'], 'demo-study', { startTime: '18:00', endTime: '19:30' });
-    if (day === 6) fromPresets(date, ['demo-p-tennis', 'demo-p-academy'], 'demo-exercise', { startTime: '10:00', endTime: '11:00' });
-    if (dom === 5) fromPresets(date, ['demo-p-netflix', 'demo-p-payday'], 'demo-pay');
-    if (dom === 25) fromPresets(date, ['demo-p-phone', 'demo-p-payday'], 'demo-pay');
-  }
+  repeating(['demo-p-swim', 'demo-p-club'], 'demo-exercise', { frequency: 'weekly', weekdays: [1, 3] }, { startTime: '07:00', endTime: '08:00' });
+  repeating(['demo-p-english', 'demo-p-academy'], 'demo-study', { frequency: 'weekly', weekdays: [2, 4] }, { startTime: '18:00', endTime: '19:30' });
+  repeating(['demo-p-tennis', 'demo-p-academy'], 'demo-exercise', { frequency: 'weekly', weekdays: [6] }, { startTime: '10:00', endTime: '11:00' });
+  repeating(['demo-p-netflix', 'demo-p-payday'], 'demo-pay', { frequency: 'monthly', startDate: monthDay(5) });
+  repeating(['demo-p-phone', 'demo-p-payday'], 'demo-pay', { frequency: 'monthly', startDate: monthDay(25) });
+
   // 오늘과 가까운 날의 한 번뿐인 일정(직접 입력)
   add(todayKey, '저녁 산책', 'demo-exercise');
   add(todayKey, '영어 단어 30개', 'demo-study', { isImportant: true });
@@ -96,15 +101,17 @@ export function demoData(today = new Date()) {
   const presets: PhrasePreset[] = presetDefs.map(([id, text, groupId], i) => ({
     id, type: 'title', text, groupId, isFavorite: i === 0 || i === 5, usageCount: usage.get(id) ?? 0, createdAt: now, updatedAt: now, sortOrder: i,
   }));
-  return { categories, schedules, tasks, presets, presetGroups };
+  return { categories, schedules, tasks, presets, presetGroups, rules, exceptions };
 }
 
 /** 체험 시작: 이 기기 데이터를 비우고 예시 데이터를 넣은 뒤 새로고침 */
 export async function startDemo() {
   await clearLocal();
-  const { categories, schedules, tasks, presets, presetGroups } = demoData();
+  const { categories, schedules, tasks, presets, presetGroups, rules, exceptions } = demoData();
   const db = await getDB();
-  const tx = db.transaction(['categories', 'schedules', 'tasks', 'presets', 'appSettings'], 'readwrite');
+  const tx = db.transaction(['categories', 'schedules', 'tasks', 'presets', 'appSettings', 'recurrenceRules', 'recurrenceExceptions'], 'readwrite');
+  for (const x of rules) await tx.objectStore('recurrenceRules').put(x);
+  for (const x of exceptions) await tx.objectStore('recurrenceExceptions').put(x);
   await tx.objectStore('appSettings').put({ id: 'global_settings', presetGroups } as never);
   for (const c of categories) await tx.objectStore('categories').put(c);
   for (const x of schedules) await tx.objectStore('schedules').put(x);

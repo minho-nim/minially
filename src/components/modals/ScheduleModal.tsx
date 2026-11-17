@@ -5,7 +5,6 @@ import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Schedule,
   ScheduleCategory,
-  RecurrenceFrequency,
   RecurrenceRule,
   Preset,
   PresetGroup,
@@ -18,6 +17,10 @@ import { useMobileSheet, useRevealSheetPanel } from '../../hooks/useMobileSheet'
 import { useDiscardGuard } from '../../hooks/useDiscardGuard';
 import { DiscardPrompt } from '../common/DiscardPrompt';
 import { DatePicker } from '../common/DatePicker';
+import { RepeatPicker } from '../common/RepeatPicker';
+import { SCOPES } from './ConfirmDeleteDialog';
+import type { SeriesScope } from '../../utils/seriesEdit';
+import { NO_REPEAT, repeatError, repeatToRule, ruleToRepeat, type RepeatSettings } from '../../utils/repeat';
 import { usePresetGroup } from '../../hooks/usePresetGroup';
 import { InlinePresetPicker } from '../common/InlinePresetPicker';
 import { TitleBlockEditor } from '../common/TitleBlockEditor';
@@ -43,8 +46,8 @@ interface ScheduleModalProps extends CategoryActions {
   onUndoRegistration?:()=>Promise<void>;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (schedule: Schedule, keepOpen?: boolean, rule?: RecurrenceRule | null) => Promise<void> | void;
-  onDelete?: (scheduleId: string) => Promise<void> | void;
+  onSave: (schedule: Schedule, keepOpen?: boolean, rule?: RecurrenceRule | null, scope?: SeriesScope) => Promise<void> | void;
+  onDelete?: (scheduleId: string, scope?: SeriesScope) => Promise<void> | void;
   onUsePreset: (presetId: string) => Promise<void> | void;
   onSavePreset: (preset: Preset) => Promise<void> | void;
   onDeletePreset: (presetId: string) => Promise<void> | void;
@@ -79,8 +82,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   selectedDate,
 }) => {
   const importantBaseline = useRef(false), repeatBaseline = useRef('');
-  const [repeat, setRepeat] = useState<RecurrenceFrequency>('none');
-  const [repeatEnd, setRepeatEnd] = useState('');
+  const [repeat, setRepeat] = useState<RepeatSettings>(NO_REPEAT);
   const occurrence = Boolean(initialSchedule?.recurrenceRuleId && /_rec_\d{4}-\d{2}-\d{2}$/.test(initialSchedule.id || ''));
   const originalRule = recurrenceRules.find(r => r.id === initialSchedule?.recurrenceRuleId || r.scheduleId === initialSchedule?.id);
   const [isImportant, setIsImportant] = useState(false);
@@ -120,13 +122,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [inlinePresetsOpen, setInlinePresetsOpen] = useState(false);
   const [extraDates, setExtraDates] = useState<string[]>([]);
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
-  const [hasSaved, setHasSaved] = useState(false), [deleting, setDeleting] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false), [deleting, setDeleting] = useState(false), [askScope, setAskScope] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null), baseline = useRef('');
   const mobileSheet=useMobileSheet(isOpen,.9,'schedule');
   useRevealSheetPanel(isOpen && inlinePresetsOpen && !isPhraseModalOpen,modalRef,mobileSheet.expand);
   const allDates = [...new Set([date, ...extraDates])].filter(Boolean).sort();
   const snapshot = (t: string, d: string, all: boolean, start: string, end: string, cat: string, note: string, done: boolean, extra: string[], blocks: TitleBlock[] = []) => JSON.stringify([t, d, all, all ? '' : start, all ? '' : end, cat, note, done, extra, blocks.map(b => [b.text, b.presetId])]);
-  const dirty = JSON.stringify([repeat, repeatEnd]) !== repeatBaseline.current || isImportant !== importantBaseline.current || snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
+  const dirty = JSON.stringify(repeat) !== repeatBaseline.current || isImportant !== importantBaseline.current || snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
   const closeGuard = useDiscardGuard(dirty || panelDirty, saving || savingPhrase || panelBusy);
   const panelGuard = useDiscardGuard(panelDirty, saving || panelBusy);
   const returnToSchedule = () => { setIsPhraseModalOpen(false); setCategoryPanel(null); setDatePanel(false); setPanelDirty(false); setPanelBusy(false); requestAnimationFrame(() => titleInputRef.current?.focus()); };
@@ -150,13 +152,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     const savedBlocks = initialSchedule?.titleBlocks;
     const parts: TitleBlock[] = Array.isArray(savedBlocks) && savedBlocks.every(b => b && typeof b.id === 'string' && typeof b.text === 'string') && savedBlocks.map(b => b.text).join(' ') === t ? savedBlocks : t ? [{ id: crypto.randomUUID(), text: t }] : [];
     setTitleBlocks(parts);
-    const frequency = originalRule?.frequency || 'none', until = originalRule?.endDate || '';
-    setRepeat(frequency); setRepeatEnd(until); repeatBaseline.current = JSON.stringify([frequency, until]);
+    const initialRepeat = ruleToRepeat(originalRule);
+    setRepeat(initialRepeat); repeatBaseline.current = JSON.stringify(initialRepeat);
     importantBaseline.current = Boolean(initialSchedule?.isImportant);
     setIsImportant(importantBaseline.current);
     setTitle(t); setDate(d); setIsAllDay(all); setStartTime(start); setEndTime(end); setCategory(cat); setMemo(note); setCompleted(done);
     setShowAdditionalOptions(Boolean(note || originalRule)); setExtraDates([]); setDatePanel(initialBatch);
-    setIsPhraseModalOpen(false); setInlinePresetsOpen(false); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false);
+    setIsPhraseModalOpen(false); setInlinePresetsOpen(false); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false); setAskScope(false);
     closeGuard.cancel(); panelGuard.cancel();
     setSaveError(''); setApplyMode('append'); setTitleHistory([]); setPhraseMessage(''); titlePhraseDraftId.current = null;
     baseline.current = snapshot(t, d, all, start, end, cat, note, done, [], parts);
@@ -236,14 +238,18 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     }
   };
 
-  const handleSave = async (composition?: TitleBlock[]): Promise<boolean> => {
+  const handleSave = async (composition?: TitleBlock[], scope?: SeriesScope): Promise<boolean> => {
     const trimmedTitle = (composition ? composition.map(b => b.text).join(' ') : title).trim();
     if (!trimmedTitle || savingRef.current) return false;
     if (titleBlocks.some(b => !b.text.trim())) { setSaveError('빈 제목 블록을 입력하거나 제거해 주세요.'); return false; }
     if (category && !categories.some(cat => cat.id === category)) { setSaveError('없는 카테고리입니다. 다시 선택해 주세요.'); setCategoryPanel('select'); return false; }
     if (!date) { setSaveError('날짜를 선택해 주세요.'); return false; }
-    if (!occurrence && repeat !== 'none' && repeatEnd && repeatEnd < date) { setSaveError('반복 종료일은 시작 날짜 이후로 선택해 주세요.'); return false; }
-    if (!isEditing && allDates.length > 1 && repeat !== 'none') { setSaveError('반복 일정은 하나의 기준 날짜로 등록해 주세요.'); return false; }
+    const repeatProblem = repeatError(repeat, date);
+    if (repeatProblem) { setSaveError(repeatProblem); return false; }
+    // 반복 일정의 한 회차: 어디까지 바꿀지 먼저 묻는다
+    if (occurrence && !scope) { setSaveError(''); setDeleting(false); setAskScope(true); return false; }
+    setAskScope(false);
+    if (!isEditing && allDates.length > 1 && repeat.frequency !== 'none') { setSaveError('반복 일정은 하나의 기준 날짜로 등록해 주세요.'); return false; }
     if (!isAllDay && (!startTime || !endTime || endTime <= startTime)) { setSaveError('종료 시간은 시작 시간보다 늦게 설정해 주세요.'); return false; }
     savingRef.current = true;
     setSaving(true);
@@ -262,12 +268,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       memo: memo.trim(),
     };
 
-    const repeatChanged = JSON.stringify([repeat, repeatEnd]) !== repeatBaseline.current;
-    const rule: RecurrenceRule | null | undefined = occurrence || (isEditing && !repeatChanged) || (!isEditing && repeat === 'none') ? undefined : repeat === 'none' ? null : {
-      ...originalRule, id: originalRule?.id || newSchedule.id + '-repeat', scheduleId: newSchedule.id,
-      frequency: repeat, startDate: originalRule?.startDate || date, endDate: repeatEnd || undefined,
-      ...(repeat !== originalRule?.frequency ? { weekdays: repeat === 'weekly' ? [new Date(date + 'T12:00:00').getDay()] : undefined } : {}),
-    };
+    const repeatChanged = JSON.stringify(repeat) !== repeatBaseline.current;
+    const rule: RecurrenceRule | null | undefined = (occurrence && (scope === 'this' || !repeatChanged)) || (isEditing && !repeatChanged) || (!isEditing && repeat.frequency === 'none') ? undefined
+      : repeatToRule(repeat, { id: originalRule?.id || newSchedule.id + '-repeat', scheduleId: newSchedule.id, startDate: occurrence ? date : originalRule?.startDate || date }, occurrence ? undefined : originalRule);
     const parts = composition ?? titleBlocks;
     if (parts.map(b => b.text).join(' ').trim() === trimmedTitle && (parts.length > 1 || parts.some(b => b.presetId))) newSchedule.titleBlocks = parts;
     else delete newSchedule.titleBlocks;
@@ -278,13 +281,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     } else if (continuousAdd && !isEditing) {
       await onSave(newSchedule, true, rule);
       setTitle(''); setTitleBlocks([]);
-      setMemo(''); setIsImportant(false); importantBaseline.current = false; repeatBaseline.current = JSON.stringify([repeat, repeatEnd]);
+      setMemo(''); setIsImportant(false); importantBaseline.current = false; repeatBaseline.current = JSON.stringify(repeat);
       setTitleHistory([]);
       setPhraseMessage(''); setHasSaved(true); scheduleDraftId.current = crypto.randomUUID();
       baseline.current = snapshot('', date, isAllDay, startTime, endTime, category, '', completed, extraDates);
       setTimeout(() => titleInputRef.current?.focus(), 50);
     } else {
-      await onSave(newSchedule, false, rule);
+      await onSave(newSchedule, false, rule, scope);
       onClose();
     }
     return true;
@@ -439,12 +442,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               <div className="space-y-3 pt-2 border-t border-app-line animate-in fade-in">
               <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-app-accent-hover disabled:opacity-40">프리셋으로 저장</button>
                 <div className="space-y-2">
-                  {occurrence ? <p className="text-xs text-app-muted">반복 일정의 이 날짜만 수정합니다. 반복 주기는 유지됩니다.</p> : <>
-                    <label className="block text-xs font-semibold" htmlFor="schedule-repeat">반복</label>
-                    <select id="schedule-repeat" value={repeat} onChange={e => setRepeat(e.target.value as RecurrenceFrequency)} className="w-full px-3 text-sm border border-app-line rounded-xl bg-app-canvas">
-                      <option value="none">반복 없음</option><option value="daily">매일</option><option value="weekdays">평일</option><option value="weekly">매주 같은 요일</option><option value="monthly">매월 같은 날짜</option>{repeat === 'custom' && <option value="custom">기존 사용자 지정 반복 유지</option>}
-                    </select>
-                    {repeat !== 'none' && <div className="flex items-start gap-2"><DatePicker label="반복 종료일" value={repeatEnd} onChange={setRepeatEnd} /><button type="button" className="text-xs px-2 shrink-0" onClick={() => setRepeatEnd('')}>종료일 없음</button></div>}
+                  {occurrence && <p className="text-xs text-app-muted">반복 일정입니다. 저장할 때 이 일정만·이후 모든 일정·모든 반복 일정 중에서 고릅니다.</p>}
+                  {<>
+                    <RepeatPicker idPrefix="schedule" value={repeat} onChange={setRepeat} date={date} />
                   </>}
                 </div>
                 {/* Memo with Memo Phrase Selector */}
@@ -479,7 +479,19 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>
 
         {deleting && <div role="group" aria-label="일정 삭제 확인" className="p-3 mx-4 bg-app-canvas border border-app-line rounded-xl text-sm">
-          <p>이 일정을 삭제할까요? 삭제 후 실행 취소할 수 있습니다.</p><div className="flex justify-end gap-2"><button type="button" onClick={() => setDeleting(false)}>취소</button><button type="button" disabled={saving} onClick={async () => { if (!initialSchedule?.id || savingRef.current) return; savingRef.current = true; setSaving(true); try { await onDelete?.(initialSchedule.id); onClose(); } catch { setSaveError('일정을 삭제하지 못했습니다. 다시 시도해 주세요.'); } finally { savingRef.current = false; setSaving(false); } }} className="text-red-600 px-3">삭제</button></div>
+          <p>{occurrence ? '반복 일정입니다. 어디까지 삭제할까요? 삭제 후 실행 취소할 수 있습니다.' : '이 일정을 삭제할까요? 삭제 후 실행 취소할 수 있습니다.'}</p>
+          <div className={occurrence ? 'grid gap-1.5 mt-2' : 'flex justify-end gap-2'}>
+            {(occurrence ? SCOPES : [['this', ''] as [SeriesScope, string]]).map(([scope, label]) => <button key={scope} type="button" disabled={saving} onClick={async () => { if (!initialSchedule?.id || savingRef.current) return; savingRef.current = true; setSaving(true); try { await onDelete?.(initialSchedule.id, scope); onClose(); } catch { setSaveError('일정을 삭제하지 못했습니다. 다시 시도해 주세요.'); } finally { savingRef.current = false; setSaving(false); } }} className={occurrence ? 'min-h-9 px-3 rounded-lg bg-white border border-app-line text-red-600 text-left' : 'text-red-600 px-3'}>{label ? label + ' 삭제' : '삭제'}</button>)}
+            <button type="button" className={occurrence ? 'min-h-9' : ''} onClick={() => setDeleting(false)}>취소</button>
+          </div>
+        </div>}
+        {askScope && <div role="group" aria-label="반복 일정 수정 범위" className="p-3 mx-4 bg-app-canvas border border-app-line rounded-xl text-sm">
+          <p>반복 일정입니다. 어디까지 바꿀까요?</p>
+          {JSON.stringify(repeat) !== repeatBaseline.current && <p className="text-xs text-app-muted mt-1">반복 설정을 바꿔서 '이 일정만'은 고를 수 없습니다.</p>}
+          <div className="grid gap-1.5 mt-2">
+            {SCOPES.map(([scope, label]) => <button key={scope} type="button" disabled={saving || (scope === 'this' && JSON.stringify(repeat) !== repeatBaseline.current)} onClick={() => void handleSave(undefined, scope)} className="min-h-9 px-3 rounded-lg bg-white border border-app-line text-app-ink text-left disabled:opacity-40">{label} 저장</button>)}
+            <button type="button" className="min-h-9" onClick={() => setAskScope(false)}>취소</button>
+          </div>
         </div>}
         {/* Footer */}
         <div className="px-3 py-1.5 border-t border-app-line bg-white flex items-center justify-between shrink-0">
@@ -487,7 +499,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             {isEditing && onDelete ? (
               <button
                 type="button"
-                onClick={() => setDeleting(true)}
+                onClick={() => { setAskScope(false); setDeleting(true); }}
                 className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
                 title="일정 삭제"
               >

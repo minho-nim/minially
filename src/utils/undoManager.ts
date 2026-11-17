@@ -59,3 +59,10 @@ export async function recordOccurrenceHistory(type: ChangeHistoryEntry['type'], 
   await applyScheduleHistory(entry);
   return { id: entry.id, message: description, entry };
 }
+
+/** 반복 일정 '이후 모두 / 전체' 수정·삭제를 한 번에 저장(실행 취소 가능) */
+export async function recordSeriesHistory(type: ChangeHistoryEntry['type'], description: string, change: { schedules: { before: Schedule[]; after: Schedule[] }; rules: { before: RecurrenceRule[]; after: RecurrenceRule[] }; exceptions: { before: RecurrenceException[]; after: RecurrenceException[] } }): Promise<UndoNotice> {
+  const entry: ChangeHistoryEntry = { id: crypto.randomUUID(), timestamp: Date.now(), type, description, previousSchedules: change.schedules.before, newSchedules: change.schedules.after, previousExceptions: change.exceptions.before, newExceptions: change.exceptions.after, previousRules: change.rules.before, newRules: change.rules.after };
+  await applyScheduleHistory(entry);
+  return { id: entry.id, message: description, entry };
+}

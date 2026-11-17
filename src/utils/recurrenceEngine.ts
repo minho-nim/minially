@@ -61,34 +61,13 @@ export function expandRecurringSchedules(
     }
 
     const cur = new Date(ruleStart);
+    let made = 0; // 지금까지 나온 반복 횟수(count 제한용, 건너뛴 날짜도 센다)
     // Iterate from ruleStart up to effectiveEnd
     while (cur <= effectiveEnd) {
       const curStr = formatDate(cur);
-
-      let matches = false;
-      switch (rule.frequency) {
-        case 'daily':
-          matches = true;
-          break;
-        case 'weekdays': {
-          const day = cur.getDay();
-          matches = day >= 1 && day <= 5;
-          break;
-        }
-        case 'weekly': {
-          if (rule.weekdays && rule.weekdays.length > 0) {
-            matches = rule.weekdays.includes(cur.getDay());
-          } else {
-            matches = cur.getDay() === ruleStart.getDay();
-          }
-          break;
-        }
-        case 'monthly':
-          matches = cur.getDate() === ruleStart.getDate();
-          break;
-        default:
-          matches = false;
-      }
+      const matches = occursOn(rule, ruleStart, cur);
+      if (matches) made++;
+      if (rule.count && made > rule.count) break;
 
       if (matches && cur >= effectiveStart && cur <= effectiveEnd) {
         const exceptionKey = `${rule.id}_${curStr}`;
@@ -115,4 +94,47 @@ export function expandRecurringSchedules(
   }
 
   return result;
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+const lastDayOf = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+/** 이 달에 들어갈 날짜. 그 날짜가 없는 달은 말일(기본) 또는 null(건너뛰기). */
+function dayInMonth(rule: RecurrenceRule, y: number, m: number, day: number): number | null {
+  const last = lastDayOf(y, m);
+  if (day <= last) return day;
+  return rule.missingDay === 'skip' ? null : last;
+}
+
+/** 이 날짜가 반복에 해당하는지. interval은 주기 간격(2 = 2주마다 등), 기본 1. */
+export function occursOn(rule: RecurrenceRule, start: Date, cur: Date): boolean {
+  if (cur < start) return false;
+  const interval = Math.max(1, Math.floor(rule.interval || 1));
+  const days = Math.round((Date.UTC(cur.getFullYear(), cur.getMonth(), cur.getDate()) - Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / DAY);
+  switch (rule.frequency) {
+    case 'daily':
+      return days % interval === 0;
+    case 'weekdays': {
+      const day = cur.getDay();
+      return day >= 1 && day <= 5;
+    }
+    case 'weekly': {
+      const weekdays = rule.weekdays && rule.weekdays.length > 0 ? rule.weekdays : [start.getDay()];
+      if (!weekdays.includes(cur.getDay())) return false;
+      // 시작 날짜가 든 주(일요일 시작)부터 몇 주째인지
+      const weeks = Math.floor((days + start.getDay()) / 7);
+      return weeks % interval === 0;
+    }
+    case 'monthly': {
+      const months = (cur.getFullYear() - start.getFullYear()) * 12 + cur.getMonth() - start.getMonth();
+      if (months % interval !== 0) return false;
+      return cur.getDate() === dayInMonth(rule, cur.getFullYear(), cur.getMonth(), start.getDate());
+    }
+    case 'yearly': {
+      const years = cur.getFullYear() - start.getFullYear();
+      if (years % interval !== 0 || cur.getMonth() !== start.getMonth()) return false;
+      return cur.getDate() === dayInMonth(rule, cur.getFullYear(), cur.getMonth(), start.getDate());
+    }
+    default:
+      return false;
+  }
 }

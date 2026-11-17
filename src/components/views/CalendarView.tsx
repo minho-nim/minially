@@ -21,6 +21,7 @@ import {
   MoreVertical,
   CalendarRange,
   Star,
+  Repeat,
 } from 'lucide-react';
 
 interface CalendarViewProps {
@@ -283,7 +284,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     <div data-mobile-calendar-titles className="sm:hidden space-y-1 mt-0.5 min-w-0">
                       {daySchedules.slice(0,2).map(schedule=>{
                         const color=categoryMap.get(schedule.category)?.color || '#DCA78F';
-                        return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold text-app-ink':'text-app-ink')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{Array.from(schedule.title).slice(0,schedule.isImportant?2:3).join('')}</div>;
+                        return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold text-app-ink':'text-app-ink')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{schedule.recurrenceRuleId&&<Repeat aria-label="반복 일정" className="inline w-2 h-2 mr-px -mt-px opacity-70"/>}{Array.from(schedule.title).slice(0,3-(schedule.isImportant?1:0)-(schedule.recurrenceRuleId?1:0)).join('')}</div>;
                       })}
                       {daySchedules.length>1&&<span className="calendar-compact-count hidden absolute top-2 right-1 text-[9px] text-app-muted">+{daySchedules.length-1}</span>}
                       {daySchedules.length>2&&<p className="calendar-extra-count text-[9px] leading-3 text-app-muted text-right">+{daySchedules.length-2}개</p>}
@@ -318,7 +319,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 {s.startTime}
                               </span>
                             )}
-                            <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.title}</span>
+                            <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-2.5 h-2.5 mr-0.5 opacity-70" />}{s.title}</span>
                           </div>
                         );
                       })}
@@ -396,7 +397,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               {s.startTime}
                             </span>
                           )}
-                          <p className={s.isImportant ? 'font-bold truncate' : 'font-medium truncate'}>{s.isImportant && '★ '}{s.title}</p>
+                          <p className={s.isImportant ? 'font-bold truncate' : 'font-medium truncate'}>{s.isImportant && '★ '}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-3 h-3 mr-0.5 -mt-0.5 opacity-70" />}{s.title}</p>
                         </div>
                       );
                     })}
