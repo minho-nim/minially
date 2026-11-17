@@ -25,6 +25,7 @@ test('간편 입력에서 매주 여러 요일·횟수로 반복 등록', async 
   const weekday = new Date(at(2) + 'T12:00:00').getDay(), other = (weekday + 2) % 7;
   await expect(picker.getByRole('button', { name: ['일', '월', '화', '수', '목', '금', '토'][weekday] + '요일' })).toHaveAttribute('aria-pressed', 'true');
   await picker.getByRole('button', { name: ['일', '월', '화', '수', '목', '금', '토'][other] + '요일' }).click();
+  await picker.getByRole('radio', { name: '횟수', exact: true }).click();
   await picker.getByLabel('반복 횟수', { exact: true }).fill('3');
   await sheet(page).getByRole('button', { name: '반복 적용', exact: true }).click();
   await expect(sheet(page).getByRole('button', { name: /^반복 설정: 매주 .+ · 3번$/ })).toBeVisible();
@@ -36,7 +37,7 @@ test('간편 입력에서 매주 여러 요일·횟수로 반복 등록', async 
   expect(rule).toMatchObject({ frequency: 'weekly', count: 3, startDate: at(2) });
   expect([...rule.weekdays!].sort()).toEqual([weekday, other].sort());
   // 등록 후 입력창 반복 설정은 비워진다
-  await expect(sheet(page).getByRole('button', { name: '반복 설정: 반복 안 함' })).toBeVisible();
+  await expect(sheet(page).getByRole('button', { name: '반복 설정: 반복 없음' })).toBeVisible();
 });
 
 test('없는 날짜 처리 칸은 29일 이후에만 나오고, 2주마다는 요일이 있어야 저장된다', async ({ page }) => {
@@ -44,6 +45,10 @@ test('없는 날짜 처리 칸은 29일 이후에만 나오고, 2주마다는 �
   const editor = page.getByRole('dialog', { name: '새 일정', exact: true });
   await editor.getByRole('button', { name: '+ 상세 옵션 (메모)', exact: true }).click();
   await editor.getByLabel('반복', { exact: true }).selectOption('monthly');
+  // 선택지에 실제 날짜가 보인다(오늘 날짜 기준)
+  const now = new Date();
+  await expect(editor.getByLabel('반복', { exact: true }).locator('option[value="monthly"]')).toHaveText(`매월 ${now.getDate()}일`);
+  await expect(editor.getByLabel('반복', { exact: true }).locator('option[value="yearly"]')).toHaveText(`매년 ${now.getMonth() + 1}월 ${now.getDate()}일`);
   // 오늘이 29일 이후가 아니면 없는 날짜 처리 칸은 나오지 않는다
   const today = new Date().getDate();
   await expect(editor.getByLabel('없는 날짜 처리')).toHaveCount(today > 28 ? 1 : 0);
@@ -77,7 +82,7 @@ test('이후 모든 일정 수정: 앞 회차는 그대로, 실행 취소로 되
   const editor = await editAt(page, 4);
   await editor.getByLabel('일정 제목', { exact: true }).fill('저녁 운동');
   await editor.getByRole('button', { name: '변경사항 저장', exact: true }).click();
-  await editor.getByRole('group', { name: '반복 일정 수정 범위' }).getByRole('button', { name: '이후 모든 일정 저장', exact: true }).click();
+  await editor.getByRole('group', { name: '반복 일정 수정 범위' }).getByRole('button', { name: '이 일정과 이후 일정 저장', exact: true }).click();
   await expect(sheet(page).locator('[data-day-schedule]').filter({ hasText: '저녁 운동' })).toHaveCount(1);
   const stored = await data(page);
   expect(stored.recurrenceRules.find(r => r.id === 'daily')).toMatchObject({ endDate: at(3), count: 6 });

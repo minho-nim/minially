@@ -81,7 +81,7 @@ export function describeRepeat(value: RepeatSettings, date: string): string {
       case 'monthly': return `매월 ${Number(date.slice(8, 10))}일`;
       case 'yearly': return `매년 ${Number(date.slice(5, 7))}월 ${Number(date.slice(8, 10))}일`;
       case 'custom': return '사용자 지정';
-      default: return '반복 안 함';
+      default: return '반복 없음';
     }
   })();
   if (value.frequency === 'none') return base;

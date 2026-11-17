@@ -232,7 +232,7 @@ export default function App() {
     const base = schedules.find(s => s.id === baseIdOf(occurrence));
     if (!rule || !base) throw new Error('반복 일정을 찾지 못했습니다.');
     const change = planSeriesChange({ occurrence, base, rule, exceptions: recurrenceExceptions, scope, edited, newRule });
-    const what = scope === 'all' ? '모든 반복' : '이후 반복';
+    const what = scope === 'all' ? '반복 전체' : '이후 반복';
     const notice = await recordSeriesHistory(edited ? 'UPDATE' : 'DELETE', `'${occurrence.title}' ${what} ${edited ? '수정됨' : '삭제됨'}`, change);
     setUndoNotice(notice);
     await reloadData();

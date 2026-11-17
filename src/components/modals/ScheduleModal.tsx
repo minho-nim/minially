@@ -442,9 +442,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               <div className="space-y-3 pt-2 border-t border-app-line animate-in fade-in">
               <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-app-accent-hover disabled:opacity-40">프리셋으로 저장</button>
                 <div className="space-y-2">
-                  {occurrence && <p className="text-xs text-app-muted">반복 일정입니다. 저장할 때 이 일정만·이후 모든 일정·모든 반복 일정 중에서 고릅니다.</p>}
+                  {occurrence && <p className="text-xs text-app-muted">반복 일정입니다. 저장할 때 바꿀 범위를 고릅니다.</p>}
                   {<>
-                    <RepeatPicker idPrefix="schedule" value={repeat} onChange={setRepeat} date={date} />
+                    <RepeatPicker key={isOpen ? initialSchedule?.id || "new" : "closed"} idPrefix="schedule" value={repeat} onChange={setRepeat} date={date} />
                   </>}
                 </div>
                 {/* Memo with Memo Phrase Selector */}
@@ -461,7 +461,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                       className="text-xs font-semibold text-app-accent hover:text-app-accent-hover flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-app-canvas border border-app-line hover:bg-app-soft transition-colors cursor-pointer"
                     >
                       <Bookmark className="w-3.5 h-3.5" />
-                      <span>저장된 메모</span>
+                      <span>자주 쓰는 메모</span>
                     </button>
                   </div>
 
@@ -487,7 +487,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         </div>}
         {askScope && <div role="group" aria-label="반복 일정 수정 범위" className="p-3 mx-4 bg-app-canvas border border-app-line rounded-xl text-sm">
           <p>반복 일정입니다. 어디까지 바꿀까요?</p>
-          {JSON.stringify(repeat) !== repeatBaseline.current && <p className="text-xs text-app-muted mt-1">반복 설정을 바꿔서 '이 일정만'은 고를 수 없습니다.</p>}
+          {JSON.stringify(repeat) !== repeatBaseline.current && <p className="text-xs text-app-muted mt-1">반복 설정을 바꾸면 '이 일정만'은 고를 수 없습니다.</p>}
           <div className="grid gap-1.5 mt-2">
             {SCOPES.map(([scope, label]) => <button key={scope} type="button" disabled={saving || (scope === 'this' && JSON.stringify(repeat) !== repeatBaseline.current)} onClick={() => void handleSave(undefined, scope)} className="min-h-9 px-3 rounded-lg bg-white border border-app-line text-app-ink text-left disabled:opacity-40">{label} 저장</button>)}
             <button type="button" className="min-h-9" onClick={() => setAskScope(false)}>취소</button>

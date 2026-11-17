@@ -255,7 +255,7 @@ test('모바일 설정 관리, 프리셋 관리·삭제 실패와 재시도, 메
   await schedule.getByPlaceholder('일정 제목을 입력하세요').fill('메모 연동 일정');
   await schedule.getByRole('button', { name: '+ 상세 옵션 (메모)', exact: true }).click();
   await schedule.getByPlaceholder('상세 내용을 메모하세요').fill('직접 적은 메모');
-  await schedule.getByRole('button', { name: '저장된 메모', exact: true }).click();
+  await schedule.getByRole('button', { name: '자주 쓰는 메모', exact: true }).click();
   let modal = schedule.locator('[data-schedule-panel]');
   await addPhrase(modal, '추가 메모 프리셋');
   await modal.getByRole('button', { name: '추가 메모 프리셋', exact: true }).click();
