@@ -302,3 +302,8 @@
  .notes-editor { overflow: visible; }
  .notes-list { padding-bottom: 8px; }
 }
+
+@media (max-width: 767px) {
+ .note-editor-header .note-focus-toggle { display: none; }
+ .note-editor-header #note-folder { max-width: 90px; }
+}

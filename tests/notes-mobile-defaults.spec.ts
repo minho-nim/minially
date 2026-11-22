@@ -15,7 +15,7 @@ test('기본 메모 분류 없이 시작하고 기존 자동 폴더의 원본과
 
 for(const width of [320,390,430])test.describe(`작은 화면 메모 ${width}`,()=>{
  test.use({viewport:{width,height:700},hasTouch:true});
- test('서식 전체가 가려지지 않고 터치 서식과 하단 등록 버튼이 작동한다',async({page})=>{
+ test('서식 전체가 가려지지 않고 터치 서식과 하단 등록 버튼이 작동한다',async({page},testInfo)=>{
   await page.goto('/');await page.getByRole('button',{name:'메모',exact:true}).filter({visible:true}).tap();await page.getByRole('button',{name:'새 메모',exact:true}).tap();
   const toolbar=page.getByRole('toolbar',{name:'메모 글자 서식'}),body=page.getByRole('textbox',{name:'메모 본문',exact:true});
   const clipped=await toolbar.evaluate(el=>Array.from(el.querySelectorAll('button,select,input')).filter(control=>{const r=control.getBoundingClientRect(),p=el.getBoundingClientRect();return r.width>0&&(r.left<p.left||r.right>p.right);}).map(control=>control.getAttribute('aria-label')));expect(clipped).toEqual([]);
@@ -26,6 +26,6 @@ for(const width of [320,390,430])test.describe(`작은 화면 메모 ${width}`,(
   const register=page.getByRole('button',{name:'할 일로 등록',exact:true});await register.scrollIntoViewIfNeeded();await expect(register).toBeInViewport();
   expect(await register.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.left+r.width/2,r.top+r.height/2));})).toBe(true);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:`/workspace/shared/minially-notes/mobile-fixed-${width}.png`,fullPage:true});
+  await page.screenshot({path:testInfo.outputPath(`mobile-fixed-${width}.png`),fullPage:true});
  });
 });

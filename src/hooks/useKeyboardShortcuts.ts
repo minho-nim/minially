@@ -8,18 +8,20 @@ export interface ShortcutActions {
   today: () => void;
   calendarTab: () => void;
   tasksTab: () => void;
+  notesTab: () => void;
+  isNotes: boolean;
   todaySchedules: () => void;
   help: () => void;
   isCalendar: boolean;
 }
 
 export const SHORTCUTS: [string, string][] = [
-  ['N', '새 일정'],
-  ['Ctrl + F  또는  /', '검색'],
+  ['N', '새 일정 / 메모에서는 새 메모'],
+  ['Ctrl + F  또는  /', '일정 검색 / 메모에서는 메모 검색'],
   ['← / →', '이전 / 다음 달(주)'],
   ['T', '오늘로 이동'],
   ['M / W', '월간 / 주간 보기'],
-  ['1 / 2', '캘린더 / 할 일'],
+  ['1 / 2 / 3', '캘린더 / 할 일 / 메모'],
   ['D', '오늘 일정 보기'],
   ['Ctrl + ,', '설정'],
   ['?', '단축키 도움말'],
@@ -37,19 +39,22 @@ const click = (name: string) => document.querySelector<HTMLButtonElement>(`[data
 export function useKeyboardShortcuts(actions: ShortcutActions) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || e.isComposing || typing(e.target)) return;
+      if (e.defaultPrevented || e.isComposing) return;
       const ctrl = e.ctrlKey || e.metaKey;
+      if (actions.isNotes && ctrl && !e.altKey && e.key.toLowerCase() === 'f' && !modalOpen()) { e.preventDefault(); click('notes-search'); return; }
+      if (typing(e.target)) return;
       if (ctrl && !e.altKey && (e.key === 'f' || e.key === 'F')) { if (modalOpen()) return; e.preventDefault(); actions.search(); return; }
       if (ctrl && e.key === ',') { e.preventDefault(); actions.settings(); return; }
       if (ctrl || e.altKey || modalOpen()) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       const run = (fn: () => void) => { e.preventDefault(); fn(); };
       switch (key) {
-        case 'n': case 'ㅜ': return run(actions.newSchedule);
-        case '/': return run(actions.search);
+        case 'n': case 'ㅜ': return run(actions.isNotes ? () => click('notes-new') : actions.newSchedule);
+        case '/': return run(actions.isNotes ? () => click('notes-search') : actions.search);
         case '?': return run(actions.help);
         case '1': return run(actions.calendarTab);
         case '2': return run(actions.tasksTab);
+        case '3': return run(actions.notesTab);
         case 'd': case 'ㅇ': return run(actions.todaySchedules);
         case 't': case 'ㅅ': return run(actions.today);
         case 'm': case 'ㅡ': if (actions.isCalendar) run(() => click('month')); return;

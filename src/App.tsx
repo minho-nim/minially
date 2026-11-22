@@ -640,6 +640,8 @@ export default function App() {
     today: () => { setActiveTab('calendar'); setSelectedDate(getTodayDateString()); },
     calendarTab: () => setActiveTab('calendar'),
     tasksTab: () => setActiveTab('tasks'),
+    notesTab: () => setActiveTab('notes'),
+    isNotes: activeTab === 'notes',
     todaySchedules: () => { selectTaskDate(getTodayDateString()); setTodaySchedulesOpen(true); },
     help: () => setShortcutHelpOpen(open => !open),
     isCalendar: activeTab === 'calendar',
