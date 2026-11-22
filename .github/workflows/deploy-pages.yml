@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pages: write
   id-token: write
 
@@ -43,6 +44,23 @@ jobs:
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: dist
+          name: github-pages-${{ github.run_attempt }}
+      # 재실행 때 이전 산출물과 이름이 겹치지 않게 하고, 업로드 직후 조회 지연을 기다린다.
+      - name: 배포 파일 조회 확인
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: github-pages-${{ github.run_attempt }}
+        run: |
+          for attempt in $(seq 1 10); do
+            count=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" \
+              --jq "[.artifacts[] | select(.name == \"${ARTIFACT_NAME}\" and .expired == false)] | length")
+            if [ "$count" = "1" ]; then sleep 3; exit 0; fi
+            sleep 3
+          done
+          echo "::error::배포 파일 ${ARTIFACT_NAME}이 한 개로 조회되지 않습니다."
+          exit 1
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
+        with:
+          artifact_name: github-pages-${{ github.run_attempt }}
