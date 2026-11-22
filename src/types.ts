@@ -239,6 +239,8 @@ export interface NoteTable { type: 'table'; rows: NoteTableCell[][] }
 export type NoteBlock = NoteParagraph | NoteTable;
 
 export interface Note {
+  conflictOf?: string;
+  conflictAt?: number;
   richDocument?: NoteBlock[];
   richBody?: NoteTextRun[];
   id: string;

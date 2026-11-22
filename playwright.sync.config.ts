@@ -6,6 +6,7 @@ import { defineConfig } from '@playwright/test';
 export const CODE_A = 'TESTC0DE-1234-ABCD';
 export const CODE_B = 'TESTC0DE-5678-WXYZ';
 export const CODE_NOTES = 'TESTN0TE-1234-ABCD';
+export const CODE_CONFLICT = 'TESTC0NF-1234-ABCD';
 const hash = (code: string) => createHash('sha256').update(code.replace(/-/g, '')).digest('hex');
 const PORT = 8799;
 
@@ -21,7 +22,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: `rm -rf .wrangler/test-state && npm run build && npx wrangler pages dev dist --ip 127.0.0.1 --port ${PORT} --d1 DB=minially-test --persist-to .wrangler/test-state --binding SYNC_CODE_HASHES=${hash(CODE_A)},${hash(CODE_B)},${hash(CODE_NOTES)}`,
+    command: `rm -rf .wrangler/test-state && npm run build && npx wrangler pages dev dist --ip 127.0.0.1 --port ${PORT} --d1 DB=minially-test --persist-to .wrangler/test-state --binding SYNC_CODE_HASHES=${hash(CODE_A)},${hash(CODE_B)},${hash(CODE_NOTES)},${hash(CODE_CONFLICT)}`,
     url: `http://127.0.0.1:${PORT}/version.json`,
     reuseExistingServer: false,
     timeout: 120000,

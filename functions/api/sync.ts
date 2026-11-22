@@ -11,7 +11,7 @@ const MAX_CHANGES = 5000;
 const MAX_RECORD_BYTES = 256 * 1024;
 const CHUNK = 200;
 
-interface Change { store: string; id: string; data: unknown }
+interface Change { store: string; id: string; data: unknown; baseSeq?: number }
 
 function readChanges(body: unknown): Change[] | string {
   const changes = (body as { changes?: unknown })?.changes ?? [];
@@ -22,6 +22,7 @@ function readChanges(body: unknown): Change[] | string {
     const { store, id } = c as Change;
     if (typeof store !== 'string' || !STORES.has(store)) return '알 수 없는 저장소입니다.';
     if (typeof id !== 'string' || !id || id.length > 200) return '잘못된 ID입니다.';
+    if (c.baseSeq !== undefined && (!Number.isSafeInteger(c.baseSeq) || c.baseSeq < 0)) return '잘못된 메모 버전입니다.';
     if ((store === 'notes' || store === 'noteFolders') && c.data !== null) {
       try {
         if (store === 'notes') validateNote(c.data as Note); else validateNoteFolder(c.data as NoteFolder);
@@ -35,12 +36,12 @@ function readChanges(body: unknown): Change[] | string {
 async function pull(db: D1Database, space: string, since: number) {
   const meta = await db.prepare('SELECT seq FROM sync_meta WHERE space = ?').bind(space).first<{ seq: number }>();
   const rows = await db
-    .prepare('SELECT store, id, data FROM sync_records WHERE space = ? AND seq > ? ORDER BY seq')
+    .prepare('SELECT store, id, data, seq FROM sync_records WHERE space = ? AND seq > ? ORDER BY seq')
     .bind(space, since)
-    .all<{ store: string; id: string; data: string | null }>();
+    .all<{ store: string; id: string; data: string | null; seq:number }>();
   return {
     seq: meta?.seq ?? 0,
-    records: rows.results.map(r => ({ store: r.store, id: r.id, data: r.data === null ? null : JSON.parse(r.data) })),
+    records: rows.results.map(r => ({ store: r.store, id: r.id, seq:r.seq, data: r.data === null ? null : JSON.parse(r.data) })),
   };
 }
 
@@ -62,6 +63,7 @@ export const onRequest = async ({ request, env }: Context): Promise<Response> =>
     const changes = readChanges(body);
     if (typeof changes === 'string') return json({ error: changes }, 400);
     since = Number((body as { since?: unknown }).since ?? since);
+    if (!Number.isSafeInteger(since) || since < 0) since = 0;
     const now = Date.now();
     for (let i = 0; i < changes.length; i += CHUNK) {
       const statements = [
@@ -69,7 +71,20 @@ export const onRequest = async ({ request, env }: Context): Promise<Response> =>
       ];
       for (const c of changes.slice(i, i + CHUNK)) {
         const data = c.data === null || c.data === undefined ? null : JSON.stringify(c.data);
-        if (data && data.length > MAX_RECORD_BYTES) return json({ error: '항목 하나가 너무 큽니다.' }, 413);
+        if (data && new TextEncoder().encode(data).length > MAX_RECORD_BYTES) return json({ error: '항목 하나가 너무 큽니다.' }, 413);
+        // 같은 메모를 다른 기기가 먼저 고쳤으면, 한 트랜잭션 안에서 이전 버전을 사본으로 남긴다.
+        // 구버전 기기는 since를 기준으로 비교하므로 기존 동기화 요청도 계속 사용할 수 있다.
+        if (c.store === 'notes') {
+          const copyId = crypto.randomUUID();
+          statements.push(db.prepare(
+            `INSERT INTO sync_records (space, store, id, data, seq, updated_at)
+             SELECT space, store, ?, json_set(json_remove(data, '$.deletedAt'),
+               '$.id', ?, '$.title', substr(coalesce(nullif(json_extract(data, '$.title'), ''), '제목 없는 메모'), 1, 460) || ' · 동기화 충돌 사본',
+               '$.conflictOf', coalesce(json_extract(data, '$.conflictOf'), id), '$.conflictAt', ?, '$.createdAt', ?, '$.updatedAt', ?),
+               (SELECT seq FROM sync_meta WHERE space = ?), ?
+             FROM sync_records WHERE space = ? AND store = 'notes' AND id = ? AND data IS NOT NULL AND seq > ? AND data IS NOT ?`
+          ).bind(copyId, copyId, now, now, now, space, now, space, c.id, c.baseSeq ?? since, data));
+        }
         statements.push(
           db.prepare(
             'INSERT INTO sync_records (space, store, id, data, seq, updated_at) VALUES (?, ?, ?, ?, (SELECT seq FROM sync_meta WHERE space = ?), ?) ' +
