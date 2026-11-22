@@ -291,3 +291,14 @@
 
 .note-rich-body { line-height: 1.8; }
 .note-editor-header #note-folder { margin-left: 8px; font-size: 11px; max-width: 140px; }
+
+.note-format-row { overflow-x: auto; }
+.note-format-controls { min-width: max-content; }
+@media (max-width: 767px) {
+ .note-format-toolbar { padding-left: 8px; padding-right: 8px; }
+ .note-format-row { overflow: visible; }
+ .note-format-controls { min-width: 0; flex-wrap: wrap; }
+ .note-format-select { flex-shrink: 0; }
+ .notes-editor { overflow: visible; }
+ .notes-list { padding-bottom: 8px; }
+}

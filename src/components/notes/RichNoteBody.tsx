@@ -69,14 +69,14 @@ export function RichNoteBody({body,runs,blocks,readOnly,onChange}:{body:string;r
  }
  return <div className="flex-1 min-h-56 flex flex-col min-w-0">
   {!readOnly&&<div role="toolbar" aria-label="메모 글자 서식" className="note-format-toolbar border-y border-app-line px-3 py-1">
-   <div className="overflow-x-auto"><div className="flex items-center gap-1 min-w-max">
+   <div className="note-format-row"><div className="note-format-controls flex items-center gap-1">
     <Tool label="실행 취소" icon={Undo2} disabled={!history.undo} onClick={()=>command('undo')}/><Tool label="다시 실행" icon={Redo2} disabled={!history.redo} onClick={()=>command('redo')}/>
     <select aria-label="글꼴" value={font} onChange={e=>{setFont(e.target.value);command('fontName',e.target.value);}} className="note-format-select w-28">{NOTE_FONTS.map(name=><option key={name}>{name}</option>)}</select>
     <select aria-label="글자 크기" value={size} onChange={e=>fontSize(Number(e.target.value))} className="note-format-select w-[68px]">{!NOTE_SIZES.includes(size)&&<option value={size}>{size}pt</option>}{NOTE_SIZES.map(value=><option key={value} value={value}>{value}pt</option>)}</select>
     <select aria-label="줄간격" value={lineHeight} onChange={e=>spacing(Number(e.target.value))} className="note-format-select w-24">{NOTE_LINE_HEIGHTS.map(value=><option key={value} value={value}>줄간격 {Math.round(value*100)}%</option>)}</select>
     <button type="button" aria-label="표" aria-expanded={tableOpen} onPointerDown={e=>e.preventDefault()} onClick={()=>setTableOpen(!tableOpen)} className={tool+' text-app-muted hover:bg-app-soft'} title="표"><Table2 aria-hidden="true" className="w-4 h-4"/></button>
    </div></div>
-   <div className="overflow-x-auto"><div className="flex items-center gap-0.5 min-w-max">
+   <div className="note-format-row"><div className="note-format-controls flex items-center gap-0.5">
     {formats.map(([name,label,icon])=><Tool key={name} label={label} icon={icon} pressed={!!active[name]} onClick={()=>command(name)}/>)}
     <label className={tool+' relative text-app-muted hover:bg-app-soft'} title="글자색"><Baseline aria-hidden="true" className="w-4 h-4"/><input type="color" aria-label="글자색" defaultValue="#3e3438" onChange={e=>command('foreColor',e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"/></label>
     <label className={tool+' relative text-app-muted hover:bg-app-soft'} title="강조색"><Highlighter aria-hidden="true" className="w-4 h-4"/><input type="color" aria-label="강조색" defaultValue="#fff2a8" onChange={e=>command('hiliteColor',e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"/></label>

@@ -6,6 +6,7 @@ for(const width of [400,1400])test.describe(`메모장 ${width}px`,()=>{
  test('독립 메모 자동 저장·분류·기존 할 일과 일정 연결·복원',async({page})=>{
   const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto('/');await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();
+  await page.evaluate(async()=>{const path='/src/db/indexedDB.ts';await(await import(path)).saveNoteFolder({id:'notes-travel',name:'여행',keywords:['여행','숙소','준비물']});});await page.reload();
   await page.getByRole('button',{name:'메모',exact:true}).filter({visible:true}).click();
   const workspace=page.getByRole('region',{name:'메모장'}),quick=page.getByRole('form',{name:'빠른 메모'});
   await quick.getByRole('textbox',{name:'빠른 메모 내용'}).fill('여행 준비물 챙기고 숙소 확인하기');await quick.getByRole('button',{name:'#여행',exact:true}).click();await quick.getByRole('button',{name:'메모 저장',exact:true}).click();
@@ -36,7 +37,7 @@ for(const width of [400,1400])test.describe(`메모장 ${width}px`,()=>{
 
 test('이전 DB를 올려도 일정과 할 일이 유지된다',async({page})=>{
  await page.goto('/icon.svg');await page.evaluate(()=>new Promise<void>((resolve,reject)=>{const request=indexedDB.open('DayFlowDB',1);request.onupgradeneeded=()=>{const db=request.result;db.createObjectStore('schedules',{keyPath:'id'}).put({id:'old-s',title:'기존 일정',date:'2026-11-21',category:'',completed:false});db.createObjectStore('tasks',{keyPath:'id'}).put({id:'old-t',title:'기존 할 일',status:'todo',priority:'medium'});};request.onerror=()=>reject(request.error);request.onsuccess=()=>{request.result.close();resolve();};}));
- await page.goto('/');await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();const saved=await data(page);expect(saved.schedules.find(schedule=>schedule.id==='old-s')?.title).toBe('기존 일정');expect(saved.tasks.find(task=>task.id==='old-t')?.title).toBe('기존 할 일');expect(saved.notes).toEqual([]);expect(saved.noteFolders?.length).toBeGreaterThan(0);
+ await page.goto('/');await page.getByRole('button',{name:'일정 등록',exact:true}).waitFor();const saved=await data(page);expect(saved.schedules.find(schedule=>schedule.id==='old-s')?.title).toBe('기존 일정');expect(saved.tasks.find(task=>task.id==='old-t')?.title).toBe('기존 할 일');expect(saved.notes).toEqual([]);expect(saved.noteFolders).toEqual([]);
 });
 
 test('메모와 분류가 동기화 요청에 포함되고 다른 기기 메모를 받는다',async({page})=>{
@@ -44,6 +45,7 @@ test('메모와 분류가 동기화 요청에 포함되고 다른 기기 메모�
  await page.addInitScript(()=>localStorage.setItem('minially-sync-v1',JSON.stringify({code:'TESTCODE0000000',lastSeq:0,shadow:{}})));
  await page.route('**/api/sync?*',async route=>{const payload=route.request().method()==='POST'?route.request().postDataJSON():null;if(payload)outgoing.push(...payload.changes.map((change:{store:string})=>change.store));await route.fulfill({json:{seq:1,records:[...(payload?.changes||[]),{store:'notes',id:remote.id,data:remote}]}});});
  await page.goto('/');await page.getByRole('button',{name:'메모',exact:true}).filter({visible:true}).click();await expect(page.locator('[data-note-id="remote-note"]')).toBeVisible();
+ await page.evaluate(async()=>{const path='/src/db/indexedDB.ts';await(await import(path)).saveNoteFolder({id:'my-sync-folder',name:'직접 만든 폴더',keywords:[]});});
  await page.getByRole('textbox',{name:'빠른 메모 내용'}).fill('내 기기의 메모');await page.getByRole('button',{name:'메모 저장',exact:true}).click();await expect.poll(()=>outgoing).toContain('notes');expect(outgoing).toContain('noteFolders');
  const saved=await data(page);expect(saved.notes?.map(note=>note.body)).toEqual(expect.arrayContaining(['동기화된 본문','내 기기의 메모']));
 });

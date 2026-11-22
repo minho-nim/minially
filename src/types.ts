@@ -203,6 +203,7 @@ export interface AppData {
 }
 
 export interface NoteFolder {
+  isUserManaged?: boolean;
   defaultCategoryId?: string;
   id: string;
   name: string;

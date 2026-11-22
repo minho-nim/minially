@@ -14,7 +14,7 @@ function typingElement(): HTMLElement | null {
 
 /** 입력칸이 속한 영역: 간편 입력 시트 → 양식 → 대화상자의 카드 → 없으면 입력칸 자신 */
 function scopeOf(active: HTMLElement): Element {
-  return active.closest('[data-quick-composer]') ?? active.closest('form') ?? active.closest('[role="dialog"] > *') ?? active;
+  return active.closest('[data-note-editor]') ?? active.closest('[data-quick-composer]') ?? active.closest('form') ?? active.closest('[role="dialog"] > *') ?? active;
 }
 
 function insideScroller(target: Element | null, stop: Element | null) {
@@ -47,6 +47,8 @@ export function useKeyboardOutsideGuard() {
       // 대화상자 바깥의 어두운 부분을 끌면 뒤 화면이 움직이지 않게
       if (target?.matches('[role="dialog"][aria-modal="true"]')) { event.preventDefault(); return; }
       if (!active) return;
+      const noteEditor=active.closest('[data-note-editor]');
+      if(noteEditor?.contains(target)) return; // 메모 안에서는 도구막대 터치와 본문/페이지 스크롤을 허용한다.
       const dialog = active.closest('[role="dialog"]');
       if (insideScroller(target, dialog)) return;
       event.preventDefault();

@@ -37,3 +37,11 @@ test('표 문서와 일반 본문이 일치해야 하며 실행 속성과 비정
  const {response}=await send({store:'notes',id:note.id,data:{...note,richDocument:[valid]}});assert.equal(response.status,200);
  for(const document of [[{...valid,onclick:'alert(1)'}],[{type:'paragraph',runs:[{text:note.body,color:'url(evil)'}]}],[{type:'table',rows:[]}],[{type:'table',rows:[[{runs:[{text:'불일치'}]}]]}],[{type:'paragraph',runs:[{text:note.body,fontSize:1000}]}]]){const {response}=await send({store:'notes',id:note.id,data:{...note,richDocument:document}});assert.equal(response.status,400);}
 });
+
+test('자동 폴더만 숨기고 쓰거나 설정한 폴더와 사용자가 만든 폴더는 유지한다',async()=>{
+ const {LEGACY_NOTE_FOLDERS,visibleNoteFolders,validateNoteFolder}=await import('../src/utils/notes.ts');
+ const seed=LEGACY_NOTE_FOLDERS[0];assert.deepEqual(visibleNoteFolders(LEGACY_NOTE_FOLDERS,[]),[]);
+ for(const folder of [{...seed,name:'내 이름'},{...seed,keywords:['내 키워드']},{...seed,defaultCategoryId:'category'},{...seed,isUserManaged:true},{id:'custom',name:'업무',keywords:[]}])assert.deepEqual(visibleNoteFolders([folder],[]),[folder]);
+ for(const deletedAt of [undefined,1])assert.deepEqual(visibleNoteFolders([seed],[{...note,folderId:seed.id,deletedAt}]),[seed]);
+ assert.throws(()=>validateNoteFolder({...seed,isUserManaged:'yes'}));
+});

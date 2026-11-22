@@ -1,4 +1,4 @@
-import { noteTitle, validateNote, validateNoteFolder } from '../utils/notes';
+import { noteTitle, validateNote, validateNoteFolder, visibleNoteFolders } from '../utils/notes';
 import { sortPresets } from '../utils/phrases';
 import { hasCalendarTask, taskFromSchedule } from '../utils/calendarTasks';
 import { CATEGORY_LIMIT, nextCategoryColor, visibleCategories, resolveCategoryColor } from '../utils/categories';
@@ -59,13 +59,6 @@ interface DayFlowDBSchema extends DBSchema {
   };
 }
 
-export const INITIAL_NOTE_FOLDERS: NoteFolder[] = [
-  { id: 'notes-work', name: '업무', keywords: ['회의', '업무', '출근', '보고서', '프로젝트'] },
-  { id: 'notes-daily', name: '일상', keywords: ['일기', '감상', '영화', '기분', '일상'] },
-  { id: 'notes-ideas', name: '아이디어', keywords: ['아이디어', '개선', '기능', '개발', '미니어리'] },
-  { id: 'notes-travel', name: '여행', keywords: ['여행', '숙소', '항공', '준비물', '여권'] },
-];
-
 const DB_NAME = 'DayFlowDB';
 const DB_VERSION = 2;
 
@@ -95,8 +88,7 @@ export function getDB(): Promise<IDBPDatabase<DayFlowDBSchema>> {
       upgrade(db) {
         if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('noteFolders')) {
-          const folders = db.createObjectStore('noteFolders', { keyPath: 'id' });
-          for (const folder of INITIAL_NOTE_FOLDERS) folders.put(folder);
+          db.createObjectStore('noteFolders', { keyPath: 'id' });
         }
         // schedules
         if (!db.objectStoreNames.contains('schedules')) {
@@ -782,7 +774,6 @@ export async function resetDatabaseToDefault(): Promise<void> {
   await tx.objectStore('tasks').clear();
   await tx.objectStore('notes').clear();
   await tx.objectStore('noteFolders').clear();
-  for (const folder of INITIAL_NOTE_FOLDERS) await tx.objectStore('noteFolders').put(folder);
   await tx.objectStore('appSettings').clear();
   await tx.done;
 
@@ -828,9 +819,9 @@ export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = fal
 
 // 메모는 일정의 부가 메모와 분리해 저장하며, 로그인 공간과 백업에 함께 포함한다.
 export async function getAllNotes(): Promise<Note[]> { return (await getDB()).getAll('notes'); }
-export async function getNoteFolders(): Promise<NoteFolder[]> { return (await getDB()).getAll('noteFolders'); }
+export async function getNoteFolders(): Promise<NoteFolder[]> { const db=await getDB(),tx=db.transaction(['notes','noteFolders']); const [folders,notes]=await Promise.all([tx.objectStore('noteFolders').getAll(),tx.objectStore('notes').getAll()]); await tx.done; return visibleNoteFolders(folders,notes); }
 export async function saveNote(note: Note): Promise<void> { validateNote(note); await (await getDB()).put('notes', note); }
-export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', folder); }
+export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', {...folder,isUserManaged:true}); }
 
 export async function saveNoteTask(note: Note, date: string, categoryId = ''): Promise<void> {
   validateNote(note);
