@@ -17,8 +17,9 @@ const field='w-full min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line 
 export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,openNoteId}:Props){
  const [filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[selected,setSelected]=useState<string|null>(null),[focus,setFocus]=useState(false),[mobileEditor,setMobileEditor]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
+ const beforeLeave=useRef<()=>Promise<boolean>>(async()=>true);
  const [folderDialog,setFolderDialog]=useState<{open:boolean;folder?:NoteFolder}>({open:false});
- useEffect(()=>{if(active&&openNoteId){setSelected(openNoteId);setMobileEditor(true);}},[openNoteId,active]);
+ useEffect(()=>{if(!active||!openNoteId)return;let cancelled=false;void allowLeave().then(ok=>{if(ok&&!cancelled){setSelected(openNoteId);setMobileEditor(true);}});return()=>{cancelled=true;};},[openNoteId,active]);
  const pageScroll=useRef(0);
  useLayoutEffect(()=>{if(!active)return;const savedScroll=pageScroll.current;const frame=requestAnimationFrame(()=>window.scrollTo(0,savedScroll));const remember=()=>{pageScroll.current=window.scrollY;};window.addEventListener('scroll',remember,{passive:true});return()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',remember);};},[active]);
  useEffect(()=>{if(!active)setFolderDialog(previous=>({...previous,open:false}));},[active]);
@@ -26,12 +27,13 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
  function openNoteSearch(){setMobileEditor(false);setFocus(false);requestAnimationFrame(()=>searchRef.current?.focus());}
  const visible=useMemo(()=>notes.filter(note=>filter==='trash'?!!note.deletedAt:!note.deletedAt&&(filter==='all'||(filter==='pinned'?note.pinned:note.folderId===filter))).filter(note=>(note.title+' '+note.body+' '+note.tags.join(' ')).toLocaleLowerCase().includes(query.toLocaleLowerCase())).sort((a,b)=>Number(b.pinned)-Number(a.pinned)||b.updatedAt-a.updatedAt),[notes,filter,query]);
  const current=notes.find(note=>note.id===selected);
- async function create(){if(busy)return;setBusy(true);setError('');const now=Date.now();const note:Note={id:crypto.randomUUID(),title:'',body:'',folderId:'',tags:[],pinned:false,createdAt:now,updatedAt:now};try{await onSave(note);setSelected(note.id);setMobileEditor(true);setFilter('all');setQuery('');}catch(e){setError(e instanceof Error?e.message:'메모를 저장하지 못했습니다.');}finally{setBusy(false);}}
+ async function allowLeave(){const allowed=await beforeLeave.current();if(!allowed)setMobileEditor(true);return allowed;}
+ async function create(){if(busy)return;setBusy(true);setError('');const now=Date.now();const note:Note={id:crypto.randomUUID(),title:'',body:'',folderId:'',tags:[],pinned:false,createdAt:now,updatedAt:now};try{if(!await allowLeave())return;await onSave(note);setSelected(note.id);setMobileEditor(true);setFilter('all');setQuery('');}catch(e){setError(e instanceof Error?e.message:'메모를 저장하지 못했습니다.');}finally{setBusy(false);}}
  return <section aria-label="메모장" className={'notes-workspace rounded-2xl border border-app-line bg-white overflow-hidden '+(focus?'notes-focus':'')}>
   <aside aria-label="메모 분류" className={'notes-folders bg-app-canvas border-r border-app-line p-3 '+(mobileEditor?'hidden md:block':'')}>
    <h1 className="text-base font-bold px-2 py-2 flex items-center gap-2"><FileText className="w-4 h-4 text-app-accent"/>메모</h1>
    <div className="flex md:flex-col gap-1 flex-wrap">
-    {[['all','모든 메모'],['pinned','고정 메모'],...folders.map(folder=>[folder.id,folder.name]),['trash','휴지통']].map(([id,label])=><button key={id} type="button" title={label} aria-pressed={filter===id} onClick={()=>{setFilter(id);setSelected(null);}} className={button+' justify-start text-left min-w-0 max-w-full md:w-full '+(filter===id?'bg-app-soft text-app-accent-hover font-semibold':'text-app-muted')}><Folder className="w-3.5 h-3.5 shrink-0"/><span className="truncate flex-1">{label}</span><span className="ml-auto text-[10px] shrink-0">{notes.filter(note=>id==='trash'?!!note.deletedAt:!note.deletedAt&&(id==='all'||(id==='pinned'?note.pinned:note.folderId===id))).length}</span></button>)}
+    {[['all','모든 메모'],['pinned','고정 메모'],...folders.map(folder=>[folder.id,folder.name]),['trash','휴지통']].map(([id,label])=><button key={id} type="button" title={label} aria-pressed={filter===id} onClick={async()=>{if(await allowLeave()){setFilter(id);setSelected(null);}}} className={button+' justify-start text-left min-w-0 max-w-full md:w-full '+(filter===id?'bg-app-soft text-app-accent-hover font-semibold':'text-app-muted')}><Folder className="w-3.5 h-3.5 shrink-0"/><span className="truncate flex-1">{label}</span><span className="ml-auto text-[10px] shrink-0">{notes.filter(note=>id==='trash'?!!note.deletedAt:!note.deletedAt&&(id==='all'||(id==='pinned'?note.pinned:note.folderId===id))).length}</span></button>)}
    </div>
    <button type="button" className={button+' mt-3 text-app-accent-hover'} onClick={()=>setFolderDialog({open:true})}><Plus className="w-3.5 h-3.5"/>분류 추가</button>
    {folders.some(folder=>folder.id===filter)&&<button type="button" className={button+' text-app-muted'} onClick={()=>setFolderDialog({open:true,folder:folders.find(item=>item.id===filter)})}>폴더 설정</button>}
@@ -44,18 +46,18 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
    </div>
    <div className="overflow-y-auto flex-1 min-h-32 p-2 space-y-1">
     {!visible.length&&<p className="text-xs text-app-muted px-3 py-5">{filter==='trash'?'휴지통이 비어 있습니다.':query?'검색 결과가 없습니다.':'첫 메모를 편하게 남겨 보세요.'}</p>}
-    {visible.map(note=><button key={note.id} type="button" data-note-id={note.id} aria-pressed={selected===note.id} onClick={()=>{setSelected(note.id);setMobileEditor(true);}} className={'w-full text-left rounded-lg px-2.5 py-2 border transition-colors '+(selected===note.id?'border-app-outline bg-app-soft':'border-transparent hover:bg-app-canvas')}><div className="flex gap-1 items-center"><span className="text-sm font-semibold truncate min-w-0 flex-1">{noteTitle(note)}</span>{note.pinned&&<Pin className="w-3 h-3 text-app-accent"/>}</div><p className="text-xs text-app-muted truncate mt-0.5">{note.body||'내용을 작성해 보세요.'}</p><p className="text-[10px] text-app-muted mt-1 truncate">{folders.find(folder=>folder.id===note.folderId)?.name||'미분류'} · {new Date(note.updatedAt).toLocaleDateString('ko-KR')}</p></button>)}
+    {visible.map(note=><button key={note.id} type="button" data-note-id={note.id} aria-pressed={selected===note.id} onClick={async()=>{if(await allowLeave()){setSelected(note.id);setMobileEditor(true);}}} className={'w-full text-left rounded-lg px-2.5 py-2 border transition-colors '+(selected===note.id?'border-app-outline bg-app-soft':'border-transparent hover:bg-app-canvas')}><div className="flex gap-1 items-center"><span className="text-sm font-semibold truncate min-w-0 flex-1">{noteTitle(note)}</span>{note.pinned&&<Pin className="w-3 h-3 text-app-accent"/>}</div><p className="text-xs text-app-muted truncate mt-0.5">{note.body||'내용을 작성해 보세요.'}</p><p className="text-[10px] text-app-muted mt-1 truncate">{folders.find(folder=>folder.id===note.folderId)?.name||'미분류'} · {new Date(note.updatedAt).toLocaleDateString('ko-KR')}</p></button>)}
    </div>
   </section>
   <div className={'notes-editor min-w-0 '+(!mobileEditor?'hidden md:flex':'flex')}>
-   {current?<NoteEditor key={current.id} note={current} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
+   {current?<NoteEditor key={current.id} note={current} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
   </div>
   <NoteFolderModal open={folderDialog.open} folder={folderDialog.folder} categories={categories} onSave={onSaveFolder} onClose={()=>setFolderDialog(previous=>({...previous,open:false}))}/>
   {error&&<p role="alert" className="col-span-full px-4 py-2 text-xs text-red-600">{error}</p>}
  </section>;
 }
 
-function NoteEditor({note,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
+function NoteEditor({note,beforeLeave,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;beforeLeave:{current:()=>Promise<boolean>};onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
  const [draft,setDraft]=useState(note),[status,setStatus]=useState('저장됨'),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[date,setDate]=useState(getTodayDateString);
  const [categoryOverride,setCategoryOverride]=useState<string|null>(null);
  const editorRoot=useRef<HTMLElement>(null);
@@ -68,6 +70,11 @@ function NoteEditor({note,schedules,onOpenTask,onOpenSchedule,categories,folders
  const revision=useRef(0),pending=useRef(Promise.resolve()),dirty=useRef(false);
  const recommendations=recommendNoteFolders(draft.title+' '+draft.body,folders).filter(folder=>folder.id!==draft.folderId);
  useEffect(()=>{if(!dirty.current)setDraft(note);},[note]);
+ useEffect(()=>{
+  const check=async()=>{setError('');try{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');return true;}catch(e){setError(e instanceof Error?e.message:'메모를 먼저 다시 저장해 주세요.');return false;}};
+  beforeLeave.current=check;
+  return()=>{if(beforeLeave.current===check)beforeLeave.current=async()=>true;};
+ },[beforeLeave]);
  useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(dirty.current){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[]);
  async function update(patch:Partial<Note>){
   if(patch.folderId!==undefined)setCategoryOverride(null);
