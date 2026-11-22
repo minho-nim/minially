@@ -45,3 +45,15 @@ test('자동 폴더만 숨기고 쓰거나 설정한 폴더와 사용자가 만�
  for(const deletedAt of [undefined,1])assert.deepEqual(visibleNoteFolders([seed],[{...note,folderId:seed.id,deletedAt}]),[seed]);
  assert.throws(()=>validateNoteFolder({...seed,isUserManaged:'yes'}));
 });
+
+test('직접 분류한 메모의 서로 다른 어휘 둘 이상이 겹치면 폴더를 추천한다',()=>{
+ const folders=[{id:'a',name:'A',keywords:[]},{id:'b',name:'B',keywords:[]}];
+ const notes=[{...note,folderId:'a',body:'항공권 여권 숙소 예약'},{...note,id:'n2',folderId:'b',body:'보고서 회의 예약'}];
+ assert.deepEqual(recommendNoteFolders('여권 항공권 준비',folders,notes).map(folder=>folder.id),['a']);
+ assert.deepEqual(recommendNoteFolders('예약 준비',folders,notes),[]);
+ assert.deepEqual(recommendNoteFolders('여권 준비',folders,notes),[]);
+ assert.deepEqual(recommendNoteFolders('여권 항공권 준비',folders,notes.map(n=>({...n,deletedAt:1}))),[]);
+});
+test('사용자가 직접 지정한 한 글자 키워드도 추천에 쓴다',()=>{
+ assert.deepEqual(recommendNoteFolders('책 읽기', [{id:'read',name:'독서',keywords:['책']}]).map(folder=>folder.id),['read']);
+});

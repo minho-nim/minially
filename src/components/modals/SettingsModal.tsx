@@ -1,3 +1,4 @@
+import {DesktopAppPanel} from '../common/DesktopAppPanel';
 import React, { useState, useRef, useEffect } from 'react';
 import { SyncPanel } from '../common/SyncPanel';
 import { isDemo, endDemo } from '../../sync/demoMode';
@@ -334,7 +335,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'share' && <SharePanel settings={settings} categories={categories} onUpdateSettings={onUpdateSettings} />}
 
           {activeTab === 'pwa' && (
-            <div className="space-y-3">
+            <div className="space-y-3"><DesktopAppPanel/>{!window.miniallyDesktop&&<>
               <div>
                 <h4 className="text-sm font-bold text-app-ink">홈 화면에 앱 설치하기 (PWA)</h4>
                 <p className="text-xs text-app-muted">
@@ -374,7 +375,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </ol>
                   </div>
                 )}
-              </div>
+              </div></>}
             </div>
           )}
           <div className="pt-4 flex items-center justify-between gap-2">

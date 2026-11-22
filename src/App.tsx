@@ -651,6 +651,11 @@ export default function App() {
   }), [selectedDate, activeTab, isReady]);
   useKeyboardShortcuts(shortcutActions);
   useKeyboardOutsideGuard();
+  useEffect(()=>{
+    const api=window.miniallyDesktop;if(!api)return;
+    const refresh=api.onRefresh(()=>{void reloadData();}),open=api.onOpenNote(id=>{setOpenNoteId(undefined);setActiveTab('notes');requestAnimationFrame(()=>setOpenNoteId(id));});
+    return()=>{refresh();open();};
+  },[]);
 
   // 작업 표시줄 빠른 메뉴(manifest shortcuts)로 열었을 때: ?action=new|search|today, ?tab=tasks
   const launchHandled = useRef(false);
@@ -746,10 +751,11 @@ export default function App() {
         {(activeTab === 'notes'||notesVisited) && <div hidden={activeTab!=='notes'}><NotesView active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
           onSave={async (note,baseUpdatedAt) => {
             const copy=await dbSaveNote(note,baseUpdatedAt);
+            window.miniallyDesktop?.notifySaved();
             setNotes(previous => [...previous.filter(item => item.id !== note.id), note,...(copy?[copy]:[])]);
             syncEngine.schedule();
           }}
-          onSaveFolder={async folder => { await dbSaveNoteFolder(folder); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
+          onSaveFolder={async folder => { await dbSaveNoteFolder(folder); window.miniallyDesktop?.notifySaved(); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
           onTask={async (note, date, categoryId, excerpt) => {
             await saveNoteTask(note, date, categoryId, excerpt);
             await reloadData();

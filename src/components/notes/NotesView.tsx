@@ -50,14 +50,14 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
    </div>
   </section>
   <div className={'notes-editor min-w-0 '+(!mobileEditor?'hidden md:flex':'flex')}>
-   {current?<NoteEditor key={current.id} note={current} onOriginal={async id=>{if(await allowLeave()){setSelected(id);setMobileEditor(true);}}} originalExists={notes.some(note=>note.id===current.conflictOf)} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
+   {current?<NoteEditor key={current.id} notes={notes} note={current} onOriginal={async id=>{if(await allowLeave()){setSelected(id);setMobileEditor(true);}}} originalExists={notes.some(note=>note.id===current.conflictOf)} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
   </div>
   <NoteFolderModal open={folderDialog.open} folder={folderDialog.folder} categories={categories} onSave={onSaveFolder} onClose={()=>setFolderDialog(previous=>({...previous,open:false}))}/>
   {error&&<p role="alert" className="col-span-full px-4 py-2 text-xs text-red-600">{error}</p>}
  </section>;
 }
 
-function NoteEditor({note,onOriginal,originalExists,beforeLeave,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;originalExists:boolean;onOriginal:(id:string)=>Promise<void>;beforeLeave:{current:()=>Promise<boolean>};onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
+function NoteEditor({notes,note,onOriginal,originalExists,beforeLeave,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'notes'|'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;originalExists:boolean;onOriginal:(id:string)=>Promise<void>;beforeLeave:{current:()=>Promise<boolean>};onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
  const [draft,setDraft]=useState(note),[status,setStatus]=useState('저장됨'),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[date,setDate]=useState(getTodayDateString);
  const [categoryOverride,setCategoryOverride]=useState<string|null>(null);
  const editorRoot=useRef<HTMLElement>(null);
@@ -68,13 +68,14 @@ function NoteEditor({note,onOriginal,originalExists,beforeLeave,schedules,onOpen
  const preferredCategory=categoryOverride??folders.find(folder=>folder.id===draft.folderId)?.defaultCategoryId??'';
  const categoryId=categories.some(category=>category.id===preferredCategory)?preferredCategory:'';
  const revision=useRef(0),pending=useRef(Promise.resolve()),dirty=useRef(false),lastSaved=useRef(note.updatedAt);
- const recommendations=recommendNoteFolders(draft.title+' '+draft.body,folders).filter(folder=>folder.id!==draft.folderId);
+ const recommendations=recommendNoteFolders(draft.title+' '+draft.body,folders,notes.filter(item=>item.id!==draft.id)).filter(folder=>folder.id!==draft.folderId);
  useEffect(()=>{if(!dirty.current){setDraft(note);lastSaved.current=note.updatedAt;}},[note]);
  useEffect(()=>{
   const check=async()=>{setError('');try{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');return true;}catch(e){setError(e instanceof Error?e.message:'메모를 먼저 다시 저장해 주세요.');return false;}};
   beforeLeave.current=check;
   return()=>{if(beforeLeave.current===check)beforeLeave.current=async()=>true;};
  },[beforeLeave]);
+ useEffect(()=>{const flush=(event:Event)=>{const detail=(event as CustomEvent<{waits:Promise<unknown>[]}>) .detail;detail.waits.push(pending.current.then(()=>{if(dirty.current)throw new Error('저장하지 못한 메모가 있습니다.');}));};window.addEventListener('minially:flush',flush);return()=>window.removeEventListener('minially:flush',flush);},[]);
  useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(dirty.current){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[]);
  async function update(patch:Partial<Note>){
   if(patch.folderId!==undefined)setCategoryOverride(null);
