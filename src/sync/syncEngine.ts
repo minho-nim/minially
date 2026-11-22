@@ -173,11 +173,12 @@ class SyncEngine {
         const remote = await request(state.code, 'GET', 0);
         if (this.state !== state) return;
         const current = await readLocal();
-        for(const record of remote.records){const local=current.get(key(record.store,record.id));if(record.store==='notes'&&Number.isSafeInteger(record.seq)&&record.seq!>=0&&local&&fingerprint(local.value)===fingerprint(record.data))(state.noteSeq??={})[record.id]=record.seq!;}
+        for(const record of remote.records){const id=key(record.store,record.id),local=current.get(id);if(record.store==='notes'&&Number.isSafeInteger(record.seq)&&record.seq!>=0&&(local?fingerprint(local.value)===fingerprint(record.data):state.shadow[id]===fingerprint(record.data)))(state.noteSeq??={})[record.id]=record.seq!;}
         const candidates = remote.records.filter(record => {
           if (record.store !== 'notes' && record.store !== 'noteFolders') return false;
           const local = current.get(key(record.store, record.id));
-          if (!local) return true;
+          // 이전 버전에서 이미 알고 있던 메모를 로컬에서 삭제했으면 다시 내려받지 않는다.
+          if (!local) return !Object.hasOwn(state.shadow,key(record.store,record.id));
           const seed = record.store === 'noteFolders' ? LEGACY_NOTE_FOLDERS.find(folder => folder.id === record.id) : undefined;
           return !!seed && fingerprint(local.value) === fingerprint(seed);
         });
