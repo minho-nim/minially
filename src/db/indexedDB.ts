@@ -830,6 +830,19 @@ export async function saveNote(note: Note, baseUpdatedAt?:number): Promise<Note|
  }
  await tx.store.put(note);await tx.done;return copy;
 }
+/** 확인창을 열 때의 휴지통만 비운다. 그 뒤 수정·복원한 메모는 건드리지 않는다. */
+export async function emptyNoteTrash(targets:Pick<Note,'id'|'updatedAt'>[]):Promise<string[]> {
+ if(!Array.isArray(targets)||targets.some(target=>!target||typeof target.id!=='string'||!target.id||!Number.isFinite(target.updatedAt)))throw new Error('삭제할 메모를 확인해 주세요.');
+ const db=await getDB(),tx=db.transaction('notes','readwrite'),removed:string[]=[];
+ try{
+  for(const target of targets){
+   const current=await tx.store.get(target.id);
+   if(!current?.deletedAt||current.updatedAt!==target.updatedAt)continue;
+   await tx.store.delete(target.id);removed.push(target.id);
+  }
+  await tx.done;return removed;
+ }catch(error){try{tx.abort();}catch{/* 이미 중단된 트랜잭션 */}await tx.done.catch(()=>{});throw error;}
+}
 export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', {...folder,isUserManaged:true}); }
 
 export async function saveNoteTask(note: Note, date: string, categoryId = '', excerpt?:string): Promise<void> {

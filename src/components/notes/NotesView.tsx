@@ -1,3 +1,4 @@
+import {EmptyNoteTrashDialog} from './EmptyNoteTrashDialog';
 import {NoteFolderModal} from './NoteFolderModal';
 import {RichNoteBody} from './RichNoteBody';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
@@ -9,26 +10,31 @@ import {getTodayDateString} from '../../utils/dateHelpers';
 interface Props {
  active?:boolean; schedules:Schedule[]; onOpenTask:(id:string)=>void; onOpenSchedule:(id:string)=>void;
  categories:CategoryItem[]; notes:Note[]; folders:NoteFolder[]; tasks:Task[]; openNoteId?:string;
+ onEmptyTrash:(targets:Pick<Note,'id'|'updatedAt'>[])=>Promise<number>;
  onSave:(note:Note,baseUpdatedAt?:number)=>Promise<void>; onSaveFolder:(folder:NoteFolder)=>Promise<void>;
  onTask:(note:Note,date:string,categoryId:string,excerpt?:string)=>Promise<void>; onSchedule:(note:Note,categoryId:string,date:string,excerpt?:string)=>Promise<void>;
 }
 const button='inline-flex items-center justify-center gap-1.5 min-h-9 px-2.5 rounded-lg text-xs hover:bg-app-soft transition-colors disabled:opacity-50 cursor-pointer';
 const field='w-full min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line bg-white outline-none focus:border-app-accent';
-export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,openNoteId}:Props){
+export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,onEmptyTrash,openNoteId}:Props){
  const [filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[selected,setSelected]=useState<string|null>(null),[focus,setFocus]=useState(false),[mobileEditor,setMobileEditor]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
+ const [trashTargets,setTrashTargets]=useState<Pick<Note,'id'|'updatedAt'>[]|null>(null),[trashNotice,setTrashNotice]=useState('');
+ const trash=notes.filter(note=>!!note.deletedAt);
  const beforeLeave=useRef<()=>Promise<boolean>>(async()=>true);
  const [folderDialog,setFolderDialog]=useState<{open:boolean;folder?:NoteFolder}>({open:false});
  useEffect(()=>{if(!active||!openNoteId)return;let cancelled=false;void allowLeave().then(ok=>{if(ok&&!cancelled){setSelected(openNoteId);setMobileEditor(true);}});return()=>{cancelled=true;};},[openNoteId,active]);
  const pageScroll=useRef(0);
  useLayoutEffect(()=>{if(!active)return;const savedScroll=pageScroll.current;const frame=requestAnimationFrame(()=>window.scrollTo(0,savedScroll));const remember=()=>{pageScroll.current=window.scrollY;};window.addEventListener('scroll',remember,{passive:true});return()=>{cancelAnimationFrame(frame);window.removeEventListener('scroll',remember);};},[active]);
- useEffect(()=>{if(!active)setFolderDialog(previous=>({...previous,open:false}));},[active]);
+ useEffect(()=>{if(!active){setFolderDialog(previous=>({...previous,open:false}));setTrashTargets(null);}},[active]);
  const searchRef=useRef<HTMLInputElement>(null);
  function openNoteSearch(){setMobileEditor(false);setFocus(false);requestAnimationFrame(()=>searchRef.current?.focus());}
  const visible=useMemo(()=>notes.filter(note=>filter==='trash'?!!note.deletedAt:!note.deletedAt&&(filter==='all'||(filter==='conflicts'?!!note.conflictOf:filter==='pinned'?note.pinned:note.folderId===filter))).filter(note=>(note.title+' '+note.body+' '+note.tags.join(' ')).toLocaleLowerCase().includes(query.toLocaleLowerCase())).sort((a,b)=>Number(b.pinned)-Number(a.pinned)||b.updatedAt-a.updatedAt),[notes,filter,query]);
  const current=notes.find(note=>note.id===selected);
  async function allowLeave(){const allowed=await beforeLeave.current();if(!allowed)setMobileEditor(true);return allowed;}
  async function create(){if(busy)return;setBusy(true);setError('');const now=Date.now();const note:Note={id:crypto.randomUUID(),title:'',body:'',folderId:'',tags:[],pinned:false,createdAt:now,updatedAt:now};try{if(!await allowLeave())return;await onSave(note);setSelected(note.id);setMobileEditor(true);setFilter('all');setQuery('');}catch(e){setError(e instanceof Error?e.message:'메모를 저장하지 못했습니다.');}finally{setBusy(false);}}
+ async function requestEmptyTrash(){if(busy||!trash.length)return;if(!await allowLeave())return;setTrashNotice('');setTrashTargets(trash.map(({id,updatedAt})=>({id,updatedAt})));}
+ async function confirmEmptyTrash(){if(!trashTargets)return;const count=await onEmptyTrash(trashTargets);setTrashNotice(count===trashTargets.length?'휴지통을 비웠습니다.':`${count}개를 영구 삭제했습니다. 변경된 메모는 남겨두었습니다.`);setTrashTargets(null);setSelected(null);setMobileEditor(false);}
  return <section aria-label="메모장" className={'notes-workspace rounded-2xl border border-app-line bg-white overflow-hidden '+(focus?'notes-focus':'')}>
   <aside aria-label="메모 분류" className={'notes-folders bg-app-canvas border-r border-app-line p-3 '+(mobileEditor?'hidden md:block':'')}>
    <h1 className="text-base font-bold px-2 py-2 flex items-center gap-2"><FileText className="w-4 h-4 text-app-accent"/>메모</h1>
@@ -42,8 +48,9 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
   <section aria-label="메모 목록" className={'notes-list border-r border-app-line min-w-0 flex flex-col '+(mobileEditor?'hidden md:flex':'')}>
    <div className="p-2 space-y-1.5 border-b border-app-line">
     <form role="search" aria-label="메모 검색" onSubmit={event=>event.preventDefault()} className="flex items-center gap-2"><button type="button" aria-label="메모 검색 열기" data-shortcut="notes-search" className="shrink-0 p-1 text-app-muted" onClick={openNoteSearch}><Search className="w-4 h-4"/></button><input ref={searchRef} type="search" className="w-full min-w-0 text-sm py-1.5 outline-none" aria-label="메모 검색" placeholder="메모 검색" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button type="button" aria-label="메모 검색 지우기" className="shrink-0 p-1 text-app-muted" onClick={()=>{setQuery('');searchRef.current?.focus();}}><X className="w-4 h-4"/></button>}</form>
-    <div className="flex justify-end"><button type="button" data-shortcut="notes-new" disabled={busy} onClick={()=>void create()} className={button+' bg-app-accent text-white hover:bg-app-accent-hover'}><Plus className="w-3.5 h-3.5"/>새 메모</button></div>
+    <div className="flex flex-wrap justify-end gap-1">{filter==='trash'&&<button type="button" disabled={busy||!trash.length} onClick={()=>void requestEmptyTrash()} className={button+' text-app-accent-hover'}><Trash2 className="w-3.5 h-3.5"/>휴지통 비우기</button>}<button type="button" data-shortcut="notes-new" disabled={busy} onClick={()=>void create()} className={button+' bg-app-accent text-white hover:bg-app-accent-hover'}><Plus className="w-3.5 h-3.5"/>새 메모</button></div>
    </div>
+   {trashNotice&&filter==='trash'&&<p role="status" className="text-xs text-app-muted px-3 py-2">{trashNotice}</p>}
    <div className="overflow-y-auto flex-1 min-h-32 p-2 space-y-1">
     {!visible.length&&<p className="text-xs text-app-muted px-3 py-5">{filter==='trash'?'휴지통이 비어 있습니다.':query?'검색 결과가 없습니다.':'첫 메모를 편하게 남겨 보세요.'}</p>}
     {visible.map(note=><button key={note.id} type="button" data-note-id={note.id} aria-pressed={selected===note.id} onClick={async()=>{if(await allowLeave()){setSelected(note.id);setMobileEditor(true);}}} className={'w-full text-left rounded-lg px-2.5 py-2 border transition-colors '+(selected===note.id?'border-app-outline bg-app-soft':'border-transparent hover:bg-app-canvas')}><div className="flex gap-1 items-center"><span className="text-sm font-semibold truncate min-w-0 flex-1">{noteTitle(note)}</span>{note.pinned&&<Pin className="w-3 h-3 text-app-accent"/>}</div><p className="text-xs text-app-muted truncate mt-0.5">{note.body||'내용을 작성해 보세요.'}</p><p className="text-[10px] text-app-muted mt-1 truncate">{folders.find(folder=>folder.id===note.folderId)?.name||'미분류'} · {new Date(note.updatedAt).toLocaleDateString('ko-KR')}</p></button>)}
@@ -52,6 +59,7 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
   <div className={'notes-editor min-w-0 '+(!mobileEditor?'hidden md:flex':'flex')}>
    {current?<NoteEditor key={current.id} notes={notes} note={current} onOriginal={async id=>{if(await allowLeave()){setSelected(id);setMobileEditor(true);}}} originalExists={notes.some(note=>note.id===current.conflictOf)} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
   </div>
+  <EmptyNoteTrashDialog count={trashTargets?.length??null} onClose={()=>setTrashTargets(null)} onEmpty={confirmEmptyTrash}/>
   <NoteFolderModal open={folderDialog.open} folder={folderDialog.folder} categories={categories} onSave={onSaveFolder} onClose={()=>setFolderDialog(previous=>({...previous,open:false}))}/>
   {error&&<p role="alert" className="col-span-full px-4 py-2 text-xs text-red-600">{error}</p>}
  </section>;

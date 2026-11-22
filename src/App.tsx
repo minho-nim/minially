@@ -15,6 +15,7 @@ import {
 import {
   initializeDatabase,
   getAllNotes,
+  emptyNoteTrash,
   saveNoteTask,
   getNoteFolders,
   saveNote as dbSaveNote,
@@ -755,6 +756,7 @@ export default function App() {
             setNotes(previous => [...previous.filter(item => item.id !== note.id), note,...(copy?[copy]:[])]);
             syncEngine.schedule();
           }}
+          onEmptyTrash={async targets=>{const removed=await emptyNoteTrash(targets);window.miniallyDesktop?.notifySaved();await reloadData();return removed.length;}}
           onSaveFolder={async folder => { await dbSaveNoteFolder(folder); window.miniallyDesktop?.notifySaved(); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
           onTask={async (note, date, categoryId, excerpt) => {
             await saveNoteTask(note, date, categoryId, excerpt);
