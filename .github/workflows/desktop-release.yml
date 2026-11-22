@@ -24,15 +24,13 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: 검사한 main 커밋만 배포
+      - name: main 커밋과 새 버전 확인
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           test "$GITHUB_REF" = refs/heads/main
           sha=$(git rev-parse HEAD)
           test "$(gh api repos/${GITHUB_REPOSITORY}/commits/main --jq .sha)" = "$sha"
-          result=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${sha}&per_page=30" --jq '[.workflow_runs[] | select(.name == "Deploy Minially to GitHub Pages")][0].conclusion // "none"')
-          test "$result" = success || { echo "::error::main 전체 검사가 먼저 성공해야 합니다: $result"; exit 1; }
           version=$(node -p "require('./desktop/package.json').version")
           if gh release view "desktop-v${version}" >/dev/null 2>&1; then echo "::error::이미 배포한 버전입니다. 앱 버전을 올려 주세요."; exit 1; fi
       - run: npm install --global npm@11.19.1 --ignore-scripts
@@ -53,6 +51,18 @@ jobs:
       - name: 설치 파일과 업데이트 메타데이터 확인
         run: |
           node scripts/check-desktop-release.cjs
+      - name: 같은 커밋의 전체 웹 검사 통과 후 공개
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for attempt in $(seq 1 40); do
+            result=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${GITHUB_SHA}&per_page=30" --jq '[.workflow_runs[] | select(.name == "Deploy Minially to GitHub Pages")][0].conclusion // "pending"')
+            if [ "$result" = success ]; then exit 0; fi
+            if [ "$result" != pending ]; then echo "::error::전체 검사 실패: $result"; exit 1; fi
+            sleep 15
+          done
+          echo "::error::전체 검사를 기다리는 시간이 지났습니다. 설치 파일을 공개하지 않습니다."
+          exit 1
       - name: 설치 파일과 업데이트 피드 공개
         env:
           GH_TOKEN: ${{ github.token }}

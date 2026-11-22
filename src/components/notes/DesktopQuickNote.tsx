@@ -9,17 +9,17 @@ import {recommendNoteFolders} from '../../utils/notes';
 const blank=():Note=>{const now=Date.now();return{id:crypto.randomUUID(),title:'',body:'',folderId:'',tags:[],pinned:false,createdAt:now,updatedAt:now};};
 export function DesktopQuickNote(){
  const [draft,setDraft]=useState(blank),[folders,setFolders]=useState<NoteFolder[]>([]),[notes,setNotes]=useState<Note[]>([]),[ready,setReady]=useState(false),[status,setStatus]=useState(''),[error,setError]=useState(''),[busy,setBusy]=useState(false),[connected,setConnected]=useState(syncEngine.connected||isDemo()),[sync,setSync]=useState(syncEngine.getStatus());
- const current=useRef(draft),pending=useRef(Promise.resolve()),saved=useRef<number|undefined>(undefined),revision=useRef(0),dirty=useRef(false),input=useRef<HTMLTextAreaElement>(null);
+ const current=useRef(draft),pending=useRef(Promise.resolve()),saved=useRef<number|undefined>(undefined),revision=useRef(0),dirty=useRef(false),input=useRef<HTMLTextAreaElement>(null),sessionCode=useRef(syncEngine.code);
  useEffect(()=>{
-  const reload=async()=>{const [f,n]=await Promise.all([getNoteFolders(),getAllNotes()]);setFolders(f);setNotes(n);setConnected(syncEngine.connected||isDemo());};
+  const reload=async()=>{const code=syncEngine.code;if(code!==sessionCode.current){setConnected(false);sessionCode.current=code;++revision.current;await pending.current.catch(()=>{});const next=blank();current.current=next;setDraft(next);saved.current=undefined;dirty.current=false;setStatus('');setError('');}const [f,n]=await Promise.all([getNoteFolders(),getAllNotes()]);setFolders(f);setNotes(n);setConnected(syncEngine.connected||isDemo());};
   void initializeDatabase().then(reload).then(()=>setReady(true)).catch(()=>setError('메모를 불러오지 못했습니다. 다시 열어 주세요.'));
   syncEngine.setRemoteChangeHandler(reload);syncEngine.start();const unsubscribe=syncEngine.subscribe(setSync),refresh=window.miniallyDesktop!.onRefresh(()=>{void reload().catch(()=>setError('분류를 불러오지 못했습니다.'));}),focus=window.miniallyDesktop!.onQuickFocus(()=>input.current?.focus());
   const flush=(event:Event)=>{(event as CustomEvent<{waits:Promise<unknown>[]}>) .detail.waits.push(pending.current.then(()=>{if(dirty.current)throw new Error('메모 저장을 확인해 주세요.');}));};
   window.addEventListener('minially:flush',flush);return()=>{unsubscribe();refresh();focus();window.removeEventListener('minially:flush',flush);};
  },[]);
  async function update(patch:Partial<Note>){
-  const next={...current.current,...patch,updatedAt:Math.max(Date.now(),current.current.updatedAt+1)};current.current=next;setDraft(next);dirty.current=true;setError('');setStatus('저장 중…');const version=++revision.current;
-  const task=pending.current.catch(()=>{}).then(async()=>{await saveNote(next,saved.current);saved.current=next.updatedAt;window.miniallyDesktop!.notifySaved();syncEngine.schedule();});pending.current=task;
+  const next={...current.current,...patch,updatedAt:Math.max(Date.now(),current.current.updatedAt+1)};current.current=next;setDraft(next);dirty.current=true;setError('');setStatus('저장 중…');const version=++revision.current,owner=sessionCode.current;
+  const task=pending.current.catch(()=>{}).then(async()=>{if(owner!==sessionCode.current||owner!==syncEngine.code)throw new Error('연결 코드가 변경되었습니다.');await saveNote(next,saved.current);if(owner!==sessionCode.current||owner!==syncEngine.code)return;saved.current=next.updatedAt;window.miniallyDesktop!.notifySaved();syncEngine.schedule();});pending.current=task;
   try{await task;if(revision.current===version){dirty.current=false;setStatus('저장됨');}}catch(e){if(revision.current===version){setStatus('저장 실패');setError(e instanceof Error?e.message:'저장하지 못했습니다.');}}
  }
  async function action(kind:'new'|'open'|'close'){

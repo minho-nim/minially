@@ -20,6 +20,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
   const saveBeforeClose=await main.evaluate(async()=>{await window.miniallyDesktop.updatePreferences({autoDownload:false});return await window.miniallyDesktop.getState();});assert.equal(saveBeforeClose.preferences.autoDownload,false);
   assert.equal(await main.evaluate(()=>window.miniallyDesktop.checkUpdate().then(value=>value.kind)),'unsupported');
   await quick.getByRole('button',{name:'새 메모',exact:true}).click();await quick.getByRole('textbox',{name:'빠른 메모 본문'}).fill('아주긴메모'.repeat(200));await expect(quick.getByRole('status')).toContainText('저장됨');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(win=>win.webContents.getURL().includes('desktop=quick')).setSize(320,600));assert.equal(await quick.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await quick.screenshot({path:path.join(os.tmpdir(),'minially-native-quick.png')});
+  await app.context().route('**/api/sync**',route=>route.fulfill({json:{seq:0,records:[]}}));await main.evaluate(()=>localStorage.setItem('minially-sync-v1',JSON.stringify({code:'TESTNATIVE00001',schemaVersion:3,lastSeq:0,shadow:{}})));await expect(quick.getByRole('textbox',{name:'빠른 메모 본문'})).toHaveValue('');await main.evaluate(()=>localStorage.removeItem('minially-sync-v1'));
   console.log('통과: 격리된 렌더러, IPC 입력 검사, 항상 위, 빠른 메모, 두 창 갱신, 충돌 보존, 업데이트 상태');
  }finally{if(app)await app.close();await fs.rm(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exit(1);});
