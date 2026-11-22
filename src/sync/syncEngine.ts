@@ -9,12 +9,12 @@ const STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurr
 type SyncStore = (typeof STORES)[number];
 const CONTENT_STORES: SyncStore[] = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'notes'];
 const STATE_KEY = 'minially-sync-v1';
-const SYNC_SCHEMA_VERSION = 2;
+const SYNC_SCHEMA_VERSION = 3;
 const API = `${import.meta.env.BASE_URL}api/sync`;
 
-interface SyncState { schemaVersion?: number; needsStorePull?: boolean; code: string; lastSeq: number; shadow: Record<string, string>; lastSyncedAt?: number }
-interface RemoteRecord { store: SyncStore; id: string; data: unknown }
-interface Change { store: SyncStore; id: string; data: unknown }
+interface SyncState { noteSeq?:Record<string,number>; schemaVersion?: number; needsStorePull?: boolean; code: string; lastSeq: number; shadow: Record<string, string>; lastSyncedAt?: number }
+interface RemoteRecord { store: SyncStore; id: string; data: unknown; seq?:number }
+interface Change { store: SyncStore; id: string; data: unknown; baseSeq?:number }
 
 export type SyncStatus =
   | { kind: 'off' }
@@ -105,6 +105,7 @@ async function applyRemote(records: RemoteRecord[], state: SyncState, expected?:
       const want = expected.has(k) ? expected.get(k) : (state.shadow[k] ?? null);
       if (want !== currentPrint) continue;
     }
+    if (r.store === 'notes' && Number.isSafeInteger(r.seq) && r.seq! >= 0) (state.noteSeq??={})[r.id]=r.seq!;
     if (r.data === null) {
       if (current !== undefined) { await os.delete(r.id); changed = true; }
       delete state.shadow[k];
@@ -165,6 +166,7 @@ class SyncEngine {
         const remote = await request(state.code, 'GET', 0);
         if (this.state !== state) return;
         const current = await readLocal();
+        for(const record of remote.records){const local=current.get(key(record.store,record.id));if(record.store==='notes'&&Number.isSafeInteger(record.seq)&&record.seq!>=0&&local&&fingerprint(local.value)===fingerprint(record.data))(state.noteSeq??={})[record.id]=record.seq!;}
         const candidates = remote.records.filter(record => {
           if (record.store !== 'notes' && record.store !== 'noteFolders') return false;
           const local = current.get(key(record.store, record.id));
@@ -185,12 +187,12 @@ class SyncEngine {
       const expected = new Map<string, string | null>();
       for (const [k, item] of local) {
         const print = fingerprint(item.value);
-        if (state.shadow[k] !== print) { changes.push({ store: item.store, id: item.id, data: item.value }); expected.set(k, print); }
+        if (state.shadow[k] !== print) { changes.push({ store: item.store, id: item.id, data: item.value, ...(item.store==='notes'?{baseSeq:state.noteSeq?.[item.id]??0}:{}) }); expected.set(k, print); }
       }
       for (const k of Object.keys(state.shadow)) {
         if (local.has(k)) continue;
         const [store, ...rest] = k.split('/');
-        changes.push({ store: store as SyncStore, id: rest.join('/'), data: null });
+        changes.push({ store: store as SyncStore, id: rest.join('/'), data: null, ...(store==='notes'?{baseSeq:state.noteSeq?.[rest.join('/')]??0}:{}) });
         expected.set(k, null);
       }
       const result = changes.length
@@ -201,6 +203,8 @@ class SyncEngine {
       for (const c of changes) {
         const k = key(c.store, c.id);
         if (c.data === null) delete state.shadow[k]; else state.shadow[k] = expected.get(k)!;
+        const ack=result.records.find(r=>r.store==='notes'&&r.id===c.id&&(c.data===null?r.data===null:fingerprint(r.data)===expected.get(k)));
+        if(c.store==='notes'&&ack&&Number.isSafeInteger(ack.seq)&&ack.seq!>=0)(state.noteSeq??={})[c.id]=ack.seq!;
       }
       const changed = await applyRemote(result.records, state, expected);
       state.lastSeq = Math.max(state.lastSeq, result.seq);
