@@ -1,20 +1,19 @@
 import React from 'react';
 import { ActiveNavTab } from '../../types';
-import { Calendar, CheckSquare, Search, Settings } from 'lucide-react';
+import { Calendar, CheckSquare, Settings, FileText } from 'lucide-react';
 interface BottomTabBarProps {
  activeTab: ActiveNavTab;
  onTabChange: (tab: ActiveNavTab) => void;
- onOpenSearchModal: () => void;
  onOpenSettingsModal: () => void;
 }
-export const BottomTabBar: React.FC<BottomTabBarProps> = ({activeTab,onTabChange,onOpenSearchModal,onOpenSettingsModal}) => {
+export const BottomTabBar: React.FC<BottomTabBarProps> = ({activeTab,onTabChange,onOpenSettingsModal}) => {
  const items=[
   {id:'calendar',label:'캘린더',icon:Calendar,onClick:()=>onTabChange('calendar')},
   {id:'tasks',label:'할 일',icon:CheckSquare,onClick:()=>onTabChange('tasks')},
-  {id:'search',label:'검색',icon:Search,onClick:onOpenSearchModal},
+  {id:'notes',label:'메모',icon:FileText,onClick:()=>onTabChange('notes')},
   {id:'settings',label:'설정',icon:Settings,onClick:onOpenSettingsModal},
  ];
  return <nav aria-label="하단 메뉴" className="mobile-bottom-nav md:hidden fixed left-1/2 -translate-x-1/2 z-30 grid grid-cols-4 items-stretch gap-1 rounded-full border border-app-line bg-white/95 backdrop-blur-lg">
-  {items.map(({id,label,icon:Icon,onClick})=><button key={id} type="button" onClick={onClick} aria-current={activeTab===id?'page':undefined} aria-haspopup={id==='search'||id==='settings'?'dialog':undefined} className={'min-w-0 min-h-9 flex flex-col items-center justify-center gap-0.5 rounded-full transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-app-accent-hover focus-visible:outline-offset-2 '+(activeTab===id?'bg-app-soft text-app-accent font-semibold':'text-app-muted hover:bg-app-canvas hover:text-app-ink')}><Icon aria-hidden="true" className="w-5 h-5"/><span className="text-[11px]">{label}</span></button>)}
+  {items.map(({id,label,icon:Icon,onClick})=><button key={id} type="button" onClick={onClick} aria-current={activeTab===id?'page':undefined} aria-haspopup={id==='settings'?'dialog':undefined} className={'min-w-0 min-h-9 flex flex-col items-center justify-center gap-0.5 rounded-full transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-app-accent-hover focus-visible:outline-offset-2 '+(activeTab===id?'bg-app-soft text-app-accent font-semibold':'text-app-muted hover:bg-app-canvas hover:text-app-ink')}><Icon aria-hidden="true" className="w-5 h-5"/><span className="text-[11px]">{label}</span></button>)}
  </nav>;
 };

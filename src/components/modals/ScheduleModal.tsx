@@ -46,6 +46,8 @@ interface ScheduleModalProps extends CategoryActions {
   onUndoRegistration?:()=>Promise<void>;
   isOpen: boolean;
   onClose: () => void;
+  onOpenTask?: (id: string) => void;
+  onOpenNote?: (id: string) => void;
   onSave: (schedule: Schedule, keepOpen?: boolean, rule?: RecurrenceRule | null, scope?: SeriesScope) => Promise<void> | void;
   onDelete?: (scheduleId: string, scope?: SeriesScope) => Promise<void> | void;
   onUsePreset: (presetId: string) => Promise<void> | void;
@@ -67,6 +69,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   registrationNotice,onDismissRegistration,onUndoRegistration,
   isOpen,
   onClose,
+  onOpenNote,
+  onOpenTask,
   onSave,
   onDelete,
   onUsePreset,
@@ -493,6 +497,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <button type="button" className="min-h-9" onClick={() => setAskScope(false)}>취소</button>
           </div>
         </div>}
+        {initialSchedule?.sourceNoteId && onOpenNote && <button type="button" className="mx-3 min-h-8 text-left text-xs text-app-accent hover:underline" onClick={()=>closeGuard.request(()=>onOpenNote(initialSchedule.sourceNoteId!))}>원본 메모 열기</button>}
+        {initialSchedule?.sourceTaskId && onOpenTask && <button type="button" className="mx-3 min-h-8 text-left text-xs text-app-accent hover:underline" onClick={()=>closeGuard.request(()=>onOpenTask(initialSchedule.sourceTaskId!))}>원본 할 일 열기</button>}
         {/* Footer */}
         <div className="px-3 py-1.5 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <div>

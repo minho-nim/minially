@@ -40,6 +40,8 @@ export interface TitleBlock {
 }
 
 export interface Schedule {
+  sourceTaskId?: string;
+  sourceNoteId?: string;
   isImportant?: boolean;
   sortOrder?: number;
   titleBlocks?: TitleBlock[];
@@ -82,6 +84,8 @@ export interface ChecklistItem {
 }
 
 export interface Task {
+  categoryId?: string;
+  sourceNoteId?: string;
   id: string;
   projectId?: string;
   title: string;
@@ -186,6 +190,8 @@ export interface AppSettings {
 }
 
 export interface AppData {
+  notes?: Note[];
+  noteFolders?: NoteFolder[];
   schedules: Schedule[];
   presets: PhrasePreset[];
   categories: CategoryItem[];
@@ -196,5 +202,52 @@ export interface AppData {
   settings: AppSettings;
 }
 
-export type ActiveNavTab = 'calendar' | 'tasks';
+export interface NoteFolder {
+  defaultCategoryId?: string;
+  id: string;
+  name: string;
+  keywords: string[];
+}
+
+export interface NoteTextRun {
+  fontFamily?: string;
+  fontSize?: number;
+  color?: string;
+  highlight?: string;
+  script?: 'super' | 'sub';
+  text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+}
+
+export type NoteAlignment = 'left' | 'center' | 'right' | 'justify';
+export interface NoteParagraph {
+  type: 'paragraph';
+  runs: NoteTextRun[];
+  align?: NoteAlignment;
+  list?: 'bullet' | 'number';
+  indent?: number;
+  lineHeight?: number;
+}
+export interface NoteTableCell { runs: NoteTextRun[]; align?: NoteAlignment }
+export interface NoteTable { type: 'table'; rows: NoteTableCell[][] }
+export type NoteBlock = NoteParagraph | NoteTable;
+
+export interface Note {
+  richDocument?: NoteBlock[];
+  richBody?: NoteTextRun[];
+  id: string;
+  title: string;
+  body: string;
+  folderId: string;
+  tags: string[];
+  pinned: boolean;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt?: number;
+}
+
+export type ActiveNavTab = 'calendar' | 'tasks' | 'notes';
 export type ActiveTab = 'calendar' | 'tasks' | 'projects';

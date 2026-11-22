@@ -39,7 +39,7 @@ async function moves(page: import('@playwright/test').Page, context: import('@pl
 test('검색: 키보드가 열린 채 바깥을 누르면 키보드만 내리고 창은 그대로, 바깥 끌기 막힘', async ({ page, context }) => {
   await page.route('**/fonts.googleapis.com/**', r => r.abort());
   await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
-  await page.getByRole('navigation', { name: '하단 메뉴' }).getByRole('button', { name: '검색', exact: true }).tap();
+  await page.locator('header').first().getByRole('button', { name: '일정 검색', exact: true }).tap();
   const search = page.getByRole('dialog', { name: '일정 검색', exact: true }); const box = search.getByLabel('일정 검색어', { exact: true });
   await box.fill('회의'); await box.focus(); await expect(box).toBeFocused();
   const drag = await moves(page, context, { x: 195, y: 790 }); expect(drag.length).toBeGreaterThan(0); expect(drag.every(Boolean)).toBe(true);

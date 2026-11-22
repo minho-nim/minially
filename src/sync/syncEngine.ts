@@ -1,15 +1,18 @@
+import { validateNote, validateNoteFolder } from '../utils/notes';
+import type { Note, NoteFolder } from '../types';
 // 기기 동기화: 이 기기 IndexedDB ↔ 서버(/api/sync).
 // 마지막으로 서버와 맞춘 각 항목의 지문(shadow)을 기억해 두고, 달라진 항목만 올린다.
 // 서버에서 받은 항목은 그사이 이 기기에서 또 바뀌지 않았을 때만 덮어쓴다(바뀌었으면 다음 번에 올라감).
-import { getDB, DEFAULT_CATEGORIES } from '../db/indexedDB';
+import { getDB, DEFAULT_CATEGORIES, INITIAL_NOTE_FOLDERS } from '../db/indexedDB';
 
-const STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings'] as const;
+const STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'notes', 'noteFolders'] as const;
 type SyncStore = (typeof STORES)[number];
-const CONTENT_STORES: SyncStore[] = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks'];
+const CONTENT_STORES: SyncStore[] = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'notes'];
 const STATE_KEY = 'minially-sync-v1';
+const SYNC_SCHEMA_VERSION = 2;
 const API = `${import.meta.env.BASE_URL}api/sync`;
 
-interface SyncState { code: string; lastSeq: number; shadow: Record<string, string>; lastSyncedAt?: number }
+interface SyncState { schemaVersion?: number; needsStorePull?: boolean; code: string; lastSeq: number; shadow: Record<string, string>; lastSyncedAt?: number }
 interface RemoteRecord { store: SyncStore; id: string; data: unknown }
 interface Change { store: SyncStore; id: string; data: unknown }
 
@@ -40,7 +43,10 @@ export function normalizeCode(code: string) {
 function loadState(): SyncState | null {
   try {
     const parsed = JSON.parse(localStorage.getItem(STATE_KEY) ?? 'null');
-    return parsed && typeof parsed.code === 'string' ? parsed : null;
+    if (!parsed || typeof parsed.code !== 'string') return null;
+    // 이전 앱이 모르는 저장소의 seq도 이미 지나갔을 수 있어 새 저장소는 처음부터 받는다.
+    if (parsed.schemaVersion !== SYNC_SCHEMA_VERSION) { parsed.lastSeq = 0; parsed.needsStorePull = true; }
+    return parsed;
   } catch { return null; }
 }
 function saveState(state: SyncState | null) {
@@ -80,6 +86,11 @@ async function request(code: string, method: 'GET' | 'POST', since: number, chan
 /** 받은 항목을 이 기기에 반영. expected에 있는 키는 지금 값이 그 지문과 같을 때만 덮어쓴다. */
 async function applyRemote(records: RemoteRecord[], state: SyncState, expected?: Map<string, string | null>) {
   if (!records.length) return false;
+  for (const record of records) {
+    if (record.data === null) continue;
+    if (record.store === 'notes') validateNote(record.data as Note);
+    if (record.store === 'noteFolders') validateNoteFolder(record.data as NoteFolder);
+  }
   const db = await getDB();
   const tx = db.transaction([...STORES], 'readwrite');
   let changed = false;
@@ -150,6 +161,25 @@ class SyncEngine {
     if (!state) return;
     this.setStatus({ kind: 'syncing' });
     try {
+      if (state.needsStorePull) {
+        const remote = await request(state.code, 'GET', 0);
+        if (this.state !== state) return;
+        const current = await readLocal();
+        const candidates = remote.records.filter(record => {
+          if (record.store !== 'notes' && record.store !== 'noteFolders') return false;
+          const local = current.get(key(record.store, record.id));
+          if (!local) return true;
+          const seed = record.store === 'noteFolders' ? INITIAL_NOTE_FOLDERS.find(folder => folder.id === record.id) : undefined;
+          return !!seed && fingerprint(local.value) === fingerprint(seed);
+        });
+        const expected = new Map<string, string | null>();
+        for (const record of candidates) { const id = key(record.store, record.id), local = current.get(id); expected.set(id, local ? fingerprint(local.value) : null); }
+        const changed = await applyRemote(candidates, state, expected);
+        state.schemaVersion = SYNC_SCHEMA_VERSION; state.needsStorePull = false;
+        saveState(state);
+        if (changed) await this.onRemoteChange();
+        // 기존 일정·할 일의 오프라인 변경은 아래의 지문 비교를 거쳐 먼저 올린다.
+      }
       const local = await readLocal();
       const changes: Change[] = [];
       const expected = new Map<string, string | null>();
@@ -210,7 +240,7 @@ class SyncEngine {
    */
   async connect(rawCode: string, mode: 'merge' | 'server') {
     const { code, remote } = await this.inspect(rawCode);
-    const state: SyncState = { code, lastSeq: 0, shadow: {} };
+    const state: SyncState = { code, lastSeq: 0, shadow: {}, schemaVersion: SYNC_SCHEMA_VERSION };
     if (mode === 'server') {
       const db = await getDB();
       const tx = db.transaction([...STORES], 'readwrite');

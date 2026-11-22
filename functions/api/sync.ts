@@ -1,10 +1,12 @@
+import { validateNote, validateNoteFolder } from '../../src/utils/notes';
+import type { Note, NoteFolder } from '../../src/types';
 // 기기 동기화 서버(Cloudflare Pages Functions + D1).
 // 코드 하나 = 데이터 공간 하나. 서버는 코드 원문을 모르고 SHA-256 해시만 비밀값(SYNC_CODE_HASHES)으로 가진다.
 // 항목마다 마지막으로 올린 값이 이긴다. seq는 공간별로 올라가는 번호로, 기기는 마지막으로 받은 seq 이후만 받는다.
 
 import { json, spaceFor, ensureSchema, blocked, recordFailure, tooManyResponse, type D1Database, type Context } from '../_lib';
 
-const STORES = new Set(['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings']);
+const STORES = new Set(['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'notes', 'noteFolders']);
 const MAX_CHANGES = 5000;
 const MAX_RECORD_BYTES = 256 * 1024;
 const CHUNK = 200;
@@ -20,6 +22,12 @@ function readChanges(body: unknown): Change[] | string {
     const { store, id } = c as Change;
     if (typeof store !== 'string' || !STORES.has(store)) return '알 수 없는 저장소입니다.';
     if (typeof id !== 'string' || !id || id.length > 200) return '잘못된 ID입니다.';
+    if ((store === 'notes' || store === 'noteFolders') && c.data !== null) {
+      try {
+        if (store === 'notes') validateNote(c.data as Note); else validateNoteFolder(c.data as NoteFolder);
+        if ((c.data as {id:string}).id !== id) return '메모 ID가 일치하지 않습니다.';
+      } catch { return '메모 데이터 형식이 올바르지 않습니다.'; }
+    }
   }
   return changes as Change[];
 }

@@ -16,8 +16,8 @@ export function calendarTaskId(schedule: Pick<Schedule, 'id' | 'date'>): string 
   return 'calendar-task:' + schedule.id + ':' + schedule.date;
 }
 
-export function hasCalendarTask(tasks: Task[], schedule: Pick<Schedule, 'id' | 'date'>): boolean {
-  return tasks.some(task => task.id === calendarTaskId(schedule) ||
+export function hasCalendarTask(tasks: Task[], schedule: Pick<Schedule, 'id' | 'date'> & Partial<Pick<Schedule, 'sourceTaskId' | 'sourceNoteId'>>): boolean {
+  return tasks.some(task => (!schedule.id.startsWith('shared~') && (task.id === schedule.sourceTaskId || !!schedule.sourceNoteId && task.sourceNoteId === schedule.sourceNoteId && task.dueDate === schedule.date)) || task.id === calendarTaskId(schedule) ||
     (task.linkedScheduleId === schedule.id && task.dueDate === schedule.date));
 }
 
@@ -25,6 +25,8 @@ export function taskFromSchedule(schedule: Schedule): Task {
   return {
     id: calendarTaskId(schedule),
     linkedScheduleId: schedule.id,
+    ...(schedule.sourceNoteId && !schedule.id.startsWith('shared~') ? { sourceNoteId: schedule.sourceNoteId } : {}),
+    ...(!schedule.id.startsWith('shared~') && schedule.category ? { categoryId: schedule.category } : {}),
     title: schedule.title,
     dueDate: schedule.date,
     status: 'todo',
@@ -32,4 +34,19 @@ export function taskFromSchedule(schedule: Schedule): Task {
     checklist: [],
     memo: schedule.memo || '',
   };
+}
+
+/** 할 일의 날짜를 옮겨도 원본 반복 회차를 찾는다. 취소·삭제된 원본은 열지 않는다. */
+export function scheduleLinkedToTask(task: Task, schedules: Schedule[], rules: RecurrenceRule[], exceptions: RecurrenceException[]): Schedule | undefined {
+  if (!task.linkedScheduleId) return schedules.find(schedule=>schedule.sourceTaskId===task.id || !!task.sourceNoteId && schedule.sourceNoteId===task.sourceNoteId && schedule.date===task.dueDate);
+  const direct = schedules.find(schedule => schedule.id === task.linkedScheduleId);
+  if (direct) return direct;
+  const match = task.linkedScheduleId.match(/^(.*)_rec_(\d{4}-\d{2}-\d{2})$/);
+  if (!match) return;
+  const base = schedules.find(schedule => schedule.id === match[1]);
+  if (!base) return;
+  const rule = rules.find(item => item.id === base.recurrenceRuleId || item.scheduleId === base.id);
+  const exception = exceptions.find(item => item.ruleId === rule?.id && item.originalDate === match[2]);
+  const date = exception?.modifiedSchedule?.date || match[2];
+  return calendarSchedulesForDate(schedules, rules, exceptions, date).find(schedule => schedule.id === task.linkedScheduleId);
 }

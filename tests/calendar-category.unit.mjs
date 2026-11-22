@@ -1,14 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { taskFromSchedule, calendarTaskId, hasCalendarTask, calendarSchedulesForDate } from '../src/utils/calendarTasks.ts';
+import { taskFromSchedule, calendarTaskId, hasCalendarTask, calendarSchedulesForDate, scheduleLinkedToTask } from '../src/utils/calendarTasks.ts';
 import { resolveCategoryColor, CATEGORY_PALETTE } from '../src/utils/categories.ts';
 
-test('category saves an explicitly selected color for both new and existing records', () => {
-  assert.equal(resolveCategoryColor('#123abc', undefined, []), '#123abc');
-  assert.equal(resolveCategoryColor('#AABBCC', '#CF8FA8', []), '#AABBCC');
+test('category colors are fixed, unique palette slots', () => {
+  assert.equal(resolveCategoryColor('#CF8FA8', undefined, []), '#CF8FA8');
+  assert.equal(resolveCategoryColor('#cf8fa8', '#CF8FA8', []), '#CF8FA8');
+  assert.throws(() => resolveCategoryColor('#B4A2D3', '#CF8FA8', []), /고정/);
+  assert.throws(() => resolveCategoryColor('#CF8FA8', undefined, [{id:'a',name:'기존',color:'#CF8FA8'}]), /사용 중/);
 });
-test('invalid or missing category colors preserve the previous color or use a default', () => {
-  assert.equal(resolveCategoryColor('invalid', '#CF8FA8', []), '#CF8FA8');
+test('invalid new colors are rejected and missing colors use a free palette slot', () => {
+  assert.throws(() => resolveCategoryColor('invalid', undefined, []), /색상/);
   assert.equal(resolveCategoryColor('', undefined, []), CATEGORY_PALETTE[0].color);
 });
 test('calendar task keeps the source schedule and copies date, memo, importance and link', () => {
@@ -63,4 +65,18 @@ test('today list honors cancelled occurrences and future occurrences moved to to
   ];
   const result = calendarSchedulesForDate([schedule], [rule], exceptions, '2026-11-04');
   assert.deepEqual(result.map(item => [item.id, item.title]), [['repeat_rec_2026-11-07', '옮긴 일정']]);
+});
+
+test('calendar imports keep their note/category and do not duplicate the source task', () => {
+  const schedule = {id:'calendar',title:'연결',date:'2026-11-22',category:'work',sourceNoteId:'note',sourceTaskId:'task'};
+  assert.equal(taskFromSchedule(schedule).sourceNoteId, 'note'); assert.equal(taskFromSchedule(schedule).categoryId, 'work');
+  assert.equal(hasCalendarTask([{id:'task'}],schedule),true);
+  assert.equal(hasCalendarTask([{id:'from-note',sourceNoteId:'note',dueDate:schedule.date}],schedule),true);
+  assert.equal(taskFromSchedule({...schedule,id:'shared~owner~calendar'}).sourceNoteId,undefined);
+});
+test('a rescheduled task still opens the original moved occurrence; cancelled sources are absent', () => {
+  const schedule={id:'base',title:'반복',date:'2026-11-01',category:'',recurrenceRuleId:'rule'}, rule={id:'rule',scheduleId:'base',startDate:'2026-11-01',frequency:'daily'},task={id:'task',linkedScheduleId:'base_rec_2026-11-04',dueDate:'2026-12-01'};
+  const moved={id:'ex',ruleId:'rule',originalDate:'2026-11-04',action:'modified',modifiedSchedule:{date:'2026-11-08'}};
+  assert.equal(scheduleLinkedToTask(task,[schedule],[rule],[moved]).date,'2026-11-08');
+  assert.equal(scheduleLinkedToTask(task,[schedule],[rule],[{...moved,action:'cancelled'}]),undefined);
 });

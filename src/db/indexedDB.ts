@@ -1,3 +1,4 @@
+import { noteTitle, validateNote, validateNoteFolder } from '../utils/notes';
 import { sortPresets } from '../utils/phrases';
 import { hasCalendarTask, taskFromSchedule } from '../utils/calendarTasks';
 import { CATEGORY_LIMIT, nextCategoryColor, visibleCategories, resolveCategoryColor } from '../utils/categories';
@@ -13,9 +14,13 @@ import {
   AppSettings,
   Task,
   AppData,
+  Note,
+  NoteFolder,
 } from '../types';
 
 interface DayFlowDBSchema extends DBSchema {
+  notes: { key: string; value: Note };
+  noteFolders: { key: string; value: NoteFolder };
   schedules: {
     key: string;
     value: Schedule;
@@ -54,8 +59,15 @@ interface DayFlowDBSchema extends DBSchema {
   };
 }
 
+export const INITIAL_NOTE_FOLDERS: NoteFolder[] = [
+  { id: 'notes-work', name: '업무', keywords: ['회의', '업무', '출근', '보고서', '프로젝트'] },
+  { id: 'notes-daily', name: '일상', keywords: ['일기', '감상', '영화', '기분', '일상'] },
+  { id: 'notes-ideas', name: '아이디어', keywords: ['아이디어', '개선', '기능', '개발', '미니어리'] },
+  { id: 'notes-travel', name: '여행', keywords: ['여행', '숙소', '항공', '준비물', '여권'] },
+];
+
 const DB_NAME = 'DayFlowDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // 예전 버전이 새 사용자에게 자동으로 넣던 기본 카테고리(지금은 넣지 않음). 남아 있는 것을 알아보는 데만 쓴다.
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
@@ -81,6 +93,11 @@ export function getDB(): Promise<IDBPDatabase<DayFlowDBSchema>> {
   if (!dbPromise) {
     dbPromise = openDB<DayFlowDBSchema>(DB_NAME, DB_VERSION, {
       upgrade(db) {
+        if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('noteFolders')) {
+          const folders = db.createObjectStore('noteFolders', { keyPath: 'id' });
+          for (const folder of INITIAL_NOTE_FOLDERS) folders.put(folder);
+        }
         // schedules
         if (!db.objectStoreNames.contains('schedules')) {
           const scheduleStore = db.createObjectStore('schedules', { keyPath: 'id' });
@@ -126,6 +143,8 @@ export function getDB(): Promise<IDBPDatabase<DayFlowDBSchema>> {
           db.createObjectStore('appSettings', { keyPath: 'id' });
         }
       },
+      blocked() { if (typeof window !== 'undefined') window.dispatchEvent(new Event('database-update-blocked')); },
+      blocking() { const closing = dbPromise; dbPromise = null; void closing?.then(db => db.close()); },
     });
   }
   return dbPromise;
@@ -676,7 +695,7 @@ export async function deleteHistory(id: string): Promise<void> {
 // Full Export / Import
 export async function exportAllData(): Promise<AppData> {
   const db = await getDB();
-  const [schedules, presets, categories, recurrenceRules, recurrenceExceptions, tasks, settings] =
+  const [schedules, presets, categories, recurrenceRules, recurrenceExceptions, tasks, settings, notes, noteFolders] =
     await Promise.all([
       db.getAll('schedules'),
       db.getAll('presets'),
@@ -685,6 +704,8 @@ export async function exportAllData(): Promise<AppData> {
       db.getAll('recurrenceExceptions'),
       db.getAll('tasks'),
       getAppSettings(),
+      db.getAll('notes'),
+      db.getAll('noteFolders'),
     ]);
 
   return {
@@ -695,12 +716,14 @@ export async function exportAllData(): Promise<AppData> {
     recurrenceExceptions,
     tasks,
     settings,
+    notes,
+    noteFolders,
   };
 }
 
 export async function importAllData(data: Partial<AppData>): Promise<void> {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('잘못된 백업 파일입니다.');
-  const stores = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions'] as const;
+  const stores = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'notes', 'noteFolders'] as const;
   if (!stores.some(key => Array.isArray(data[key]))) throw new Error('백업 데이터가 없습니다.');
   // Validate before opening a write transaction; keep all current data on failure.
   for (const store of stores) {
@@ -710,6 +733,8 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
     for (const item of data[store]!) {
       if (!item || typeof item.id !== 'string' || !item.id || ids.has(item.id)) throw new Error('잘못되거나 중복된 ID입니다.');
       ids.add(item.id);
+      if (store === 'notes') validateNote(item as Note);
+      if (store === 'noteFolders') validateNoteFolder(item as NoteFolder);
       if (store === 'presets') {
         const phrase = item as Preset;
         if (!(phrase.text || phrase.defaultTitle || phrase.name)?.trim()) throw new Error('문구 내용이 없습니다.');
@@ -745,7 +770,7 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
 export async function resetDatabaseToDefault(): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(
-    ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory', 'tasks', 'appSettings'],
+    ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory', 'tasks', 'appSettings', 'notes', 'noteFolders'],
     'readwrite'
   );
   await tx.objectStore('schedules').clear();
@@ -755,6 +780,9 @@ export async function resetDatabaseToDefault(): Promise<void> {
   await tx.objectStore('recurrenceExceptions').clear();
   await tx.objectStore('changeHistory').clear();
   await tx.objectStore('tasks').clear();
+  await tx.objectStore('notes').clear();
+  await tx.objectStore('noteFolders').clear();
+  for (const folder of INITIAL_NOTE_FOLDERS) await tx.objectStore('noteFolders').put(folder);
   await tx.objectStore('appSettings').clear();
   await tx.done;
 
@@ -796,4 +824,21 @@ export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = fal
     else await tx.objectStore('changeHistory').put(entry);
     await tx.done;
   } catch (error) { try { tx.abort(); } catch { /* Already aborted. */ } await tx.done.catch(() => {}); throw error; }
+}
+
+// 메모는 일정의 부가 메모와 분리해 저장하며, 로그인 공간과 백업에 함께 포함한다.
+export async function getAllNotes(): Promise<Note[]> { return (await getDB()).getAll('notes'); }
+export async function getNoteFolders(): Promise<NoteFolder[]> { return (await getDB()).getAll('noteFolders'); }
+export async function saveNote(note: Note): Promise<void> { validateNote(note); await (await getDB()).put('notes', note); }
+export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', folder); }
+
+export async function saveNoteTask(note: Note, date: string, categoryId = ''): Promise<void> {
+  validateNote(note);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('할 일 날짜를 선택해 주세요.');
+  const db = await getDB();
+  const tx = db.transaction(['tasks', 'categories'], 'readwrite');
+  if (categoryId && !(await tx.objectStore('categories').get(categoryId))) { await tx.done; throw new Error('없는 카테고리입니다. 다시 선택해 주세요.'); }
+  const existing = (await tx.objectStore('tasks').getAll()).some(task => task.sourceNoteId === note.id && task.dueDate === date);
+  if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, dueDate:date, status:'todo', priority:'medium', checklist:[]});
+  await tx.done;
 }

@@ -9,9 +9,16 @@ import {
   Task,
   AppData,
   ActiveNavTab,
+  Note,
+  NoteFolder,
 } from './types';
 import {
   initializeDatabase,
+  getAllNotes,
+  saveNoteTask,
+  getNoteFolders,
+  saveNote as dbSaveNote,
+  saveNoteFolder as dbSaveNoteFolder,
   getAllSchedules,
   saveSchedule as dbSaveSchedule,
   deleteSchedule as dbDeleteSchedule,
@@ -43,6 +50,9 @@ import {
 import { expandRecurringSchedules } from './utils/recurrenceEngine';
 import { baseIdOf, isOccurrence, planSeriesChange, type SeriesScope } from './utils/seriesEdit';
 import { recordHistory, recordOccurrenceHistory, recordSeriesHistory, recordTaskDeletion, revertHistoryEntry, UndoNotice } from './utils/undoManager';
+import { NotesView } from './components/notes/NotesView';
+import { noteTitle } from './utils/notes';
+import { scheduleLinkedToTask } from './utils/calendarTasks';
 import { Navbar } from './components/layout/Navbar';
 import { BottomTabBar } from './components/layout/BottomTabBar';
 import { CalendarView } from './components/views/CalendarView';
@@ -73,6 +83,8 @@ import { isDemo, endDemo } from './sync/demoMode';
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);
+  const [databaseBlocked,setDatabaseBlocked] = useState(false);
+  useEffect(()=>{const blocked=()=>setDatabaseBlocked(true);window.addEventListener('database-update-blocked',blocked);return()=>window.removeEventListener('database-update-blocked',blocked);},[]);
   const [loggedIn, setLoggedIn] = useState(() => syncEngine.connected || isDemo() || devSkipLogin());
   useEffect(() => syncEngine.subscribe(status => setLoggedIn(status.kind !== 'off' || isDemo() || devSkipLogin())), []);
   // 앱을 켜면 항상 캘린더부터 보여 준다.
@@ -87,6 +99,10 @@ export default function App() {
   const [recurrenceRules, setRecurrenceRules] = useState<RecurrenceRule[]>([]);
   const [recurrenceExceptions, setRecurrenceExceptions] = useState<RecurrenceException[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [focusedTaskId, setFocusedTaskId] = useState<string>();
+  const [openNoteId, setOpenNoteId] = useState<string>();
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [noteFolders, setNoteFolders] = useState<NoteFolder[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
 
   // Undo state
@@ -137,6 +153,8 @@ export default function App() {
         loadedExceptions,
         loadedTasks,
         loadedSettings,
+        loadedNotes,
+        loadedNoteFolders,
       ] = await Promise.all([
         getAllSchedules(),
         getAllPresets(),
@@ -145,6 +163,8 @@ export default function App() {
         getAllRecurrenceExceptions(),
         getAllTasks(),
         getAppSettings(),
+        getAllNotes(),
+        getNoteFolders(),
       ]);
 
       setSchedules(loadedSchedules);
@@ -154,6 +174,9 @@ export default function App() {
       setRecurrenceExceptions(loadedExceptions);
       setTasks(loadedTasks);
       setSettings(loadedSettings);
+      setNotes(loadedNotes);
+      setNoteFolders(loadedNoteFolders);
+      setDatabaseBlocked(false);
       setIsReady(true);
       syncEngine.schedule();
     } catch (err) {
@@ -592,6 +615,24 @@ export default function App() {
     handleEditSchedule(schedule);
   };
 
+  const openConnectedNote = (id: string) => {
+    if (!notes.some(note => note.id === id)) { setActionError('원본 메모를 찾을 수 없습니다.'); return; }
+    dayDetailSaved.current = null; searchOrigin.current = null;
+    setScheduleModalOpen(false); setDaySheetOpen(false); setSearchModalOpen(false);
+    setOpenNoteId(id); setActiveTab('notes');
+  };
+  const openConnectedSchedule = (schedule: Schedule | undefined) => {
+    if (!schedule) { setActionError('원본 일정이 삭제되었거나 더 이상 표시되지 않습니다.'); return; }
+    searchOrigin.current = null; setDaySheetOpen(false); setSearchModalOpen(false);
+    setSelectedDate(schedule.date); setActiveTab('calendar'); handleEditSchedule(schedule);
+  };
+  const openConnectedTask = (id: string) => {
+    const task = tasks.find(item => item.id === id);
+    if (!task) { setActionError('연결된 할 일을 찾을 수 없습니다.'); return; }
+    searchOrigin.current=null; dayDetailSaved.current=null; setScheduleModalOpen(false); setDaySheetOpen(false); setSearchModalOpen(false);
+    selectTaskDate(task.dueDate || getTodayDateString()); setFocusedTaskId(id); setActiveTab('tasks');
+  };
+
   const shortcutActions = useMemo(() => ({
     newSchedule: () => handleOpenNewScheduleModal(selectedDate),
     search: openSearch,
@@ -622,6 +663,7 @@ export default function App() {
     if (action === 'today') shortcutActions.todaySchedules();
   }, [isReady, loggedIn, shortcutActions, setActiveTab]);
 
+  if (databaseBlocked && !isReady) return <div role="alert" className="min-h-dvh bg-app-canvas flex flex-col items-center justify-center gap-3 p-6 text-center text-app-ink"><h1 className="font-semibold">미니어리 업데이트 준비 중</h1><p className="max-w-sm text-sm text-app-muted">열려 있는 다른 미니어리 창을 닫거나 새로고침해 주세요. 데이터는 유지되며 준비가 끝나면 자동으로 열립니다.</p><button type="button" onClick={()=>window.location.reload()} className="min-h-9 rounded-lg px-3 bg-app-soft text-app-accent-hover text-sm">다시 확인</button></div>;
   if (!loggedIn) return <LoginScreen />;
 
   if (!isReady) {
@@ -651,7 +693,7 @@ export default function App() {
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
+        onTabChange={(tab) => {setOpenNoteId(undefined);setFocusedTaskId(undefined);setActiveTab(tab);}}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
         onOpenSearchModal={openSearch}
       />
@@ -659,7 +701,7 @@ export default function App() {
       {registrationNotice && !(daySheetOpen&&activeTab==='calendar') && !scheduleModalOpen && !presetLibraryOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget && <RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={()=>setRegistrationNotice(null)} onUndo={registrationNotice.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}/>}
 
       {/* Main View Area (Mobile Optimized Max Width) */}
-      <main className="app-main-content flex-1 min-h-0 max-w-4xl w-full mx-auto p-3 sm:p-4 pb-24 md:pb-12">
+      <main className={`app-main-content flex-1 min-h-0 ${activeTab === 'notes' ? 'max-w-[1600px]' : 'max-w-4xl'} w-full mx-auto p-3 sm:p-4 pb-24 md:pb-12`}>
         {/* 1. Calendar View (Default) */}
         {activeTab === 'calendar' && (
           <CalendarView
@@ -697,9 +739,32 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'notes' && <NotesView schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
+          onSave={async note => {
+            await dbSaveNote(note);
+            setNotes(previous => [...previous.filter(item => item.id !== note.id), note]);
+            syncEngine.schedule();
+          }}
+          onSaveFolder={async folder => { await dbSaveNoteFolder(folder); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
+          onTask={async (note, date, categoryId) => {
+            await saveNoteTask(note, date, categoryId);
+            await reloadData();
+          }}
+          onSchedule={async (note, categoryId, date) => {
+            handleOpenNewScheduleModal(date);
+            setEditingSchedule({ title: noteTitle(note), memo: note.body, sourceNoteId: note.id, date, category: categoryId });
+          }}
+        />}
+
         {/* 2. Tasks View */}
         {activeTab === 'tasks' && (
           <TasksView
+            onOpenNote={openConnectedNote}
+            focusedTaskId={focusedTaskId}
+            scheduleTaskIds={tasks.filter(task=>schedules.some(schedule=>schedule.sourceTaskId===task.id || !!task.sourceNoteId && schedule.sourceNoteId===task.sourceNoteId && schedule.date===task.dueDate)).map(task=>task.id)}
+            onCreateSchedule={task=>{if(readOnly(task.id))return;handleOpenNewScheduleModal(task.dueDate);setEditingSchedule({title:task.title,memo:task.memo||'',date:task.dueDate||getTodayDateString(),category:task.categoryId||'',isImportant:task.priority==='high',sourceTaskId:task.id,sourceNoteId:task.sourceNoteId});}}
+            onOpenSchedule={task=>openConnectedSchedule(scheduleLinkedToTask(task,[...schedules,...shared.schedules],[...recurrenceRules,...shared.rules],[...recurrenceExceptions,...shared.exceptions]))}
+            categories={categories}
             tasks={viewTasks}
             selectedDate={taskSelectedDate} selectedEndDate={taskSelectedEndDate} onSelectDate={selectTaskDate} onSelectRange={selectTaskRange}
             presets={presets}
@@ -721,8 +786,7 @@ export default function App() {
       {/* Mobile Sticky Bottom Tab Bar */}
       <BottomTabBar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
-        onOpenSearchModal={openSearch}
+        onTabChange={(tab) => {setOpenNoteId(undefined);setFocusedTaskId(undefined);setActiveTab(tab);}}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
       />
 
@@ -748,6 +812,8 @@ export default function App() {
       />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
+        onOpenNote={openConnectedNote}
+        onOpenTask={openConnectedTask}
         registrationNotice={registrationNotice} onDismissRegistration={()=>setRegistrationNotice(null)}
         isOpen={scheduleModalOpen}
         onClose={handleCloseSchedule}

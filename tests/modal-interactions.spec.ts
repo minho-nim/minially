@@ -11,7 +11,7 @@ for(const width of [390,1280]){
    const toolbar=page.getByRole('group',{name:'일정 만들기'}),header=page.locator('header').first();
    for(const name of ['프리셋','카테고리','일정 등록'])expect((await toolbar.getByRole('button',{name,exact:true}).boundingBox())!.height).toBeLessThanOrEqual(32);
    const a=(await toolbar.boundingBox())!,b=(await header.boundingBox())!;expect(a.y-b.y-b.height).toBeLessThanOrEqual(6);
-   await page.getByRole('button',{name:width<768?'검색':'일정 검색',exact:true}).filter({visible:true}).first().click();
+   await page.getByRole('button',{name:'일정 검색',exact:true}).filter({visible:true}).first().click();
    const search=page.getByRole('dialog',{name:'일정 검색',exact:true});await search.getByRole('searchbox',{name:'일정 검색어'}).fill('검색 유지');
    await search.getByRole('heading',{name:'일정 검색',exact:true}).click();await expect(search).toBeVisible();
    await search.click({position:{x:2,y:2}});await expect(search).toHaveCount(0);await expect(page.getByRole('dialog')).toHaveCount(0);

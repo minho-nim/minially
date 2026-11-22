@@ -3,7 +3,7 @@ import { shiftTaskDateRange } from '../../utils/taskDateRange';
 import { TaskPlanningModal } from '../modals/TaskPlanningModal';
 import { DateRangeNavigation } from '../common/DateRangeNavigation';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Task, TaskPriority, Preset, PresetGroup, TitleBlock } from '../../types';
+import { Task, TaskPriority, CategoryItem, Preset, PresetGroup, TitleBlock } from '../../types';
 import { InlinePresetPicker } from '../common/InlinePresetPicker';
 import { TitleBlockEditor } from '../common/TitleBlockEditor';
 import {
@@ -21,6 +21,12 @@ import { getTodayDateString, formatKoreanDate } from '../../utils/dateHelpers';
 
 interface TasksViewProps {
   tasks: Task[];
+  categories?: CategoryItem[];
+  focusedTaskId?: string;
+  onCreateSchedule?: (task: Task) => void;
+  scheduleTaskIds?: string[];
+  onOpenSchedule?: (task: Task) => void;
+  onOpenNote?: (id: string) => void;
   presets: Preset[];
   presetGroups: PresetGroup[];
   onUsePreset: (id: string) => Promise<void> | void;
@@ -42,7 +48,7 @@ interface TasksViewProps {
 type CompletionFilter = 'pending' | 'completed' | 'all';
 
 export const TasksView: React.FC<TasksViewProps> = ({
-  tasks, selectedDate, selectedEndDate, onSelectRange, onSelectDate,
+  tasks, categories = [], onOpenNote, onOpenSchedule, onCreateSchedule, scheduleTaskIds = [], focusedTaskId, selectedDate, selectedEndDate, onSelectRange, onSelectDate,
   presets, presetGroups, onUsePreset, onOpenPresetManager, onOpenCalendar, onRescheduleTask,
   onToggleTaskStatus,
   onToggleTaskChecklist,
@@ -145,6 +151,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
   };
 
   const tasksForPage = (start: string, end: string) => tasks.filter(task => Boolean(task.dueDate && task.dueDate >= start && task.dueDate <= end) && (completionFilter === 'all' || (completionFilter === 'completed' ? task.status === 'done' : task.status !== 'done'))).sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done') || (a.dueDate || '').localeCompare(b.dueDate || ''));
+  useEffect(() => {
+    if (!focusedTaskId) return;
+    const frame = requestAnimationFrame(() => { const row = Array.from(document.querySelectorAll<HTMLElement>('[data-task-id]')).find(item=>item.dataset.taskId===focusedTaskId); row?.scrollIntoView({block:'center',behavior:'auto'}); });
+    return () => cancelAnimationFrame(frame);
+  }, [focusedTaskId, selectedDate]);
+
   const renderTaskPage = (filteredTasks: Task[], preview = false) => (
     <div data-task-list style={{touchAction: 'pan-y pinch-zoom'}} className="divide-y divide-app-line bg-white">
           {filteredTasks.length === 0 ? (
@@ -163,7 +175,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                 <div
                   key={task.id}
                   data-task-id={preview ? undefined : task.id}
-                  className={`px-3 py-1.5 flex items-center justify-between gap-2 transition-colors ${isDone ? 'bg-app-soft/70 border-l-[3px] border-l-app-accent' : ''} ${
+                  className={`${focusedTaskId===task.id?'ring-1 ring-inset ring-app-accent ':''}px-3 py-1.5 flex items-center justify-between gap-2 transition-colors ${isDone ? 'bg-app-soft/70 border-l-[3px] border-l-app-accent' : ''} ${
                     isSelected
                       ? 'bg-app-soft/30'
                       : 'hover:bg-app-canvas'
@@ -211,6 +223,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                       <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-app-muted">
                         <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 선택'}</button>
+                        {task.categoryId && categories.some(category=>category.id===task.categoryId) && <span className="rounded px-1.5 py-0.5 bg-app-soft text-app-accent-hover">{categories.find(category=>category.id===task.categoryId)?.name}</span>}
+                        {(task.linkedScheduleId || scheduleTaskIds.includes(task.id)) && onOpenSchedule && <button type="button" onClick={()=>onOpenSchedule(task)} className="text-app-accent hover:underline">원본 일정</button>}
+                        {!task.linkedScheduleId && !scheduleTaskIds.includes(task.id) && onCreateSchedule && !task.id.startsWith('shared~') && <button type="button" onClick={()=>onCreateSchedule(task)} className="text-app-accent hover:underline">일정으로 등록</button>}
+                        {task.sourceNoteId && onOpenNote && <button type="button" onClick={()=>onOpenNote(task.sourceNoteId!)} className="text-app-accent hover:underline">원본 메모</button>}
                         {isDone && <span className="inline-flex items-center gap-0.5 text-[11px] rounded bg-[#8F526C] px-1.5 py-0.5 font-semibold text-white"><Check aria-hidden="true" className="h-3 w-3"/>완료</span>}
 
                         {hasChecklist && (

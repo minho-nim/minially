@@ -257,3 +257,37 @@
     app-region: no-drag;
   }
 }
+
+/* 메모: PC에서는 분류·목록·편집기를 나란히, 휴대폰에서는 목록과 편집기를 전환한다. */
+.notes-workspace { display: grid; grid-template-columns: 180px 240px minmax(0, 1fr); height: calc(100dvh - 116px); min-height: 520px; }
+.notes-folders, .notes-list, .notes-editor { min-height: 0; }
+.notes-folders { overflow-y: auto; }
+.notes-workspace.notes-focus { grid-template-columns: minmax(0, 1fr); }
+.notes-focus .notes-folders, .notes-focus .notes-list { display: none; }
+@media (min-width: 768px) and (max-width: 1099px) { .notes-workspace { grid-template-columns: 150px 220px minmax(0, 1fr); } }
+@media (max-width: 767px) {
+ .notes-workspace { display: flex; flex-direction: column; height: auto; min-height: calc(100dvh - 164px); }
+ .notes-folders { border-right: 0; border-bottom: 1px solid var(--color-app-line); max-height: 260px; }
+ .notes-list { border-right: 0; }
+ .notes-editor { min-height: calc(100dvh - 170px); }
+}
+
+.note-rich-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.note-rich-body:empty::before { content: attr(data-placeholder); color: var(--color-app-muted); opacity: .7; pointer-events: none; }
+.note-rich-body strong, .note-rich-body b { font-weight: 700; }
+.note-rich-body em, .note-rich-body i { font-style: italic; }
+.note-rich-body u { text-decoration-line: underline; text-underline-offset: 3px; }
+.note-rich-body s, .note-rich-body strike { text-decoration-line: line-through; }
+.note-rich-body u s, .note-rich-body s u { text-decoration-line: underline line-through; }
+
+.note-format-select { height: 28px; min-width: 0; padding: 0 4px; border: 1px solid var(--color-app-line); border-radius: 4px; background: white; font-size: 11px; color: var(--color-app-ink); }
+.note-rich-body p { margin: 0; min-height: 1em; }
+.note-rich-body ul { list-style-type: disc; padding-left: 24px; }
+.note-rich-body ol { list-style-type: decimal; padding-left: 24px; }
+.note-rich-body sup { vertical-align: super; font-size: .75em; }
+.note-rich-body sub { vertical-align: sub; font-size: .75em; }
+.note-rich-body table { width: 100%; table-layout: fixed; border-collapse: collapse; white-space: pre-wrap; margin: 6px 0; }
+.note-rich-body td, .note-rich-body th { border: 1px solid var(--color-app-outline); min-width: 40px; height: 30px; padding: 4px 6px; vertical-align: top; font-weight: normal; }
+
+.note-rich-body { line-height: 1.8; }
+.note-editor-header #note-folder { margin-left: 8px; font-size: 11px; max-width: 140px; }

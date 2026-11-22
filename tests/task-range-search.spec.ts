@@ -33,7 +33,7 @@ for (const width of [390,1280]) {
       await expect(page.locator('[data-task-id]')).toHaveCount(1);
       await expect(range.getByRole('button',{name:'조회 종료일',exact:true})).toHaveCount(0);
       expect(await page.locator('main').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
-      await page.getByRole('button',{name:width<768?'검색':'일정 검색',exact:true}).filter({visible:true}).first().click();
+      await page.getByRole('button',{name:'일정 검색',exact:true}).filter({visible:true}).first().click();
       const search=page.getByRole('dialog',{name:'일정 검색',exact:true});
       expect((await search.boundingBox())!.height).toBeGreaterThanOrEqual(230);
       await search.getByText('기간 검색',{exact:true}).click();

@@ -1,7 +1,7 @@
 import { SyncDot } from '../common/SyncDot';
 import React from 'react';
 import { ActiveNavTab } from '../../types';
-import { Search, Settings, Calendar, CheckSquare, Plus, Download } from 'lucide-react';
+import { Search, Settings, Calendar, CheckSquare, Plus, Download, FileText } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 interface NavbarProps {
@@ -57,6 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <CheckSquare className="w-3.5 h-3.5 text-app-accent" />
             <span>할 일</span>
           </button>
+          <button type="button" onClick={() => onTabChange('notes')} className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'notes' ? 'bg-white text-app-ink shadow-2xs' : 'text-app-muted hover:text-app-ink'}`}><FileText className="w-3.5 h-3.5 text-app-accent"/><span>메모</span></button>
         </div>
 
         {/* Action icons: Search, PWA, Settings */}
