@@ -1,0 +1,64 @@
+name: Windows 앱 빌드 및 배포
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: 검사한 main 커밋만 배포
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          sha=$(git rev-parse HEAD)
+          test "$(gh api repos/${GITHUB_REPOSITORY}/commits/main --jq .sha)" = "$sha"
+          result=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${sha}&per_page=30" --jq '[.workflow_runs[] | select(.name == "Deploy Minially to GitHub Pages")][0].conclusion // "none"')
+          test "$result" = success || { echo "::error::main 전체 검사가 먼저 성공해야 합니다: $result"; exit 1; }
+          version=$(node -p "require('./desktop/package.json').version")
+          if gh release view "desktop-v${version}" >/dev/null 2>&1; then echo "::error::이미 배포한 버전입니다. 앱 버전을 올려 주세요."; exit 1; fi
+      - run: npm install --global npm@11.19.1 --ignore-scripts
+      - run: npm ci --ignore-scripts
+      # 설치 스크립트 전체를 허용하지 않고 검토한 공식 Electron 바이너리 설치만 실행한다.
+      - run: node node_modules/electron/install.js
+      - run: npm audit --audit-level=high
+      - run: npm run lint
+      - run: node --import tsx --test tests/*.unit.mjs
+      - run: npm run desktop:prepare
+      - run: npm run test:desktop:unit
+      - run: node tests-desktop/smoke.cjs
+      - name: Windows 설치 파일 만들기
+        run: npx --no-install electron-builder --config electron-builder.yml --win nsis --x64 --publish never
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      - name: 설치 파일과 업데이트 메타데이터 확인
+        run: |
+          node scripts/check-desktop-release.cjs
+      - name: 설치 파일과 업데이트 피드 공개
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./desktop/package.json').version")
+          tag="desktop-v${version}"
+          gh release create "$tag" --draft --target "$GITHUB_SHA" --title "미니어리 Windows ${version}" --notes-file desktop/RELEASE-NOTES.md
+          gh release upload "$tag" desktop-dist/Minially-Setup.exe desktop-dist/Minially-Setup.exe.blockmap desktop-dist/latest.yml
+          gh release edit "$tag" --draft=false --latest
