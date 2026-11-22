@@ -150,8 +150,15 @@ class SyncEngine {
     if (!this.state) return Promise.resolve();
     if (this.running) { this.again = true; return this.running; }
     this.running = (async () => {
-      try {
+      const perform=async()=>{
+        const saved=loadState();
+        if(saved&&this.state&&saved.code===this.state.code&&saved.lastSeq>=this.state.lastSeq)this.state=saved;
         do { this.again = false; await this.runOnce(); } while (this.again && this.state);
+      };
+      try {
+        // 같은 앱의 전체 창과 빠른 메모 창이 같은 변경을 동시에 올리지 않는다.
+        if(navigator.locks)await navigator.locks.request('minially-sync',{ifAvailable:true},lock=>lock?perform():undefined);
+        else await perform();
       } finally { this.running = null; }
     })();
     return this.running;
@@ -289,6 +296,7 @@ class SyncEngine {
   /** 앱 시작 시: 화면에 돌아오거나 인터넷이 다시 연결되면 동기화 */
   start() {
     const kick = () => { if (document.visibilityState === 'visible') void this.syncNow(); };
+    window.addEventListener('storage',event=>{if(event.key!==STATE_KEY)return;this.state=loadState();this.setStatus(this.state?{kind:'idle',lastSyncedAt:this.state.lastSyncedAt}:{kind:'off'});void this.onRemoteChange();});
     window.addEventListener('online', kick);
     document.addEventListener('visibilitychange', kick);
     window.addEventListener('focus', kick);

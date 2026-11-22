@@ -744,9 +744,9 @@ export default function App() {
         )}
 
         {(activeTab === 'notes'||notesVisited) && <div hidden={activeTab!=='notes'}><NotesView active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
-          onSave={async note => {
-            await dbSaveNote(note);
-            setNotes(previous => [...previous.filter(item => item.id !== note.id), note]);
+          onSave={async (note,baseUpdatedAt) => {
+            const copy=await dbSaveNote(note,baseUpdatedAt);
+            setNotes(previous => [...previous.filter(item => item.id !== note.id), note,...(copy?[copy]:[])]);
             syncEngine.schedule();
           }}
           onSaveFolder={async folder => { await dbSaveNoteFolder(folder); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}

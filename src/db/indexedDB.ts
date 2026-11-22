@@ -820,7 +820,16 @@ export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = fal
 // 메모는 일정의 부가 메모와 분리해 저장하며, 로그인 공간과 백업에 함께 포함한다.
 export async function getAllNotes(): Promise<Note[]> { return (await getDB()).getAll('notes'); }
 export async function getNoteFolders(): Promise<NoteFolder[]> { const db=await getDB(),tx=db.transaction(['notes','noteFolders']); const [folders,notes]=await Promise.all([tx.objectStore('noteFolders').getAll(),tx.objectStore('notes').getAll()]); await tx.done; return visibleNoteFolders(folders,notes); }
-export async function saveNote(note: Note): Promise<void> { validateNote(note); await (await getDB()).put('notes', note); }
+export async function saveNote(note: Note, baseUpdatedAt?:number): Promise<Note|undefined> {
+ validateNote(note);
+ if(baseUpdatedAt!==undefined&&!Number.isFinite(baseUpdatedAt))throw new Error('메모 버전이 올바르지 않습니다.');
+ const db=await getDB(),tx=db.transaction('notes','readwrite'),current=await tx.store.get(note.id);
+ let copy:Note|undefined;
+ if(current&&baseUpdatedAt!==undefined&&current.updatedAt!==baseUpdatedAt&&JSON.stringify({...current,updatedAt:0})!==JSON.stringify({...note,updatedAt:0})){
+  const now=Date.now();copy={...current,id:crypto.randomUUID(),title:(current.title||'제목 없는 메모').slice(0,460)+' · 다른 창 수정 사본',conflictOf:current.conflictOf||current.id,conflictAt:now,createdAt:now,updatedAt:now};delete copy.deletedAt;validateNote(copy);await tx.store.put(copy);
+ }
+ await tx.store.put(note);await tx.done;return copy;
+}
 export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', {...folder,isUserManaged:true}); }
 
 export async function saveNoteTask(note: Note, date: string, categoryId = '', excerpt?:string): Promise<void> {

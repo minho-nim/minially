@@ -9,7 +9,7 @@ import {getTodayDateString} from '../../utils/dateHelpers';
 interface Props {
  active?:boolean; schedules:Schedule[]; onOpenTask:(id:string)=>void; onOpenSchedule:(id:string)=>void;
  categories:CategoryItem[]; notes:Note[]; folders:NoteFolder[]; tasks:Task[]; openNoteId?:string;
- onSave:(note:Note)=>Promise<void>; onSaveFolder:(folder:NoteFolder)=>Promise<void>;
+ onSave:(note:Note,baseUpdatedAt?:number)=>Promise<void>; onSaveFolder:(folder:NoteFolder)=>Promise<void>;
  onTask:(note:Note,date:string,categoryId:string,excerpt?:string)=>Promise<void>; onSchedule:(note:Note,categoryId:string,date:string,excerpt?:string)=>Promise<void>;
 }
 const button='inline-flex items-center justify-center gap-1.5 min-h-9 px-2.5 rounded-lg text-xs hover:bg-app-soft transition-colors disabled:opacity-50 cursor-pointer';
@@ -67,9 +67,9 @@ function NoteEditor({note,onOriginal,originalExists,beforeLeave,schedules,onOpen
  const registrationNote={...draft,title:registrationTitle,body:linkExcerpt??draft.body,richBody:undefined,richDocument:undefined};
  const preferredCategory=categoryOverride??folders.find(folder=>folder.id===draft.folderId)?.defaultCategoryId??'';
  const categoryId=categories.some(category=>category.id===preferredCategory)?preferredCategory:'';
- const revision=useRef(0),pending=useRef(Promise.resolve()),dirty=useRef(false);
+ const revision=useRef(0),pending=useRef(Promise.resolve()),dirty=useRef(false),lastSaved=useRef(note.updatedAt);
  const recommendations=recommendNoteFolders(draft.title+' '+draft.body,folders).filter(folder=>folder.id!==draft.folderId);
- useEffect(()=>{if(!dirty.current)setDraft(note);},[note]);
+ useEffect(()=>{if(!dirty.current){setDraft(note);lastSaved.current=note.updatedAt;}},[note]);
  useEffect(()=>{
   const check=async()=>{setError('');try{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');return true;}catch(e){setError(e instanceof Error?e.message:'메모를 먼저 다시 저장해 주세요.');return false;}};
   beforeLeave.current=check;
@@ -78,8 +78,8 @@ function NoteEditor({note,onOriginal,originalExists,beforeLeave,schedules,onOpen
  useEffect(()=>{const guard=(e:BeforeUnloadEvent)=>{if(dirty.current){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',guard);return()=>window.removeEventListener('beforeunload',guard);},[]);
  async function update(patch:Partial<Note>){
   if(patch.folderId!==undefined)setCategoryOverride(null);
-  const next={...draft,...patch,updatedAt:Date.now()};setDraft(next);dirty.current=true;const version=++revision.current;setStatus('저장 중…');setError('');
-  const save=pending.current.catch(()=>{}).then(()=>onSave(next));pending.current=save;
+  const next={...draft,...patch,updatedAt:Math.max(Date.now(),draft.updatedAt+1)};setDraft(next);dirty.current=true;const version=++revision.current;setStatus('저장 중…');setError('');
+  const save=pending.current.catch(()=>{}).then(async()=>{await onSave(next,lastSaved.current);lastSaved.current=next.updatedAt;});pending.current=save;
   try{await save;if(version===revision.current){dirty.current=false;setStatus('저장됨');}}catch(e){if(version===revision.current){setStatus('저장 실패');setError(e instanceof Error?e.message:'저장하지 못했습니다. 다시 시도해 주세요.');}}
  }
  async function link(kind:'task'|'schedule'){if(busy)return;setBusy(true);setError('');setNotice('');try{await pending.current; if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');if(linkExcerpt!==undefined&&new TextEncoder().encode(JSON.stringify([linkExcerpt,linkExcerpt])).length>220*1024)throw new Error('선택한 내용이 너무 깁니다. 나눠서 연결해 주세요.');if(kind==='task'){await onTask(registrationNote,date,categoryId,linkExcerpt);setNotice('기존 할 일 목록에 등록했습니다.');}else await onSchedule(registrationNote,categoryId,date,linkExcerpt);}catch(e){setError(e instanceof Error?e.message:'등록하지 못했습니다.');}finally{setBusy(false);}}
