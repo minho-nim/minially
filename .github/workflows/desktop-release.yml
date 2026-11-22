@@ -48,6 +48,8 @@ jobs:
         env:
           CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      - name: 실제 Windows 패키지 실행
+        run: node tests-desktop/packaged.cjs
       - name: 설치 파일과 업데이트 메타데이터 확인
         run: |
           node scripts/check-desktop-release.cjs

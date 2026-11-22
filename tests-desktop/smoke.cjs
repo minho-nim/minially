@@ -6,7 +6,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
   app=await electron.launch({args:[...(process.platform==='linux'?['--no-sandbox','--headless','--ozone-platform=headless']:[]),path.resolve('desktop')],env:{...process.env,MINIALLY_DESKTOP_TEST:'1',MINIALLY_DESKTOP_TEST_PROFILE:profile},timeout:45000});
   const main=await app.firstWindow();await main.getByRole('button',{name:'메모',exact:true}).filter({visible:true}).click();
   assert.equal(await main.evaluate(()=>typeof window.require),'undefined');assert.equal(await main.evaluate(()=>typeof window.process),'undefined');
-  const state=await main.evaluate(()=>window.miniallyDesktop.getState());assert.equal(state.version,'0.1.0');assert.equal(state.preferences.alwaysOnTop,false);
+  const state=await main.evaluate(()=>window.miniallyDesktop.getState());assert.equal(state.version,require('../desktop/package.json').version);assert.equal(state.preferences.alwaysOnTop,false);
   await main.evaluate(()=>window.miniallyDesktop.updatePreferences({alwaysOnTop:true}));assert.equal((await main.evaluate(()=>window.miniallyDesktop.getState())).preferences.alwaysOnTop,true);if(process.platform==='win32')assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isAlwaysOnTop()),true);
   const rejected=await main.evaluate(async()=>{try{await window.miniallyDesktop.updatePreferences({danger:true});return false;}catch{return true;}});assert.equal(rejected,true);
   const quickReady=app.waitForEvent('window');await main.evaluate(()=>window.miniallyDesktop.showQuick());const quick=await quickReady;
