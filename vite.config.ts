@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       versionFile(),
       react(),
       tailwindcss(),
-      VitePWA({
+      ...(mode === 'desktop' ? [{name:'minially-desktop-html',transformIndexHtml:(html:string)=>html.replace(/<link[^>]+(?:fonts\.googleapis\.com|fonts\.gstatic\.com)[^>]*>/g,'')}] : [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['apple-touch-icon.png', 'icon.svg', 'minially-share-20261110.png'],
         manifest: {
@@ -112,7 +112,7 @@ export default defineConfig(({ mode }) => {
           enabled: true,
           type: 'module',
         },
-      }),
+      })]),
     ],
     resolve: {
       alias: {

@@ -1,0 +1,3 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+test('오프라인 렌더러는 서비스 워커와 원격 실행 스크립트 없이 앱에 포함된다',()=>{const root=path.resolve(__dirname,'../renderer'),html=fs.readFileSync(path.join(root,'index.html'),'utf8');assert.match(html,/assets\/index-/);assert.doesNotMatch(html,/fonts\.googleapis|<script[^>]+https?:|registerSW\.js/);const js=fs.readdirSync(path.join(root,'assets')).find(name=>name.endsWith('.js'));assert.ok(js);});
+test('Windows 설치 아이콘에 미니어리 원본에서 만든 여섯 크기를 포함한다',()=>{const ico=fs.readFileSync(path.resolve(__dirname,'../build/icon.ico'));assert.equal(ico.readUInt16LE(2),1);assert.equal(ico.readUInt16LE(4),6);});

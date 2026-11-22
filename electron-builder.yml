@@ -1,0 +1,29 @@
+appId: com.minially.desktop
+productName: Minially
+artifactName: Minially-Setup.${ext}
+directories:
+  app: desktop
+  output: desktop-dist
+  buildResources: desktop/build
+files:
+  - '*.cjs'
+  - renderer/**
+  - package.json
+asar: true
+npmRebuild: false
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 미니어리
+  deleteAppDataOnUninstall: false
+publish:
+  provider: generic
+  url: https://github.com/minho-nim/minially/releases/latest/download/

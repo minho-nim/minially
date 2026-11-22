@@ -1,0 +1,12 @@
+import {spawnSync} from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import sharp from 'sharp';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const build=spawnSync(process.execPath,[path.join(root,'node_modules/vite/bin/vite.js'),'build','--mode','desktop','--outDir','desktop/renderer'],{cwd:root,stdio:'inherit'});
+if(build.status!==0)process.exit(build.status||1);
+const sizes=[16,32,48,64,128,256],images=await Promise.all(sizes.map(size=>sharp(path.join(root,'public/pwa-512x512.png')).resize(size,size).png().toBuffer()));
+const header=Buffer.alloc(6+16*sizes.length);header.writeUInt16LE(1,2);header.writeUInt16LE(sizes.length,4);let offset=header.length;
+images.forEach((image,i)=>{const at=6+i*16;header[at]=sizes[i]===256?0:sizes[i];header[at+1]=header[at];header.writeUInt16LE(1,at+4);header.writeUInt16LE(32,at+6);header.writeUInt32LE(image.length,at+8);header.writeUInt32LE(offset,at+12);offset+=image.length;});
+await fs.mkdir(path.join(root,'desktop/build'),{recursive:true});await fs.writeFile(path.join(root,'desktop/build/icon.ico'),Buffer.concat([header,...images]));

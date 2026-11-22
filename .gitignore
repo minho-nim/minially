@@ -13,3 +13,7 @@ coverage/
 .dev.vars
 .wrangler/
 .pw-*.config.ts
+
+desktop/renderer/
+desktop-dist/
+desktop/build/

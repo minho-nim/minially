@@ -1,0 +1,11 @@
+{
+  "name": "minially-desktop",
+  "productName": "Minially",
+  "version": "0.1.0",
+  "description": "미니어리 Windows 캘린더·할 일·메모",
+  "author": "minho-nim",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.cjs",
+  "dependencies": { "electron-updater": "6.8.11" }
+}

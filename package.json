@@ -12,7 +12,12 @@
     "test": "playwright test",
     "test:e2e": "playwright test",
     "build:pages": "vite build --mode github-pages",
-    "test:sync": "playwright test --config playwright.sync.config.ts"
+    "test:sync": "playwright test --config playwright.sync.config.ts",
+    "desktop:prepare": "node scripts/build-desktop.mjs",
+    "desktop:start": "electron desktop",
+    "desktop:pack": "npm run desktop:prepare && electron-builder --config electron-builder.yml --dir",
+    "desktop:win": "npm run desktop:prepare && electron-builder --config electron-builder.yml --win nsis --x64 --publish never",
+    "test:desktop:unit": "node --test desktop/tests/*.test.cjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
@@ -34,6 +39,8 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
+    "electron": "45.4.1",
+    "electron-builder": "26.18.0",
     "esbuild": "^0.28.2",
     "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
@@ -41,5 +48,9 @@
     "typescript": "^7.0.2",
     "vite-plugin-pwa": "^2.0.0",
     "wrangler": "^4.159.0"
-  }
+  },
+  "workspaces": [
+    "desktop"
+  ],
+  "packageManager": "npm@11.19.1"
 }
