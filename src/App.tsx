@@ -89,6 +89,8 @@ export default function App() {
   useEffect(() => syncEngine.subscribe(status => setLoggedIn(status.kind !== 'off' || isDemo() || devSkipLogin())), []);
   // 앱을 켜면 항상 캘린더부터 보여 준다.
   const [activeTab, setActiveTab] = useState<ActiveNavTab>('calendar');
+  const [notesVisited,setNotesVisited]=useState(false);
+  useEffect(()=>{if(activeTab==='notes')setNotesVisited(true);},[activeTab]);
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateString());
 
@@ -741,30 +743,30 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'notes' && <NotesView schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
+        {(activeTab === 'notes'||notesVisited) && <div hidden={activeTab!=='notes'}><NotesView active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
           onSave={async note => {
             await dbSaveNote(note);
             setNotes(previous => [...previous.filter(item => item.id !== note.id), note]);
             syncEngine.schedule();
           }}
           onSaveFolder={async folder => { await dbSaveNoteFolder(folder); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
-          onTask={async (note, date, categoryId) => {
-            await saveNoteTask(note, date, categoryId);
+          onTask={async (note, date, categoryId, excerpt) => {
+            await saveNoteTask(note, date, categoryId, excerpt);
             await reloadData();
           }}
-          onSchedule={async (note, categoryId, date) => {
+          onSchedule={async (note, categoryId, date, excerpt) => {
             handleOpenNewScheduleModal(date);
-            setEditingSchedule({ title: noteTitle(note), memo: note.body, sourceNoteId: note.id, date, category: categoryId });
+            setEditingSchedule({ title: noteTitle(note), memo: note.body, sourceNoteId: note.id, sourceNoteExcerpt:excerpt, date, category: categoryId });
           }}
-        />}
+        /></div>}
 
         {/* 2. Tasks View */}
         {activeTab === 'tasks' && (
           <TasksView
             onOpenNote={openConnectedNote}
             focusedTaskId={focusedTaskId}
-            scheduleTaskIds={tasks.filter(task=>schedules.some(schedule=>schedule.sourceTaskId===task.id || !!task.sourceNoteId && schedule.sourceNoteId===task.sourceNoteId && schedule.date===task.dueDate)).map(task=>task.id)}
-            onCreateSchedule={task=>{if(readOnly(task.id))return;handleOpenNewScheduleModal(task.dueDate);setEditingSchedule({title:task.title,memo:task.memo||'',date:task.dueDate||getTodayDateString(),category:task.categoryId||'',isImportant:task.priority==='high',sourceTaskId:task.id,sourceNoteId:task.sourceNoteId});}}
+            scheduleTaskIds={tasks.filter(task=>schedules.some(schedule=>schedule.sourceTaskId===task.id || !!task.sourceNoteId && schedule.sourceNoteId===task.sourceNoteId && (schedule.sourceNoteExcerpt??'')===(task.sourceNoteExcerpt??'') && schedule.date===task.dueDate)).map(task=>task.id)}
+            onCreateSchedule={task=>{if(readOnly(task.id))return;handleOpenNewScheduleModal(task.dueDate);setEditingSchedule({title:task.title,memo:task.memo||'',date:task.dueDate||getTodayDateString(),category:task.categoryId||'',isImportant:task.priority==='high',sourceTaskId:task.id,sourceNoteId:task.sourceNoteId,sourceNoteExcerpt:task.sourceNoteExcerpt});}}
             onOpenSchedule={task=>openConnectedSchedule(scheduleLinkedToTask(task,[...schedules,...shared.schedules],[...recurrenceRules,...shared.rules],[...recurrenceExceptions,...shared.exceptions]))}
             categories={categories}
             tasks={viewTasks}

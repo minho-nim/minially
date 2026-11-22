@@ -34,6 +34,7 @@ export function useKeyboardOutsideGuard() {
       if (event.pointerType === 'mouse') return;
       const active = typingElement(); const target = event.target as Element | null;
       if (!active || !target) return;
+      if (target.matches('[data-dismiss-on-backdrop]') && target.contains(active)) { active.blur(); return; }
       if (target.closest(TEXT_INPUT)) return; // 다른 입력칸으로 옮기는 것은 그대로
       if (scopeOf(active).contains(target)) return; // 입력 영역 안(등록 단추 등)은 그대로
       event.preventDefault(); event.stopPropagation(); active.blur(); blockGesture = true;

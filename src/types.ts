@@ -42,6 +42,7 @@ export interface TitleBlock {
 export interface Schedule {
   sourceTaskId?: string;
   sourceNoteId?: string;
+  sourceNoteExcerpt?: string;
   isImportant?: boolean;
   sortOrder?: number;
   titleBlocks?: TitleBlock[];
@@ -86,6 +87,7 @@ export interface ChecklistItem {
 export interface Task {
   categoryId?: string;
   sourceNoteId?: string;
+  sourceNoteExcerpt?: string;
   id: string;
   projectId?: string;
   title: string;

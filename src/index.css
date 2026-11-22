@@ -307,3 +307,19 @@
  .note-editor-header .note-focus-toggle { display: none; }
  .note-editor-header #note-folder { max-width: 90px; }
 }
+
+/* 분류는 바닥에 붙는 시트 대신 여백이 있는 독립 모달로 연다. */
+.note-folder-overlay { animation: note-folder-fade .16s ease-out; }
+.note-folder-card { animation: note-folder-enter .22s cubic-bezier(.2,.7,.2,1); }
+@keyframes note-folder-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes note-folder-enter { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+ .note-folder-overlay, .note-folder-card { animation: none; }
+}
+
+@media (max-width: 767px) {
+ .note-format-advanced { display: none; }
+ .note-format-advanced.is-open { display: block; padding-top: 4px; }
+ .note-format-toolbar button { min-width: 36px; min-height: 36px; }
+}
+@media (min-width: 768px) { .note-format-more { display: none; } }

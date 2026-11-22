@@ -823,13 +823,14 @@ export async function getNoteFolders(): Promise<NoteFolder[]> { const db=await g
 export async function saveNote(note: Note): Promise<void> { validateNote(note); await (await getDB()).put('notes', note); }
 export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', {...folder,isUserManaged:true}); }
 
-export async function saveNoteTask(note: Note, date: string, categoryId = ''): Promise<void> {
+export async function saveNoteTask(note: Note, date: string, categoryId = '', excerpt?:string): Promise<void> {
   validateNote(note);
+  if(excerpt!==undefined&&(typeof excerpt!=='string'||!excerpt.trim()||new TextEncoder().encode(JSON.stringify([excerpt,excerpt])).length>220*1024))throw new Error('연결할 메모 내용을 확인해 주세요.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('할 일 날짜를 선택해 주세요.');
   const db = await getDB();
   const tx = db.transaction(['tasks', 'categories'], 'readwrite');
   if (categoryId && !(await tx.objectStore('categories').get(categoryId))) { await tx.done; throw new Error('없는 카테고리입니다. 다시 선택해 주세요.'); }
-  const existing = (await tx.objectStore('tasks').getAll()).some(task => task.sourceNoteId === note.id && task.dueDate === date);
-  if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, dueDate:date, status:'todo', priority:'medium', checklist:[]});
+  const existing = (await tx.objectStore('tasks').getAll()).some(task => task.sourceNoteId === note.id && task.dueDate === date && (task.sourceNoteExcerpt??'')===(excerpt??''));
+  if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, sourceNoteExcerpt:excerpt, dueDate:date, status:'todo', priority:'medium', checklist:[]});
   await tx.done;
 }

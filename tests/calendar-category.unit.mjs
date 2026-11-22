@@ -80,3 +80,12 @@ test('a rescheduled task still opens the original moved occurrence; cancelled so
   assert.equal(scheduleLinkedToTask(task,[schedule],[rule],[moved]).date,'2026-11-08');
   assert.equal(scheduleLinkedToTask(task,[schedule],[rule],[{...moved,action:'cancelled'}]),undefined);
 });
+
+test('한 메모에서 꺼낸 서로 다른 문장을 같은 일정이나 할 일로 혼동하지 않는다',()=>{
+ const schedule={id:'selected-s',title:'책 읽기',date:'2026-11-22',category:'',sourceNoteId:'note',sourceNoteExcerpt:'책 읽기'};
+ const other={id:'other',sourceNoteId:'note',sourceNoteExcerpt:'보고서',dueDate:schedule.date};
+ assert.equal(hasCalendarTask([other],schedule),false);
+ const copied=taskFromSchedule(schedule);assert.equal(copied.sourceNoteExcerpt,'책 읽기');assert.equal(hasCalendarTask([copied],schedule),true);
+ assert.equal(scheduleLinkedToTask(other,[schedule],[],[]),undefined);
+ assert.equal(taskFromSchedule({...schedule,id:'shared~owner~selected-s'}).sourceNoteExcerpt,undefined);
+});
