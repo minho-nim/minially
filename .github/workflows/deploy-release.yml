@@ -74,6 +74,10 @@ jobs:
           for(const name of ['Minially-Setup.exe','Minially-Setup.exe.blockmap','latest.yml'])assert(release.assets.some(asset=>asset.name===name),'Windows 배포 파일이 없습니다: '+name);
           console.log('같은 커밋의 Windows 설치 파일·자동 업데이트 피드 공개를 확인했습니다.');
           JS
+          # 앱이 실제로 보는 전용 배포판(minially-latest)의 업데이트 안내도 같은 버전인지 확인
+          gh release download minially-latest -p latest.yml -O "$RUNNER_TEMP/minially-latest.yml" --clobber
+          grep -q "^version: ${version}$" "$RUNNER_TEMP/minially-latest.yml" || { echo "::error::minially-latest 배포판이 ${version}이 아닙니다."; exit 1; }
+          echo "minially-latest 배포판도 ${version}입니다."
       - name: release를 main으로 앞당기기(fast-forward만)
         run: |
           if git rev-parse --verify -q origin/release >/dev/null; then

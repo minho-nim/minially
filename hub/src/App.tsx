@@ -193,7 +193,6 @@ function OverviewPanel({ month }: { month: number }) {
               </table>
             </div>
           )}
-          <p className="muted small" style={{ margin: '10px 0 0' }}>추정 비용은 모델 단가를 정한 뒤 보여 드려요.</p>
         </section>
       </div>
     </>

@@ -3,7 +3,7 @@ import {formatAppVersion} from '../../utils/appVersion';
 import {useEffect,useState} from 'react';
 import {Download,Monitor,Keyboard} from 'lucide-react';
 import type {DesktopState,DesktopPreferences} from '../../desktop';
-export const WINDOWS_DOWNLOAD='https://github.com/minho-nim/minially/releases/latest/download/Minially-Setup.exe';
+export const WINDOWS_DOWNLOAD='https://github.com/minho-nim/minihub/releases/download/minially-latest/Minially-Setup.exe';
 export function DesktopAppPanel(){
  const api=window.miniallyDesktop,[state,setState]=useState<DesktopState|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
  useEffect(()=>{if(!api)return;let active=true;const off=api.onState(value=>{if(active)setState(value);});void api.getState().then(value=>{if(active)setState(value);}).catch(()=>{if(active)setError('앱 정보를 불러오지 못했습니다.');});return()=>{active=false;off();};},[]);

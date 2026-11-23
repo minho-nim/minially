@@ -41,7 +41,5 @@ export async function operationStats(db: D1Database, env: HubEnv, since: number)
     users: USERS.map(user => ({ user, gemini_connected: geminiKey(env, user) !== null })),
     usage: rows.results,
     errors: errors.results,
-    // shortcut: 추정 비용은 모델 단가가 자주 바뀌어 아직 계산하지 않는다. 단가 표를 정하면 토큰에 곱해 채운다.
-    estimated_cost_usd: null,
   };
 }

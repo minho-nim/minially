@@ -35,7 +35,7 @@ npm run desktop:start
 1. 소스 검사와 main의 전체 화면·실제 서버 동기화 CI를 통과시킨다.
 2. Actions → **Windows 앱 빌드 및 배포**를 main에서 실행한다.
 3. Windows 실행기에서 네이티브 창·빠른 메모·충돌 보존을 확인하고 NSIS 설치 파일을 만든다.
-4. 파일·버전·SHA512를 검증한 뒤 `desktop-v0.1.0` 형식의 GitHub Release에 exe, blockmap, latest.yml을 공개한다.
+4. 파일·버전·SHA512를 검증한 뒤 `desktop-v0.1.0` 형식의 GitHub Release에 exe, blockmap, latest.yml을 공개하고, 같은 파일로 미니어리 전용 배포판 `minially-latest`를 갱신한다. 설치된 앱(0.1.9부터)은 `minially-latest`만 보고 업데이트한다.
 5. 설정 다운로드 주소와 업데이트 피드는 최신 릴리스를 사용한다. 이후 릴리스는 `desktop/package.json` 및 루트 lock의 버전을 함께 올린다. 기존 릴리스는 덮어쓰지 않는다.
 
 자동으로 확인·다운로드하되 즉시 설치하지 않는다. 사용자가 저장 후 재시작을 누르면 모든 창에 로컬 저장 완료를 확인하고, 실패하거나 편집창이 열려 있으면 재시작하지 않는다. 실제 새 버전으로의 교체는 후속 버전에서 추가 실기기 검증한다.

@@ -10,7 +10,7 @@
 | Build watch paths → Include paths | `minially/*` (hub·minilog만 고쳤을 때 다시 빌드하지 않게, 선택) |
 
 ## 2. 새 프로젝트 두 개 만들기
-Workers & Pages → Create → Pages → Connect to Git → `minho-nim/minially` 선택.
+Workers & Pages → Create → Pages → Connect to Git → `minho-nim/minihub` 선택.
 
 | 칸 | minihub 프로젝트 | minilog 프로젝트 |
 |---|---|---|
