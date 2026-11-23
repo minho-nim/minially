@@ -212,7 +212,16 @@ select.input { appearance: auto; }
 .idea-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 .small-input { min-height: 36px; padding: 4px 8px; width: auto; }
 .src { font-size: 0.72rem; font-weight: 800; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); white-space: nowrap; }
-.src.s-trend, .src.s-search { background: var(--sig-soft); border-color: transparent; }
+.src.s-season, .src.s-search { background: var(--sig-soft); border-color: transparent; }
 .trend-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .trend-chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 0.86rem; font-weight: 700; }
 .watch-titles { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 올리기 보조 */
+.post-kit { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: kit; }
+.post-kit li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: center; counter-increment: kit; }
+.kit-label { font-weight: 800; font-size: 0.9rem; }
+.kit-label::before { content: counter(kit) ". "; color: var(--muted, #8a7f8c); }
+.kit-buttons { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.kit-buttons .muted { flex: 1 1 200px; }
+@media (max-width: 520px) { .post-kit li { grid-template-columns: 1fr; gap: 6px; } }
