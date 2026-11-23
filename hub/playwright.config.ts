@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: './tests',
   workers: 1,
   timeout: 60000,
-  use: { baseURL: `http://127.0.0.1:${PORT}`, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', viewport: { width: 1280, height: 900 }, trace: 'retain-on-failure' },
+  use: { baseURL: `http://127.0.0.1:${PORT}`, channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', serviceWorkers: 'block', viewport: { width: 1280, height: 900 }, trace: 'retain-on-failure' },
   webServer: [
     { command: `node ../shared/testing/mock-gemini.mjs ${MOCK}`, url: `http://127.0.0.1:${MOCK}/health`, reuseExistingServer: false },
     {

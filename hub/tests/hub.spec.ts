@@ -16,7 +16,7 @@ test('로그인 후 대시보드에 본인 정보만 보이고 로그아웃된�
   // D는 키가 없어서 연결 안 됨 + 연결 방법 안내
   await expect(page.locator('.kpi .value.off')).toHaveText('연결 안 됨');
   await expect(page.getByText('GEMINI_KEY_D').first()).toBeVisible();
-  await expect(page.getByRole('link', { name: '미니로그 열기' })).toHaveAttribute('href', 'https://minilog.pages.dev');
+  await expect(page.getByRole('link', { name: '미니로그 열기' })).toHaveAttribute('href', 'https://mini-log.pages.dev');
   await page.getByRole('button', { name: '로그아웃' }).click();
   await expect(page.getByLabel('로그인 코드')).toBeVisible();
   await page.reload();
