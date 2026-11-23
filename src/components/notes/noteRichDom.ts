@@ -22,7 +22,7 @@ function marksOf(node:HTMLElement,previous:Marks):Marks{
  if(!style.fontSize&&node.hasAttribute('size'))size=[0,8,10,12,14,18,24,36][Number(node.getAttribute('size'))]||0;
  if(Number.isFinite(size)&&size>=8&&size<=72)next.fontSize=Math.round(size*10)/10;
  const color=hex(style.color||node.getAttribute('color')||''),highlight=hex(style.backgroundColor);
- if(color)next.color=color;if(highlight)next.highlight=highlight;
+ if(color)next.color=color;if(highlight)next.highlight=highlight;else if(style.backgroundColor==='transparent'||/rgba\(.+,\s*0\)/.test(style.backgroundColor))delete next.highlight;
  return next;
 }
 function readInline(nodes:Iterable<Node>,initial:Marks={}):NoteTextRun[]{

@@ -1,5 +1,5 @@
 import type {NoteBlock,NoteTextRun} from '../types';
-export const NOTE_FONTS=['맑은 고딕','Arial','Georgia','Courier New'] as const;
+export const NOTE_FONTS=['맑은 고딕','돋움','굴림','바탕','궁서','Arial','Georgia','Courier New'] as const;
 export const NOTE_SIZES=[8,10,11,12,14,16,18,20,24,28,32,36,48,72];
 export const NOTE_LINE_HEIGHTS=[1,1.2,1.5,1.8,2,2.5];
 const marks=['bold','italic','underline','strike'];

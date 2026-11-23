@@ -1,3 +1,4 @@
+import {NoteDefaultsForm} from '../notes/NoteDefaultsForm';
 import {formatAppVersion} from '../../utils/appVersion';
 import {DesktopAppPanel} from '../common/DesktopAppPanel';
 import React, { useState, useRef, useEffect } from 'react';
@@ -46,7 +47,7 @@ interface SettingsModalProps extends CategoryActions {
   onResetData: () => Promise<void> | void;
 }
 
-type SettingsTab = 'presets' | 'categories' | 'calendar' | 'share' | 'backup' | 'pwa';
+type SettingsTab = 'notes' | 'presets' | 'categories' | 'calendar' | 'share' | 'backup' | 'pwa';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -141,6 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <Palette className="w-3.5 h-3.5" />
             <span>카테고리</span>
           </button>
+          <button type="button" onClick={()=>changeTab('notes')} className={'py-2.5 px-3 border-b-2 whitespace-nowrap '+(activeTab==='notes'?'border-app-accent text-app-accent':'border-transparent text-app-muted')}>메모</button>
           <button
             onClick={() => changeTab('calendar')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
@@ -197,6 +199,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'categories' && <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={onDeleteCategory} onReorderCategories={onReorderCategories} />}
 
           {/* TAB 3: CALENDAR SETTINGS */}
+          {activeTab === 'notes' && <NoteDefaultsForm value={settings.noteDefaults} onSave={async noteDefaults=>{await onUpdateSettings({...settings,noteDefaults});}} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy}/>}
           {activeTab === 'calendar' && (
             <div className="space-y-3">
               <div>

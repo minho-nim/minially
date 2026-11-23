@@ -1,3 +1,4 @@
+import {validateNoteDefaults} from '../../src/utils/noteFormatting';
 import { validateNote, validateNoteFolder } from '../../src/utils/notes';
 import type { Note, NoteFolder } from '../../src/types';
 // 기기 동기화 서버(Cloudflare Pages Functions + D1).
@@ -23,6 +24,7 @@ function readChanges(body: unknown): Change[] | string {
     if (typeof store !== 'string' || !STORES.has(store)) return '알 수 없는 저장소입니다.';
     if (typeof id !== 'string' || !id || id.length > 200) return '잘못된 ID입니다.';
     if (c.baseSeq !== undefined && (!Number.isSafeInteger(c.baseSeq) || c.baseSeq < 0)) return '잘못된 메모 버전입니다.';
+    if(store==='appSettings'&&c.data?.noteDefaults!==undefined){try{validateNoteDefaults(c.data.noteDefaults);}catch{return '메모 기본 서식이 올바르지 않습니다.';}}
     if ((store === 'notes' || store === 'noteFolders') && c.data !== null) {
       try {
         if (store === 'notes') validateNote(c.data as Note); else validateNoteFolder(c.data as NoteFolder);

@@ -1,6 +1,8 @@
+import {NoteColorPicker} from './NoteColorPicker';
+import {resolveNoteDefaults} from '../../utils/noteFormatting';
 import {useEffect,useLayoutEffect,useRef,useState} from 'react';
 import {Bold,Italic,Underline,Strikethrough,RemoveFormatting,Superscript,Subscript,Undo2,Redo2,AlignLeft,AlignCenter,AlignRight,AlignJustify,List,ListOrdered,Ellipsis,Table2,Highlighter,Baseline,type LucideIcon} from 'lucide-react';
-import type {NoteBlock,NoteTextRun} from '../../types';
+import type {NoteBlock,NoteTextRun,NoteDefaults} from '../../types';
 import {NOTE_FONTS,NOTE_SIZES,NOTE_LINE_HEIGHTS,flattenNoteBlocks} from '../../utils/noteRichDocument';
 import {readNoteDocument,renderNoteDocument,renderNoteRuns} from './noteRichDom';
 export {readNoteRuns} from './noteRichDom';
@@ -11,10 +13,12 @@ const tool='w-8 h-8 shrink-0 flex items-center justify-center rounded-md cursor-
 function Tool({label,icon:Icon,onClick,pressed,disabled}:{label:string;icon:LucideIcon;onClick:()=>void;pressed?:boolean;disabled?:boolean}){
  return <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onPointerDown={event=>event.preventDefault()} onTouchEnd={event=>{event.preventDefault();onClick();}} onClick={onClick} className={tool+' '+(pressed?'bg-app-soft text-app-accent-hover':'text-app-muted hover:bg-app-canvas')}><Icon aria-hidden="true" className="w-4 h-4"/></button>;
 }
-export function RichNoteBody({body,runs,blocks,readOnly,onChange}:{body:string;runs?:NoteTextRun[];blocks?:NoteBlock[];readOnly:boolean;onChange:(body:string,runs:NoteTextRun[],blocks:NoteBlock[])=>void}){
+export function RichNoteBody({defaults,body,runs,blocks,readOnly,onChange}:{defaults?:NoteDefaults;body:string;runs?:NoteTextRun[];blocks?:NoteBlock[];readOnly:boolean;onChange:(body:string,runs:NoteTextRun[],blocks:NoteBlock[])=>void}){
+ const base=resolveNoteDefaults(defaults);
+ const [color,setColor]=useState(base.color),[highlight,setHighlight]=useState(base.highlight);
  const ref=useRef<HTMLDivElement>(null),range=useRef<Range|null>(null),cell=useRef<HTMLTableCellElement|null>(null),lastValue=useRef('');
  const snapshots=useRef<EditorSnapshot[]>([]),position=useRef(0),executing=useRef(false),composing=useRef(false);
- const [more,setMore]=useState(false),[active,setActive]=useState<Record<string,boolean>>({}),[font,setFont]=useState<string>(NOTE_FONTS[0]),[size,setSize]=useState(12),[lineHeight,setLineHeight]=useState(1.8),[tableOpen,setTableOpen]=useState(false),[rows,setRows]=useState(3),[columns,setColumns]=useState(3),[inTable,setInTable]=useState(false),[history,setHistory]=useState({undo:false,redo:false});
+ const [more,setMore]=useState(false),[active,setActive]=useState<Record<string,boolean>>({}),[font,setFont]=useState<string>(base.fontFamily),[size,setSize]=useState(base.fontSize),[lineHeight,setLineHeight]=useState(base.lineHeight),[tableOpen,setTableOpen]=useState(false),[rows,setRows]=useState(3),[columns,setColumns]=useState(3),[inTable,setInTable]=useState(false),[history,setHistory]=useState({undo:false,redo:false});
  const remember=()=>{
   const selection=window.getSelection(),root=ref.current;if(!root||!selection?.rangeCount||!root.contains(selection.anchorNode)||!root.contains(selection.focusNode))return;
   range.current=selection.getRangeAt(0).cloneRange();setActive(Object.fromEntries([...formats,...alignments,['insertUnorderedList'],['insertOrderedList']].map(([command])=>[command,document.queryCommandState(command)])));
@@ -83,10 +87,10 @@ export function RichNoteBody({body,runs,blocks,readOnly,onChange}:{body:string;r
     <select aria-label="줄간격" value={lineHeight} onChange={e=>spacing(Number(e.target.value))} className="note-format-select w-24">{NOTE_LINE_HEIGHTS.map(value=><option key={value} value={value}>줄간격 {Math.round(value*100)}%</option>)}</select>
     <button type="button" aria-label="표" aria-expanded={tableOpen} onPointerDown={e=>e.preventDefault()} onTouchEnd={e=>{e.preventDefault();setTableOpen(!tableOpen);}} onClick={()=>setTableOpen(!tableOpen)} className={tool+' text-app-muted hover:bg-app-soft'} title="표"><Table2 aria-hidden="true" className="w-4 h-4"/></button>
    </div></div>
-   <div className="note-format-row"><div className="note-format-controls flex items-center gap-0.5">
+   <div className="note-format-row"><div className="note-format-controls flex items-center gap-0.5 flex-wrap !min-w-0">
     {formats.filter(([name])=>!['bold','underline','strikeThrough'].includes(name)).map(([name,label,icon])=><Tool key={name} label={label} icon={icon} pressed={!!active[name]} onClick={()=>command(name)}/>)}
-    <label className={tool+' relative text-app-muted hover:bg-app-soft'} title="글자색"><Baseline aria-hidden="true" className="w-4 h-4"/><input type="color" aria-label="글자색" defaultValue="#3e3438" onChange={e=>command('foreColor',e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"/></label>
-    <label className={tool+' relative text-app-muted hover:bg-app-soft'} title="강조색"><Highlighter aria-hidden="true" className="w-4 h-4"/><input type="color" aria-label="강조색" defaultValue="#fff2a8" onChange={e=>command('hiliteColor',e.target.value)} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"/></label>
+    <NoteColorPicker label="글자색" value={color} onChange={value=>{if(!value)return;setColor(value);command('foreColor',value);}} icon={<Baseline aria-hidden className="w-4 h-4"/>}/>
+    <NoteColorPicker label="강조색" value={highlight} allowNone onChange={value=>{if(value)setHighlight(value);command('hiliteColor',value??'transparent');}} icon={<Highlighter aria-hidden className="w-4 h-4"/>}/>
     <span aria-hidden="true" className="h-4 mx-1 border-r border-app-line"/>{alignments.map(([name,label,icon])=><Tool key={name} label={label} icon={icon} pressed={!!active[name]} onClick={()=>command(name)}/>)}
     <Tool label="번호 목록" icon={ListOrdered} pressed={!!active.insertOrderedList} onClick={()=>command('insertOrderedList')}/><Tool label="서식 지우기" icon={RemoveFormatting} onClick={()=>command('removeFormat')}/>
    </div></div>
@@ -94,7 +98,7 @@ export function RichNoteBody({body,runs,blocks,readOnly,onChange}:{body:string;r
    {inTable&&<div role="group" aria-label="표 편집" className="flex flex-wrap gap-1 py-1">{([['row','아래에 행 추가'],['column','오른쪽에 열 추가'],['deleteRow','행 삭제'],['deleteColumn','열 삭제'],['deleteTable','표 삭제']] as const).map(([action,label])=><button key={action} type="button" onPointerDown={e=>e.preventDefault()} onTouchEnd={e=>{e.preventDefault();editTable(action);}} onClick={()=>editTable(action)} className="min-h-8 px-2 text-[11px] rounded text-app-muted hover:bg-app-soft">{label}</button>)}</div>}
    </div>
   </div>}
-  <div ref={ref} role="textbox" aria-label="메모 본문" aria-multiline="true" aria-readonly={readOnly} contentEditable={!readOnly} suppressContentEditableWarning spellCheck data-placeholder="자유롭게 적으세요. 짧은 생각도, 긴 기록도 좋아요." className="note-rich-body flex-1 min-h-48 w-full min-w-0 px-3 py-2 text-sm leading-7 outline-none bg-transparent overflow-auto" onInput={emit} onCompositionStart={event=>{composing.current=true;event.currentTarget.dataset.noteComposing='true';}} onCompositionEnd={event=>{composing.current=false;event.currentTarget.dataset.noteComposing='false';emit();}} onKeyDown={event=>{if((event.ctrlKey||event.metaKey)&&!event.nativeEvent.isComposing){const key=event.key.toLowerCase();if(key==='z'||key==='y'){event.preventDefault();event.stopPropagation();travel(key==='y'||event.shiftKey?1:-1);}}}} onKeyUp={remember} onMouseUp={remember} onTouchEnd={remember} onPaste={event=>{
+  <div style={{fontFamily:`"${base.fontFamily}", "Malgun Gothic", sans-serif`,fontSize:base.fontSize+'pt',lineHeight:base.lineHeight,color:base.color}} ref={ref} role="textbox" aria-label="메모 본문" aria-multiline="true" aria-readonly={readOnly} contentEditable={!readOnly} suppressContentEditableWarning spellCheck data-placeholder="자유롭게 적으세요. 짧은 생각도, 긴 기록도 좋아요." className="note-rich-body flex-1 min-h-48 w-full min-w-0 px-3 py-2 text-sm leading-7 outline-none bg-transparent overflow-auto" onInput={emit} onCompositionStart={event=>{composing.current=true;event.currentTarget.dataset.noteComposing='true';}} onCompositionEnd={event=>{composing.current=false;event.currentTarget.dataset.noteComposing='false';emit();}} onKeyDown={event=>{if((event.ctrlKey||event.metaKey)&&!event.nativeEvent.isComposing){const key=event.key.toLowerCase();if(['b','i','u'].includes(key)){event.preventDefault();event.stopPropagation();command(({b:'bold',i:'italic',u:'underline'} as const)[key as 'b'|'i'|'u']);return;}if(key==='z'||key==='y'){event.preventDefault();event.stopPropagation();travel(key==='y'||event.shiftKey?1:-1);}}}} onKeyUp={remember} onMouseUp={remember} onTouchEnd={remember} onPaste={event=>{
    if(readOnly)return;event.preventDefault();const html=event.clipboardData.getData('text/html');if(html){const parsed=document.createElement('template');parsed.innerHTML=html;const safe=document.createElement('div');const pasted=readNoteDocument(parsed.content);if(pasted.length===1&&pasted[0].type==='paragraph'&&!pasted[0].align&&!pasted[0].list&&!pasted[0].indent&&!pasted[0].lineHeight)renderNoteRuns(safe,pasted[0].runs);else renderNoteDocument(safe,pasted);document.execCommand('insertHTML',false,safe.innerHTML);}else document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));emit();
   }} onDrop={event=>event.preventDefault()}/>
  </div>;

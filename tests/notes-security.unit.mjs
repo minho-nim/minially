@@ -57,3 +57,9 @@ test('직접 분류한 메모의 서로 다른 어휘 둘 이상이 겹치면 �
 test('사용자가 직접 지정한 한 글자 키워드도 추천에 쓴다',()=>{
  assert.deepEqual(recommendNoteFolders('책 읽기', [{id:'read',name:'독서',keywords:['책']}]).map(folder=>folder.id),['read']);
 });
+
+test('메모 기본값과 메모별 서식은 서버에서도 검증하고 지원 글꼴을 보존한다',async()=>{
+ const style={fontFamily:'궁서',fontSize:18,lineHeight:1.8,color:'#7030a0',highlight:'#fff2a8'};
+ for(const change of [{store:'appSettings',id:'global_settings',data:{id:'global_settings',noteDefaults:style}},{store:'notes',id:note.id,data:{...note,defaultStyle:style,richBody:[{text:note.body,fontFamily:'바탕'}]}}])assert.equal((await send(change)).response.status,200);
+ for(const change of [{store:'appSettings',id:'global_settings',data:{id:'global_settings',noteDefaults:{...style,color:'url(evil)'}}},{store:'notes',id:note.id,data:{...note,defaultStyle:{...style,fontSize:1000}}}]){const {response,db}=await send(change);assert.equal(response.status,400);assert.equal(db.writes.some(sql=>sql.startsWith('INSERT INTO sync_records')),false);}
+});

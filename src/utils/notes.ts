@@ -1,3 +1,4 @@
+import {validateNoteDefaults} from './noteFormatting';
 import {noteTopicScore} from './noteSuggestions';
 import {flattenNoteBlocks,validNoteBlocks,validNoteRuns} from './noteRichDocument';
 import type {Note, NoteFolder} from '../types';
@@ -32,6 +33,7 @@ export function recommendNoteFolders(text: string, folders: NoteFolder[], notes:
 export function noteTitle(note: Pick<Note,'title'|'body'>): string { return note.title.trim() || note.body.trim().split('\n')[0]?.slice(0,80) || '제목 없는 메모'; }
 
 export function validateNote(note: Note): void {
+  if(note?.defaultStyle!==undefined)validateNoteDefaults(note.defaultStyle);
   if (note?.conflictOf !== undefined && (typeof note.conflictOf !== 'string' || !note.conflictOf || note.conflictOf.length>200)) throw new Error('충돌 사본 정보가 올바르지 않습니다.');
   if (note?.conflictAt !== undefined && !Number.isFinite(note.conflictAt)) throw new Error('충돌 사본 날짜가 올바르지 않습니다.');
   if (!note || typeof note.id !== 'string' || !note.id || typeof note.title !== 'string' || typeof note.body !== 'string' || typeof note.folderId !== 'string' || typeof note.pinned !== 'boolean' || !Array.isArray(note.tags) || note.tags.length > 30 || note.tags.some(tag => typeof tag !== 'string' || tag.length > 80) || !Number.isFinite(note.createdAt) || !Number.isFinite(note.updatedAt) || (note.deletedAt !== undefined && !Number.isFinite(note.deletedAt))) throw new Error('메모 형식이 올바르지 않습니다.');

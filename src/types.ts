@@ -180,7 +180,10 @@ export interface ReminderSettings {
   minutesBefore: number;
 }
 
+export interface NoteDefaults {fontFamily:string;fontSize:number;lineHeight:number;color:string;highlight:string}
+
 export interface AppSettings {
+  noteDefaults?: NoteDefaults;
   reminder?: ReminderSettings;
   share?: ShareSettings;
   sharedViews?: SharedView[];
@@ -241,6 +244,7 @@ export interface NoteTable { type: 'table'; rows: NoteTableCell[][] }
 export type NoteBlock = NoteParagraph | NoteTable;
 
 export interface Note {
+  defaultStyle?: NoteDefaults;
   conflictOf?: string;
   conflictAt?: number;
   richDocument?: NoteBlock[];

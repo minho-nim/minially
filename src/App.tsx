@@ -751,7 +751,7 @@ export default function App() {
           />
         )}
 
-        {(activeTab === 'notes'||notesVisited) && <div hidden={activeTab!=='notes'}><NotesView active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
+        {(activeTab === 'notes'||notesVisited) && <div hidden={activeTab!=='notes'}><NotesView noteDefaults={settings.noteDefaults} onSaveDefaults={async noteDefaults=>handleUpdateSettings({...settings,noteDefaults})} active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
           onSave={async (note,baseUpdatedAt) => {
             const copy=await dbSaveNote(note,baseUpdatedAt);
             window.miniallyDesktop?.notifySaved();

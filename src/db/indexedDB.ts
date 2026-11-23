@@ -1,3 +1,4 @@
+import {validateNoteDefaults} from '../utils/noteFormatting';
 import {validateNoteRegistration,existingNoteRegistration,type NoteRegistrationInput,type NoteRegistrationResult} from '../utils/noteSuggestions';
 import { noteTitle, validateNote, validateNoteFolder, visibleNoteFolders } from '../utils/notes';
 import { sortPresets } from '../utils/phrases';
@@ -662,6 +663,7 @@ export async function getAppSettings(): Promise<AppSettings> {
 }
 
 export async function saveAppSettings(settings: AppSettings): Promise<void> {
+  if(settings.noteDefaults!==undefined)validateNoteDefaults(settings.noteDefaults);
   const db = await getDB();
   await db.put('appSettings', { id: 'global_settings', ...settings });
 }
@@ -716,6 +718,7 @@ export async function exportAllData(): Promise<AppData> {
 
 export async function importAllData(data: Partial<AppData>): Promise<void> {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('잘못된 백업 파일입니다.');
+  if(data.settings?.noteDefaults!==undefined)validateNoteDefaults(data.settings.noteDefaults);
   const stores = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'notes', 'noteFolders'] as const;
   if (!stores.some(key => Array.isArray(data[key]))) throw new Error('백업 데이터가 없습니다.');
   // Validate before opening a write transaction; keep all current data on failure.

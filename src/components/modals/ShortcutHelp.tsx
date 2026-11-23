@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {useScheduleDialog} from '../../hooks/useScheduleDialog';
 import { X } from 'lucide-react';
 import { SHORTCUTS } from '../../hooks/useKeyboardShortcuts';
@@ -6,6 +6,7 @@ import { SHORTCUTS } from '../../hooks/useKeyboardShortcuts';
 export const ShortcutHelp: React.FC<{ open: boolean; onClose: () => void }> = ({ open, onClose }) => {
   const root=useRef<HTMLDivElement>(null);
   useScheduleDialog(open,false,root,onClose,onClose);
+  useEffect(()=>{if(!open)return;const frame=requestAnimationFrame(()=>root.current?.querySelector<HTMLButtonElement>('button')?.focus({preventScroll:true}));return()=>cancelAnimationFrame(frame);},[open]);
   if (!open) return null;
   return (
     <div ref={root} role="dialog" aria-modal="true" aria-label="단축키" className="app-modal fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={onClose}>

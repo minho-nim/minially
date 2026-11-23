@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {DEFAULT_NOTE_STYLE,resolveNoteDefaults,validateNoteDefaults,colorShade} from '../src/utils/noteFormatting.ts';
+import {validateNote} from '../src/utils/notes.ts';
+test('메모 기본 서식은 허용한 글꼴·크기·색상만 받는다',()=>{assert.doesNotThrow(()=>validateNoteDefaults({...DEFAULT_NOTE_STYLE,fontFamily:'궁서',fontSize:14}));for(const patch of [{fontFamily:'url(https://invalid)'},{fontSize:200},{color:'red'},{highlight:'javascript:alert(1)'},{lineHeight:12},{css:'display:none'}])assert.throws(()=>validateNoteDefaults({...DEFAULT_NOTE_STYLE,...patch}));assert.deepEqual(resolveNoteDefaults({color:'bad'}),DEFAULT_NOTE_STYLE);assert.equal(colorShade('#000000',.8),'#cccccc');});
+test('메모별 기본 서식도 저장과 동기화 전에 검증한다',()=>{const note={id:'test',title:'제목',body:'본문',folderId:'',tags:[],pinned:false,createdAt:1,updatedAt:1};assert.doesNotThrow(()=>validateNote({...note,defaultStyle:DEFAULT_NOTE_STYLE}));assert.throws(()=>validateNote({...note,defaultStyle:{...DEFAULT_NOTE_STYLE,fontSize:0}}));});
