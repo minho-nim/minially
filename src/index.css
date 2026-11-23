@@ -395,3 +395,5 @@
 .desktop-zoom-button { -webkit-app-region: no-drag; white-space: nowrap; }
 
 .desktop-titlebar .desktop-zoom-button { min-height: 28px; height: 28px; padding: 2px 6px; }
+
+.note-format-toolbar [role="group"] button, .note-format-toolbar fieldset button { min-width: 0; width: auto; }

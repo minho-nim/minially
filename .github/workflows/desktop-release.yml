@@ -43,6 +43,10 @@ jobs:
       - run: npm run desktop:prepare
       - run: npm run test:desktop:unit
       - run: node tests-desktop/smoke.cjs
+      - run: node tests-desktop/zoom.cjs
+      - name: 테마 업데이트 창 만들기
+        shell: pwsh
+        run: ./scripts/build-update-window.ps1
       - name: Windows 설치 파일 만들기
         run: npx --no-install electron-builder --config electron-builder.yml --win nsis --x64 --publish never
         env:
@@ -53,6 +57,13 @@ jobs:
       - name: 업데이트 진행 창과 자동 설치 확인
         shell: pwsh
         run: ./tests-desktop/installer.ps1
+      - name: 업데이트 창 화면 보관
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: update-progress-preview
+          path: desktop-dist/update-progress.png
+          if-no-files-found: error
+          retention-days: 7
       - name: 설치 파일과 업데이트 메타데이터 확인
         run: |
           node scripts/check-desktop-release.cjs
