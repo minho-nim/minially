@@ -142,7 +142,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <Palette className="w-3.5 h-3.5" />
             <span>카테고리</span>
           </button>
-          <button type="button" onClick={()=>changeTab('notes')} className={'py-2.5 px-3 border-b-2 whitespace-nowrap '+(activeTab==='notes'?'border-app-accent text-app-accent':'border-transparent text-app-muted')}>메모</button>
+          <button type="button" onClick={()=>changeTab('notes')} className={'py-2.5 px-3 border-b-2 whitespace-nowrap '+(activeTab==='notes'?'border-app-accent text-app-accent':'border-transparent text-app-muted')}>메모 서식</button>
           <button
             onClick={() => changeTab('calendar')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
