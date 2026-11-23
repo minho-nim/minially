@@ -129,7 +129,9 @@ Edge·Chrome 주소창의 **앱 설치**로 설치하면 별도 창·시작 메�
 
 배포 훅(권장): Cloudflare Pages → minially → Settings → Builds → **Deploy hooks** → 브랜치 `release`로 만들고, 주소를 GitHub 저장소 Settings → Secrets and variables → Actions에 `CLOUDFLARE_DEPLOY_HOOK`으로 저장합니다. 운영 배포는 Cloudflare 자동 빌드를 기다리고, 5분이 지나도 사이트가 안 바뀌면 이 훅으로 한 번 더 빌드를 요청합니다. 자동 빌드가 안 되면 GitHub 설정 → Applications → Cloudflare Workers and Pages의 저장소 권한을 확인하세요.
 
-배포: GitHub Actions → **운영 배포(release)** → Run workflow. main 최신 커밋의 검사가 통과했을 때만 `release`를 `main`으로 앞당깁니다(fast-forward만). 직접 할 때는 `git fetch origin && git push origin origin/main:refs/heads/release`.
+**웹·Windows 동시 업데이트 원칙:** 화면 문구 변경을 포함한 모든 운영 배포는 웹과 Windows 앱에 함께 반영합니다. `desktop/package.json`과 잠금 파일의 앱 버전을 올리고 `desktop/RELEASE-NOTES.md`를 갱신한 뒤 GitHub Actions → **Windows 앱 빌드 및 배포** → Run workflow를 실행합니다. 앱과 같은 커밋의 전체 웹 검사가 통과해야 설치 파일·자동 업데이트 피드를 공개하고, 공개가 성공하면 **운영 배포(release)**가 자동으로 이어집니다.
+
+수동 운영 배포도 같은 커밋의 Windows 공개 버전과 설치 파일·자동 업데이트 피드가 있어야 진행합니다. 준비되지 않았거나 main이 앱 빌드 이후 변경되면 중단합니다. `release`는 검사된 `main`으로만 앞당깁니다(fast-forward만). 두 플랫폼의 공개와 운영 반영 확인까지 끝나야 배포 완료로 안내합니다. 어느 한쪽이 실패하면 완료로 표시하지 않고 실패한 단계를 해결한 뒤 다시 실행합니다.
 
 ## GitHub Pages 배포
 

@@ -1,12 +1,14 @@
-# 운영 배포 버튼(소유자가 직접 누름): release 브랜치를 main으로 앞당긴다. Cloudflare Pages는 release만 배포한다.
-# PC 명령 `git fetch origin && git push origin origin/main:refs/heads/release`와 같다. 휴대폰 GitHub 앱·브라우저에서
-# Actions → "운영 배포(release)" → Run workflow로 실행한다. 자동으로는 돌지 않는다.
-# fast-forward만 한다(강제 푸시 없음): release에 main에 없는 커밋이 있으면 실패하고 아무것도 바꾸지 않는다.
-# main의 최신 커밋이 타입 검사·빌드(GitHub Pages 배포 워크플로)를 통과했을 때만 배포한다.
+# 운영 배포는 Windows 앱 공개가 성공한 뒤 같은 커밋으로 이어진다.
+# 수동 실행도 같은 커밋의 Windows 공개 버전이 있어야 진행한다.
+# release 브랜치는 검사된 main으로만 fast-forward한다.
 name: 운영 배포(release)
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Windows 앱 빌드 및 배포"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: write
@@ -18,6 +20,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -36,6 +39,27 @@ jobs:
             echo "::error::main 최신 커밋의 검사가 성공이 아닙니다(${conclusion}). 끝날 때까지 기다리거나 오류를 고친 뒤 다시 실행하세요."
             exit 1
           fi
+      - name: 같은 커밋의 Windows 앱 공개 확인
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          sha=$(git rev-parse origin/main)
+          if [ -n "$TRIGGER_SHA" ] && [ "$TRIGGER_SHA" != "$sha" ]; then
+            echo "::error::main이 앱 빌드 이후 변경됐습니다. 최신 커밋의 앱을 먼저 배포하세요."
+            exit 1
+          fi
+          version=$(node -p "require('./desktop/package.json').version")
+          gh release view "desktop-v${version}" --json isDraft,targetCommitish,assets > "$RUNNER_TEMP/minially-desktop-release.json"
+          export EXPECTED_SHA="$sha"
+          node <<'JS'
+          const fs=require('node:fs'),assert=require('node:assert/strict');
+          const release=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/minially-desktop-release.json','utf8'));
+          assert.equal(release.isDraft,false,'Windows 앱이 아직 공개되지 않았습니다.');
+          assert.equal(release.targetCommitish,process.env.EXPECTED_SHA,'웹과 앱의 소스 커밋이 다릅니다.');
+          for(const name of ['Minially-Setup.exe','Minially-Setup.exe.blockmap','latest.yml'])assert(release.assets.some(asset=>asset.name===name),'Windows 배포 파일이 없습니다: '+name);
+          console.log('같은 커밋의 Windows 설치 파일·자동 업데이트 피드 공개를 확인했습니다.');
+          JS
       - name: release를 main으로 앞당기기(fast-forward만)
         run: |
           if git rev-parse --verify -q origin/release >/dev/null; then

@@ -8,6 +8,7 @@ const{_electron:electron,expect}=require('@playwright/test'),assert=require('nod
   await expect(main.getByRole('banner',{name:'앱 창 제목 표시줄'})).toBeVisible();await expect(main.getByRole('button',{name:'앱 버전 및 업데이트 열기'})).toContainText('V.'+require('../desktop/package.json').version);
   const state=await main.evaluate(()=>window.miniallyDesktop.getState());assert.equal(state.version,require('../desktop/package.json').version);assert.equal(state.platform,'win32');assert.notEqual(state.update.kind,'unsupported');assert.equal(await main.evaluate(()=>typeof window.require),'undefined');
   const ready=app.waitForEvent('window');await main.evaluate(()=>window.miniallyDesktop.showQuick());const quick=await ready;await expect(quick.getByRole('dialog',{name:'연결 코드 입력',exact:true})).toBeVisible();assert.equal(await quick.evaluate(()=>window.miniallyDesktop.mode),'quick');
-  console.log('통과: 실제 Windows 패키지의 첫 실행, 오프라인 로그인 화면, 업데이트 모듈, 빠른 창, 렌더러 격리');
+  await main.goto('minially://app/demo');await main.getByRole('button',{name:'설정 및 프리셋',exact:true}).click();const settings=main.getByRole('dialog',{name:'설정',exact:true});await settings.getByRole('button',{name:'메모 서식',exact:true}).click();await expect(settings.getByLabel('기본 글꼴',{exact:true})).toBeVisible();
+  console.log('통과: 실제 Windows 패키지의 첫 실행, 오프라인 로그인 화면, 업데이트 모듈, 빠른 창, 렌더러 격리, 메모 서식 탭');
  }finally{if(app)await app.close();await fs.rm(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exit(1);});
