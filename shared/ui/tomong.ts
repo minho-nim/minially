@@ -1,11 +1,11 @@
-// 토톰이: 미니 가족 캐릭터(새싹 달린 동글동글 토마토). 앱마다 색만 바꿔 입는다.
+// 토몽이: 미니 가족 캐릭터(새싹 달린 동글동글 토마토). 앱마다 색만 바꿔 입는다.
 // React 없이 SVG 문자열만 만든다(shared 폴더는 외부 패키지를 쓰지 않음). 안의 값은 모두 이 파일의 상수라 사용자 입력이 섞이지 않는다.
 
-export type TotomKind = 'hub' | 'minially' | 'minilog';
-export type TotomPose = 'idle' | 'wave';
+export type TomongKind = 'hub' | 'minially' | 'minilog';
+export type TomongPose = 'idle' | 'wave';
 
 const INK = '#2B2233';
-export const TOTOM_COLORS: Record<TotomKind, string> = {
+export const TOMONG_COLORS: Record<TomongKind, string> = {
   hub: '#FFAA9C',       // 코랄 토마토
   minially: '#F4A3BB',  // 분홍 토마토
   minilog: '#FFBE85',   // 살구 토마토
@@ -18,8 +18,8 @@ function face() {
     `<path d="M55 76 Q60 81 65 76" stroke="${INK}" stroke-width="2.6" fill="none" stroke-linecap="round"/>`;
 }
 
-function parts(kind: TotomKind, opts: { face: boolean; feet: boolean; pose: TotomPose }) {
-  const c = TOTOM_COLORS[kind];
+function parts(kind: TomongKind, opts: { face: boolean; feet: boolean; pose: TomongPose }) {
+  const c = TOMONG_COLORS[kind];
   const feet = opts.feet
     ? `<ellipse cx="48" cy="104" rx="8" ry="4" fill="${INK}" opacity=".85"/><ellipse cx="72" cy="104" rx="8" ry="4" fill="${INK}" opacity=".85"/>`
     : '';
@@ -36,14 +36,14 @@ function parts(kind: TotomKind, opts: { face: boolean; feet: boolean; pose: Toto
     (opts.face ? face() : '');
 }
 
-/** 토톰이 SVG 문자열. size는 px. 24px 미만에서는 얼굴·발을 빼고 형태만 남긴다. */
-export function totomSvg(kind: TotomKind, size = 64, pose: TotomPose = 'idle') {
+/** 토몽이 SVG 문자열. size는 px. 24px 미만에서는 얼굴·발을 빼고 형태만 남긴다. */
+export function tomongSvg(kind: TomongKind, size = 64, pose: TomongPose = 'idle') {
   const small = size < 24;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="${size}" height="${size}" aria-hidden="true" focusable="false">${parts(kind, { face: !small, feet: !small, pose })}</svg>`;
 }
 
 /** 앱 아이콘(정사각형): 여백을 줄여 캐릭터를 크게. 발은 빼고 몸·새싹·얼굴만. */
-export function totomIconSvg(kind: TotomKind, background: string) {
+export function tomongIconSvg(kind: TomongKind, background: string) {
   // 캐릭터(새싹 위끝 y≈12 ~ 몸 아래 y≈104, 좌우 22~98)가 아이콘의 약 92%를 채우도록 확대
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="${background}"/>` +
     `<g transform="translate(60 61) scale(1.18) translate(-60 -60)">${parts(kind, { face: true, feet: false, pose: 'idle' })}</g></svg>\n`;

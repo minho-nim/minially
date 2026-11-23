@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LINKS } from '../../shared/client/api';
-import { Totom, Signature } from './Totom';
+import { Tomong, Signature } from './Tomong';
 
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
@@ -91,9 +91,9 @@ function Login({ onDone }: { onDone: () => void }) {
     <main className="page">
       <form className="card login stack" onSubmit={submit} noValidate>
         <div className="login-hero">
-          <Totom kind="minilog" size={88} pose="wave" bounce />
+          <Tomong kind="minilog" size={88} pose="wave" bounce />
           <h1 className="sr-only">미니로그 로그인</h1>
-          <Signature kind="minilog" word="log" size={22} totom={0} />
+          <Signature kind="minilog" word="log" size={22} tomong={0} />
           <p className="hand login-line">미니어리 코드로 들어와요</p>
         </div>
         <div className="field">
@@ -151,13 +151,13 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   return (
     <div className={`shell${selected ? ' editing' : ''}`}>
       <aside className="side" aria-label="원고 목록">
-        <div className="brand"><Signature kind="minilog" word="log" size={17} totom={32} /></div>
+        <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
         <button className="btn primary" onClick={create} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <p className="muted small" role="status">불러오는 중…</p>}
         {drafts?.length === 0 && (
           <div className="list-empty">
-            <Totom kind="minilog" size={44} />
+            <Tomong kind="minilog" size={44} />
             <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요. <b>새 원고</b>로 시작하세요.</p>
           </div>
         )}
@@ -182,7 +182,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
-              <Totom kind="minilog" size={104} pose="wave" />
+              <Tomong kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
               <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
@@ -365,7 +365,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
             <label className={`dropzone pick${uploading ? ' busy' : ''}`}>
               <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple className="sr-only" onChange={e => { void addPhotos(e.target.files); }} disabled={uploading > 0 || (photos?.length ?? 0) >= 20} />
               {uploading > 0
-                ? <span className="ai-busy" role="status"><Totom kind="minilog" size={32} bounce /><span className="hand">사진 {uploading}장 올리는 중</span></span>
+                ? <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">사진 {uploading}장 올리는 중</span></span>
                 : <span><b>사진 고르기</b> · 여러 장 한 번에 · 긴 변 1600px로 줄여서 올려요</span>}
             </label>
             {published.at && photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>게시 후 30일이 지나면 사진이 지워져요({dayLabel(published.at + 30 * 86400000)} 예정). 필요한 사진은 미리 받아 두세요.</p>}
@@ -384,7 +384,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
           <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
-          {aiBusy && <span className="ai-busy" role="status"><Totom kind="minilog" size={36} bounce /><span className="hand">토톰이가 열심히 쓰고 있어요</span></span>}
+          {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
         </div>
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(미니허브 설정 참고).</p>}
       </section>
@@ -412,7 +412,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
         <h2 id="s4" className="step-title"><span className="n">4</span>게시</h2>
         {fields.status === 'published' && published.url ? (
           <div className="published">
-            <Totom kind="minilog" size={44} pose="wave" />
+            <Tomong kind="minilog" size={44} pose="wave" />
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: 0, fontWeight: 700 }}>게시 완료{published.at ? ` · ${dayLabel(published.at)}` : ''}</p>
               <a className="small published-url" href={published.url} target="_blank" rel="noopener noreferrer">{published.url}</a>

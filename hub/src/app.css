@@ -83,7 +83,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .main { padding: 18px 16px 48px; gap: 24px; }
   .apps, .settings { grid-template-columns: minmax(0, 1fr); }
   .hello { padding: 14px 16px; gap: 12px; }
-  .hello .totom svg { width: 60px; height: 60px; }
+  .hello .tomong svg { width: 60px; height: 60px; }
   .hello h1 { font-size: 1.3rem; }
 }
 @media (max-width: 420px) {

@@ -35,7 +35,7 @@
 | Gemini 오류 구분: 키 없음·키 오류·호출 제한(분당)·하루 한도·안전 차단·응답 오류·지연 | 〃 | 호출 제한·한도 초과는 시험, 나머지는 코드 리뷰만 |
 | AI 호출 기록(사용자·앱·모델·작업·입력/출력 토큰·성공/오류) | `ai_usage` 표 | 시험(대시보드 숫자) |
 | 미니허브 대시보드: 숫자 타일·앱 카드·앱별 사용량 막대/표·계정·Gemini 안내·로그아웃 | `hub/src/App.tsx` | PC 1400·폰 400 가로 넘침 0, 콘솔 오류 0 |
-| 미니 가족 디자인: 캐릭터 토톰이(새싹 달린 토마토 SVG), 손글씨 서명 로고, 토마토 서명 색, 앱별 손글씨 글꼴(앱에 내장) | `shared/ui/totom.ts`, `shared/ui/base.css`, `hub/DESIGN.md` | 화면 확인(PC·폰), 시험 통과 |
+| 미니 가족 디자인: 캐릭터 토몽이(새싹 달린 토마토 SVG), 손글씨 서명 로고, 토마토 서명 색, 앱별 손글씨 글꼴(앱에 내장) | `shared/ui/tomong.ts`, `shared/ui/base.css`, `hub/DESIGN.md` | 화면 확인(PC·폰), 시험 통과 |
 | 코드 해시 도우미(브라우저 안에서만 계산) | `hub/public/code-hash.html` | 시험(서버 요청 없음) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `minilog/src/App.tsx`, `minilog/functions/` | 시험 |

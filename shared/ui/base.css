@@ -95,16 +95,16 @@ table.usage th, table.usage td { text-align: right; padding: 8px 6px; border-bot
 table.usage th:first-child, table.usage td:first-child { text-align: left; }
 .table-wrap { overflow-x: auto; }
 
-/* 손글씨 서명 로고: 토톰이 + mini + 앱 글자 */
+/* 손글씨 서명 로고: 토몽이 + mini + 앱 글자 */
 .signature { display: inline-flex; align-items: flex-end; gap: 4px; line-height: 1; white-space: nowrap; color: var(--text); text-decoration: none; }
 .signature .mini { font-family: var(--font-sign); font-weight: 700; font-size: 2.1em; letter-spacing: -0.01em; }
 .signature .app { font-family: var(--font-sign); font-weight: 700; font-size: 1.6em; color: var(--app); margin-bottom: 0.06em; }
 .signature svg { flex: none; margin-bottom: -0.1em; }
 .hand { font-family: var(--font-hand); }
-.totom { display: inline-grid; place-items: center; flex: none; }
-.totom.bounce svg { animation: totom-bounce 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
-@keyframes totom-bounce { 0%, 100% { transform: translateY(0) scale(1, 1); } 40% { transform: translateY(-6px) scale(0.98, 1.02); } 60% { transform: translateY(0) scale(1.03, 0.97); } }
-@media (prefers-reduced-motion: reduce) { .totom.bounce svg { animation: none; } }
+.tomong { display: inline-grid; place-items: center; flex: none; }
+.tomong.bounce svg { animation: tomong-bounce 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes tomong-bounce { 0%, 100% { transform: translateY(0) scale(1, 1); } 40% { transform: translateY(-6px) scale(0.98, 1.02); } 60% { transform: translateY(0) scale(1.03, 0.97); } }
+@media (prefers-reduced-motion: reduce) { .tomong.bounce svg { animation: none; } }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .login-hero { display: grid; justify-items: center; gap: 6px; text-align: center; padding-top: 4px; }
 .login-line { margin: 0; font-size: 1.2rem; color: var(--muted); }
