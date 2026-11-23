@@ -7,7 +7,7 @@ test('다가오는 시기·참고 블로그로 글감을 추천받고, 검색 �
   await page.getByRole('button', { name: '글감', exact: true }).click();
   await expect(page.getByRole('heading', { name: '글감', exact: true })).toBeVisible();
   // 다가오는 시기(앱 안 달력, 45일 안)
-  expect(await page.locator('.trend-chips li').count()).toBeGreaterThan(0);
+  await expect(page.locator('.trend-chips li').first()).toBeVisible(); // 불러온 뒤에 확인
 
   // 참고 블로그: 티스토리 제목만 가져온다. 없는 블로그는 오류
   await page.getByLabel('참고 블로그 주소').fill('mytravel.tistory.com');
