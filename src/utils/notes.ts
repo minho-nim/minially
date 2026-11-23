@@ -1,3 +1,4 @@
+import {noteTopicScore} from './noteSuggestions';
 import {flattenNoteBlocks,validNoteBlocks,validNoteRuns} from './noteRichDocument';
 import type {Note, NoteFolder} from '../types';
 
@@ -25,7 +26,7 @@ export function recommendNoteFolders(text: string, folders: NoteFolder[], notes:
   const matches=new Set<string>();
   for(const document of documents.filter(note=>note.folderId===folder.id))for(const word of document.words)if(input.has(word)&&!documents.some(other=>other.folderId!==folder.id&&other.words.has(word)))matches.add(word);
   // 한 문서의 흔한 단어 하나만으로 분류하지 않는다. 서로 다른 어휘가 둘 이상 겹칠 때만 제안한다.
-  return{folder,score:explicit*10+(matches.size>=2?Math.min(9,matches.size):0)};
+  return{folder,score:explicit*10+(matches.size>=2?Math.min(9,matches.size):0)+noteTopicScore(text,folder.name)};
  }).filter(item=>item.score>0).sort((a,b)=>b.score-a.score||a.folder.name.localeCompare(b.folder.name)).slice(0,3).map(item=>item.folder);
 }
 export function noteTitle(note: Pick<Note,'title'|'body'>): string { return note.title.trim() || note.body.trim().split('\n')[0]?.slice(0,80) || '제목 없는 메모'; }

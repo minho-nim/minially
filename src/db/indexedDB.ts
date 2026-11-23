@@ -1,3 +1,4 @@
+import {validateNoteRegistration,existingNoteRegistration,type NoteRegistrationInput,type NoteRegistrationResult} from '../utils/noteSuggestions';
 import { noteTitle, validateNote, validateNoteFolder, visibleNoteFolders } from '../utils/notes';
 import { sortPresets } from '../utils/phrases';
 import { hasCalendarTask, taskFromSchedule } from '../utils/calendarTasks';
@@ -855,4 +856,29 @@ export async function saveNoteTask(note: Note, date: string, categoryId = '', ex
   const existing = (await tx.objectStore('tasks').getAll()).some(task => task.sourceNoteId === note.id && task.dueDate === date && (task.sourceNoteExcerpt??'')===(excerpt??''));
   if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, sourceNoteExcerpt:excerpt, dueDate:date, status:'todo', priority:'medium', checklist:[]});
   await tx.done;
+}
+
+/** 한 메모에서 고른 항목을 한 트랜잭션에 저장한다. 재시도와 동시 등록은 같은 ID를 쓴다. */
+export async function registerNoteEntries(note:Note,entries:NoteRegistrationInput[]):Promise<NoteRegistrationResult>{
+ validateNote(note);if(!Array.isArray(entries)||entries.length<1||entries.length>30)throw new Error('한 번에 1~30개를 선택해 주세요.');
+ entries.forEach(validateNoteRegistration);
+ const ids=await Promise.all(entries.map(async entry=>{const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify([note.id,entry.kind,entry.date,entry.sourceText.trim()])));return 'note-'+entry.kind+'-'+Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');}));
+ const db=await getDB(),tx=db.transaction(['notes','tasks','schedules','categories','changeHistory'],'readwrite');
+ try{
+  const current=await tx.objectStore('notes').get(note.id);if(!current||current.deletedAt||current.updatedAt!==note.updatedAt)throw new Error('메모 내용이 바뀌었습니다. 닫고 추천을 다시 열어 주세요.');
+  const [categories,tasks,schedules]=await Promise.all([tx.objectStore('categories').getAll(),tx.objectStore('tasks').getAll(),tx.objectStore('schedules').getAll()]);
+  const createdTasks:Task[]=[],createdSchedules:Schedule[]=[];let skipped=0;
+  for(let index=0;index<entries.length;index++){
+   const entry=entries[index],id=ids[index];if(!current.body.includes(entry.sourceText)&&!current.title.includes(entry.sourceText))throw new Error('선택한 내용이 원본에 없습니다. 닫고 추천을 다시 열어 주세요.');if(entry.categoryId&&!categories.some(category=>category.id===entry.categoryId))throw new Error('카테고리가 변경되었습니다. 다시 선택해 주세요.');
+   if(tasks.some(item=>item.id===id)||schedules.some(item=>item.id===id)||existingNoteRegistration(entry,note.id,tasks,schedules)){skipped++;continue;}
+   if(entry.kind==='task'){
+    const task:Task={id,title:entry.title.trim(),dueDate:entry.date,categoryId:entry.categoryId||undefined,status:'todo',priority:entry.priority,memo:entry.sourceText,sourceNoteId:note.id,sourceNoteExcerpt:entry.sourceText,checklist:[]};await tx.objectStore('tasks').put(task);tasks.push(task);createdTasks.push(task);
+   }else{
+    const schedule:Schedule={id,title:entry.title.trim(),date:entry.date,category:entry.categoryId,completed:false,startTime:entry.startTime||undefined,endTime:entry.endTime||undefined,isImportant:entry.priority==='high',memo:entry.sourceText,sourceNoteId:note.id,sourceNoteExcerpt:entry.sourceText};requireCategory(schedule,categories);await tx.objectStore('schedules').put(schedule);schedules.push(schedule);createdSchedules.push(schedule);
+   }
+  }
+  let history:ChangeHistoryEntry|undefined;
+  if(createdTasks.length||createdSchedules.length){history={id:crypto.randomUUID(),timestamp:Date.now(),type:'BATCH_CREATE',description:`메모에서 할 일 ${createdTasks.length}개 · 일정 ${createdSchedules.length}개 등록`,previousSchedules:[],newSchedules:createdSchedules,previousTasks:[],newTasks:createdTasks};await tx.objectStore('changeHistory').put(history);}
+  await tx.done;return{tasks:createdTasks.length,schedules:createdSchedules.length,skipped,history};
+ }catch(error){try{tx.abort();}catch{/* 이미 종료된 트랜잭션 */}await tx.done.catch(()=>{});if(error instanceof DOMException)throw new Error(error.name==='QuotaExceededError'?'저장 공간이 부족합니다. 전체 등록을 취소했으니 공간을 확보한 뒤 다시 시도해 주세요.':'저장하지 못해 전체 등록을 취소했습니다. 다시 시도해 주세요.');throw error;}
 }

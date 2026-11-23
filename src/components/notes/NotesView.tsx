@@ -1,3 +1,5 @@
+import {NoteRegistrationModal} from './NoteRegistrationModal';
+import type {NoteRegistrationInput,NoteRegistrationResult} from '../../utils/noteSuggestions';
 import {useNotePaneSizes} from './useNotePaneSizes';
 import {EmptyNoteTrashDialog} from './EmptyNoteTrashDialog';
 import {NoteFolderModal} from './NoteFolderModal';
@@ -11,13 +13,14 @@ import {getTodayDateString} from '../../utils/dateHelpers';
 interface Props {
  active?:boolean; schedules:Schedule[]; onOpenTask:(id:string)=>void; onOpenSchedule:(id:string)=>void;
  categories:CategoryItem[]; notes:Note[]; folders:NoteFolder[]; tasks:Task[]; openNoteId?:string;
+ onRegisterEntries:(note:Note,entries:NoteRegistrationInput[])=>Promise<NoteRegistrationResult>;
  onEmptyTrash:(targets:Pick<Note,'id'|'updatedAt'>[])=>Promise<number>;
  onSave:(note:Note,baseUpdatedAt?:number)=>Promise<void>; onSaveFolder:(folder:NoteFolder)=>Promise<void>;
  onTask:(note:Note,date:string,categoryId:string,excerpt?:string)=>Promise<void>; onSchedule:(note:Note,categoryId:string,date:string,excerpt?:string)=>Promise<void>;
 }
 const button='inline-flex items-center justify-center gap-1.5 min-h-9 px-2.5 rounded-lg text-xs hover:bg-app-soft transition-colors disabled:opacity-50 cursor-pointer';
 const field='w-full min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line bg-white outline-none focus:border-app-accent';
-export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,onEmptyTrash,openNoteId}:Props){
+export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,onEmptyTrash,onRegisterEntries,openNoteId}:Props){
  const panes=useNotePaneSizes();
  const [filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[selected,setSelected]=useState<string|null>(null),[focus,setFocus]=useState(false),[mobileEditor,setMobileEditor]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -59,7 +62,7 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
    </div>
   </section>
   <div className={'notes-editor min-w-0 '+(!mobileEditor?'hidden md:flex':'flex')}>
-   {current?<NoteEditor key={current.id} notes={notes} note={current} onOriginal={async id=>{if(await allowLeave()){setSelected(id);setMobileEditor(true);}}} originalExists={notes.some(note=>note.id===current.conflictOf)} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
+   {current?<NoteEditor key={current.id} onRegisterEntries={onRegisterEntries} notes={notes} note={current} onOriginal={async id=>{if(await allowLeave()){setSelected(id);setMobileEditor(true);}}} originalExists={notes.some(note=>note.id===current.conflictOf)} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
   </div>
   {!focus&&<>{panes.separator(0)}{panes.separator(1)}</>}
   <EmptyNoteTrashDialog count={trashTargets?.length??null} onClose={()=>setTrashTargets(null)} onEmpty={confirmEmptyTrash}/>
@@ -68,8 +71,9 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
  </section>;
 }
 
-function NoteEditor({notes,note,onOriginal,originalExists,beforeLeave,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'notes'|'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;originalExists:boolean;onOriginal:(id:string)=>Promise<void>;beforeLeave:{current:()=>Promise<boolean>};onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
+function NoteEditor({onRegisterEntries,notes,note,onOriginal,originalExists,beforeLeave,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'onRegisterEntries'|'notes'|'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;originalExists:boolean;onOriginal:(id:string)=>Promise<void>;beforeLeave:{current:()=>Promise<boolean>};onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
  const [draft,setDraft]=useState(note),[status,setStatus]=useState('저장됨'),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[date,setDate]=useState(getTodayDateString);
+ const [registrationSource,setRegistrationSource]=useState<Note|null>(null);
  const [categoryOverride,setCategoryOverride]=useState<string|null>(null);
  const editorRoot=useRef<HTMLElement>(null);
  const [selectionText,setSelectionText]=useState(''),[linkExcerpt,setLinkExcerpt]=useState<string|undefined>(),[linkTitle,setLinkTitle]=useState<string|undefined>();
@@ -115,8 +119,9 @@ function NoteEditor({notes,note,onOriginal,originalExists,beforeLeave,schedules,
   <input autoFocus={!note.title&&!note.body&&!note.deletedAt} aria-label="메모 제목" placeholder="제목 없는 메모" maxLength={500} readOnly={!!draft.deletedAt} value={draft.title} onChange={e=>void update({title:e.target.value})} className="min-w-0 w-full px-3 pt-1.5 pb-2 text-xl font-bold outline-none bg-transparent"/>
   <RichNoteBody body={draft.body} runs={draft.richBody} blocks={draft.richDocument} readOnly={!!draft.deletedAt} onChange={(body,richBody,richDocument)=>void update({body,richBody,richDocument})}/>
   <div className="px-4 sm:px-6 py-2 flex gap-2 items-center"><label htmlFor="note-tags" className="text-xs text-app-muted shrink-0">태그</label><input id="note-tags" aria-label="메모 태그" placeholder="쉼표로 구분" readOnly={!!draft.deletedAt} value={draft.tags.join(', ')} onChange={e=>void update({tags:e.target.value.split(',').map(tag=>tag.trimStart())})} className="min-w-0 flex-1 py-1 text-xs outline-none"/></div>
+  <NoteRegistrationModal note={registrationSource} preferredCategory={categoryId||folders.find(folder=>folder.id===recommendations[0]?.id)?.defaultCategoryId||''} categories={categories} tasks={tasks} schedules={schedules} onClose={()=>setRegistrationSource(null)} onRegister={async(source,entries)=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');const result=await onRegisterEntries(source,entries);setNotice(`할 일 ${result.tasks}개 · 일정 ${result.schedules}개 등록${result.skipped?` · 중복 ${result.skipped}개 제외`:''}`);return result;}}/>
   {!draft.deletedAt&&<footer aria-label="할 일·일정 연결" className="border-t border-app-line px-3 py-2 flex flex-wrap gap-1.5 items-center bg-app-canvas">
-   <div className="w-full flex items-center justify-between text-[11px] text-app-muted"><span>할 일·일정으로 연결</span>{date!==getTodayDateString()&&<button type="button" className="min-h-7 px-2 text-app-accent-hover" onClick={()=>setDate(getTodayDateString())}>오늘</button>}</div>
+   <div className="w-full flex flex-wrap gap-1 items-center justify-between text-[11px] text-app-muted"><span>할 일·일정으로 연결</span>{date!==getTodayDateString()&&<button type="button" className="min-h-7 px-2 text-app-accent-hover" onClick={()=>setDate(getTodayDateString())}>오늘</button>}<button type="button" aria-label="내용에서 여러 항목 등록" className={button+' !min-h-7 !px-2 bg-app-soft text-app-accent-hover'} disabled={busy||(!draft.body.trim()&&!draft.title.trim())} onClick={()=>void navigate(()=>setRegistrationSource({...draft,...(selectionText&&draft.body.includes(selectionText)?{body:selectionText,richBody:undefined,richDocument:undefined}:{})}))}><CheckSquare className="w-3.5 h-3.5"/>여러 항목 등록</button></div>
    {(selectionText||linkExcerpt!==undefined)&&<div className="w-full flex flex-wrap gap-1 text-xs">{selectionText&&<button type="button" className={button+' bg-app-soft text-app-accent-hover'} onPointerDown={event=>event.preventDefault()} onClick={()=>{setLinkExcerpt(selectionText);setLinkTitle(undefined);}}>선택한 내용 사용</button>}{linkExcerpt!==undefined&&<button type="button" className={button+' text-app-muted'} onClick={()=>{setLinkExcerpt(undefined);setLinkTitle(undefined);}}>메모 전체 사용</button>}</div>}
    {linkExcerpt!==undefined&&<blockquote aria-label="연결할 선택 내용" className="w-full max-h-20 overflow-auto rounded-lg border-l-2 border-app-accent px-2 py-1 text-xs text-app-muted whitespace-pre-wrap break-words">{linkExcerpt}</blockquote>}
    <label className="w-full text-[11px] text-app-muted">등록할 제목<input aria-label="등록할 제목" maxLength={500} value={registrationTitle} onChange={event=>setLinkTitle(event.target.value)} className="w-full min-w-0 mt-1 min-h-8 px-2 text-sm border border-app-line rounded-lg bg-white text-app-ink"/></label>

@@ -9,7 +9,7 @@ export function useNotePaneSizes(){
  const widths:[number,number]=[folder,list];
  const save=(value:[number,number])=>{setPreferred(value);try{localStorage.setItem(KEY,JSON.stringify(value));}catch{/* 이번 창에서 폭 유지 */}};
  function finish(){const active=drag.current;if(!active)return;document.body.style.cursor=active.cursor;document.body.style.userSelect=active.select;drag.current=null;}
- useEffect(()=>{const element=root.current;if(!element)return;const update=()=>setWidth(element.clientWidth);update();const observer=new ResizeObserver(update);observer.observe(element);window.addEventListener('blur',finish);return()=>{observer.disconnect();window.removeEventListener('blur',finish);finish();};},[]);
+ useEffect(()=>{const element=root.current;if(!element)return;const update=()=>{if(element.clientWidth>0)setWidth(element.clientWidth);};update();const observer=new ResizeObserver(update);observer.observe(element);window.addEventListener('blur',finish);return()=>{observer.disconnect();window.removeEventListener('blur',finish);finish();};},[]);
  function start(event:PointerEvent,index:number){if(event.button!==0||!event.isPrimary)return;event.preventDefault();drag.current={index,x:event.clientX,widths,cursor:document.body.style.cursor,select:document.body.style.userSelect};document.body.style.cursor='col-resize';document.body.style.userSelect='none';event.currentTarget.setPointerCapture(event.pointerId);}
  function resize(index:number,value:number){const next:[number,number]=[...widths];next[index]=clamp(value,index===0?120:180,index===0?Math.min(360,width-list-280):Math.min(520,width-folder-280));save(next);}
  const reset=()=>{setPreferred(null);try{localStorage.removeItem(KEY);}catch{/* 기본 폭으로 복원 */}};
