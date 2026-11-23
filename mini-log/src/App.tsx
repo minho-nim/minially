@@ -119,8 +119,20 @@ const dateLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'num
 function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [listError, setListError] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<View>('drafts');
+  const [selectedId, setSelectedId] = useState<string | null>(() => readRoute().draftId);
+  const [view, setView] = useState<View>(() => readRoute().view);
+  // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
+  const firstRoute = useRef(true);
+  useEffect(() => {
+    const hash = routeHash(view, selectedId);
+    if (window.location.hash !== hash) window.history[firstRoute.current ? 'replaceState' : 'pushState'](null, '', hash);
+    firstRoute.current = false;
+  }, [view, selectedId]);
+  useEffect(() => {
+    const onPop = () => { const route = readRoute(); setView(route.view); setSelectedId(route.draftId); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -221,6 +233,15 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
     </div>
   );
 }
+
+/** 주소 ↔ 화면: '' 또는 #drafts = 원고 목록, #draft/아이디 = 원고 편집, #ideas 등 = 그 탭 */
+function readRoute(): { view: View; draftId: string | null } {
+  const hash = window.location.hash.slice(1);
+  const draft = hash.match(/^draft\/([0-9a-f-]{36})$/);
+  if (draft) return { view: 'drafts', draftId: draft[1] };
+  return { view: VIEWS.some(([key]) => key === hash) ? (hash as View) : 'drafts', draftId: null };
+}
+const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
 type View = 'drafts' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
 const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
@@ -623,14 +644,16 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   const pending = useRef<Fields | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  const flush = useCallback(async () => {
+  // leaving=true: 창을 닫거나 다른 앱으로 갈 때. 브라우저가 요청을 끊지 않게 keepalive(64KB 이하일 때만 가능)
+  const flush = useCallback(async (leaving = false) => {
     window.clearTimeout(timer.current);
     const next = pending.current;
     if (!next) return;
     pending.current = null;
     setSave('saving');
     try {
-      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: next });
+      const keepalive = leaving && new Blob([JSON.stringify(next)]).size < 60000;
+      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: next, keepalive });
       onSaved(saved);
       setSave(pending.current ? 'dirty' : 'saved');
     } catch {
@@ -651,6 +674,20 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     timer.current = window.setTimeout(() => { void flush(); }, 800);
   }
   useEffect(() => () => { void flush(); }, [flush]);
+  // 창 닫기·새로고침·다른 앱으로 넘어갈 때 0.8초를 기다리지 않고 바로 저장. 저장 전이면 닫기 전에 한 번 묻는다.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') void flush(true); };
+    const onPageHide = () => { void flush(true); };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => { if (pending.current) { void flush(true); event.preventDefault(); } };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [flush]);
 
   async function generate() {
     if (fields.experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }

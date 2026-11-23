@@ -40,7 +40,7 @@ test('원고를 만들고 AI 초안·자동 저장·승인·삭제를 한다', a
   await page.getByRole('button', { name: '원고 승인' }).click();
   await expect(page.getByText('저장됨')).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: /가짜 Gemini가 쓴 제목/ }).click();
+  await page.getByRole('button', { name: /가짜 Gemini가 쓴 제목/ }).first().click() /* 새로고침해도 원고가 열려 있어 목록 쪽(첫째)을 누름 */;
   await expect(page.getByLabel('본문')).toHaveValue('직접 고친 본문');
   await expect(page.locator('.badge')).toHaveText('승인됨');
   page.once('dialog', d => d.accept());

@@ -48,7 +48,7 @@
 | 미니로그 글감 추천: 다가오는 시기(앱 안 1년 달력 + 설·추석 날짜 표 2026~2029, 앞으로 45일) + 참고 블로그(사용자당 10개, 공개 RSS 최근 글 **제목만**) + 내 블로그(조회수 높은 글·자주 쓰는 태그·최근 글)·내 문체 요약·협찬 마감·게시 예정 → Gemini가 글감 8개(글감·제목·이유·해시태그·출처). "최신 검색 포함"을 켰을 때만 Gemini 구글 검색(`tools: google_search`, 이때는 JSON 모드를 못 써서 답 글에서 JSON을 꺼냄). 마지막 추천은 사용자별 저장. "이걸로 원고 만들기"(예정일 선택) → 제목·해시태그만 채운 원고(경험 칸은 비움). 구글 트렌드 RSS는 뉴스·연예 위주라 블로그 글감에 안 맞아 뺌(소유자 결정) | `mini-log/functions/_ideas.ts`(`upcomingSeasons`), `api/ideas/index.ts`·`watch.ts`, `mini-log/src/Ideas.tsx`, 표 `minilog_watch`·`minilog_ideas`, `callGemini`의 `search` | 가짜 Gemini로 시험(시기·참고 블로그 제목이 프롬프트에 들어감, 검색 모드에 tools 전송·글 섞인 JSON 읽기, 없는 블로그 오류, 다시 열어도 유지, 원고 생성, 비로그인 401, 시기 계산·해 넘김·설/추석). **실제 Gemini 검색 연결은 미검증**. 설·추석 표는 2029년까지라 그 뒤는 더해야 함 |
 | 미니로그 올리기 보조(원고 ④ 올리기·게시): 한 번에 복사(제목·본문·해시태그, 본문의 [사진 n]은 '📷 사진 n'으로), 블로그처럼 보이는 미리보기에서 제목·문단·사진·해시태그를 눌러 바로 복사(사진은 PNG 이미지로 클립보드에 넣어 글쓰기에 바로 붙여 넣기, `PostPreview.tsx`), 사진을 글 순서대로 `minilog_날짜_01.jpg`로 받기(한글 파일 이름은 일부 브라우저에서 'download'로 바뀌어 영문), 네이버 글쓰기 열기, 올린 뒤 주소 넣어 게시 완료 | `mini-log/src/publishKit.ts`, `mini-log/src/PostPreview.tsx`, `mini-log/src/App.tsx` Editor | 시험(클립보드 글·이미지(PNG), 받은 파일 이름 2개, 게시 완료 뒤 숨김). 네이버 글쓰기 주소(`GoBlogWrite.naver`)와 네이버 에디터에 이미지 붙여 넣기는 실제로 확인하지 못함 |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
-| 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
+| 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초, 창 닫기·다른 앱으로 갈 때는 바로 저장 keepalive, 저장 전 닫으면 확인)·승인·삭제·발행용 복사. 지금 탭·원고를 주소 해시(`#ideas`, `#draft/아이디`)에 남김(새로고침 유지, 뒤로 가기 = 이전 화면) | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
 | 사용자별 데이터 분리(모든 쿼리에 `WHERE user = ?`) | `mini-log/functions/_drafts.ts` | 시험(D가 C 원고 목록·조회·수정 불가, 비로그인 401) |
 | 미니로그 사진 여러 장 올리기(브라우저에서 긴 변 1600px JPG로 줄임, 장당 5MB·원고당 20장, 매직 바이트 검사) | `mini-log/functions/_photos.ts`, `api/drafts/[id]/photos.ts`, `api/photos/[id].ts` | 시험(로컬 R2) |
@@ -117,7 +117,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 8 passed (통합 대시보드·PWA 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 28 passed (올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
+| `mini-log`: `npm test` | 30 passed (주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
