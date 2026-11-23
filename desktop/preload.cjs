@@ -4,6 +4,7 @@ const on=(channel,callback)=>{const listener=(_,value)=>callback(value);ipcRende
 ipcRenderer.on('desktop:prepare-close',async(_,payload)=>{if(!payload||typeof payload.id!=='string')return;let ok=false;try{ok=(await Promise.all([...beforeClose].map(callback=>callback()))).every(value=>value!==false);}catch{}ipcRenderer.send('desktop:close-ready',{id:payload.id,ok});});
 contextBridge.exposeInMainWorld('miniallyDesktop',Object.freeze({
  mode:process.argv.includes('--minially-quick')?'quick':'main',
+ zoom:action=>ipcRenderer.invoke('desktop:zoom',action),
  windowAction:action=>ipcRenderer.invoke('desktop:window',action),
  getState:()=>ipcRenderer.invoke('desktop:state'),
  updatePreferences:patch=>ipcRenderer.invoke('desktop:preferences',patch),

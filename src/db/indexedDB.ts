@@ -847,6 +847,14 @@ export async function emptyNoteTrash(targets:Pick<Note,'id'|'updatedAt'>[]):Prom
   await tx.done;return removed;
  }catch(error){try{tx.abort();}catch{/* 이미 중단된 트랜잭션 */}await tx.done.catch(()=>{});throw error;}
 }
+/** 분류만 삭제하고 연결된 메모(휴지통 포함)는 내용 그대로 미분류로 옮긴다. */
+export async function deleteNoteFolder(id:string):Promise<number>{
+ if(typeof id!=='string'||!id)throw new Error('삭제할 분류를 확인해 주세요.');
+ const db=await getDB(),tx=db.transaction(['notes','noteFolders'],'readwrite');
+ try{const notes=await tx.objectStore('notes').getAll();let count=0;for(const note of notes){if(note.folderId!==id)continue;await tx.objectStore('notes').put({...note,folderId:'',updatedAt:Math.max(Date.now(),note.updatedAt+1)});count++;}await tx.objectStore('noteFolders').delete(id);await tx.done;return count;}
+ catch(error){try{tx.abort();}catch{/* 이미 종료된 트랜잭션 */}await tx.done.catch(()=>{});throw error;}
+}
+
 export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', {...folder,isUserManaged:true}); }
 
 export async function saveNoteTask(note: Note, date: string, categoryId = '', excerpt?:string, options:Pick<Task,'priority'|'checklist'>={priority:'medium',checklist:[]}): Promise<void> {

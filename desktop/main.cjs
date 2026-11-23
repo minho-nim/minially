@@ -1,3 +1,4 @@
+const {nextZoom}=require('./zoom.cjs');
 const path=require('node:path');
 const {app,BrowserWindow,protocol,session,net,shell,ipcMain,Tray,Menu,nativeImage,globalShortcut,dialog,screen}=require('electron');
 const {ORIGIN,trustedPage,externalURL,preferencePatch,UPDATE_FEED}=require('./policy.cjs');
@@ -16,6 +17,8 @@ const broadcast=(channel,value,except)=>{for(const win of windows())if(win.webCo
 const state=(win=mainWindow)=>({window:{maximized:!!win&&!win.isDestroyed()&&win.isMaximized(),focused:!!win&&!win.isDestroyed()&&win.isFocused()},version:app.getVersion(),platform:process.platform,preferences:preferences.get(),update:updates.get(),shortcut,shortcutAvailable,canStartOnLogin:process.platform==='win32'});
 const publishState=()=>{if(preferences&&updates)for(const win of windows())win.webContents.send('desktop:state-changed',state(win));};
 function authorized(event){return event.senderFrame===event.sender.mainFrame&&trustedPage(event.senderFrame.url);}
+let zoomQueue=Promise.resolve();
+function zoom(action){const request=zoomQueue.catch(()=>{}).then(()=>changePreferences({zoomFactor:nextZoom(preferences.get().zoomFactor,action)}));zoomQueue=request;return request;}
 function secureWindow(win){
  win.on('page-title-updated',event=>event.preventDefault());
  for(const event of ['focus','blur','maximize','unmaximize','restore','enter-full-screen','leave-full-screen'])win.on(event,publishState);
@@ -24,7 +27,7 @@ function secureWindow(win){
  win.webContents.on('will-attach-webview',event=>event.preventDefault());
  win.setMenuBarVisibility(false);
 }
-function webPreferences(quick=false){return{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,backgroundThrottling:false,additionalArguments:quick?['--minially-quick']:[]};}
+function webPreferences(quick=false){return{zoomFactor:preferences.get().zoomFactor,preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,backgroundThrottling:false,additionalArguments:quick?['--minially-quick']:[]};}
 function createMain(){
  if(mainWindow&&!mainWindow.isDestroyed()){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();return mainWindow;}
  mainWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width:1280,height:850,minWidth:820,minHeight:600,title:`미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/desktop-icon.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
@@ -46,11 +49,12 @@ function trayMenu(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([
 async function changePreferences(input){
  const patch=preferencePatch(input);if(Object.hasOwn(patch,'startOnLogin')&&process.platform!=='win32')throw new Error('로그인 시 실행은 Windows에서 설정할 수 있습니다.');
  const previous=preferences.get(),next=await preferences.update(patch);
- try{if(Object.hasOwn(patch,'startOnLogin'))app.setLoginItemSettings({openAtLogin:next.startOnLogin});for(const win of windows())win.setAlwaysOnTop(next.alwaysOnTop);updates.setAutoDownload(next.autoDownload);trayMenu();publishState();return state();}
+ try{if(Object.hasOwn(patch,'startOnLogin'))app.setLoginItemSettings({openAtLogin:next.startOnLogin});for(const win of windows()){if(Object.hasOwn(patch,'alwaysOnTop'))win.setAlwaysOnTop(next.alwaysOnTop);if(Object.hasOwn(patch,'zoomFactor'))win.webContents.setZoomFactor(next.zoomFactor);}updates.setAutoDownload(next.autoDownload);trayMenu();publishState();return state();}
  catch{await preferences.update(previous);publishState();throw new Error('앱 설정을 적용하지 못했습니다. 다시 시도해 주세요.');}
 }
 function registerIPC(){
  const handle=(name,fn)=>ipcMain.handle(name,async(event,...args)=>{if(!authorized(event))throw new Error('허용되지 않는 요청입니다.');return fn(event,...args);});
+ handle('desktop:zoom',(_,action)=>zoom(action));
  handle('desktop:state',event=>state(BrowserWindow.fromWebContents(event.sender)));handle('desktop:preferences',async(event,patch)=>{await changePreferences(patch);return state(BrowserWindow.fromWebContents(event.sender));});handle('desktop:main',()=>{createMain();});handle('desktop:quick',()=>{createQuick();});
  handle('desktop:window',(event,action)=>{
   if(!['minimize','maximize','close'].includes(action))throw new Error('지원하지 않는 창 동작입니다.');

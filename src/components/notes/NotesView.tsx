@@ -19,12 +19,13 @@ interface Props {
  categories:CategoryItem[]; notes:Note[]; folders:NoteFolder[]; tasks:Task[]; openNoteId?:string;
  onRegisterEntries:(note:Note,entries:NoteRegistrationInput[])=>Promise<NoteRegistrationResult>;
  onEmptyTrash:(targets:Pick<Note,'id'|'updatedAt'>[])=>Promise<number>;
+ onDeleteFolder:(id:string)=>Promise<void>;
  onSave:(note:Note,baseUpdatedAt?:number)=>Promise<void>; onSaveFolder:(folder:NoteFolder)=>Promise<void>;
  onTask:(note:Note,date:string,categoryId:string,excerpt?:string,options?:NoteTaskOptions)=>Promise<void>; onSchedule:(note:Note,categoryId:string,date:string,excerpt?:string)=>Promise<void>;
 }
 const button='inline-flex items-center justify-center gap-1.5 min-h-9 px-2.5 rounded-lg text-xs hover:bg-app-soft transition-colors disabled:opacity-50 cursor-pointer';
 const field='w-full min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line bg-white outline-none focus:border-app-accent';
-export function NotesView({noteDefaults,onSaveDefaults,active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,onEmptyTrash,onRegisterEntries,openNoteId}:Props){
+export function NotesView({noteDefaults,onSaveDefaults,active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onDeleteFolder,onTask,onSchedule,onEmptyTrash,onRegisterEntries,openNoteId}:Props){
  const panes=useNotePaneSizes();
  const [filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[selected,setSelected]=useState<string|null>(null),[focus,setFocus]=useState(false),[mobileEditor,setMobileEditor]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -75,7 +76,7 @@ export function NotesView({noteDefaults,onSaveDefaults,active=true,schedules,onO
   </div>
   {!focus&&<>{panes.separator(0)}{panes.separator(1)}</>}
   <EmptyNoteTrashDialog selectionOnly={trashSelectionOnly} count={trashTargets?.length??null} onClose={()=>setTrashTargets(null)} onEmpty={confirmEmptyTrash}/>
-  <NoteFolderModal open={folderDialog.open} folder={folderDialog.folder} categories={categories} onSave={onSaveFolder} onClose={()=>setFolderDialog(previous=>({...previous,open:false}))}/>
+  <NoteFolderModal noteCount={notes.filter(note=>note.folderId===folderDialog.folder?.id).length} onDelete={async id=>{if(!await allowLeave())throw new Error('메모를 먼저 다시 저장해 주세요.');await onDeleteFolder(id);if(filter===id)setFilter('all');}} open={folderDialog.open} folder={folderDialog.folder} categories={categories} onSave={onSaveFolder} onClose={()=>setFolderDialog(previous=>({...previous,open:false}))}/>
   {error&&<p role="alert" className="col-span-full px-4 py-2 text-xs text-red-600">{error}</p>}
  </section>;
 }

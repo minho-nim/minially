@@ -18,6 +18,7 @@ import {
   registerNoteEntries,
   emptyNoteTrash,
   saveNoteTask,
+  deleteNoteFolder as dbDeleteNoteFolder,
   getNoteFolders,
   saveNote as dbSaveNote,
   saveNoteFolder as dbSaveNoteFolder,
@@ -692,7 +693,7 @@ export default function App() {
   }
 
   return (
-    <div className={`${activeTab === 'calendar' ? 'h-dvh overflow-hidden' : 'min-h-dvh'} bg-app-canvas text-app-ink flex flex-col selection:bg-app-soft`}>
+    <div className={`${activeTab === 'calendar' ? 'h-dvh overflow-hidden' : activeTab==='notes'?'min-h-dvh md:h-dvh md:overflow-hidden':'min-h-dvh'} bg-app-canvas text-app-ink flex flex-col selection:bg-app-soft`}>
       {/* Offline Alert Banner */}
       <OfflineIndicator />
       {isDemo() && (
@@ -714,7 +715,7 @@ export default function App() {
       {registrationNotice && !(daySheetOpen&&activeTab==='calendar') && !scheduleModalOpen && !presetLibraryOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget && <RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={()=>setRegistrationNotice(null)} onUndo={registrationNotice.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}/>}
 
       {/* Main View Area (Mobile Optimized Max Width) */}
-      <main className={`app-main-content flex-1 min-h-0 ${activeTab === 'notes' ? 'max-w-[1600px]' : 'max-w-4xl'} w-full mx-auto p-3 sm:p-4 pb-24 md:pb-12`}>
+      <main className={`app-main-content flex-1 min-h-0 ${activeTab === 'notes' ? 'max-w-[1600px] md:pb-4' : 'max-w-4xl md:pb-12'} w-full mx-auto p-3 sm:p-4 pb-24`}>
         {/* 1. Calendar View (Default) */}
         {activeTab === 'calendar' && (
           <CalendarView
@@ -752,7 +753,7 @@ export default function App() {
           />
         )}
 
-        {(activeTab === 'notes'||notesVisited) && <div hidden={activeTab!=='notes'}><NotesView noteDefaults={settings.noteDefaults} onSaveDefaults={async noteDefaults=>handleUpdateSettings({...settings,noteDefaults})} active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
+        {(activeTab === 'notes'||notesVisited) && <div className="md:h-full" hidden={activeTab!=='notes'}><NotesView noteDefaults={settings.noteDefaults} onSaveDefaults={async noteDefaults=>handleUpdateSettings({...settings,noteDefaults})} active={activeTab==='notes'} schedules={schedules} onOpenTask={openConnectedTask} onOpenSchedule={id=>openConnectedSchedule(schedules.find(schedule=>schedule.id===id))} categories={categories} openNoteId={openNoteId} notes={notes} folders={noteFolders} tasks={tasks}
           onSave={async (note,baseUpdatedAt) => {
             const copy=await dbSaveNote(note,baseUpdatedAt);
             window.miniallyDesktop?.notifySaved();
@@ -761,6 +762,7 @@ export default function App() {
           }}
           onRegisterEntries={async(note,entries)=>{const result=await registerNoteEntries(note,entries);window.miniallyDesktop?.notifySaved();if(result.history)setUndoNotice({id:result.history.id,message:result.history.description,entry:result.history});await reloadData();return result;}}
           onEmptyTrash={async targets=>{const removed=await emptyNoteTrash(targets);window.miniallyDesktop?.notifySaved();await reloadData();return removed.length;}}
+          onDeleteFolder={async id=>{await dbDeleteNoteFolder(id);window.miniallyDesktop?.notifySaved();await reloadData();}}
           onSaveFolder={async folder => { await dbSaveNoteFolder(folder); window.miniallyDesktop?.notifySaved(); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
           onTask={async (note, date, categoryId, excerpt, options) => {
             await saveNoteTask(note, date, categoryId, excerpt, options);
