@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { api, ApiError, APP_LINKS } from '../../shared/client/api';
+import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
 
@@ -187,6 +187,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
       <main className="main">
         {view === 'style' ? <StyleView onBack={() => setView('drafts')} />
+        : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} />
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
@@ -203,8 +204,107 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   );
 }
 
-type View = 'drafts' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['style', '내 문체']];
+type View = 'drafts' | 'dashboard' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['dashboard', '대시보드'], ['style', '내 문체']];
+
+interface Dashboard {
+  since: string; gemini: { connected: boolean };
+  ai: { calls: number; errors: number; input_tokens: number; output_tokens: number; tasks: { task: string; calls: number; tokens: number }[]; error_codes: { error_code: string; count: number }[] };
+  drafts: { draft: number; approved: number; published: number; published_this_month: number };
+  photos: { count: number; bytes: number; expiring: { id: string; title: string; count: number; expires_at: number }[] };
+}
+const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '문체 분석' };
+const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
+const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}MB`;
+
+function DashboardView({ onBack, onOpen }: { onBack: () => void; onOpen: (id: string) => void }) {
+  const [data, setData] = useState<Dashboard | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    api<Dashboard>('/api/dashboard').then(setData).catch(e => setError(e instanceof Error ? e.message : '불러오지 못했어요.'));
+  }, []);
+  const month = data ? new Date(data.since).getUTCMonth() + 1 : 0;
+  const totalDrafts = data ? data.drafts.draft + data.drafts.approved + data.drafts.published : 0;
+  return (
+    <article className="stack" aria-labelledby="dash-title">
+      <div className="editor-head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn ghost back" onClick={onBack}>← 목록</button>
+          <h1 id="dash-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>내 대시보드</h1>
+        </div>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      {!data && !error && <p className="muted small" role="status">불러오는 중…</p>}
+      {data && (
+        <>
+          <div className="kpis">
+            <div className="card kpi"><span className="label">{month}월 게시한 글</span><span className="value">{formatNumber(data.drafts.published_this_month)}</span><span className="hint">전체 게시 {formatNumber(data.drafts.published)}</span></div>
+            <div className="card kpi"><span className="label">{month}월 AI 호출</span><span className="value">{formatNumber(data.ai.calls)}</span><span className="hint">미니로그에서만</span></div>
+            <div className="card kpi"><span className="label">{month}월 토큰</span><span className="value">{formatNumber(data.ai.input_tokens + data.ai.output_tokens)}</span><span className="hint">입력 {formatNumber(data.ai.input_tokens)} · 출력 {formatNumber(data.ai.output_tokens)}</span></div>
+            <div className="card kpi"><span className="label">{month}월 오류</span><span className={`value${data.ai.errors ? ' off' : ''}`}>{formatNumber(data.ai.errors)}</span><span className="hint">{data.gemini.connected ? 'Gemini 연결됨' : 'Gemini 연결 안 됨'}</span></div>
+          </div>
+
+          <div className="dash-grid">
+            <section className="card step" aria-labelledby="d-drafts">
+              <h2 id="d-drafts" className="step-title">원고 현황<span className="step-sub">전체 {formatNumber(totalDrafts)}개</span></h2>
+              {totalDrafts === 0 ? <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요.</p> : (
+                <>
+                  <div className="stack-bar" role="img" aria-label={`작성 중 ${data.drafts.draft}, 승인됨 ${data.drafts.approved}, 게시됨 ${data.drafts.published}`}>
+                    <span className="s-draft" style={{ flexGrow: data.drafts.draft }} />
+                    <span className="s-approved" style={{ flexGrow: data.drafts.approved }} />
+                    <span className="s-published" style={{ flexGrow: data.drafts.published }} />
+                  </div>
+                  <ul className="legend-list">
+                    <li><i className="s-draft" />작성 중 <b>{data.drafts.draft}</b></li>
+                    <li><i className="s-approved" />승인됨 <b>{data.drafts.approved}</b></li>
+                    <li><i className="s-published" />게시됨 <b>{data.drafts.published}</b></li>
+                  </ul>
+                </>
+              )}
+            </section>
+
+            <section className="card step" aria-labelledby="d-photos">
+              <h2 id="d-photos" className="step-title">사진 저장<span className="step-sub">{formatNumber(data.photos.count)}장 · {megabytes(data.photos.bytes)}</span></h2>
+              {data.photos.expiring.length === 0 ? (
+                <p className="muted small" style={{ margin: 0 }}>삭제 예정인 사진이 없어요. 게시 완료한 원고의 사진은 30일 뒤에 지워져요.</p>
+              ) : (
+                <ul className="expiring">
+                  {data.photos.expiring.map(item => (
+                    <li key={item.id}>
+                      <button className="link-button" onClick={() => onOpen(item.id)}>{item.title.trim() || '제목 없는 원고'}</button>
+                      <span className="muted small">사진 {item.count}장 · {dayLabel(item.expires_at)} 삭제</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card step" aria-labelledby="d-ai">
+              <h2 id="d-ai" className="step-title">AI 작업별</h2>
+              {data.ai.tasks.length === 0 ? <p className="muted small" style={{ margin: 0 }}>이번 달에는 아직 AI를 쓰지 않았어요.</p> : (
+                <table className="mini-table">
+                  <thead><tr><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
+                  <tbody>{data.ai.tasks.map(t => <tr key={t.task}><td>{TASK_LABEL[t.task] ?? t.task}</td><td>{formatNumber(t.calls)}</td><td>{formatNumber(t.tokens)}</td></tr>)}</tbody>
+                </table>
+              )}
+              {data.ai.error_codes.length > 0 && (
+                <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
+              )}
+            </section>
+
+            <section className="card step" aria-labelledby="d-revenue">
+              <h2 id="d-revenue" className="step-title">협찬·광고 수익</h2>
+              <div className="profile">
+                <Tomong kind="minilog" size={44} />
+                <p className="muted small" style={{ margin: 0 }}>수익 기록은 다음 단계에서 만들어요. 협찬 캠페인과 광고 수익을 적으면 여기에 월별로 모여요.</p>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+    </article>
+  );
+}
 
 interface StyleProfile { summary: string; tone: string; sentence: string; structure: string; expressions: string[]; emoji: string; hashtags: string }
 interface Style { samples: string[]; profile: StyleProfile | null; analyzed_at: number | null; updated_at: number | null }
