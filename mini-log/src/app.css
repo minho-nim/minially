@@ -199,3 +199,6 @@ select.input { appearance: auto; }
 .blog-links li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; }
 .blog-links a { color: var(--text); }
 .blog-links li > .muted { flex: 1; }
+.platform { font-size: 0.72rem; font-weight: 800; padding: 1px 8px; border-radius: 999px; color: #fff; }
+.platform.p-naver { background: #03A94D; }
+.platform.p-tistory { background: #EB531F; }

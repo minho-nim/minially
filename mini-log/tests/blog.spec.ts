@@ -11,7 +11,7 @@ test('블로그 여러 개를 연결해 RSS 글을 가져오고, 원고와 짝�
   await page.getByRole('button', { name: '블로그', exact: true }).click();
   await page.getByLabel('블로그 아이디').fill('nobody');
   await page.getByRole('button', { name: '연결하고 가져오기' }).click();
-  await expect(page.getByRole('alert')).toContainText('nobody: 그 아이디의 블로그를 찾지 못했어요.');
+  await expect(page.getByRole('alert')).toContainText('nobody: 그 블로그를 찾지 못했어요.');
   page.once('dialog', d => d.accept());
   await page.getByRole('button', { name: 'nobody 연결 지우기' }).click();
   await expect(page.locator('.blog-links')).toHaveCount(0);
@@ -31,6 +31,17 @@ test('블로그 여러 개를 연결해 RSS 글을 가져오고, 원고와 짝�
   await page.getByRole('tab', { name: 'second_blog' }).click();
   await expect(page.locator('.post')).toHaveCount(1);
   await page.getByRole('tab', { name: '전체' }).click();
+
+  // 티스토리 블로그도 주소로 연결(태그는 category에서)
+  await page.getByLabel('블로그 아이디').fill('https://mytravel.tistory.com/');
+  await page.getByRole('button', { name: '연결하고 가져오기' }).click();
+  await expect(page.getByRole('status')).toContainText('글 1개(새로 1개)');
+  await expect(page.locator('.blog-links li', { hasText: 'mytravel' })).toContainText('티스토리');
+  await expect(page.locator('.post', { hasText: '제주 여행 3박 4일 코스' })).toContainText('#여행 #제주');
+  await expect(page.locator('.post')).toHaveCount(5);
+  page.once('dialog', d => d.accept());
+  await page.getByRole('button', { name: 'mytravel 연결 지우기' }).click();
+  await expect(page.locator('.post')).toHaveCount(4);
 
   // 통계 캡처 → AI가 읽은 숫자 기록(없는 글은 못 찾음으로 알림)
   await page.locator('input[type=file]').setInputFiles({ name: 'stats.png', mimeType: 'image/png', buffer: pngBytes(30, 30, [250, 250, 250]) });
@@ -68,6 +79,7 @@ test('블로그 기록은 본인만 보고, 잘못된 값은 거절한다', asyn
   const r = await d.evaluate(async () => {
     const res = { blog: await (await fetch('/api/blog')).json() } as Record<string, unknown>;
     res.badId = (await fetch('/api/blog', { method: 'POST', body: JSON.stringify({ blog_id: '<script>' }) })).status;
+    res.badTistory = (await fetch('/api/blog', { method: 'POST', body: JSON.stringify({ blog_id: 'bad_name!.tistory.com' }) })).status;
     res.syncNoBlog = (await fetch('/api/blog/sync', { method: 'POST' })).status;
     res.otherPost = (await fetch('/api/blog/posts/223000000001', { method: 'PUT', body: JSON.stringify({ views: 1 }) })).status;
     res.statsNoPosts = (await fetch('/api/blog/stats', { method: 'POST', body: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0, 0]) })).status;
@@ -77,7 +89,7 @@ test('블로그 기록은 본인만 보고, 잘못된 값은 거절한다', asyn
     return res;
   });
   expect(r.blog).toEqual({ blogs: [], posts: [] });
-  expect([r.badId, r.syncNoBlog, r.otherPost, r.statsNoPosts, r.sixth]).toEqual([400, 400, 404, 400, 400]);
+  expect([r.badId, r.badTistory, r.syncNoBlog, r.otherPost, r.statsNoPosts, r.sixth]).toEqual([400, 400, 400, 404, 400, 400]);
   const c = await browser.newPage();
   await login(c, CODE_C);
   expect(await c.evaluate(async () => (await fetch('/api/blog/posts/223000000001', { method: 'PUT', body: JSON.stringify({ views: -5 }) })).status)).toBe(400);
