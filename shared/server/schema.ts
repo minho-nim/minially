@@ -2,9 +2,18 @@ import type { D1Database } from './d1';
 
 // 미니어리 표(sync_*)와 같은 D1을 쓰므로 이름 앞에 hub_·ai_·minilog_를 붙여 겹치지 않게 한다.
 // 기존 표는 건드리지 않는다(만들기만 하고 지우거나 바꾸지 않음).
-let ready = false;
+// 표 만들기는 DB(바인딩)마다 한 번만. 같은 Worker 안에서 다른 DB가 오면 그 DB도 확인한다.
+const ready = new WeakSet<object>();
+
+const SAFE_NAME = /^[a-z_]+$/;
+/** 칸이 없을 때만 ALTER TABLE ADD COLUMN(이름은 이 파일의 상수만 받는다) */
+async function ensureColumn(db: D1Database, table: string, column: string, type: string) {
+  if (!SAFE_NAME.test(table) || !SAFE_NAME.test(column) || !/^[A-Z ]+$/.test(type)) throw new Error('bad schema name');
+  const columns = (await db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>()).results;
+  if (!columns.some(c => c.name === column)) await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`).run();
+}
 export async function ensureHubSchema(db: D1Database) {
-  if (ready) return;
+  if (ready.has(db)) return;
   await db.batch([
     // 서버 세션: 토큰 원문 대신 해시만 저장. app은 세션을 만든 앱(다른 앱에서는 못 씀).
     db.prepare('CREATE TABLE IF NOT EXISTS hub_sessions (token_hash TEXT PRIMARY KEY, user TEXT NOT NULL, app TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)'),
@@ -29,5 +38,7 @@ export async function ensureHubSchema(db: D1Database) {
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_campaigns (id TEXT PRIMARY KEY, user TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'sponsor', brand TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '', provided TEXT NOT NULL DEFAULT '', amount INTEGER NOT NULL DEFAULT 0, deadline TEXT, status TEXT NOT NULL DEFAULT 'proposed', paid_on TEXT, draft_id TEXT, memo TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_campaigns_user ON minilog_campaigns (user, status, deadline)'),
   ]);
-  ready = true;
+  // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
+  await ensureColumn(db, 'minilog_drafts', 'planned_on', 'TEXT'); // 게시 예정일 YYYY-MM-DD
+  ready.add(db);
 }
