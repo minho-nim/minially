@@ -20,6 +20,7 @@ try {
   $env:LOCALAPPDATA = Join-Path $testRoot 'local'
   New-Item -ItemType Directory -Force $env:APPDATA,$env:LOCALAPPDATA | Out-Null
   $installer = Start-Process -FilePath (Resolve-Path 'desktop-dist/Minially-Setup.exe') -ArgumentList @('--updated','--force-run',"/D=$installDir") -PassThru
+  $null = $installer.Handle
   $deadline = (Get-Date).AddMinutes(2)
   $script:visibleInstaller = $false
   do {
@@ -36,11 +37,13 @@ try {
     Start-Sleep -Milliseconds 50
     $installer.Refresh()
   } while (-not $installer.HasExited)
+  $installer.WaitForExit()
   if ($script:visibleInstaller) { throw '업데이트 설치 진행창이 표시됐습니다.' }
   if ($installer.ExitCode -ne 0) { throw "설치 실패: $($installer.ExitCode)" }
   if (-not (Test-Path (Join-Path $installDir 'Minially.exe'))) { throw '설치된 앱을 찾을 수 없습니다.' }
   Write-Output '이전 updater 인수(/S 없음)로 설치창 없이 업데이트 설치 성공'
 } finally {
+  if ($installer -and -not $installer.HasExited) { Stop-Process -Id $installer.Id -Force -ErrorAction SilentlyContinue }
   Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($testRoot,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
   $env:APPDATA = $oldAppData
   $env:LOCALAPPDATA = $oldLocalAppData

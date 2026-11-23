@@ -857,10 +857,12 @@ export async function saveNoteTask(note: Note, date: string, categoryId = '', ex
   if(new TextEncoder().encode(JSON.stringify([note.body,excerpt,checklist])).length>220*1024)throw new Error('할 일 내용이 너무 깁니다. 나눠서 등록해 주세요.');
   const db = await getDB();
   const tx = db.transaction(['tasks', 'categories'], 'readwrite');
-  if (categoryId && !(await tx.objectStore('categories').get(categoryId))) { await tx.done; throw new Error('없는 카테고리입니다. 다시 선택해 주세요.'); }
+  try {
+  if (categoryId && !(await tx.objectStore('categories').get(categoryId))) { throw new Error('없는 카테고리입니다. 다시 선택해 주세요.'); }
   const existing = (await tx.objectStore('tasks').getAll()).some(task => task.sourceNoteId === note.id && task.dueDate === date && (task.sourceNoteExcerpt??'')===(excerpt??''));
   if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, sourceNoteExcerpt:excerpt, dueDate:date, status:'todo', priority:options.priority, checklist});
   await tx.done;
+  }catch(error){try{tx.abort();}catch{/* 이미 종료된 트랜잭션 */}await tx.done.catch(()=>{});if(error instanceof DOMException)throw new Error('할 일을 저장하지 못했습니다. 저장 공간을 확인한 뒤 다시 시도해 주세요.');throw error;}
 }
 
 /** 한 메모에서 고른 항목을 한 트랜잭션에 저장한다. 재시도와 동시 등록은 같은 ID를 쓴다. */
