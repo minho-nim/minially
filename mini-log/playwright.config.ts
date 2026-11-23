@@ -17,7 +17,7 @@ export default defineConfig({
     { command: `node ../shared/testing/mock-gemini.mjs ${MOCK}`, url: `http://127.0.0.1:${MOCK}/health`, reuseExistingServer: false },
     {
       // 사용자 D는 Gemini 키가 없는 상태로 시험한다.
-      command: `rm -rf .wrangler/test-state && npm run build && npx wrangler pages dev dist --ip 127.0.0.1 --port ${PORT} --d1 DB=minihub-test --r2 MINILOG_PHOTOS --persist-to .wrangler/test-state --binding USER_CODE_HASHES=C:${hash(CODE_C)},D:${hash(CODE_D)} GEMINI_KEY_C=test-key GEMINI_API_BASE=http://127.0.0.1:${MOCK} BLOG_RSS_BASE=http://127.0.0.1:${MOCK}/rss TRENDS_RSS_URL=http://127.0.0.1:${MOCK}/trends.xml`,
+      command: `rm -rf .wrangler/test-state && npm run build && npx wrangler pages dev dist --ip 127.0.0.1 --port ${PORT} --d1 DB=minihub-test --r2 MINILOG_PHOTOS --persist-to .wrangler/test-state --binding USER_CODE_HASHES=C:${hash(CODE_C)},D:${hash(CODE_D)} GEMINI_KEY_C=test-key GEMINI_API_BASE=http://127.0.0.1:${MOCK} BLOG_RSS_BASE=http://127.0.0.1:${MOCK}/rss`,
       url: `http://127.0.0.1:${PORT}/version.json`,
       reuseExistingServer: false,
       timeout: 120000,

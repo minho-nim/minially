@@ -194,12 +194,14 @@ function OverviewPanel({ month }: { month: number }) {
             </table>
           </div>
           <div>
+            {data.revenue.months.some(m => m.total > 0) ? (
             <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
               {data.revenue.months.map(m => {
                 const max = Math.max(1, ...data.revenue.months.map(x => x.total));
                 return <div key={m.month} className="rev-col"><span className="rev-bar" style={{ height: `${Math.max(m.total ? 6 : 2, (m.total / max) * 100)}%` }} /><span className="rev-label">{Number(m.month.slice(5))}월</span></div>;
               })}
             </div>
+            ) : <p className="muted small" style={{ margin: 0 }}>최근 6개월 받은 금액이 아직 없어요.</p>}
           </div>
         </div>
         {data.revenue.upcoming.length > 0 ? (

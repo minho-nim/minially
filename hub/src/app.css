@@ -37,7 +37,8 @@
 .kpi.sig .label, .kpi.sig .hint, .kpi.sig .value { color: #fff; }
 
 .apps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.app-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; align-items: center; padding: 18px 20px; border: 0; }
+.app-card { --text: #2B2233; --muted: #5E5262; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; align-items: center; padding: 18px 20px; border: 0; }
+/* 앱 카드는 어두운 모드에서도 밝은 파스텔 바탕이라 글자(로고 'mini' 포함)를 진한색으로 고정 */
 .app-card.minially { --app: #D9577F; background: #FDE3EA; }
 .app-card.minilog { --app: #E37D12; background: #FFEBD6; }
 .app-card h3 { margin: 0; color: #2B2233; }
@@ -76,8 +77,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .side-foot { margin: 0 0 0 auto; padding: 0; border: 0; display: flex; align-items: center; gap: 4px; }
   .side-foot .btn { min-height: 40px; padding: 0 10px; }
   .side-foot .who-text { display: none; }
-  .nav-wrap { order: 3; width: 100%; overflow-x: auto; display: flex; gap: 4px; }
-  .nav { display: flex; gap: 4px; }
+  .nav-wrap { order: 3; width: 100%; display: flex; flex-wrap: wrap; gap: 4px; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px; }
   .nav a { white-space: nowrap; min-height: 36px; }
   .nav-label { display: none; }
   .main { padding: 18px 16px 48px; gap: 24px; }

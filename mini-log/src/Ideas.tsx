@@ -3,13 +3,13 @@ import { api } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { blogInfo } from './Blog';
 
-// 글감 추천: 오늘의 구글 트렌드 + 참고 블로그 최근 글 제목 + 내 블로그·일정 → AI가 글감 제안
+// 글감 추천: 다가오는 시기 + 참고 블로그 최근 글 제목 + 내 블로그·일정 → AI가 글감 제안
 export interface Idea { topic: string; title: string; reason: string; hashtags: string[]; source: string }
-interface Trend { keyword: string; traffic: string; news: string[] }
+interface Season { label: string; from: string; to: string }
 interface Watch { blog_id: string; titles: string[]; synced_at: number | null }
-interface IdeasData { trends: { day: string; items: Trend[]; error?: string }; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
+interface IdeasData { seasons: Season[]; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
 
-const SOURCE: Record<string, string> = { trend: '트렌드', blogs: '참고 블로그', mine: '내 블로그', season: '계절', search: '구글 검색' };
+const SOURCE: Record<string, string> = { blogs: '참고 블로그', mine: '내 블로그', season: '시기', search: '구글 검색' };
 
 export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea: Idea, plannedOn: string | null) => Promise<void> }) {
   const [data, setData] = useState<IdeasData | null>(null);
@@ -25,8 +25,8 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
   async function recommend() {
     setBusy('ideas'); setMessage(null);
     try {
-      const made = await api<{ ideas: Idea[]; used_search: boolean; created_at: number; trends: IdeasData['trends'] }>('/api/ideas', { body: { search } });
-      setData(d => d && { ...d, trends: made.trends, last: { ideas: made.ideas, used_search: made.used_search, created_at: made.created_at } });
+      const made = await api<{ ideas: Idea[]; used_search: boolean; created_at: number }>('/api/ideas', { body: { search } });
+      setData(d => d && { ...d, last: { ideas: made.ideas, used_search: made.used_search, created_at: made.created_at } });
       setDates({});
     } catch (e) { fail(e, '글감을 받지 못했어요.'); }
     finally { setBusy(null); }
@@ -66,7 +66,7 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
 
       <section className="card step" aria-labelledby="rec-title">
         <h2 id="rec-title" className="step-title">글감 추천받기{data?.last && <span className="step-sub">마지막 {new Date(data.last.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{data.last.used_search ? ' · 검색 포함' : ''}</span>}</h2>
-        <p className="muted small" style={{ margin: 0 }}>오늘의 구글 트렌드, 아래 참고 블로그의 최근 글 제목, 내 블로그(조회수 높은 글·자주 쓰는 태그)와 협찬 마감·게시 예정을 보고 AI가 글감을 골라 줘요. 다른 블로그 글은 제목만 참고해요.</p>
+        <p className="muted small" style={{ margin: 0 }}>다가오는 시기(설·추석·크리스마스·휴가철 등), 아래 참고 블로그의 최근 글 제목, 내 블로그(조회수 높은 글·자주 쓰는 태그)와 협찬 마감·게시 예정을 보고 AI가 글감을 골라 줘요. 다른 블로그 글은 제목만 참고해요.</p>
         <div className="publish-row" style={{ alignItems: 'center' }}>
           <label className="check"><input type="checkbox" checked={search} onChange={e => setSearch(e.target.checked)} disabled={busy !== null} /> 최신 검색 포함<span className="muted small"> (Gemini가 구글 검색도 해요, 사용량이 더 들어요)</span></label>
           <button className="btn primary" onClick={() => { void recommend(); }} disabled={!data || busy !== null}>{busy === 'ideas' ? '고르는 중…' : ideas.length ? '다시 추천받기' : '글감 추천받기'}</button>
@@ -93,14 +93,14 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
         )}
       </section>
 
-      <section className="card step" aria-labelledby="trend-title">
-        <h2 id="trend-title" className="step-title">오늘의 트렌드<span className="step-sub">{data?.trends.day ?? ''} · 구글 트렌드(한국)</span></h2>
-        {data?.trends.error && <p className="muted small" style={{ margin: 0 }}>{data.trends.error}</p>}
-        {data && data.trends.items.length > 0 ? (
+      <section className="card step" aria-labelledby="season-title">
+        <h2 id="season-title" className="step-title">다가오는 시기<span className="step-sub">앞으로 45일</span></h2>
+        <p className="muted small" style={{ margin: 0 }}>시기 1~3주 전에 올리면 검색이 많이 들어와요. 글감을 고를 때 AI가 이 시기를 먼저 봐요.</p>
+        {data && (data.seasons.length > 0 ? (
           <ul className="trend-chips">
-            {data.trends.items.slice(0, 20).map(t => <li key={t.keyword} title={t.news[0] ?? ''}>{t.keyword}{t.traffic && <span className="muted"> {t.traffic}</span>}</li>)}
+            {data.seasons.map(x => <li key={`${x.from}-${x.label}`}>{x.label}<span className="muted"> {Number(x.from.slice(5, 7))}/{Number(x.from.slice(8))}~{Number(x.to.slice(5, 7))}/{Number(x.to.slice(8))}</span></li>)}
           </ul>
-        ) : data && !data.trends.error && <p className="muted small" style={{ margin: 0 }}>오늘 트렌드가 아직 없어요.</p>}
+        ) : <p className="muted small" style={{ margin: 0 }}>45일 안에 특별한 시기가 없어요.</p>)}
       </section>
 
       <section className="card step" aria-labelledby="watch-title">

@@ -144,8 +144,9 @@ select.input { appearance: auto; }
 .row-between { flex-wrap: wrap; }
 .row-between > .step-title { white-space: nowrap; }
 
-.views { flex-wrap: wrap; }
-.views button { flex: 1 1 30%; }
+/* 메뉴 7개: 4개 + 3개 두 줄(자주 쓰는 원고·글감·캘린더·대시보드가 첫 줄) */
+.views { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.views button { padding: 0 2px; font-size: 0.8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cal-nav { align-items: center; }
 .cal-month { font-weight: 800; min-width: 96px; text-align: center; font-variant-numeric: tabular-nums; }
 .cal-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
@@ -212,7 +213,41 @@ select.input { appearance: auto; }
 .idea-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 .small-input { min-height: 36px; padding: 4px 8px; width: auto; }
 .src { font-size: 0.72rem; font-weight: 800; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); white-space: nowrap; }
-.src.s-trend, .src.s-search { background: var(--sig-soft); border-color: transparent; }
+.src.s-season, .src.s-search { background: var(--sig-soft); border-color: transparent; }
 .trend-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .trend-chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 0.86rem; font-weight: 700; }
 .watch-titles { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 올리기 보조 */
+.post-kit { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; counter-reset: kit; }
+.post-kit li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: center; counter-increment: kit; }
+.kit-label { font-weight: 800; font-size: 0.9rem; }
+.kit-label::before { content: counter(kit) ". "; color: var(--muted, #8a7f8c); }
+.kit-buttons { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.kit-buttons .muted { flex: 1 1 200px; }
+@media (max-width: 520px) { .post-kit li { grid-template-columns: 1fr; gap: 6px; } }
+.post-kit li.kit-wide { grid-template-columns: 92px minmax(0, 1fr); }
+.post-kit li.kit-wide .post-preview { grid-column: 1 / -1; }
+.post-preview { display: grid; gap: 4px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); max-width: 720px; width: 100%; justify-self: center; }
+.pv-help { margin: 0 0 6px; }
+.pv-block { position: relative; display: block; width: 100%; text-align: left; font: inherit; color: var(--text); background: none; border: 1px dashed transparent; border-radius: 10px; padding: 6px 34px 6px 8px; cursor: copy; transition: background-color .15s ease, border-color .15s ease; }
+.pv-block:hover, .pv-block:focus-visible { background: var(--sig-soft); border-color: var(--line); }
+.pv-block:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pv-block:active { transform: scale(0.995); }
+.pv-block.copied { background: var(--sig-soft); border-color: var(--sig); }
+.pv-icon { position: absolute; top: 8px; right: 8px; display: inline-flex; color: var(--muted, #8a7f8c); }
+.pv-block.copied .pv-icon { color: var(--sig); }
+.pv-title { margin: 0; font-size: 1.35rem; line-height: 1.35; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.pv-body { display: grid; gap: 2px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 6px 0; }
+.pv-text { margin: 0; white-space: pre-wrap; line-height: 1.8; overflow-wrap: anywhere; }
+.pv-photo { padding: 6px; text-align: center; }
+.pv-photo img { display: block; max-width: 100%; max-height: 420px; min-height: 120px; object-fit: contain; margin: 0 auto; border-radius: 6px; }
+.pv-tags { margin: 0; color: var(--text); font-weight: 600; overflow-wrap: anywhere; }
+.pv-missing { margin: 4px 8px; color: var(--muted, #8a7f8c); }
+.pv-empty { margin: 4px 8px; }
+@media (prefers-reduced-motion: reduce) { .pv-block { transition: none; } .pv-block:active { transform: none; } }
+.pv-photo .pv-icon { background: var(--surface); border-radius: 6px; padding: 3px; top: 10px; right: 10px; }
+@media (max-width: 520px) {
+  .post-kit li.kit-wide { grid-template-columns: 1fr; }
+  .post-preview { padding: 12px 10px; }
+}

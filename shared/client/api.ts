@@ -5,7 +5,7 @@ export class ApiError extends Error {
   constructor(message: string, public status: number, public code?: string) { super(message); }
 }
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
+export async function api<T>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal; keepalive?: boolean } = {}): Promise<T> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -14,6 +14,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       credentials: 'same-origin',
       signal: init.signal,
+      keepalive: init.keepalive,
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;

@@ -9,12 +9,6 @@ createServer((req, res) => {
   req.on('end', () => {
     const send = (status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (req.url === '/health') return send(200, { ok: true });
-    // 구글 트렌드 RSS 흉내: /trends.xml
-    if (req.url === '/trends.xml') {
-      const item = (k, t, n) => `<item><title>${k}</title><ht:approx_traffic>${t}</ht:approx_traffic><ht:news_item><ht:news_item_title><![CDATA[${n}]]></ht:news_item_title></ht:news_item></item>`;
-      res.writeHead(200, { 'content-type': 'application/rss+xml; charset=utf-8' });
-      return res.end(`<?xml version="1.0" encoding="UTF-8"?><rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0"><channel><title>Daily Search Trends</title>${item('첫눈', '50000+', '서울 첫눈 관측 &amp; 출근길 주의')}${item('붕어빵 지도', '20000+', '올겨울 붕어빵 가격은')}</channel></rss>`);
-    }
     // 티스토리 RSS 흉내: /rss/tistory/{이름}/rss (태그는 <category>로)
     const tistory = (req.url ?? '').match(/^\/rss\/tistory\/([^/]+)\/rss$/);
     if (tistory) {
@@ -49,7 +43,7 @@ createServer((req, res) => {
       // 검색 모드(tools)면 JSON 앞뒤에 설명 글이 섞여 오는 것까지 흉내 낸다
       const search = Array.isArray(JSON.parse(raw || '{}').tools);
       const ideas = [
-        prompt.includes('첫눈') ? { topic: '첫눈 오는 날 가기 좋은 카페', title: '첫눈 오는 날, 창가 자리 카페 3곳', reason: '오늘 트렌드 첫눈', hashtags: ['#첫눈', '카페'], source: 'trend' } : { topic: '트렌드 없음', title: '트렌드 없이 쓴 글감', reason: '트렌드 없음', hashtags: [], source: 'season' },
+        /\[다가오는 시기\]\n- \d\d-\d\d~/.test(prompt) ? { topic: '시기에 맞춘 카페 글', title: '시기 맞춤: 창가 자리 카페 3곳', reason: '다가오는 시기', hashtags: ['#카페', '데이트'], source: 'trend' } : { topic: '시기 없음', title: '시기 없이 쓴 글감', reason: '시기 없음', hashtags: [], source: 'mine' },
         { topic: '겨울 여행 코스', title: prompt.includes('제주 여행 3박 4일 코스') ? '참고 블로그 반영: 겨울 제주 코스' : '겨울 국내 여행 코스', reason: '참고 블로그 흐름', hashtags: ['여행'], source: 'blogs' },
         ...(search ? [{ topic: '검색으로 찾은 글감', title: '요즘 뜨는 연말 팝업 후기', reason: '구글 검색', hashtags: ['팝업'], source: 'search' }] : []),
       ];

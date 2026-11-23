@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
+import { fullText, photoFileName } from './publishKit';
+import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { BlogView } from './Blog';
@@ -117,8 +119,20 @@ const dateLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'num
 function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [listError, setListError] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [view, setView] = useState<View>('drafts');
+  const [selectedId, setSelectedId] = useState<string | null>(() => readRoute().draftId);
+  const [view, setView] = useState<View>(() => readRoute().view);
+  // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
+  const firstRoute = useRef(true);
+  useEffect(() => {
+    const hash = routeHash(view, selectedId);
+    if (window.location.hash !== hash) window.history[firstRoute.current ? 'replaceState' : 'pushState'](null, '', hash);
+    firstRoute.current = false;
+  }, [view, selectedId]);
+  useEffect(() => {
+    const onPop = () => { const route = readRoute(); setView(route.view); setSelectedId(route.draftId); };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -219,6 +233,15 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
     </div>
   );
 }
+
+/** 주소 ↔ 화면: '' 또는 #drafts = 원고 목록, #draft/아이디 = 원고 편집, #ideas 등 = 그 탭 */
+function readRoute(): { view: View; draftId: string | null } {
+  const hash = window.location.hash.slice(1);
+  const draft = hash.match(/^draft\/([0-9a-f-]{36})$/);
+  if (draft) return { view: 'drafts', draftId: draft[1] };
+  return { view: VIEWS.some(([key]) => key === hash) ? (hash as View) : 'drafts', draftId: null };
+}
+const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
 type View = 'drafts' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
 const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
@@ -324,6 +347,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
             <section className="card step" aria-labelledby="d-revenue">
               <h2 id="d-revenue" className="step-title">협찬·광고 수익<span className="step-sub">받을 금액 {won(data.revenue.pending.total)} · {data.revenue.pending.count}건</span></h2>
               <p style={{ margin: 0 }}><span className="muted small">{month}월 받은 금액</span><br /><strong className="revenue-now">{won(data.revenue.this_month)}</strong></p>
+              {data.revenue.months.some(m => m.total > 0) ? (
               <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
                 {data.revenue.months.map(m => {
                   const max = Math.max(1, ...data.revenue.months.map(x => x.total));
@@ -335,6 +359,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
                   );
                 })}
               </div>
+              ) : <p className="muted small" style={{ margin: 0 }}>최근 6개월 받은 금액이 아직 없어요.</p>}
               {data.revenue.upcoming.length > 0 && (
                 <ul className="expiring">
                   {data.revenue.upcoming.map(u => (
@@ -411,7 +436,7 @@ function StylesView({ onBack }: { onBack: () => void }) {
         <form className="card step" onSubmit={addReference} aria-label="참고 블로그 추가">
           <p className="muted small" style={{ margin: 0 }}>따라 하고 싶은 블로거의 글을 붙여 넣으면 <b>쓰는 방식</b>(말투·문장 리듬·구성)만 정리해 참고해요. 그 사람의 문장이나 고유한 표현은 쓰지 않도록 AI에 안내해요.</p>
           <div className="field"><label htmlFor="ref-name">이름</label><input id="ref-name" className="input" value={newName} maxLength={40} placeholder="예: 동네맛집 블로거" onChange={e => setNewName(e.target.value)} /></div>
-          <div className="field"><label htmlFor="ref-source">출처 메모(선택)</label><input id="ref-source" className="input" value={newSource} maxLength={300} placeholder="https://blog.naver.com/…" onChange={e => setNewSource(e.target.value)} /></div>
+          <div className="field"><label htmlFor="ref-source">출처 메모(선택)</label><input id="ref-source" className="input" value={newSource} maxLength={300} placeholder="올린 글 주소 https://blog.naver.com/… 또는 ○○.tistory.com/…" onChange={e => setNewSource(e.target.value)} /></div>
           <div className="ai-row"><button className="btn primary" type="submit">추가</button><button className="btn ghost" type="button" onClick={() => setAdding(false)}>취소</button></div>
         </form>
       )}
@@ -532,6 +557,8 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   const [storage, setStorage] = useState(true);
   const [uploading, setUploading] = useState(0);
   const [publishUrl, setPublishUrl] = useState(draft.published_url);
+  const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [published, setPublished] = useState({ url: draft.published_url, at: draft.published_at });
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -619,14 +646,16 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   const pending = useRef<Fields | null>(null);
   const timer = useRef<number | undefined>(undefined);
 
-  const flush = useCallback(async () => {
+  // leaving=true: 창을 닫거나 다른 앱으로 갈 때. 브라우저가 요청을 끊지 않게 keepalive(64KB 이하일 때만 가능)
+  const flush = useCallback(async (leaving = false) => {
     window.clearTimeout(timer.current);
     const next = pending.current;
     if (!next) return;
     pending.current = null;
     setSave('saving');
     try {
-      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: next });
+      const keepalive = leaving && new Blob([JSON.stringify(next)]).size < 60000;
+      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: next, keepalive });
       onSaved(saved);
       setSave(pending.current ? 'dirty' : 'saved');
     } catch {
@@ -647,6 +676,20 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     timer.current = window.setTimeout(() => { void flush(); }, 800);
   }
   useEffect(() => () => { void flush(); }, [flush]);
+  // 창 닫기·새로고침·다른 앱으로 넘어갈 때 0.8초를 기다리지 않고 바로 저장. 저장 전이면 닫기 전에 한 번 묻는다.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') void flush(true); };
+    const onPageHide = () => { void flush(true); };
+    const onBeforeUnload = (event: BeforeUnloadEvent) => { if (pending.current) { void flush(true); event.preventDefault(); } };
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onPageHide);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onPageHide);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [flush]);
 
   async function generate() {
     if (fields.experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
@@ -664,10 +707,32 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     } finally { setAiBusy(false); }
   }
 
-  async function copyPackage() {
-    const text = `${fields.title}\n\n${fields.body}\n\n${fields.hashtags.map(t => `#${t}`).join(' ')}`.trim();
-    try { await navigator.clipboard.writeText(text); setMessage({ kind: 'info', text: '제목·본문·해시태그를 복사했어요. 네이버 블로그 글쓰기에 붙여 넣으세요.' }); }
-    catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 본문을 직접 선택해 복사해 주세요.' }); }
+  // 올리기 보조: 한 번에 복사(따로 복사는 미리보기에서 눌러서)
+  async function copyAll() {
+    const text = fullText(fields.title, fields.body, fields.hashtags);
+    if (!text) { setMessage({ kind: 'error', text: '복사할 내용이 없어요.' }); return; }
+    try { await navigator.clipboard.writeText(text); setCopied(true); setMessage({ kind: 'info', text: `제목·본문·해시태그를 복사했어요. 글쓰기 화면에 붙여 넣으세요.${/\[사진\s*\d+\]/.test(fields.body) ? ' 📷 사진 n 자리에 사진을 넣으면 돼요.' : ''}` }); }
+    catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 글을 직접 선택해 복사해 주세요.' }); }
+  }
+
+  // 사진을 글 순서대로 번호 붙인 파일로 받는다(minilog_날짜_01.jpg …)
+  async function downloadPhotos() {
+    if (!photos?.length) return;
+    setDownloading(true); setMessage(null);
+    try {
+      for (const [index, photo] of photos.entries()) {
+        const response = await fetch(`/api/photos/${photo.id}`, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error(`사진 ${index + 1}을 받지 못했어요.`);
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url; link.download = photoFileName(index);
+        document.body.append(link); link.click();
+        window.setTimeout(() => { link.remove(); URL.revokeObjectURL(url); }, 10000);
+        await new Promise(resolve => window.setTimeout(resolve, 250)); // 브라우저가 여러 파일 받기를 막지 않게 조금씩
+      }
+      setMessage({ kind: 'info', text: `사진 ${photos.length}장을 받았어요. 브라우저가 "여러 파일 다운로드"를 물으면 허용해 주세요.` });
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '사진을 받지 못했어요.' }); }
+    finally { setDownloading(false); }
   }
 
   async function remove() {
@@ -690,7 +755,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
           {save === 'failed' && <button className="btn small" onClick={() => { void flush(); }}>다시 저장</button>}
         </div>
         <div className="actions">
-          <button className="btn" onClick={copyPackage} disabled={!fields.title.trim() && !fields.body.trim()}>발행용 복사</button>
+          <button className="btn" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>한 번에 복사</button>
           {fields.status !== 'published' && (
             <button className="btn" onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
           )}
@@ -777,7 +842,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
       </section>
 
       <section className="card step" aria-labelledby="s4">
-        <h2 id="s4" className="step-title"><span className="n">4</span>게시</h2>
+        <h2 id="s4" className="step-title"><span className="n">4</span>올리기·게시</h2>
         {fields.status === 'published' && published.url ? (
           <div className="published">
             <Tomong kind="minilog" size={44} pose="wave" />
@@ -793,10 +858,34 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
               <label htmlFor="planned-on">게시 예정일(캘린더에 표시)</label>
               <input id="planned-on" className="input" type="date" value={fields.planned_on ?? ''} onChange={e => change({ planned_on: e.target.value || null })} />
             </div>
-            <p className="muted small" style={{ margin: 0 }}>네이버 블로그에 올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>
+            <ol className="post-kit">
+              <li className="kit-wide">
+                <span className="kit-label">글 복사</span>
+                <div className="kit-buttons">
+                  <button className="btn primary" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>{copied ? '복사됨 ✓' : '한 번에 복사'}</button>
+                  <span className="muted small">또는 아래 미리보기에서 제목·문단·사진·해시태그를 하나씩 눌러 복사</span>
+                </div>
+                <PostPreview title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos ?? []} onMessage={setMessage} />
+              </li>
+              <li>
+                <span className="kit-label">사진 받기</span>
+                <div className="kit-buttons">
+                  <button className="btn small" onClick={() => { void downloadPhotos(); }} disabled={!photos?.length || downloading}>{downloading ? '받는 중…' : `번호 붙여 받기${photos?.length ? `(${photos.length}장)` : ''}`}</button>
+                  <span className="muted small">{photos?.length ? `${photoFileName(0)}부터 순서대로. 글쓰기에서 사진을 한꺼번에 골라 넣으면 순서가 맞아요.` : '올린 사진이 없어요.'}</span>
+                </div>
+              </li>
+              <li>
+                <span className="kit-label">글쓰기 열기</span>
+                <div className="kit-buttons">
+                  <a className="btn small" href="https://blog.naver.com/GoBlogWrite.naver" target="_blank" rel="noopener noreferrer">네이버 블로그 글쓰기 ↗</a>
+                  <span className="muted small">티스토리는 내 블로그 관리 → 글쓰기</span>
+                </div>
+              </li>
+            </ol>
+            <p className="muted small" style={{ margin: 0 }}>올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>
             <div className="publish-row">
               <label htmlFor="published-url" className="sr-only">게시한 글 주소</label>
-              <input id="published-url" className="input" type="url" inputMode="url" placeholder="https://blog.naver.com/…" value={publishUrl} maxLength={500} onChange={e => setPublishUrl(e.target.value)} />
+              <input id="published-url" className="input" type="url" inputMode="url" placeholder="올린 글 주소 https://blog.naver.com/… 또는 ○○.tistory.com/…" value={publishUrl} maxLength={500} onChange={e => setPublishUrl(e.target.value)} />
               <button className="btn primary" onClick={() => { void setPublish('published'); }} disabled={!publishUrl.trim()}>게시 완료</button>
             </div>
           </>

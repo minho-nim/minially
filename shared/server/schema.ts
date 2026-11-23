@@ -40,8 +40,7 @@ export async function ensureHubSchema(db: D1Database) {
     // 내 네이버 블로그(사용자당 여러 개): 아이디와 RSS로 가져온 글(조회수·공감·댓글은 사용자가 캡처나 손으로 기록)
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_blogs (user TEXT NOT NULL, blog_id TEXT NOT NULL, synced_at INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, blog_id))'),
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_posts (user TEXT NOT NULL, post_key TEXT NOT NULL, blog_id TEXT NOT NULL DEFAULT '', url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', published_on TEXT, summary TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', views INTEGER, likes INTEGER, comments INTEGER, stats_on TEXT, draft_id TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (user, post_key))"),
-    // 글감: 오늘의 구글 트렌드(모두 공용, 하루 한 번 받아 둠), 참고 블로그(사용자별, 최근 글 제목만), 마지막 추천 결과
-    db.prepare('CREATE TABLE IF NOT EXISTS minilog_trends (day TEXT PRIMARY KEY, items TEXT NOT NULL, fetched_at INTEGER NOT NULL)'),
+    // 글감: 참고 블로그(사용자별, 최근 글 제목만), 마지막 추천 결과
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_watch (user TEXT NOT NULL, blog_id TEXT NOT NULL, titles TEXT NOT NULL DEFAULT '[]', synced_at INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, blog_id))"),
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_ideas (user TEXT PRIMARY KEY, ideas TEXT NOT NULL, used_search INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)'),
   ]);
