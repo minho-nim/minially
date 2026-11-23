@@ -760,8 +760,8 @@ export default function App() {
           onRegisterEntries={async(note,entries)=>{const result=await registerNoteEntries(note,entries);window.miniallyDesktop?.notifySaved();if(result.history)setUndoNotice({id:result.history.id,message:result.history.description,entry:result.history});await reloadData();return result;}}
           onEmptyTrash={async targets=>{const removed=await emptyNoteTrash(targets);window.miniallyDesktop?.notifySaved();await reloadData();return removed.length;}}
           onSaveFolder={async folder => { await dbSaveNoteFolder(folder); window.miniallyDesktop?.notifySaved(); setNoteFolders(previous => [...previous.filter(item => item.id !== folder.id), folder]); syncEngine.schedule(); }}
-          onTask={async (note, date, categoryId, excerpt) => {
-            await saveNoteTask(note, date, categoryId, excerpt);
+          onTask={async (note, date, categoryId, excerpt, options) => {
+            await saveNoteTask(note, date, categoryId, excerpt, options);
             await reloadData();
           }}
           onSchedule={async (note, categoryId, date, excerpt) => {

@@ -10,7 +10,7 @@ for(const width of [400,1400])test.describe(`메모 사용 흐름 ${width}`,()=>
  });
  test('메모 검색 단축키·검색 지우기·할 일 등록 후 바로 열기',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'메모',exact:true}).filter({visible:true}).click();await page.getByRole('button',{name:'새 메모',exact:true}).click();await page.getByRole('textbox',{name:'메모 본문',exact:true}).fill('연결을 확인하기');
-  await page.getByRole('button',{name:'할 일로 등록',exact:true}).click();await page.getByRole('button',{name:'등록한 할 일 보기',exact:true}).click();await expect(page.locator('[data-task-id]')).toContainText('연결을 확인하기');
+  await page.getByRole('button',{name:'할 일로 등록',exact:true}).click();await page.getByRole('dialog',{name:'메모에서 할 일 등록',exact:true}).getByRole('button',{name:'등록',exact:true}).click();await page.getByRole('button',{name:'등록한 할 일 보기',exact:true}).click();await expect(page.locator('[data-task-id]')).toContainText('연결을 확인하기');
   await page.getByRole('button',{name:'원본 메모',exact:true}).click();await page.getByRole('textbox',{name:'메모 본문',exact:true}).focus();await page.keyboard.press('Control+f');
   const search=page.getByRole('searchbox',{name:'메모 검색',exact:true});await expect(search).toBeVisible();await expect(search).toBeFocused();await expect(page.getByRole('dialog',{name:'일정 검색',exact:true})).toHaveCount(0);
   await search.fill('없는 검색어');await page.getByRole('button',{name:'메모 검색 지우기',exact:true}).tap();await expect(search).toHaveValue('');await expect(page.locator('[data-note-id]')).toHaveCount(1);

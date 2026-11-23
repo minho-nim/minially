@@ -846,15 +846,20 @@ export async function emptyNoteTrash(targets:Pick<Note,'id'|'updatedAt'>[]):Prom
 }
 export async function saveNoteFolder(folder: NoteFolder): Promise<void> { validateNoteFolder(folder); await (await getDB()).put('noteFolders', {...folder,isUserManaged:true}); }
 
-export async function saveNoteTask(note: Note, date: string, categoryId = '', excerpt?:string): Promise<void> {
+export async function saveNoteTask(note: Note, date: string, categoryId = '', excerpt?:string, options:Pick<Task,'priority'|'checklist'>={priority:'medium',checklist:[]}): Promise<void> {
   validateNote(note);
   if(excerpt!==undefined&&(typeof excerpt!=='string'||!excerpt.trim()||new TextEncoder().encode(JSON.stringify([excerpt,excerpt])).length>220*1024))throw new Error('연결할 메모 내용을 확인해 주세요.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('할 일 날짜를 선택해 주세요.');
+  const parsed=new Date(date+'T00:00:00');
+  if(Number.isNaN(parsed.getTime())||parsed.getFullYear()!==Number(date.slice(0,4))||parsed.getMonth()+1!==Number(date.slice(5,7))||parsed.getDate()!==Number(date.slice(8,10)))throw new Error('올바른 날짜를 선택해 주세요.');
+  const checklist=options.checklist??[];
+  if(!['low','medium','high'].includes(options.priority)||!Array.isArray(checklist)||checklist.length>100||checklist.some(item=>!item||typeof item.id!=='string'||!item.id||typeof item.text!=='string'||!item.text.trim()||item.text.length>500||typeof item.done!=='boolean')||new Set(checklist.map(item=>item.id)).size!==checklist.length)throw new Error('우선순위와 체크리스트를 확인해 주세요.');
+  if(new TextEncoder().encode(JSON.stringify([note.body,excerpt,checklist])).length>220*1024)throw new Error('할 일 내용이 너무 깁니다. 나눠서 등록해 주세요.');
   const db = await getDB();
   const tx = db.transaction(['tasks', 'categories'], 'readwrite');
   if (categoryId && !(await tx.objectStore('categories').get(categoryId))) { await tx.done; throw new Error('없는 카테고리입니다. 다시 선택해 주세요.'); }
   const existing = (await tx.objectStore('tasks').getAll()).some(task => task.sourceNoteId === note.id && task.dueDate === date && (task.sourceNoteExcerpt??'')===(excerpt??''));
-  if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, sourceNoteExcerpt:excerpt, dueDate:date, status:'todo', priority:'medium', checklist:[]});
+  if (!existing) await tx.objectStore('tasks').put({id:crypto.randomUUID(), categoryId:categoryId || undefined, title:noteTitle(note), memo:note.body, sourceNoteId:note.id, sourceNoteExcerpt:excerpt, dueDate:date, status:'todo', priority:options.priority, checklist});
   await tx.done;
 }
 
