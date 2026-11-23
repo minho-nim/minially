@@ -18,12 +18,15 @@ jobs:
     defaults:
       run:
         shell: bash
+        # 미니어리 앱은 minihub 저장소의 minially 폴더에 있다.
+        working-directory: minially
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
+          cache-dependency-path: minially/package-lock.json
       - name: main 커밋과 새 버전 확인
         env:
           GH_TOKEN: ${{ github.token }}
@@ -61,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: update-progress-preview
-          path: desktop-dist/update-progress.png
+          path: minially/desktop-dist/update-progress.png
           if-no-files-found: error
           retention-days: 7
       - name: 설치 파일과 업데이트 메타데이터 확인

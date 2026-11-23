@@ -21,12 +21,17 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    # 미니어리 앱은 minihub 저장소의 minially 폴더에 있다.
+    defaults:
+      run:
+        working-directory: minially
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '24'
           cache: npm
+          cache-dependency-path: minially/package-lock.json
       - run: npm ci
       - run: npm run lint
       # 서버까지 포함한 시험(로그인·PC·폰 동기화·공유). 실패하면 배포하지 않는다.
@@ -43,7 +48,7 @@ jobs:
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
-          path: dist
+          path: minially/dist
           name: github-pages-${{ github.run_attempt }}
       # 재실행 때 이전 산출물과 이름이 겹치지 않게 하고, 업로드 직후 조회 지연을 기다린다.
       - name: 배포 파일 조회 확인

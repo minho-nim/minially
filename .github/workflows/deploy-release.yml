@@ -22,11 +22,25 @@ jobs:
   deploy:
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    # 미니어리 앱은 minihub 저장소의 minially 폴더에 있다.
+    defaults:
+      run:
+        working-directory: minially
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: main
           fetch-depth: 0
+      - name: Cloudflare 빌드 폴더 변경 확인(minihub 구조)
+        env:
+          LAYOUT_READY: ${{ vars.MINIHUB_LAYOUT_READY }}
+        run: |
+          # 앱이 minially 폴더로 옮겨졌다. Cloudflare Pages(minially)의 Root directory를 minially로 바꾸기 전에
+          # release를 앞당기면 운영 빌드가 깨지므로, 소유자가 저장소 변수 MINIHUB_LAYOUT_READY=true를 넣을 때까지 멈춘다.
+          if [ "$LAYOUT_READY" != "true" ]; then
+            echo "::error::Cloudflare Pages(minially) 설정에서 Root directory를 minially로 바꾼 뒤, 저장소 변수 MINIHUB_LAYOUT_READY를 true로 넣고 다시 실행하세요."
+            exit 1
+          fi
       - name: main의 검사(타입 검사·빌드) 통과 확인
         env:
           GH_TOKEN: ${{ github.token }}
