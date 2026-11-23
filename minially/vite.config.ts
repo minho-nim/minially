@@ -22,7 +22,7 @@ const versionFile = (): Plugin => ({
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({ mode }) => {
-  const base = mode === 'github-pages' ? '/minially/' : '/';
+  const base = mode === 'github-pages' ? '/minihub/' : '/'; // GitHub Pages 주소: 저장소 이름(minihub)을 따름
   return {
     base,
     define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __APP_RELEASE__: JSON.stringify(APP_RELEASE) },

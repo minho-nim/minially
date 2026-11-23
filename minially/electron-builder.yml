@@ -27,4 +27,4 @@ nsis:
   deleteAppDataOnUninstall: false
 publish:
   provider: generic
-  url: https://github.com/minho-nim/minially/releases/latest/download/
+  url: https://github.com/minho-nim/minihub/releases/latest/download/

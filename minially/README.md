@@ -121,7 +121,7 @@ Edge·Chrome 주소창의 **앱 설치**로 설치하면 별도 창·시작 메�
 **배포 규칙:** Cloudflare는 `release` 브랜치만 운영 배포합니다. `main`에 병합해도 Cloudflare 사이트는 바뀌지 않습니다(GitHub Pages는 main 기준 그대로).
 
 처음 한 번 연결:
-1. [Cloudflare 대시보드](https://dash.cloudflare.com) → Workers & Pages → Create → **Pages** → **Connect to Git** → `minho-nim/minially` 선택
+1. [Cloudflare 대시보드](https://dash.cloudflare.com) → Workers & Pages → Create → **Pages** → **Connect to Git** → `minho-nim/minihub` 선택
 2. 빌드 설정: Production branch **`release`**, Framework preset Vite(또는 None), Build command `npm run build`, Build output directory `dist`
 3. Node 버전은 저장소의 `.node-version`(24)을 따릅니다. 필요하면 환경 변수 `NODE_VERSION` = `24`를 넣습니다.
 4. Save and Deploy. 끝나면 `https://<이름>.pages.dev` 주소가 생깁니다.
@@ -135,8 +135,8 @@ Edge·Chrome 주소창의 **앱 설치**로 설치하면 별도 창·시작 메�
 
 ## GitHub Pages 배포
 
-실사용 주소: https://minho-nim.github.io/minially/
+실사용 주소: https://minho-nim.github.io/minihub/
 
-`main` 브랜치에 업로드하면 GitHub Actions가 타입 검사와 빌드를 실행한 뒤 자동 배포합니다. `npm run build:pages`는 `/minially/` 경로에 맞춘 화면·아이콘·PWA 파일을 생성합니다.
+`main` 브랜치에 업로드하면 GitHub Actions가 타입 검사와 빌드를 실행한 뒤 자동 배포합니다. `npm run build:pages`는 `/minihub/` 경로(저장소 이름)에 맞춘 화면·아이콘·PWA 파일을 생성합니다.
 
 배포 주소가 달라지면 브라우저 저장 공간도 분리됩니다. 이전 Sites 주소에 저장한 데이터는 설정에서 JSON 백업 후 새 주소에서 복원할 수 있습니다.
