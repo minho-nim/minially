@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { readdirSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { CODE_C, CODE_D } from '../playwright.config';
+
+const D1_DIR = '.wrangler/test-state/v3/d1/miniflare-D1DatabaseObject';
 
 test('로그인 후 대시보드에 본인 정보만 보이고 로그아웃된다', async ({ page }) => {
   const errors: string[] = [];
@@ -8,6 +12,7 @@ test('로그인 후 대시보드에 본인 정보만 보이고 로그아웃된�
   await page.getByLabel('로그인 코드').fill(CODE_D);
   await page.getByRole('button', { name: '로그인' }).click();
   await expect(page.getByRole('heading', { name: 'D님, 오늘도 반가워요' })).toBeVisible();
+  await page.getByRole('button', { name: '내 대시보드' }).click();
   // D는 키가 없어서 연결 안 됨 + 연결 방법 안내
   await expect(page.locator('.kpi .value.off')).toHaveText('연결 안 됨');
   await expect(page.getByText('GEMINI_KEY_D').first()).toBeVisible();
@@ -23,7 +28,44 @@ test('사용자 C는 Gemini 연결됨으로 보인다', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('로그인 코드').fill(CODE_C);
   await page.getByRole('button', { name: '로그인' }).click();
+  await page.getByRole('button', { name: '내 대시보드' }).click();
   await expect(page.locator('.kpi .value.ok')).toHaveText('연결됨');
+});
+
+test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, 내 대시보드로 바꾸면 내 것만 보인다', async ({ page }) => {
+  // 시험용 사용 기록을 로컬 D1에 직접 넣는다(실제 Gemini 호출 없음).
+  const file = readdirSync(D1_DIR).find(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+  expect(file).toBeTruthy();
+  await page.goto('/');
+  await page.getByLabel('로그인 코드').fill(CODE_C);
+  await page.getByRole('button', { name: '로그인' }).click();
+  await expect(page.locator('.scope')).toBeVisible(); // 로그인하면서 표가 만들어진 뒤에 넣는다
+  const db = new DatabaseSync(`${D1_DIR}/${file}`);
+  const now = Date.now();
+  const insert = db.prepare('INSERT INTO ai_usage (user, app, model, task, input_tokens, output_tokens, status, error_code, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  insert.run('C', 'minilog', 'gemini-2.5-flash', 'draft', 1000, 200, 'ok', null, now);
+  insert.run('D', 'minilog', 'gemini-2.5-flash', 'style', 3000, 500, 'ok', null, now);
+  insert.run('D', 'minilog', 'gemini-2.5-flash', 'draft', 0, 0, 'error', 'rate_limited', now);
+  db.close();
+  await page.reload();
+  await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  const kpi = (label: RegExp) => page.locator('.kpi').filter({ hasText: label }).locator('.value');
+  await expect(kpi(/전체 AI 호출/)).toHaveText('3');
+  await expect(kpi(/전체 토큰/)).toHaveText('4,700');
+  await expect(kpi(/Gemini 연결/)).toHaveText('1/2');
+  const rowD = page.locator('.user-row').filter({ hasText: '사용자 D' });
+  await expect(rowD.locator('dd').nth(0)).toHaveText('2');
+  await expect(rowD.locator('dd').nth(2)).toHaveText('1');
+  await expect(page.getByLabel('오류 종류')).toContainText('호출 제한 1');
+  await expect(page.getByRole('cell', { name: '문체 분석' })).toBeVisible();
+  // 내 대시보드: C 것만, 새로고침해도 선택 유지
+  await page.getByRole('button', { name: '내 대시보드' }).click();
+  await expect(page.locator('.kpi').filter({ hasText: /AI 호출/ }).locator('.value')).toHaveText('1');
+  await page.reload();
+  await expect(page.getByRole('button', { name: '내 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await page.evaluate(async () => (await fetch('/api/overview')).status)).toBe(200);
+  const anon = await page.context().browser()!.newContext();
+  expect((await anon.request.get(page.url().replace(/\/$/, '') + '/api/overview')).status()).toBe(401);
 });
 
 test('통계 API는 맞는 토큰에만 숫자만 내보내고, 세션 API는 로그인해야 한다', async ({ request }) => {

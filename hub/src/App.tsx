@@ -91,6 +91,115 @@ function Login({ onDone }: { onDone: () => void }) {
   );
 }
 
+interface Overview {
+  since: string;
+  users: { user: string; gemini_connected: boolean }[];
+  usage: (UsageRow & { user: string; model: string; task: string })[];
+  errors: { app: string; error_code: string; count: number }[];
+  minilog_published: { user: string; count: number }[];
+}
+type Scope = 'all' | 'me';
+const SCOPE_KEY = 'minihub.scope';
+function savedScope(): Scope {
+  try { return localStorage.getItem(SCOPE_KEY) === 'me' ? 'me' : 'all'; } catch { return 'all'; }
+}
+const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '문체 분석', note: '메모' };
+const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
+
+function sum<T>(rows: T[], pick: (row: T) => number) { return rows.reduce((n, row) => n + pick(row), 0); }
+
+function OverviewPanel({ month }: { month: number }) {
+  const [data, setData] = useState<Overview | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => { api<Overview>('/api/overview').then(setData).catch(e => setError(e instanceof Error ? e.message : '불러오지 못했어요.')); }, []);
+  if (error) return <p className="error" role="alert">{error}</p>;
+  if (!data) return <p className="muted small" role="status">전체 숫자를 불러오는 중…</p>;
+  const tokens = (r: UsageRow) => r.input_tokens + r.output_tokens;
+  const users = data.users.map(u => {
+    const rows = data.usage.filter(r => r.user === u.user);
+    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0 };
+  });
+  const apps = [...new Set(data.usage.map(r => r.app))].map(app => {
+    const rows = data.usage.filter(r => r.app === app);
+    return { app, calls: sum(rows, r => r.calls), errors: sum(rows, r => r.errors), input_tokens: sum(rows, r => r.input_tokens), output_tokens: sum(rows, r => r.output_tokens) };
+  });
+  const byModelTask = new Map<string, { model: string; task: string; calls: number; tokens: number }>();
+  for (const r of data.usage) {
+    const key = `${r.model}·${r.task}`;
+    const cur = byModelTask.get(key) ?? { model: r.model, task: r.task, calls: 0, tokens: 0 };
+    cur.calls += r.calls; cur.tokens += tokens(r);
+    byModelTask.set(key, cur);
+  }
+  const errorCodes = new Map<string, number>();
+  for (const e of data.errors) errorCodes.set(e.error_code, (errorCodes.get(e.error_code) ?? 0) + e.count);
+  const total = { calls: sum(users, u => u.calls), tokens: sum(users, u => u.tokens), errors: sum(users, u => u.errors) };
+  const maxUser = Math.max(1, ...users.map(u => u.tokens));
+  const connected = users.filter(u => u.gemini_connected).length;
+  return (
+    <>
+      <div className="kpis">
+        <div className="card kpi"><span className="label">{month}월 전체 AI 호출</span><span className="value">{formatNumber(total.calls)}</span><span className="hint">사용자 {users.map(u => u.user).join('·')} 합계</span></div>
+        <div className="card kpi"><span className="label">{month}월 전체 토큰</span><span className="value">{formatNumber(total.tokens)}</span><span className="hint">모든 앱</span></div>
+        <div className="card kpi"><span className="label">{month}월 전체 오류</span><span className={`value${total.errors ? ' off' : ''}`}>{formatNumber(total.errors)}</span><span className="hint">호출 제한·키 오류 포함</span></div>
+        <div className={`card kpi${connected === users.length ? ' sig' : ''}`}><span className="label">Gemini 연결</span><span className="value">{connected}/{users.length}</span><span className="hint">{users.filter(u => !u.gemini_connected).map(u => `${u.user} 연결 안 됨`).join(', ') || '모두 연결됨'}</span></div>
+      </div>
+
+      <section className="card" aria-labelledby="users-title">
+        <h2 id="users-title" className="section-title">{month}월 사용자별</h2>
+        <div className="user-rows">
+          {users.map(u => (
+            <div className="user-row" key={u.user}>
+              <span className="avatar" aria-hidden="true">{u.user}</span>
+              <div className="user-main">
+                <div className="row"><b>사용자 {u.user}</b><span className={`badge ${u.gemini_connected ? 'ok' : 'off'}`}>{u.gemini_connected ? 'Gemini 연결됨' : '연결 안 됨'}</span></div>
+                <div className="bar-track" role="img" aria-label={`토큰 ${formatNumber(u.tokens)}`}><span className="bar-in" style={{ width: `${(u.tokens / maxUser) * 100}%`, background: 'var(--sig)' }} /></div>
+              </div>
+              <dl className="user-nums">
+                <div><dt>호출</dt><dd>{formatNumber(u.calls)}</dd></div>
+                <div><dt>토큰</dt><dd>{formatNumber(u.tokens)}</dd></div>
+                <div><dt>오류</dt><dd>{formatNumber(u.errors)}</dd></div>
+                <div><dt>게시 글</dt><dd>{formatNumber(u.published)}</dd></div>
+              </dl>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="settings">
+        <section className="card" aria-labelledby="apps-usage-title">
+          <h2 id="apps-usage-title" className="section-title">앱별</h2>
+          {apps.length === 0 ? <p className="muted small" style={{ margin: 0 }}>이번 달에는 아직 AI를 쓰지 않았어요.</p> : (
+            <div className="bars">
+              {apps.map(row => (
+                <div className={`bar-row ${row.app}`} key={row.app}>
+                  <span>{APP_LABELS[row.app] ?? row.app}</span>
+                  <div className="bar-track" role="img" aria-label={`호출 ${row.calls}, 토큰 ${formatNumber(tokens(row))}`}>
+                    <span className="bar-in" style={{ width: `${(tokens(row) / Math.max(1, ...apps.map(tokens))) * 100}%` }} />
+                  </div>
+                  <span className="bar-num">{formatNumber(tokens(row))}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {errorCodes.size > 0 && <p className="chips" aria-label="오류 종류">{[...errorCodes].map(([code, n]) => <span key={code} className="chip warn">{ERROR_LABEL[code] ?? code} {n}</span>)}</p>}
+        </section>
+        <section className="card" aria-labelledby="model-title">
+          <h2 id="model-title" className="section-title">모델·작업별</h2>
+          {byModelTask.size === 0 ? <p className="muted small" style={{ margin: 0 }}>기록이 없어요.</p> : (
+            <div className="table-wrap">
+              <table className="usage">
+                <thead><tr><th scope="col">모델</th><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
+                <tbody>{[...byModelTask.values()].map(r => <tr key={`${r.model}${r.task}`}><td>{r.model}</td><td>{TASK_LABEL[r.task] ?? r.task}</td><td>{formatNumber(r.calls)}</td><td>{formatNumber(r.tokens)}</td></tr>)}</tbody>
+              </table>
+            </div>
+          )}
+          <p className="muted small" style={{ margin: '10px 0 0' }}>추정 비용은 모델 단가를 정한 뒤 보여 드려요.</p>
+        </section>
+      </div>
+    </>
+  );
+}
+
 const APPS = [
   { id: 'minially', kind: 'minially', word: 'ally', name: '미니어리', desc: '일정·할 일·메모', href: APP_LINKS.minially },
   { id: 'minilog', kind: 'minilog', word: 'log', name: '미니로그', desc: '사진으로 블로그 원고 만들기', href: APP_LINKS.minilog },
@@ -98,6 +207,8 @@ const APPS = [
 
 function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [scope, setScopeState] = useState<Scope>(savedScope);
+  const setScope = (next: Scope) => { setScopeState(next); try { localStorage.setItem(SCOPE_KEY, next); } catch { /* 저장 못 해도 화면은 바뀜 */ } };
   const byApp = new Map(me.usage.apps.map(row => [row.app, row]));
   const totals = me.usage.apps.reduce(
     (sum, row) => ({ calls: sum.calls + row.calls, errors: sum.errors + row.errors, input: sum.input + row.input_tokens, output: sum.output + row.output_tokens }),
@@ -124,7 +235,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <div className="nav">
             <a href="#overview">대시보드</a>
             <a href="#apps">앱</a>
-            <a href="#usage">AI 사용량</a>
+            <a href="#overview">AI 사용량</a>
             <a href="#settings">설정</a>
           </div>
           <div className="nav-label">바로 가기</div>
@@ -153,6 +264,11 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <p className="muted small" style={{ margin: 0 }}>{today}</p>
             </div>
           </div>
+          <div className="scope" role="group" aria-label="대시보드 보기">
+            <button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>통합 대시보드</button>
+            <button aria-pressed={scope === 'me'} onClick={() => setScope('me')}>내 대시보드</button>
+          </div>
+          {scope === 'all' ? <OverviewPanel month={month} /> : (
           <div className="kpis">
             <div className="card kpi">
               <span className="label">{month}월 AI 호출</span>
@@ -175,6 +291,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <span className="hint">{me.gemini.connected ? `사용자 ${me.user}의 키` : <a href="#settings">연결 방법 보기</a>}</span>
             </div>
           </div>
+          )}
         </section>
 
         <section id="apps" aria-labelledby="apps-title">
@@ -189,8 +306,8 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
                     <h3><Signature kind={app.kind} word={app.word} size={17} tomong={0} /><span className="sr-only">{app.name}</span></h3>
                     <p>{app.name} · {app.desc}</p>
                     <div className="app-stats">
-                      <span>AI 호출 <strong>{formatNumber(row?.calls ?? 0)}</strong></span>
-                      <span>토큰 <strong>{formatNumber((row?.input_tokens ?? 0) + (row?.output_tokens ?? 0))}</strong></span>
+                      <span>내 AI 호출 <strong>{formatNumber(row?.calls ?? 0)}</strong></span>
+                      <span>내 토큰 <strong>{formatNumber((row?.input_tokens ?? 0) + (row?.output_tokens ?? 0))}</strong></span>
                     </div>
                   </div>
                   <a className="btn primary" href={app.href}>{app.name} 열기</a>
@@ -200,8 +317,8 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </div>
         </section>
 
-        <section id="usage" className="card" aria-labelledby="usage-title">
-          <h2 id="usage-title" className="section-title">{month}월 앱별 AI 사용량</h2>
+        {scope === 'me' && <section id="usage" className="card" aria-labelledby="usage-title">
+          <h2 id="usage-title" className="section-title">{month}월 내 앱별 AI 사용량</h2>
           {me.usage.apps.length === 0 ? (
             <div className="empty-usage">
               <Tomong kind="hub" size={48} />
@@ -240,7 +357,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
               </div>
             </>
           )}
-        </section>
+        </section>}
 
         <section id="settings" aria-labelledby="settings-title">
           <h2 id="settings-title" className="section-title">설정</h2>
