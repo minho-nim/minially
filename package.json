@@ -7,6 +7,16 @@
     "minially:dev": "npm --prefix minially run dev",
     "minially:lint": "npm --prefix minially run lint",
     "minially:test": "npm --prefix minially test",
-    "minially:build": "npm --prefix minially run build"
+    "minially:build": "npm --prefix minially run build",
+    "hub:install": "npm --prefix hub ci",
+    "hub:dev": "npm --prefix hub run dev",
+    "hub:lint": "npm --prefix hub run lint",
+    "hub:test": "npm --prefix hub test",
+    "hub:build": "npm --prefix hub run build",
+    "minilog:install": "npm --prefix minilog ci",
+    "minilog:dev": "npm --prefix minilog run dev",
+    "minilog:lint": "npm --prefix minilog run lint",
+    "minilog:test": "npm --prefix minilog test",
+    "minilog:build": "npm --prefix minilog run build"
   }
 }
