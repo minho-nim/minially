@@ -323,3 +323,32 @@
  .note-format-toolbar button { min-width: 36px; min-height: 36px; }
 }
 @media (min-width: 768px) { .note-format-more { display: none; } }
+
+/* 설치형 앱만 사용하는 창 장식. 웹과 PWA의 제목 표시줄은 운영체제가 관리한다. */
+.desktop-shell { --desktop-bar-height: 40px; --desktop-page-height: calc(100dvh - var(--desktop-bar-height)); padding-top: var(--desktop-bar-height); min-height: 100dvh; background: var(--color-app-canvas); }
+.desktop-titlebar { -webkit-app-region: drag; user-select: none; position: fixed; inset: 0 0 auto; height: var(--desktop-bar-height); z-index: 70; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 12px; background: #fffafb; border-bottom: 1px solid var(--color-app-line); color: var(--color-app-ink); }
+.desktop-window-controls { -webkit-app-region: no-drag; display: flex; justify-self: start; gap: 2px; }
+.desktop-titlebar .desktop-window-button { -webkit-app-region: no-drag; width: 24px; height: 28px; min-height: 28px; padding: 0; border: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; }
+.desktop-window-button > span { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(0,0,0,.1); display: flex; align-items: center; justify-content: center; }
+.desktop-window-close > span { background: #ff6058; color: #84201b; }
+.desktop-window-minimize > span { background: #ffbf2f; color: #80530a; }
+.desktop-window-maximize > span { background: #28c840; color: #12621d; }
+.desktop-window-button svg { opacity: 0; }
+.desktop-window-controls:hover svg, .desktop-window-button:focus-visible svg { opacity: 1; }
+.desktop-window-button:focus-visible, .desktop-version-button:focus-visible { outline: 2px solid var(--color-app-accent); outline-offset: 1px; }
+.desktop-shell[data-window-focused='false'] .desktop-window-controls { opacity: .65; }
+.desktop-window-title { font-size: 12px; font-weight: 600; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.desktop-titlebar .desktop-version-button { -webkit-app-region: no-drag; justify-self: end; min-height: 28px; max-width: 100%; display: flex; gap: 5px; align-items: center; padding: 2px 8px; border-radius: 8px; font-size: 10px; color: var(--color-app-muted); cursor: pointer; white-space: nowrap; }
+.desktop-version-button:hover { background: var(--color-app-soft); }
+.desktop-update-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-app-accent); }
+.desktop-update-dot.needs-attention { background: #b87d37; }
+.desktop-content .h-dvh { height: var(--desktop-page-height); }
+.desktop-content .min-h-dvh { min-height: var(--desktop-page-height); }
+@media (min-width: 768px) {
+ .desktop-content .notes-workspace { height: calc(var(--desktop-page-height) - 116px); min-height: min(520px, calc(var(--desktop-page-height) - 116px)); }
+}
+@media (max-width: 600px) {
+ .desktop-update-label { display: none; }
+ .desktop-titlebar { padding-inline: 8px; }
+}
+.desktop-content .app-titlebar { top: var(--desktop-bar-height); }

@@ -13,10 +13,12 @@ const closeGuard=createCloseGuard(),shortcut='Control+Alt+M';
 let mainWindow,quickWindow,tray,preferences,updates,shortcutAvailable=false,quitAllowed=false,quitPending=false;
 const windows=()=>BrowserWindow.getAllWindows().filter(win=>!win.isDestroyed());
 const broadcast=(channel,value,except)=>{for(const win of windows())if(win.webContents.id!==except)win.webContents.send(channel,value);};
-const state=()=>({version:app.getVersion(),platform:process.platform,preferences:preferences.get(),update:updates.get(),shortcut,shortcutAvailable,canStartOnLogin:process.platform==='win32'});
-const publishState=()=>{if(preferences&&updates)broadcast('desktop:state-changed',state());};
+const state=(win=mainWindow)=>({window:{maximized:!!win&&!win.isDestroyed()&&win.isMaximized(),focused:!!win&&!win.isDestroyed()&&win.isFocused()},version:app.getVersion(),platform:process.platform,preferences:preferences.get(),update:updates.get(),shortcut,shortcutAvailable,canStartOnLogin:process.platform==='win32'});
+const publishState=()=>{if(preferences&&updates)for(const win of windows())win.webContents.send('desktop:state-changed',state(win));};
 function authorized(event){return event.senderFrame===event.sender.mainFrame&&trustedPage(event.senderFrame.url);}
 function secureWindow(win){
+ win.on('page-title-updated',event=>event.preventDefault());
+ for(const event of ['focus','blur','maximize','unmaximize','restore','enter-full-screen','leave-full-screen'])win.on(event,publishState);
  win.webContents.setWindowOpenHandler(({url})=>{const safe=externalURL(url);if(safe)void shell.openExternal(safe);return{action:'deny'};});
  win.webContents.on('will-navigate',(event,url)=>{if(!trustedPage(url)){event.preventDefault();const safe=externalURL(url);if(safe)void shell.openExternal(safe);}});
  win.webContents.on('will-attach-webview',event=>event.preventDefault());
@@ -25,13 +27,13 @@ function secureWindow(win){
 function webPreferences(quick=false){return{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,backgroundThrottling:false,additionalArguments:quick?['--minially-quick']:[]};}
 function createMain(){
  if(mainWindow&&!mainWindow.isDestroyed()){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();return mainWindow;}
- mainWindow=new BrowserWindow({width:1280,height:850,minWidth:820,minHeight:600,title:'미니어리',icon:path.join(__dirname,'renderer/pwa-192x192.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
+ mainWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width:1280,height:850,minWidth:820,minHeight:600,title:`미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/pwa-192x192.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
  secureWindow(mainWindow);mainWindow.on('close',event=>{if(quitAllowed)return;event.preventDefault();if(preferences.get().closeToTray&&tray)mainWindow.hide();else void finishApp(false);});mainWindow.on('closed',()=>{mainWindow=null;});void mainWindow.loadURL(ORIGIN+(testMode?'/demo':'/'));return mainWindow;
 }
 function createQuick(){
  if(quickWindow&&!quickWindow.isDestroyed()){if(quickWindow.isMinimized())quickWindow.restore();quickWindow.show();quickWindow.focus();quickWindow.webContents.send('desktop:quick-focus');return;}
  const area=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea,width=Math.min(460,area.width),height=Math.min(600,area.height);
- quickWindow=new BrowserWindow({width,height,minWidth:320,minHeight:360,x:Math.max(area.x,area.x+area.width-width-24),y:Math.max(area.y,area.y+40),title:'미니어리 빠른 메모',icon:path.join(__dirname,'renderer/pwa-192x192.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences(true)});
+ quickWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width,height,minWidth:320,minHeight:360,x:Math.max(area.x,area.x+area.width-width-24),y:Math.max(area.y,area.y+40),title:`빠른 메모 · 미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/pwa-192x192.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences(true)});
  secureWindow(quickWindow);quickWindow.on('close',event=>{if(quitAllowed)return;event.preventDefault();void closeGuard.ask([quickWindow]).then(ok=>{if(ok)quickWindow?.hide();});});quickWindow.on('closed',()=>{quickWindow=null;});void quickWindow.loadURL(ORIGIN+'/?desktop=quick');
 }
 async function finishApp(install){
@@ -49,7 +51,14 @@ async function changePreferences(input){
 }
 function registerIPC(){
  const handle=(name,fn)=>ipcMain.handle(name,async(event,...args)=>{if(!authorized(event))throw new Error('허용되지 않는 요청입니다.');return fn(event,...args);});
- handle('desktop:state',()=>state());handle('desktop:preferences',(_,patch)=>changePreferences(patch));handle('desktop:main',()=>{createMain();});handle('desktop:quick',()=>{createQuick();});
+ handle('desktop:state',event=>state(BrowserWindow.fromWebContents(event.sender)));handle('desktop:preferences',async(event,patch)=>{await changePreferences(patch);return state(BrowserWindow.fromWebContents(event.sender));});handle('desktop:main',()=>{createMain();});handle('desktop:quick',()=>{createQuick();});
+ handle('desktop:window',(event,action)=>{
+  if(!['minimize','maximize','close'].includes(action))throw new Error('지원하지 않는 창 동작입니다.');
+  const win=BrowserWindow.fromWebContents(event.sender);if(!win||win.isDestroyed())return;
+  if(action==='minimize')win.minimize();
+  else if(action==='maximize'){if(win.isFullScreen())win.setFullScreen(false);else if(win.isMaximized())win.unmaximize();else win.maximize();}
+  else win.close();
+ });
  handle('desktop:hide-quick',async()=>{if(quickWindow&&await closeGuard.ask([quickWindow]))quickWindow.hide();});
  handle('desktop:open-note',(_,id)=>{if(typeof id!=='string'||!id||id.length>200)throw new Error('메모를 확인해 주세요.');const win=createMain(),send=()=>win.webContents.send('desktop:open-note',id);if(win.webContents.isLoadingMainFrame())win.webContents.once('did-finish-load',send);else send();});
  handle('desktop:check-update',()=>updates.check());handle('desktop:download-update',()=>updates.download());handle('desktop:install-update',()=>finishApp(true));
