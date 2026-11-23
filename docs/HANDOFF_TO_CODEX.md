@@ -60,7 +60,7 @@
 - 미니로그 개인 대시보드(호출량·원고 현황·사진 용량·수익)
 - 미니로그 2·3단계 전체
 - **미니어리 Gemini 연결 안 함.** 미니어리는 아직 AI 기능이 없고, `callGemini`가 `app: 'minially'`를 받을 수 있게만 해 둠
-- 추정 비용: `estimated_cost_usd`는 `null`. 모델 단가 표를 정한 뒤 계산
+- 추정 비용은 만들지 않기로 함(소유자 결정, 사용량·토큰·오류만 표시)
 - 미니어리 로그인과 미니허브 세션은 따로입니다(같은 코드지만 미니어리는 기존 방식 그대로, 각 사이트에서 따로 로그인). `*.pages.dev`끼리는 쿠키를 나눌 수 없어서입니다. 하나로 묶으려면 개인 도메인이 필요합니다.
 
 ## 4. 공통 인증 구조
@@ -128,8 +128,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 1. 소유자 설정 후 실제 배포 확인 + 실제 Gemini 1회 호출 확인(모델 이름)
 2. 실제 Gemini로 사진 분석 품질 확인(사진 8장 기준 토큰·속도)
 3. 미니로그 2단계: 키워드·트렌드, 콘텐츠 캘린더, 협찬 캠페인·수익 기록(대시보드 수익 칸 채우기)
-5. 추정 비용(모델 단가 표)
-6. 원고 동시 수정 버전 검사
+4. 원고 동시 수정 버전 검사
 
 ## 11. Codex가 바꾸면 안 되는 것(호환 조건)
 - `minially/desktop/policy.cjs`의 `API_ORIGIN = 'https://minially.pages.dev'`, `minially/electron-builder.yml`·`minially/desktop/policy.cjs`의 업데이트 주소 `github.com/minho-nim/minihub/releases/download/minially-latest/`(미니어리 전용 고정 배포판, desktop-release.yml이 배포 때마다 갱신. 0.1.9부터. 0.1.8 이하 설치본은 예전 주소를 보며 GitHub 이름 변경 연결에 기대므로 끊기면 새로 설치): 이미 깔린 Windows 앱이 이 주소로 동기화·업데이트합니다.

@@ -74,7 +74,7 @@ test('통계 API는 맞는 토큰에만 숫자만 내보내고, 세션 API는 �
   const ok = await request.get('/api/stats?since=2020-01-01', { headers: { authorization: 'Bearer test-stats-token' } });
   expect(ok.status()).toBe(200);
   const body = await ok.json();
-  expect(Object.keys(body).sort()).toEqual(['errors', 'estimated_cost_usd', 'since', 'usage', 'users']);
+  expect(Object.keys(body).sort()).toEqual(['errors', 'since', 'usage', 'users']);
   expect(body.users).toEqual([{ user: 'C', gemini_connected: true }, { user: 'D', gemini_connected: false }]);
   expect(JSON.stringify(body)).not.toContain('test-key'); // 키 원문은 절대 내보내지 않음
   expect(await (await request.get('/api/me')).json()).toEqual({ user: null });
