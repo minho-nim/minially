@@ -76,6 +76,10 @@ try {
     if ((Get-Date) -gt $relaunchDeadline) { throw '업데이트 후 앱이 자동으로 열리지 않았습니다.' }
     Start-Sleep -Milliseconds 100
   } while ($true)
+  # 합성 설치 창만 로그로도 보관해 별도 아티팩트 저장소에 접근하지 못해도 검토할 수 있게 한다.
+  Write-Output 'MINIALLY_UPDATE_PREVIEW_BEGIN'
+  Write-Output ([Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path (Get-Location) 'desktop-dist/update-progress.png'))))
+  Write-Output 'MINIALLY_UPDATE_PREVIEW_END'
   Write-Output ('업데이트 진행 창·자동 설치·앱 다시 열기 통과: ' + $elapsed.ElapsedMilliseconds + 'ms')
 } finally {
   if ($installer -and -not $installer.HasExited) { Stop-Process -Id $installer.Id -Force -ErrorAction SilentlyContinue }
