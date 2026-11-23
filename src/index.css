@@ -259,7 +259,7 @@
 }
 
 /* 메모: PC에서는 분류·목록·편집기를 나란히, 휴대폰에서는 목록과 편집기를 전환한다. */
-.notes-workspace { display: grid; grid-template-columns: 180px 240px minmax(0, 1fr); height: calc(100dvh - 116px); min-height: 520px; }
+.notes-workspace { display: grid; gap: var(--notes-pane-gap, 8px); grid-template-columns: 180px 240px minmax(0, 1fr); height: calc(100dvh - 116px); min-height: 520px; }
 .notes-folders, .notes-list, .notes-editor { min-height: 0; }
 .notes-folders { overflow-y: auto; }
 .notes-workspace.notes-focus { grid-template-columns: minmax(0, 1fr); }
@@ -267,8 +267,8 @@
 @media (min-width: 768px) and (max-width: 1099px) { .notes-workspace { grid-template-columns: 150px 220px minmax(0, 1fr); } }
 @media (max-width: 767px) {
  .notes-workspace { display: flex; flex-direction: column; height: auto; min-height: calc(100dvh - 164px); }
- .notes-folders { border-right: 0; border-bottom: 1px solid var(--color-app-line); max-height: 260px; }
- .notes-list { border-right: 0; }
+ .notes-folders { max-height: 260px; }
+
  .notes-editor { min-height: calc(100dvh - 170px); }
 }
 
