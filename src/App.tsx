@@ -502,6 +502,7 @@ export default function App() {
   // Settings Handlers
   const handleUpdateSettings = async (newSettings: AppSettings) => {
     await dbSaveAppSettings(newSettings);
+    window.miniallyDesktop?.notifySaved();
     setSettings(newSettings);
     syncEngine.schedule(); // 설정(공유 범위·같이 보기 등)도 내 다른 기기와 맞춘다
   };

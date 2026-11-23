@@ -50,7 +50,7 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
       - name: 실제 Windows 패키지 실행
         run: node tests-desktop/packaged.cjs
-      - name: 이전 버전에서 업데이트할 때 설치창 숨김 확인
+      - name: 업데이트 진행 창과 자동 설치 확인
         shell: pwsh
         run: ./tests-desktop/installer.ps1
       - name: 설치 파일과 업데이트 메타데이터 확인

@@ -38,8 +38,8 @@ function createQuick(){
 }
 async function finishApp(install){
  if(quitPending)return;quitPending=true;
- try{if(install&&updates.get().kind!=='ready')throw new Error('업데이트가 아직 준비되지 않았습니다.');if(!await closeGuard.ask(windows()))throw new Error('저장하지 못한 내용이나 열린 편집창이 있습니다. 내용을 확인한 뒤 다시 시도해 주세요.');quitAllowed=true;if(install)updates.install();else app.quit();}
- catch(error){quitAllowed=false;if(install)throw new Error('열린 편집창과 메모 저장 상태를 확인한 뒤 다시 시도해 주세요.');const owner=mainWindow||quickWindow;if(owner){owner.show();owner.focus();}await dialog.showMessageBox(owner,{type:'warning',title:'미니어리',message:'아직 종료하지 않았습니다.',detail:'열린 편집창과 메모 저장 상태를 확인한 뒤 다시 시도해 주세요.',buttons:['확인']});}
+ try{if(install)updates.prepare();if(!await closeGuard.ask(windows()))throw new Error('저장하지 못한 내용이나 열린 편집창이 있습니다. 내용을 확인한 뒤 다시 시도해 주세요.');quitAllowed=true;if(install)updates.install();else app.quit();}
+ catch(error){quitAllowed=false;if(install)updates.cancelPrepare();if(install)throw new Error('열린 편집창과 메모 저장 상태를 확인한 뒤 다시 시도해 주세요.');const owner=mainWindow||quickWindow;if(owner){owner.show();owner.focus();}await dialog.showMessageBox(owner,{type:'warning',title:'미니어리',message:'아직 종료하지 않았습니다.',detail:'열린 편집창과 메모 저장 상태를 확인한 뒤 다시 시도해 주세요.',buttons:['확인']});}
  finally{quitPending=false;}
 }
 function trayMenu(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:'미니어리 열기',click:()=>createMain()},{label:'빠른 메모  Ctrl+Alt+M',click:()=>createQuick()},{type:'separator'},{label:'항상 위',type:'checkbox',checked:preferences.get().alwaysOnTop,click:item=>{void changePreferences({alwaysOnTop:item.checked}).catch(()=>{});}},{type:'separator'},{label:'종료',click:()=>{void finishApp(false);}}]));}
@@ -72,7 +72,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   session.defaultSession.protocol.handle('minially',createProtocolHandler({rendererRoot:path.join(__dirname,'renderer'),fetchRemote:(...args)=>net.fetch(...args)}));
   session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(trustedPage(contents.getURL())&&['notifications','clipboard-sanitized-write'].includes(permission)));
   let updater=null;if(app.isPackaged&&process.platform==='win32'){updater=require('electron-updater').autoUpdater;updater.setFeedURL({provider:'generic',url:UPDATE_FEED});}
-  updates=createUpdates({updater,currentVersion:app.getVersion(),autoDownload:preferences.get().autoDownload,onChange:publishState});registerIPC();
+  updates=createUpdates({updater,currentVersion:app.getVersion(),autoDownload:preferences.get().autoDownload,onChange:()=>{if(updates?.get().kind==='error')quitAllowed=false;publishState();}});registerIPC();
   if(!testMode){try{tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'renderer/desktop-icon.png')).resize({width:20,height:20}));tray.setToolTip('미니어리');tray.on('double-click',()=>createMain());trayMenu();}catch{tray=null;}shortcutAvailable=globalShortcut.register(shortcut,createQuick);}
   createMain();if(process.argv.includes('--quick-note'))createQuick();
   if(updater){setTimeout(()=>{void updates.check();},10000).unref();setInterval(()=>{void updates.check();},4*60*60*1000).unref();}

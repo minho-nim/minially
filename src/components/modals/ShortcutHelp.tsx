@@ -9,7 +9,7 @@ export const ShortcutHelp: React.FC<{ open: boolean; onClose: () => void }> = ({
   useEffect(()=>{if(!open)return;const frame=requestAnimationFrame(()=>root.current?.querySelector<HTMLButtonElement>('button')?.focus({preventScroll:true}));return()=>cancelAnimationFrame(frame);},[open]);
   if (!open) return null;
   return (
-    <div ref={root} role="dialog" aria-modal="true" aria-label="단축키" className="app-modal fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={onClose}>
+    <div onKeyDown={event=>{if(event.key==='?'){event.preventDefault();onClose();}}} ref={root} role="dialog" aria-modal="true" aria-label="단축키" className="app-modal fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]" onClick={onClose}>
       <div className="w-full max-w-md max-h-[calc(100dvh-32px)] overflow-y-auto overscroll-contain bg-white rounded-2xl shadow-xl border border-app-line p-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-app-ink">단축키</h3>

@@ -15,13 +15,14 @@ function UpdatesDialog({open,state,error,onClose,onRetry}:{open:boolean;state:De
 }
 export function DesktopShell({children}:{children:ReactNode}){
  const api=window.miniallyDesktop,[state,setState]=useState<DesktopState|null>(null),[open,setOpen]=useState(false),[error,setError]=useState(''),[windowError,setWindowError]=useState('');
- const mounted=useRef(true);
+ const mounted=useRef(true),progress=state?.update.kind==='preparing'||state?.update.kind==='installing';
+ useEffect(()=>{if(!progress)return;const overflow=document.body.style.overflow;document.body.style.overflow='hidden';const block=(event:KeyboardEvent)=>{event.preventDefault();event.stopImmediatePropagation();};document.addEventListener('keydown',block,true);return()=>{document.body.style.overflow=overflow;document.removeEventListener('keydown',block,true);};},[progress]);
  async function read(){if(!api)return;setError('');try{const next=await api.getState();if(mounted.current)setState(next);}catch{if(mounted.current)setError('앱 정보를 확인하지 못했습니다.');}}
  useEffect(()=>{mounted.current=true;if(!api)return;const off=api.onState(setState);void read();const online=()=>{void api.checkUpdate().catch(()=>{});};window.addEventListener('online',online);return()=>{mounted.current=false;off();window.removeEventListener('online',online);};},[]);
  if(!api)return <>{children}</>;
  async function control(action:'minimize'|'maximize'|'close'){setWindowError('');try{await api!.windowAction(action);}catch{setWindowError('창을 조작하지 못했습니다. 다시 시도해 주세요.');}}
  const kind=state?.update.kind;
- const badge=kind==='ready'?'재시작 준비':kind==='downloading'?`${Math.round(state!.update.percent)}%`:kind==='available'?'새 버전':kind==='checking'?'확인 중':kind==='error'?'확인 필요':'';
+ const badge=kind==='preparing'?'저장 확인':kind==='installing'?'업데이트 중':kind==='ready'?'재시작 준비':kind==='downloading'?`${Math.round(state!.update.percent)}%`:kind==='available'?'새 버전':kind==='checking'?'확인 중':kind==='error'?'확인 필요':'';
  return <div className="desktop-shell" data-window-focused={state?.window?.focused!==false}>
   <header aria-label="앱 창 제목 표시줄" className="desktop-titlebar">
    <div role="group" aria-label="창 제어" className="desktop-window-controls">
@@ -37,6 +38,7 @@ export function DesktopShell({children}:{children:ReactNode}){
   </header>
   {windowError&&<p role="alert" className="fixed top-10 inset-x-0 z-[75] bg-white px-3 py-2 text-xs text-red-600">{windowError}</p>}
   <div className="desktop-content">{children}</div>
+  {progress&&createPortal(<div role="dialog" aria-modal="true" aria-label="업데이트 진행" className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-[rgba(52,40,35,0.30)]"><div className="w-full max-w-sm rounded-2xl border border-app-line bg-white p-6 shadow-xl text-center text-app-ink"><RefreshCw aria-hidden className="w-7 h-7 mx-auto mb-3 animate-spin text-app-accent"/><h2 className="font-bold">업데이트 중</h2><p className="text-xs text-app-muted mt-1">{formatAppVersion(state!.update.version)}</p><p role="status" aria-live="polite" className="mt-3 text-sm leading-6">{kind==='preparing'?'메모 저장을 확인하고 있어요.':'새 버전을 적용하고 있습니다. 완료되면 앱이 자동으로 다시 열립니다.'}</p></div></div>,document.body)}
   <UpdatesDialog open={open} state={state} error={error} onClose={()=>setOpen(false)} onRetry={()=>void read()}/>
  </div>;
 }
