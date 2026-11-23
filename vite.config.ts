@@ -1,6 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import {readFileSync} from 'node:fs';
 import { execSync } from 'child_process';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -11,10 +12,11 @@ function commitSha() {
   try { return execSync('git rev-parse --short=7 HEAD').toString().trim(); } catch { return 'dev'; }
 }
 const APP_VERSION = commitSha();
+const APP_RELEASE = JSON.parse(readFileSync(new URL('./desktop/package.json',import.meta.url),'utf8')).version as string;
 const versionFile = (): Plugin => ({
   name: 'minially-version-file',
   generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ commit: APP_VERSION, builtAt: new Date().toISOString() }) });
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ commit: APP_VERSION, version: APP_RELEASE, builtAt: new Date().toISOString() }) });
   },
 });
 import { VitePWA } from 'vite-plugin-pwa';
@@ -23,7 +25,7 @@ export default defineConfig(({ mode }) => {
   const base = mode === 'github-pages' ? '/minially/' : '/';
   return {
     base,
-    define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
+    define: { __APP_VERSION__: JSON.stringify(APP_VERSION), __APP_RELEASE__: JSON.stringify(APP_RELEASE) },
     plugins: [
       versionFile(),
       react(),
