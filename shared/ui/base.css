@@ -58,6 +58,8 @@ body {
 button, input, textarea { font: inherit; color: inherit; }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* 휴대폰: 두 번 눌러 확대 지연 없애기, 누를 때 회색 번쩍임 대신 각 버튼의 눌림 표시를 씀 */
+a, button, input, select, textarea, label, [role=tab] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 
 .page { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }

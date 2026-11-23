@@ -77,8 +77,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .side-foot { margin: 0 0 0 auto; padding: 0; border: 0; display: flex; align-items: center; gap: 4px; }
   .side-foot .btn { min-height: 40px; padding: 0 10px; }
   .side-foot .who-text { display: none; }
-  .nav-wrap { order: 3; width: 100%; overflow-x: auto; display: flex; gap: 4px; }
-  .nav { display: flex; gap: 4px; }
+  .nav-wrap { order: 3; width: 100%; display: flex; flex-wrap: wrap; gap: 4px; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px; }
   .nav a { white-space: nowrap; min-height: 36px; }
   .nav-label { display: none; }
   .main { padding: 18px 16px 48px; gap: 24px; }

@@ -347,6 +347,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
             <section className="card step" aria-labelledby="d-revenue">
               <h2 id="d-revenue" className="step-title">협찬·광고 수익<span className="step-sub">받을 금액 {won(data.revenue.pending.total)} · {data.revenue.pending.count}건</span></h2>
               <p style={{ margin: 0 }}><span className="muted small">{month}월 받은 금액</span><br /><strong className="revenue-now">{won(data.revenue.this_month)}</strong></p>
+              {data.revenue.months.some(m => m.total > 0) ? (
               <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
                 {data.revenue.months.map(m => {
                   const max = Math.max(1, ...data.revenue.months.map(x => x.total));
@@ -358,6 +359,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
                   );
                 })}
               </div>
+              ) : <p className="muted small" style={{ margin: 0 }}>최근 6개월 받은 금액이 아직 없어요.</p>}
               {data.revenue.upcoming.length > 0 && (
                 <ul className="expiring">
                   {data.revenue.upcoming.map(u => (
