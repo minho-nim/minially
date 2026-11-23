@@ -8,14 +8,14 @@
 (저장소 minho-nim/minihub, 예전 이름 minially)
 ├── minially/   기존 미니어리 전체(웹 + Windows 앱 + Pages Functions). 위치만 옮김, 코드 변경 없음
 ├── hub/        미니허브 대시보드(React + Vite + Pages Functions)
-├── minilog/    미니로그(React + Vite + Pages Functions)
+├── mini-log/   미니로그(React + Vite + Pages Functions)
 ├── shared/
 │   ├── server/   로그인·세션(auth), Gemini 호출(ai), 사용량(usage), 표 만들기(schema), 공통 타입(d1)
 │   ├── client/   브라우저 fetch 도구·앱 주소(api.ts)
 │   ├── ui/       공통 색·글자 토큰(base.css)
 │   └── testing/  가짜 Gemini 서버(mock-gemini.mjs)
 ├── docs/       SETUP_CLOUDFLARE.md(소유자 설정), 이 문서
-└── .github/workflows/  deploy-pages·desktop-release·deploy-release(미니어리), hub-minilog-check(신규)
+└── .github/workflows/  deploy-pages·desktop-release·deploy-release(미니어리), hub-minilog-check(hub·mini-log 검사)
 ```
 - 앱마다 `package.json`·`package-lock.json`이 따로 있습니다(npm workspaces 안 씀). 이유: Windows 앱(electron-builder)이 `minially/node_modules`를 그대로 묶어서, 의존성을 위로 끌어올리면 패키징이 깨질 수 있습니다.
 - `shared/`는 외부 패키지를 import하지 않습니다. React 컴포넌트는 공유하지 않습니다(바깥 폴더에서 react를 찾지 못함). 공유하려면 Vite `resolve.dedupe`와 tsconfig `paths`를 같이 맞춰야 합니다.
@@ -38,20 +38,20 @@
 | 미니 가족 디자인: 캐릭터 토몽이(새싹 달린 토마토 SVG), 손글씨 서명 로고, 토마토 서명 색, 앱별 손글씨 글꼴(앱에 내장) | `shared/ui/tomong.ts`, `shared/ui/base.css`, `hub/DESIGN.md` | 화면 확인(PC·폰), 시험 통과 |
 | 코드 해시 도우미(브라우저 안에서만 계산) | `hub/public/code-hash.html` | 시험(서버 요청 없음) |
 | 미니허브 통합 대시보드(기본, C·D 합계·사용자별·앱별·모델·작업별·오류 종류·게시 글 수) ↔ 내 대시보드 토글(선택은 브라우저에 기억) | `hub/functions/api/overview.ts`, `hub/src/App.tsx` | 시험(합계·사용자별 숫자, 토글 유지, 비로그인 401) |
-| 미니로그 내 대시보드(게시 글·AI 호출·토큰·오류·작업별·원고 상태·사진 용량·삭제 예정) | `minilog/functions/api/dashboard.ts` | 시험(다른 사용자 숫자 섞이지 않음) |
-| 미니로그 문체: 내 문체 1개 + 참고 블로그 문체 여러 개(최대 10). 글 붙여 넣기 → 분석 → 원고마다 문체 선택(내 문체/참고/없음). 참고 문체는 말투·리듬·구성만 쓰고 자주 쓰는 표현은 AI에 보내지 않으며 베끼지 말라고 안내 | `minilog/functions/_style.ts`, `api/styles/*`, `minilog_drafts.style_id` | 가짜 Gemini로 시험(참고 문체 표현이 프롬프트에 안 들어감, 남의 문체 수정·삭제 404, 지우면 원고는 내 문체로) |
-| 사진 순서 바꾸기, 순서 변경·삭제 시 본문 [사진 n] 번호 자동 맞춤 | `api/drafts/[id]/photos.ts` PUT, `minilog/src/photoMarkers.ts` | 시험 |
+| 미니로그 내 대시보드(게시 글·AI 호출·토큰·오류·작업별·원고 상태·사진 용량·삭제 예정) | `mini-log/functions/api/dashboard.ts` | 시험(다른 사용자 숫자 섞이지 않음) |
+| 미니로그 문체: 내 문체 1개 + 참고 블로그 문체 여러 개(최대 10). 글 붙여 넣기 → 분석 → 원고마다 문체 선택(내 문체/참고/없음). 참고 문체는 말투·리듬·구성만 쓰고 자주 쓰는 표현은 AI에 보내지 않으며 베끼지 말라고 안내 | `mini-log/functions/_style.ts`, `api/styles/*`, `minilog_drafts.style_id` | 가짜 Gemini로 시험(참고 문체 표현이 프롬프트에 안 들어감, 남의 문체 수정·삭제 404, 지우면 원고는 내 문체로) |
+| 사진 순서 바꾸기, 순서 변경·삭제 시 본문 [사진 n] 번호 자동 맞춤 | `api/drafts/[id]/photos.ts` PUT, `mini-log/src/photoMarkers.ts` | 시험 |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
-| 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `minilog/src/App.tsx`, `minilog/functions/` | 시험 |
+| 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
-| 사용자별 데이터 분리(모든 쿼리에 `WHERE user = ?`) | `minilog/functions/_drafts.ts` | 시험(D가 C 원고 목록·조회·수정 불가, 비로그인 401) |
-| 미니로그 사진 여러 장 올리기(브라우저에서 긴 변 1600px JPG로 줄임, 장당 5MB·원고당 20장, 매직 바이트 검사) | `minilog/functions/_photos.ts`, `api/drafts/[id]/photos.ts`, `api/photos/[id].ts` | 시험(로컬 R2) |
+| 사용자별 데이터 분리(모든 쿼리에 `WHERE user = ?`) | `mini-log/functions/_drafts.ts` | 시험(D가 C 원고 목록·조회·수정 불가, 비로그인 401) |
+| 미니로그 사진 여러 장 올리기(브라우저에서 긴 변 1600px JPG로 줄임, 장당 5MB·원고당 20장, 매직 바이트 검사) | `mini-log/functions/_photos.ts`, `api/drafts/[id]/photos.ts`, `api/photos/[id].ts` | 시험(로컬 R2) |
 | 사진 보기·지우기(본인만, R2 공개 주소 없음) | `api/photos/[id].ts` | 시험(D가 C 사진 보기·지우기·올리기 404, 비로그인 401, 사진 아닌 파일 415) |
 | 사진 분석: 앞 8장을 Gemini에 함께 보내 [사진 n] 위치 표시 | `api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험(보낸 사진 수 확인) |
 | 게시 완료 URL(http/https만) 기록, 게시 후 30일 지나면 사진 삭제, 게시 취소 시 삭제 예정 취소 | `_drafts.ts` `updateDraft`, `_photos.ts` `cleanupExpired` | 화면 시험 + node:sqlite로 시간 흐름 시험(29일 유지·31일 삭제·다른 사용자 사진 유지) |
 
 ## 3. 미완료(계획만)
-- **실제 배포 안 됨.** minihub·minilog Cloudflare 프로젝트는 아직 없습니다(`docs/SETUP_CLOUDFLARE.md`). minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
+- Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
 - **실제 Gemini 호출 검증 안 됨.** 가짜 서버로만 시험했습니다. 기본 모델 `gemini-2.5-flash`가 지금도 있는지 확인이 필요합니다(`GEMINI_MODEL`로 바꿀 수 있음).
 - 미니로그 1단계는 모두 1차 구현. 참고 블로그는 붙여 넣기만(네이버 자동 수집 안 함). 참고 문체 원문(남의 글)은 사용자 계정에만 저장되며, 저작권 안내 문구를 화면에 표시
 - 통합 대시보드는 로그인한 C·D 누구나 두 사람의 **숫자**를 봅니다(원고·사진·문체 글은 안 보임). 사용자가 늘면 권한을 나눠야 합니다.
@@ -79,12 +79,12 @@
 ## 6. Cloudflare 바인딩·환경 변수 이름
 | 이름 | 종류 | 쓰는 곳 |
 |---|---|---|
-| `DB` | D1 바인딩(세 프로젝트 같은 DB) | minially, hub, minilog |
+| `DB` | D1 바인딩(세 프로젝트 같은 DB) | minially, hub, mini-log |
 | `SYNC_CODE_HASHES` | 비밀값(기존) | minially |
-| `USER_CODE_HASHES` | 비밀값 | hub, minilog |
-| `GEMINI_KEY_C`, `GEMINI_KEY_D` | 비밀값 | hub(연결 상태 표시), minilog |
+| `USER_CODE_HASHES` | 비밀값 | hub, mini-log |
+| `GEMINI_KEY_C`, `GEMINI_KEY_D` | 비밀값 | hub(연결 상태 표시), mini-log |
 | `STATS_API_TOKEN` | 비밀값 | hub |
-| `GEMINI_MODEL` | 변수(선택) | hub, minilog |
+| `GEMINI_MODEL` | 변수(선택) | hub, mini-log |
 | `GEMINI_API_BASE` | **시험 전용**. 운영에는 넣지 않음 | 시험 |
 | `MINILOG_PHOTOS` | R2 바인딩(버킷 `minilog-photos`, 공개 주소 끔) | minilog |
 | `MINIHUB_LAYOUT_READY` | GitHub 저장소 변수 | deploy-release.yml |
@@ -107,8 +107,8 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `minially`: `npm test` | 223 passed (4.7m) |
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 7 passed (통합 대시보드 포함) |
-| `minilog`: `npm run lint`, `npm run build` | 성공 |
-| `minilog`: `npm test` | 15 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드 포함) |
+| `mini-log`: `npm run lint`, `npm run build` | 성공 |
+| `mini-log`: `npm test` | 15 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
