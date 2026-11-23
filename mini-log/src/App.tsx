@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
-import { fullText, hashtagLine, pasteBody, photoFileName } from './publishKit';
+import { fullText, photoFileName } from './publishKit';
+import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { BlogView } from './Blog';
@@ -533,7 +534,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   const [storage, setStorage] = useState(true);
   const [uploading, setUploading] = useState(0);
   const [publishUrl, setPublishUrl] = useState(draft.published_url);
-  const [copied, setCopied] = useState<'all' | 'title' | 'body' | 'tags' | null>(null);
+  const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [published, setPublished] = useState({ url: draft.published_url, at: draft.published_at });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -667,12 +668,11 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     } finally { setAiBusy(false); }
   }
 
-  // 올리기 보조: 한 번에 복사 / 제목·본문·해시태그 따로 복사
-  async function copy(kind: 'all' | 'title' | 'body' | 'tags') {
-    const text = kind === 'all' ? fullText(fields.title, fields.body, fields.hashtags) : kind === 'title' ? fields.title.trim() : kind === 'body' ? pasteBody(fields.body) : hashtagLine(fields.hashtags);
-    const label = { all: '제목·본문·해시태그를', title: '제목을', body: '본문을', tags: '해시태그를' }[kind];
+  // 올리기 보조: 한 번에 복사(따로 복사는 미리보기에서 눌러서)
+  async function copyAll() {
+    const text = fullText(fields.title, fields.body, fields.hashtags);
     if (!text) { setMessage({ kind: 'error', text: '복사할 내용이 없어요.' }); return; }
-    try { await navigator.clipboard.writeText(text); setCopied(kind); setMessage({ kind: 'info', text: `${label} 복사했어요. 글쓰기 화면에 붙여 넣으세요.${kind !== 'title' && kind !== 'tags' && /\[사진\s*\d+\]/.test(fields.body) ? ' 📷 사진 n 자리에 사진을 넣으면 돼요.' : ''}` }); }
+    try { await navigator.clipboard.writeText(text); setCopied(true); setMessage({ kind: 'info', text: `제목·본문·해시태그를 복사했어요. 글쓰기 화면에 붙여 넣으세요.${/\[사진\s*\d+\]/.test(fields.body) ? ' 📷 사진 n 자리에 사진을 넣으면 돼요.' : ''}` }); }
     catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 글을 직접 선택해 복사해 주세요.' }); }
   }
 
@@ -716,7 +716,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
           {save === 'failed' && <button className="btn small" onClick={() => { void flush(); }}>다시 저장</button>}
         </div>
         <div className="actions">
-          <button className="btn" onClick={() => { void copy('all'); }} disabled={!fields.title.trim() && !fields.body.trim()}>한 번에 복사</button>
+          <button className="btn" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>한 번에 복사</button>
           {fields.status !== 'published' && (
             <button className="btn" onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
           )}
@@ -820,14 +820,13 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
               <input id="planned-on" className="input" type="date" value={fields.planned_on ?? ''} onChange={e => change({ planned_on: e.target.value || null })} />
             </div>
             <ol className="post-kit">
-              <li>
+              <li className="kit-wide">
                 <span className="kit-label">글 복사</span>
                 <div className="kit-buttons">
-                  <button className="btn primary" onClick={() => { void copy('all'); }} disabled={!fields.title.trim() && !fields.body.trim()}>{copied === 'all' ? '복사됨 ✓' : '한 번에 복사'}</button>
-                  {(['title', 'body', 'tags'] as const).map(k => (
-                    <button key={k} className="btn small" onClick={() => { void copy(k); }} disabled={k === 'tags' ? fields.hashtags.length === 0 : k === 'title' ? !fields.title.trim() : !fields.body.trim()}>{copied === k ? '복사됨 ✓' : { title: '제목', body: '본문', tags: '해시태그' }[k]}</button>
-                  ))}
+                  <button className="btn primary" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>{copied ? '복사됨 ✓' : '한 번에 복사'}</button>
+                  <span className="muted small">또는 아래 미리보기에서 제목·문단·사진·해시태그를 하나씩 눌러 복사</span>
                 </div>
+                <PostPreview title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos ?? []} onMessage={setMessage} />
               </li>
               <li>
                 <span className="kit-label">사진 받기</span>
