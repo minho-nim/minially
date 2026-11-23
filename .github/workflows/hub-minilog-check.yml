@@ -1,12 +1,12 @@
 name: 미니허브·미니로그 검사
 
-# hub·minilog·shared가 바뀔 때 타입 검사·빌드·서버 포함 시험을 돌린다(가짜 Gemini 사용, 실제 API·크레딧 없음).
+# hub·mini-log·shared가 바뀔 때 타입 검사·빌드·서버 포함 시험을 돌린다(가짜 Gemini 사용, 실제 API·크레딧 없음).
 on:
   push:
     branches: [main]
-    paths: ['hub/**', 'minilog/**', 'shared/**', '.github/workflows/hub-minilog-check.yml']
+    paths: ['hub/**', 'mini-log/**', 'shared/**', '.github/workflows/hub-minilog-check.yml']
   pull_request:
-    paths: ['hub/**', 'minilog/**', 'shared/**', '.github/workflows/hub-minilog-check.yml']
+    paths: ['hub/**', 'mini-log/**', 'shared/**', '.github/workflows/hub-minilog-check.yml']
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [hub, minilog]
+        app: [hub, mini-log]
     defaults:
       run:
         working-directory: ${{ matrix.app }}

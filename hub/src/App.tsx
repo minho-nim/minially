@@ -377,7 +377,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
                 <>
                   <p className="muted small" style={{ margin: 0 }}>키는 보안을 위해 이 화면이 아니라 Cloudflare 비밀값으로 등록해요.</p>
                   <ol className="help small muted">
-                    <li>Cloudflare → minihub·minilog 프로젝트 → Settings → Variables and Secrets</li>
+                    <li>Cloudflare → minihub·mini-log 프로젝트 → Settings → Variables and Secrets</li>
                     <li>비밀값 이름 <code>GEMINI_KEY_{me.user}</code>, 값에 Gemini API 키</li>
                     <li>저장한 뒤 다시 배포하면 연결돼요</li>
                   </ol>

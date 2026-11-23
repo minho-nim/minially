@@ -13,10 +13,10 @@
     "hub:lint": "npm --prefix hub run lint",
     "hub:test": "npm --prefix hub test",
     "hub:build": "npm --prefix hub run build",
-    "minilog:install": "npm --prefix minilog ci",
-    "minilog:dev": "npm --prefix minilog run dev",
-    "minilog:lint": "npm --prefix minilog run lint",
-    "minilog:test": "npm --prefix minilog test",
-    "minilog:build": "npm --prefix minilog run build"
+    "mini-log:install": "npm --prefix mini-log ci",
+    "mini-log:dev": "npm --prefix mini-log run dev",
+    "mini-log:lint": "npm --prefix mini-log run lint",
+    "mini-log:test": "npm --prefix mini-log test",
+    "mini-log:build": "npm --prefix mini-log run build"
   }
 }
