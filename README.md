@@ -36,5 +36,5 @@ npm run dev
 
 - 미니어리: https://minially.pages.dev (Cloudflare Pages, Root directory `minially`)
 - 미니허브: https://minihub.pages.dev (Root directory `hub`, 준비 중)
-- 미니로그: https://minilog-ef7.pages.dev (Root directory `minilog`, 준비 중)
+- 미니로그: https://mini-log.pages.dev (Root directory `minilog`, 준비 중)
 - Windows 앱 자동 업데이트는 이 저장소의 GitHub Releases를 씁니다. 저장소 이름을 바꾸면 업데이트 주소(`minially/electron-builder.yml`)도 같이 바꿔야 합니다.

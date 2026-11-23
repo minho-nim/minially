@@ -51,7 +51,7 @@
 | 게시 완료 URL(http/https만) 기록, 게시 후 30일 지나면 사진 삭제, 게시 취소 시 삭제 예정 취소 | `_drafts.ts` `updateDraft`, `_photos.ts` `cleanupExpired` | 화면 시험 + node:sqlite로 시간 흐름 시험(29일 유지·31일 삭제·다른 사용자 사진 유지) |
 
 ## 3. 미완료(계획만)
-- **실제 배포 안 됨.** minihub·minilog Cloudflare 프로젝트는 아직 없습니다(`docs/SETUP_CLOUDFLARE.md`). minihub.pages.dev·minilog-ef7.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
+- **실제 배포 안 됨.** minihub·minilog Cloudflare 프로젝트는 아직 없습니다(`docs/SETUP_CLOUDFLARE.md`). minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
 - **실제 Gemini 호출 검증 안 됨.** 가짜 서버로만 시험했습니다. 기본 모델 `gemini-2.5-flash`가 지금도 있는지 확인이 필요합니다(`GEMINI_MODEL`로 바꿀 수 있음).
 - 미니로그 1단계는 모두 1차 구현. 참고 블로그는 붙여 넣기만(네이버 자동 수집 안 함). 참고 문체 원문(남의 글)은 사용자 계정에만 저장되며, 저작권 안내 문구를 화면에 표시
 - 통합 대시보드는 로그인한 C·D 누구나 두 사람의 **숫자**를 봅니다(원고·사진·문체 글은 안 보임). 사용자가 늘면 권한을 나눠야 합니다.
@@ -95,7 +95,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 ## 7. 실제 배포 상태 (2026-11-23)
 - PR #29 병합 완료(main `eb88a48`), main 전체 검사 성공. Windows 앱 0.1.8로 미니어리 운영 배포 진행(결과는 GitHub Actions 확인).
 - minially.pages.dev: Cloudflare Root directory `minially`.
-- minihub.pages.dev, minilog-ef7.pages.dev: 프로젝트 없음(배포 안 됨)
+- minihub.pages.dev, mini-log.pages.dev: 프로젝트 없음(배포 안 됨)
 
 ## 8. 시험 실행 결과 (이 세션에서 실제로 돌림)
 | 명령 | 결과 |
