@@ -1,3 +1,4 @@
+import {useNotePaneSizes} from './useNotePaneSizes';
 import {EmptyNoteTrashDialog} from './EmptyNoteTrashDialog';
 import {NoteFolderModal} from './NoteFolderModal';
 import {RichNoteBody} from './RichNoteBody';
@@ -17,6 +18,7 @@ interface Props {
 const button='inline-flex items-center justify-center gap-1.5 min-h-9 px-2.5 rounded-lg text-xs hover:bg-app-soft transition-colors disabled:opacity-50 cursor-pointer';
 const field='w-full min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line bg-white outline-none focus:border-app-accent';
 export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categories,notes,folders,tasks,onSave,onSaveFolder,onTask,onSchedule,onEmptyTrash,openNoteId}:Props){
+ const panes=useNotePaneSizes();
  const [filter,setFilter]=useState('all'),[query,setQuery]=useState(''),[selected,setSelected]=useState<string|null>(null),[focus,setFocus]=useState(false),[mobileEditor,setMobileEditor]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [trashTargets,setTrashTargets]=useState<Pick<Note,'id'|'updatedAt'>[]|null>(null),[trashNotice,setTrashNotice]=useState('');
@@ -35,7 +37,7 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
  async function create(){if(busy)return;setBusy(true);setError('');const now=Date.now();const note:Note={id:crypto.randomUUID(),title:'',body:'',folderId:'',tags:[],pinned:false,createdAt:now,updatedAt:now};try{if(!await allowLeave())return;await onSave(note);setSelected(note.id);setMobileEditor(true);setFilter('all');setQuery('');}catch(e){setError(e instanceof Error?e.message:'메모를 저장하지 못했습니다.');}finally{setBusy(false);}}
  async function requestEmptyTrash(){if(busy||!trash.length)return;if(!await allowLeave())return;setTrashNotice('');setTrashTargets(trash.map(({id,updatedAt})=>({id,updatedAt})));}
  async function confirmEmptyTrash(){if(!trashTargets)return;const count=await onEmptyTrash(trashTargets);setTrashNotice(count===trashTargets.length?'휴지통을 비웠습니다.':`${count}개를 영구 삭제했습니다. 변경된 메모는 남겨두었습니다.`);setTrashTargets(null);setSelected(null);setMobileEditor(false);}
- return <section aria-label="메모장" className={'notes-workspace rounded-2xl border border-app-line bg-white overflow-hidden '+(focus?'notes-focus':'')}>
+ return <section ref={panes.root} style={panes.style} aria-label="메모장" className={'notes-workspace rounded-2xl border border-app-line bg-white overflow-hidden '+(focus?'notes-focus':'')}>
   <aside aria-label="메모 분류" className={'notes-folders bg-app-canvas border-r border-app-line p-3 '+(mobileEditor?'hidden md:block':'')}>
    <h1 className="text-base font-bold px-2 py-2 flex items-center gap-2"><FileText className="w-4 h-4 text-app-accent"/>메모</h1>
    <div className="flex md:flex-col gap-1 flex-wrap">
@@ -59,6 +61,7 @@ export function NotesView({active=true,schedules,onOpenTask,onOpenSchedule,categ
   <div className={'notes-editor min-w-0 '+(!mobileEditor?'hidden md:flex':'flex')}>
    {current?<NoteEditor key={current.id} notes={notes} note={current} onOriginal={async id=>{if(await allowLeave()){setSelected(id);setMobileEditor(true);}}} originalExists={notes.some(note=>note.id===current.conflictOf)} beforeLeave={beforeLeave} schedules={schedules} onOpenTask={onOpenTask} onOpenSchedule={onOpenSchedule} categories={categories} folders={folders} tasks={tasks} onSave={onSave} onTask={onTask} onSchedule={onSchedule} onCreate={create} focus={focus} onFocus={()=>setFocus(!focus)} onBack={()=>{setMobileEditor(false);setFocus(false);}}/>:<div className="flex-1 flex flex-col items-center justify-center text-app-muted p-8 text-center"><FileText className="w-10 h-10 text-app-outline mb-4"/><h2 className="font-semibold text-app-ink">생각을 적는 나만의 공간</h2><p className="text-sm mt-2 leading-6">메모를 선택하거나 새로 작성하세요.<br/>작성한 내용은 할 일과 일정으로 연결할 수 있어요.</p></div>}
   </div>
+  {!focus&&<>{panes.separator(0)}{panes.separator(1)}</>}
   <EmptyNoteTrashDialog count={trashTargets?.length??null} onClose={()=>setTrashTargets(null)} onEmpty={confirmEmptyTrash}/>
   <NoteFolderModal open={folderDialog.open} folder={folderDialog.folder} categories={categories} onSave={onSaveFolder} onClose={()=>setFolderDialog(previous=>({...previous,open:false}))}/>
   {error&&<p role="alert" className="col-span-full px-4 py-2 text-xs text-red-600">{error}</p>}

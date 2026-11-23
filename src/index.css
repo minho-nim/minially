@@ -352,3 +352,11 @@
  .desktop-titlebar { padding-inline: 8px; }
 }
 .desktop-content .app-titlebar { top: var(--desktop-bar-height); }
+@media (min-width: 768px) {
+ .notes-workspace { position: relative; grid-template-columns: var(--notes-folder-width, 180px) var(--notes-list-width, 240px) minmax(0, 1fr); }
+ .notes-workspace.notes-focus { grid-template-columns: minmax(0, 1fr); }
+ .note-pane-separator { position: absolute; top: 0; bottom: 0; width: 8px; z-index: 2; cursor: col-resize; touch-action: none; outline-offset: -2px; }
+ .note-pane-separator::after { content: ''; position: absolute; left: 3px; top: 0; bottom: 0; width: 2px; background: transparent; transition: background-color .15s; }
+ .note-pane-separator:hover::after, .note-pane-separator:focus-visible::after { background: var(--color-app-accent); }
+}
+@media (max-width: 767px) { .note-pane-separator { display: none; } }
