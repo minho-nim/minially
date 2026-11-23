@@ -41,7 +41,7 @@
 | 미니로그 내 대시보드(게시 글·AI 호출·토큰·오류·작업별·원고 상태·사진 용량·삭제 예정) | `mini-log/functions/api/dashboard.ts` | 시험(다른 사용자 숫자 섞이지 않음) |
 | 미니로그 문체: 내 문체 1개 + 참고 블로그 문체 여러 개(최대 10). 글 붙여 넣기 → 분석 → 원고마다 문체 선택(내 문체/참고/없음). 참고 문체는 말투·리듬·구성만 쓰고 자주 쓰는 표현은 AI에 보내지 않으며 베끼지 말라고 안내 | `mini-log/functions/_style.ts`, `api/styles/*`, `minilog_drafts.style_id` | 가짜 Gemini로 시험(참고 문체 표현이 프롬프트에 안 들어감, 남의 문체 수정·삭제 404, 지우면 원고는 내 문체로) |
 | 사진 순서 바꾸기, 순서 변경·삭제 시 본문 [사진 n] 번호 자동 맞춤 | `api/drafts/[id]/photos.ts` PUT, `mini-log/src/photoMarkers.ts` | 시험 |
-| 미니로그 협찬·광고 수익 기록: 캠페인(업체·이름·제공 내용·금액·마감일·상태·받은 날·연결 원고·메모), 광고 수익, 내 대시보드 수익 칸(이번 달·6개월·받을 금액·다가오는 마감). 본인만 보고 통합 대시보드·통계 API에는 내보내지 않음 | `mini-log/functions/_campaigns.ts`, `api/campaigns/*`, `mini-log/src/Campaigns.tsx` | 시험(정산→수익 합계, 잘못된 날짜·금액·상태·남의 원고 거절, 다른 사용자 404) |
+| 미니로그 협찬·광고 수익 기록: 캠페인(업체·이름·제공 내용·금액·마감일·상태·받은 날·연결 원고·메모), 광고 수익, 내 대시보드 수익 칸(이번 달·6개월·받을 금액·다가오는 마감). 본인 화면 + 미니허브 통합 대시보드(소유자 요청, C·D 합계·사용자별·6개월·다가오는 마감)에서 봄. Minoffia 통계 API(/api/stats)에는 내보내지 않음 | `mini-log/functions/_campaigns.ts`, `api/campaigns/*`, `mini-log/src/Campaigns.tsx` | 시험(정산→수익 합계, 잘못된 날짜·금액·상태·남의 원고 거절, 다른 사용자 404) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |

@@ -97,6 +97,19 @@ interface Overview {
   usage: (UsageRow & { user: string; model: string; task: string })[];
   errors: { app: string; error_code: string; count: number }[];
   minilog_published: { user: string; count: number }[];
+  revenue: {
+    month: string;
+    months: { month: string; total: number }[];
+    users: { user: string; this_month: number; open_count: number; open_total: number }[];
+    upcoming: { user: string; brand: string; title: string; deadline: string; status: string; amount: number }[];
+  };
+}
+const won = (n: number) => `${formatNumber(n)}원`;
+const CAMPAIGN_STATUS: Record<string, string> = { proposed: '제안 받음', in_progress: '진행 중', posted: '게시 완료' };
+function dDay(deadline: string) {
+  const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+  const diff = Math.round((Date.parse(`${deadline}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  return diff === 0 ? 'D-day' : `D-${diff}`;
 }
 type Scope = 'all' | 'me';
 const SCOPE_KEY = 'minihub.scope';
@@ -117,7 +130,8 @@ function OverviewPanel({ month }: { month: number }) {
   const tokens = (r: UsageRow) => r.input_tokens + r.output_tokens;
   const users = data.users.map(u => {
     const rows = data.usage.filter(r => r.user === u.user);
-    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0 };
+    const rev = data.revenue.users.find(r => r.user === u.user);
+    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0, revenue: rev?.this_month ?? 0, openCount: rev?.open_count ?? 0, openTotal: rev?.open_total ?? 0 };
   });
   const apps = [...new Set(data.usage.map(r => r.app))].map(app => {
     const rows = data.usage.filter(r => r.app === app);
@@ -163,6 +177,43 @@ function OverviewPanel({ month }: { month: number }) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="revenue-title">
+        <h2 id="revenue-title" className="section-title">협찬·광고 수익</h2>
+        <div className="rev-grid">
+          <div>
+            <div className="totals">
+              <div><span className="muted small">{month}월 받은 금액(합계)</span><strong>{won(sum(users, u => u.revenue))}</strong></div>
+              <div><span className="muted small">받을 금액</span><strong>{won(sum(users, u => u.openTotal))}</strong></div>
+              <div><span className="muted small">진행 중</span><strong>{formatNumber(sum(users, u => u.openCount))}건</strong></div>
+            </div>
+            <table className="usage">
+              <thead><tr><th scope="col">사용자</th><th scope="col">{month}월 받은 금액</th><th scope="col">받을 금액</th><th scope="col">진행 중</th></tr></thead>
+              <tbody>{users.map(u => <tr key={u.user}><td>{u.user}</td><td>{won(u.revenue)}</td><td>{won(u.openTotal)}</td><td>{formatNumber(u.openCount)}건</td></tr>)}</tbody>
+            </table>
+          </div>
+          <div>
+            <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
+              {data.revenue.months.map(m => {
+                const max = Math.max(1, ...data.revenue.months.map(x => x.total));
+                return <div key={m.month} className="rev-col"><span className="rev-bar" style={{ height: `${Math.max(m.total ? 6 : 2, (m.total / max) * 100)}%` }} /><span className="rev-label">{Number(m.month.slice(5))}월</span></div>;
+              })}
+            </div>
+          </div>
+        </div>
+        {data.revenue.upcoming.length > 0 ? (
+          <ul className="upcoming">
+            {data.revenue.upcoming.map((c, i) => (
+              <li key={`${c.user}${c.deadline}${i}`}>
+                <span className="avatar small-avatar" aria-label={`사용자 ${c.user}`}>{c.user}</span>
+                <span className="up-main"><b>{c.brand}</b>{c.title && <span className="muted"> · {c.title}</span>}</span>
+                <span className="muted small">{CAMPAIGN_STATUS[c.status] ?? c.status} · {c.deadline.slice(5).replace('-', '/')} ({dDay(c.deadline)})</span>
+                <span className="up-amount">{c.amount ? won(c.amount) : ''}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted small" style={{ margin: '12px 0 0' }}>다가오는 협찬 마감이 없어요.</p>}
       </section>
 
       <div className="settings">
