@@ -41,6 +41,8 @@ export interface GeminiRequest {
   /** 함께 보낼 사진(base64). 사진 분석에 쓴다. */
   images?: { mimeType: string; data: string }[];
   json?: boolean;
+  /** 구글 검색 연결(최신 정보). 켜면 JSON 모드는 쓸 수 없어 답 글에서 JSON을 꺼내 쓴다. */
+  search?: boolean;
   model?: string;
 }
 
@@ -76,7 +78,7 @@ export async function callGemini(req: GeminiRequest): Promise<GeminiResult> {
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [...(req.images ?? []).map(image => ({ inline_data: { mime_type: image.mimeType, data: image.data } })), { text: req.prompt }] }],
-        ...(req.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+        ...(req.search ? { tools: [{ google_search: {} }] } : req.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });

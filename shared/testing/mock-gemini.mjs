@@ -9,6 +9,12 @@ createServer((req, res) => {
   req.on('end', () => {
     const send = (status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (req.url === '/health') return send(200, { ok: true });
+    // 구글 트렌드 RSS 흉내: /trends.xml
+    if (req.url === '/trends.xml') {
+      const item = (k, t, n) => `<item><title>${k}</title><ht:approx_traffic>${t}</ht:approx_traffic><ht:news_item><ht:news_item_title><![CDATA[${n}]]></ht:news_item_title></ht:news_item></item>`;
+      res.writeHead(200, { 'content-type': 'application/rss+xml; charset=utf-8' });
+      return res.end(`<?xml version="1.0" encoding="UTF-8"?><rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0"><channel><title>Daily Search Trends</title>${item('첫눈', '50000+', '서울 첫눈 관측 &amp; 출근길 주의')}${item('붕어빵 지도', '20000+', '올겨울 붕어빵 가격은')}</channel></rss>`);
+    }
     // 티스토리 RSS 흉내: /rss/tistory/{이름}/rss (태그는 <category>로)
     const tistory = (req.url ?? '').match(/^\/rss\/tistory\/([^/]+)\/rss$/);
     if (tistory) {
@@ -39,6 +45,17 @@ createServer((req, res) => {
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
+    if (prompt.includes('블로그 글감을 추천')) {
+      // 검색 모드(tools)면 JSON 앞뒤에 설명 글이 섞여 오는 것까지 흉내 낸다
+      const search = Array.isArray(JSON.parse(raw || '{}').tools);
+      const ideas = [
+        prompt.includes('첫눈') ? { topic: '첫눈 오는 날 가기 좋은 카페', title: '첫눈 오는 날, 창가 자리 카페 3곳', reason: '오늘 트렌드 첫눈', hashtags: ['#첫눈', '카페'], source: 'trend' } : { topic: '트렌드 없음', title: '트렌드 없이 쓴 글감', reason: '트렌드 없음', hashtags: [], source: 'season' },
+        { topic: '겨울 여행 코스', title: prompt.includes('제주 여행 3박 4일 코스') ? '참고 블로그 반영: 겨울 제주 코스' : '겨울 국내 여행 코스', reason: '참고 블로그 흐름', hashtags: ['여행'], source: 'blogs' },
+        ...(search ? [{ topic: '검색으로 찾은 글감', title: '요즘 뜨는 연말 팝업 후기', reason: '구글 검색', hashtags: ['팝업'], source: 'search' }] : []),
+      ];
+      const text = JSON.stringify({ ideas });
+      return send(200, { candidates: [{ content: { parts: [{ text: search ? `검색해 보니 이래요.\n\`\`\`json\n${text}\n\`\`\`` : text }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 80, totalTokenCount: 380 } });
+    }
     if (prompt.includes('통계 화면')) {
       return ok({ posts: [{ title: '동네 빵집 소금빵 후기', views: 1520, likes: 48, comments: 12 }, { title: '겨울 카페 투어', views: 830, likes: 21, comments: null }, { title: '없는 글 제목', views: 5, likes: 0, comments: 0 }] });
     }

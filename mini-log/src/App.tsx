@@ -3,6 +3,7 @@ import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api'
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
 import { CalendarView } from './Calendar';
+import { IdeasView, type Idea } from './Ideas';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 
@@ -140,6 +141,14 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
     finally { setCreating(false); }
   }
 
+  // 글감으로 원고 만들기: 제목·해시태그를 채운 새 원고를 열고, 경험 칸은 사용자가 직접 쓴다
+  async function draftFromIdea(idea: Idea, plannedOn: string | null) {
+    const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: { title: idea.title || idea.topic, hashtags: idea.hashtags, ...(plannedOn ? { planned_on: plannedOn } : {}) } });
+    setDrafts(list => [draft, ...(list ?? [])]);
+    setSelectedId(draft.id);
+    setView('drafts');
+  }
+
   async function logout() {
     try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* 화면은 로그아웃 */ }
     onLogout();
@@ -189,7 +198,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
-        {view === 'style' ? <StylesView onBack={() => setView('drafts')} />
+        {view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
+        : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
@@ -210,8 +220,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   );
 }
 
-type View = 'drafts' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
+type View = 'drafts' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
