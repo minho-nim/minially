@@ -46,6 +46,11 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   insert.run('C', 'minilog', 'gemini-2.5-flash', 'draft', 1000, 200, 'ok', null, now);
   insert.run('D', 'minilog', 'gemini-2.5-flash', 'style', 3000, 500, 'ok', null, now);
   insert.run('D', 'minilog', 'gemini-2.5-flash', 'draft', 0, 0, 'error', 'rate_limited', now);
+  const today = new Date(now + 9 * 3600000).toISOString().slice(0, 10);
+  const soon = new Date(now + 9 * 3600000 + 3 * 86400000).toISOString().slice(0, 10);
+  const camp = db.prepare("INSERT INTO minilog_campaigns (id, user, kind, brand, title, amount, deadline, status, paid_on, created_at, updated_at) VALUES (?, ?, 'sponsor', ?, ?, ?, ?, ?, ?, ?, ?)");
+  camp.run('c1', 'C', '동네빵집', '체험단', 100000, null, 'paid', today, now, now);
+  camp.run('c2', 'D', '○○카페', '신메뉴', 50000, soon, 'in_progress', null, now, now);
   db.close();
   await page.reload();
   await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
@@ -58,6 +63,12 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   await expect(rowD.locator('dd').nth(2)).toHaveText('1');
   await expect(page.getByLabel('오류 종류')).toContainText('호출 제한 1');
   await expect(page.getByRole('cell', { name: '문체 분석' })).toBeVisible();
+  // 협찬·수익: 통합 화면에서 C·D 모두 보임
+  const revenue = page.locator('section', { has: page.getByRole('heading', { name: '협찬·광고 수익' }) });
+  await expect(revenue.locator('.totals')).toContainText('100,000원');
+  await expect(revenue.locator('.totals')).toContainText('50,000원');
+  await expect(revenue.locator('.upcoming')).toContainText('○○카페');
+  await expect(revenue.locator('.upcoming')).toContainText('D-3');
   // 내 대시보드: C 것만, 새로고침해도 선택 유지
   await page.getByRole('button', { name: '내 대시보드' }).click();
   await expect(page.locator('.kpi').filter({ hasText: /AI 호출/ }).locator('.value')).toHaveText('1');
@@ -74,7 +85,7 @@ test('통계 API는 맞는 토큰에만 숫자만 내보내고, 세션 API는 �
   const ok = await request.get('/api/stats?since=2020-01-01', { headers: { authorization: 'Bearer test-stats-token' } });
   expect(ok.status()).toBe(200);
   const body = await ok.json();
-  expect(Object.keys(body).sort()).toEqual(['errors', 'since', 'usage', 'users']);
+  expect(Object.keys(body).sort()).toEqual(['errors', 'since', 'usage', 'users']); // Minoffia 통계에는 협찬 정보 없음
   expect(body.users).toEqual([{ user: 'C', gemini_connected: true }, { user: 'D', gemini_connected: false }]);
   expect(JSON.stringify(body)).not.toContain('test-key'); // 키 원문은 절대 내보내지 않음
   expect(await (await request.get('/api/me')).json()).toEqual({ user: null });

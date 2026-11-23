@@ -41,6 +41,7 @@
 | 미니로그 내 대시보드(게시 글·AI 호출·토큰·오류·작업별·원고 상태·사진 용량·삭제 예정) | `mini-log/functions/api/dashboard.ts` | 시험(다른 사용자 숫자 섞이지 않음) |
 | 미니로그 문체: 내 문체 1개 + 참고 블로그 문체 여러 개(최대 10). 글 붙여 넣기 → 분석 → 원고마다 문체 선택(내 문체/참고/없음). 참고 문체는 말투·리듬·구성만 쓰고 자주 쓰는 표현은 AI에 보내지 않으며 베끼지 말라고 안내 | `mini-log/functions/_style.ts`, `api/styles/*`, `minilog_drafts.style_id` | 가짜 Gemini로 시험(참고 문체 표현이 프롬프트에 안 들어감, 남의 문체 수정·삭제 404, 지우면 원고는 내 문체로) |
 | 사진 순서 바꾸기, 순서 변경·삭제 시 본문 [사진 n] 번호 자동 맞춤 | `api/drafts/[id]/photos.ts` PUT, `mini-log/src/photoMarkers.ts` | 시험 |
+| 미니로그 협찬·광고 수익 기록: 캠페인(업체·이름·제공 내용·금액·마감일·상태·받은 날·연결 원고·메모), 광고 수익, 내 대시보드 수익 칸(이번 달·6개월·받을 금액·다가오는 마감). 본인 화면 + 미니허브 통합 대시보드(소유자 요청, C·D 합계·사용자별·6개월·다가오는 마감)에서 봄. Minoffia 통계 API(/api/stats)에는 내보내지 않음 | `mini-log/functions/_campaigns.ts`, `api/campaigns/*`, `mini-log/src/Campaigns.tsx` | 시험(정산→수익 합계, 잘못된 날짜·금액·상태·남의 원고 거절, 다른 사용자 404) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
@@ -89,10 +90,12 @@
 | `MINILOG_PHOTOS` | R2 바인딩(버킷 `minilog-photos`, 공개 주소 끔) | minilog |
 | `MINIHUB_LAYOUT_READY` | GitHub 저장소 변수 | deploy-release.yml |
 
-D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
+D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`·`minilog_campaigns`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
 
 ## 7. 실제 배포 상태 (2026-11-23)
-- PR #29 병합 완료(main `eb88a48`), main 전체 검사 성공. Windows 앱 0.1.8로 미니어리 운영 배포 진행(결과는 GitHub Actions 확인).
+- minially.pages.dev: Windows 앱 0.1.9와 함께 운영 배포 완료(`3de87db`). 전용 배포판 `minially-latest` 생성 확인.
+- minihub.pages.dev·mini-log.pages.dev: 운영 배포 완료(`0e09807`), DB·로그인 코드 설정 적용 확인(틀린 코드 거절). 실제 로그인·Gemini 호출은 소유자 확인 필요.
+- **주의:** 운영 DB에 표가 이미 생겼으므로, 기존 표에 칸을 더할 때는 `ALTER TABLE`이 필요합니다(새 표는 CREATE로 충분).
 - minially.pages.dev: Cloudflare Root directory `minially`.
 - minihub.pages.dev, mini-log.pages.dev: 프로젝트 없음(배포 안 됨)
 
@@ -108,7 +111,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 7 passed (통합 대시보드 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 15 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드 포함) |
+| `mini-log`: `npm test` | 18 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
@@ -127,7 +130,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 ## 10. 다음 개발 우선순위(권장)
 1. 소유자 설정 후 실제 배포 확인 + 실제 Gemini 1회 호출 확인(모델 이름)
 2. 실제 Gemini로 사진 분석 품질 확인(사진 8장 기준 토큰·속도)
-3. 미니로그 2단계: 키워드·트렌드, 콘텐츠 캘린더, 협찬 캠페인·수익 기록(대시보드 수익 칸 채우기)
+3. 미니로그 2단계: 콘텐츠 캘린더(원고·협찬 마감일), 키워드·트렌드
 4. 원고 동시 수정 버전 검사
 
 ## 11. Codex가 바꾸면 안 되는 것(호환 조건)

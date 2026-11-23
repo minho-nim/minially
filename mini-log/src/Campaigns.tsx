@@ -1,0 +1,217 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { api, formatNumber } from '../../shared/client/api';
+import { Tomong } from './Tomong';
+
+// 협찬·광고 캠페인과 수익 기록(본인만 보는 계약 정보)
+export type Kind = 'sponsor' | 'ad' | 'other';
+export type Status = 'proposed' | 'in_progress' | 'posted' | 'paid' | 'cancelled';
+export interface Campaign {
+  id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
+  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string;
+  created_at: number; updated_at: number;
+}
+export const KIND_LABEL: Record<Kind, string> = { sponsor: '협찬', ad: '광고 수익', other: '기타' };
+export const STATUS_LABEL: Record<Status, string> = { proposed: '제안 받음', in_progress: '진행 중', posted: '게시 완료', paid: '정산 완료', cancelled: '취소' };
+const OPEN: Status[] = ['proposed', 'in_progress', 'posted'];
+type Filter = 'open' | 'paid' | 'cancelled' | 'all';
+const FILTERS: [Filter, string][] = [['open', '진행 중'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체']];
+
+export const won = (n: number) => `${formatNumber(n)}원`;
+/** 한국 날짜(YYYY-MM-DD) */
+export const todayKst = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+export function dDay(deadline: string) {
+  const diff = Math.round((Date.parse(`${deadline}T00:00:00Z`) - Date.parse(`${todayKst()}T00:00:00Z`)) / 86400000);
+  return diff === 0 ? 'D-day' : diff > 0 ? `D-${diff}` : `${-diff}일 지남`;
+}
+
+type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
+const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '' };
+
+export function CampaignsView({ drafts, onBack, onOpenDraft }: {
+  drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void;
+}) {
+  const [items, setItems] = useState<Campaign[] | null>(null);
+  const [filter, setFilter] = useState<Filter>('open');
+  const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+
+  useEffect(() => {
+    api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setItems(d.campaigns))
+      .catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
+  }, []);
+
+  const shown = useMemo(() => (items ?? []).filter(c => filter === 'all' || (filter === 'open' ? OPEN.includes(c.status) : c.status === filter)), [items, filter]);
+  const month = todayKst().slice(0, 7);
+  const summary = useMemo(() => {
+    const list = items ?? [];
+    const open = list.filter(c => OPEN.includes(c.status));
+    return {
+      openCount: open.length,
+      openAmount: open.reduce((n, c) => n + c.amount, 0),
+      paidThisMonth: list.filter(c => c.status === 'paid' && c.paid_on?.startsWith(month)).reduce((n, c) => n + c.amount, 0),
+    };
+  }, [items, month]);
+
+  function startNew(kind: Kind = 'sponsor') {
+    setMessage(null);
+    setEditing({ id: null, form: { ...EMPTY, kind, status: kind === 'sponsor' ? 'proposed' : 'paid', paid_on: kind === 'sponsor' ? null : todayKst() } });
+  }
+  function startEdit(c: Campaign) {
+    setMessage(null);
+    setEditing({ id: c.id, form: { ...c, amount: String(c.amount) } });
+  }
+  const set = (patch: Partial<Form>) => setEditing(e => (e ? { ...e, form: { ...e.form, ...patch } } : e));
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (!editing) return;
+    const { form } = editing;
+    if (form.kind === 'sponsor' && !form.brand.trim()) { setMessage({ kind: 'error', text: '업체 이름을 적어 주세요.' }); return; }
+    const amount = form.amount.replace(/[,\s원]/g, '');
+    if (amount && !/^\d+$/.test(amount)) { setMessage({ kind: 'error', text: '금액은 숫자로 적어 주세요.' }); return; }
+    setBusy(true);
+    try {
+      const body = { ...form, amount: Number(amount || 0) };
+      const { campaign } = editing.id
+        ? await api<{ campaign: Campaign }>(`/api/campaigns/${editing.id}`, { method: 'PUT', body })
+        : await api<{ campaign: Campaign }>('/api/campaigns', { body });
+      setItems(list => (editing.id ? (list ?? []).map(c => (c.id === campaign.id ? campaign : c)) : [campaign, ...(list ?? [])]));
+      setEditing(null);
+      setMessage({ kind: 'info', text: '저장했어요.' });
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '저장하지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+
+  async function remove() {
+    if (!editing?.id || !window.confirm('이 기록을 지울까요? 되돌릴 수 없어요.')) return;
+    try {
+      await api(`/api/campaigns/${editing.id}`, { method: 'DELETE' });
+      setItems(list => (list ?? []).filter(c => c.id !== editing.id));
+      setEditing(null);
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '지우지 못했어요.' }); }
+  }
+
+  const draftTitle = (id: string | null) => (id ? drafts.find(d => d.id === id)?.title.trim() || '제목 없는 원고' : '');
+
+  return (
+    <article className="stack" aria-labelledby="camp-title">
+      <div className="editor-head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn ghost back" onClick={onBack}>← 목록</button>
+          <h1 id="camp-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>협찬·수익</h1>
+        </div>
+        <div className="actions">
+          <button className="btn" onClick={() => startNew('ad')}>광고 수익 적기</button>
+          <button className="btn primary" onClick={() => startNew('sponsor')}>새 협찬</button>
+        </div>
+      </div>
+      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+
+      <div className="kpis three">
+        <div className="card kpi"><span className="label">진행 중</span><span className="value">{formatNumber(summary.openCount)}건</span><span className="hint">제안·진행·게시 완료</span></div>
+        <div className="card kpi"><span className="label">받을 금액</span><span className="value">{won(summary.openAmount)}</span><span className="hint">진행 중인 것의 합계</span></div>
+        <div className="card kpi"><span className="label">{Number(month.slice(5))}월 받은 금액</span><span className="value">{won(summary.paidThisMonth)}</span><span className="hint">정산 완료 기준</span></div>
+      </div>
+
+      {editing && (
+        <form className="card step" onSubmit={save} aria-label={editing.id ? '캠페인 고치기' : '새 기록'}>
+          <h2 className="step-title">{editing.id ? '기록 고치기' : editing.form.kind === 'sponsor' ? '새 협찬' : '새 수익'}</h2>
+          <div className="form-grid">
+            <div className="field">
+              <label htmlFor="c-kind">종류</label>
+              <select id="c-kind" className="input" value={editing.form.kind} onChange={e => set({ kind: e.target.value as Kind })}>
+                {Object.entries(KIND_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="c-status">상태</label>
+              <select id="c-status" className="input" value={editing.form.status} onChange={e => { const status = e.target.value as Status; set({ status, paid_on: status === 'paid' ? editing.form.paid_on || todayKst() : editing.form.paid_on }); }}>
+                {Object.entries(STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="c-brand">{editing.form.kind === 'sponsor' ? '업체' : '어디서(선택)'}</label>
+              <input id="c-brand" className="input" value={editing.form.brand} maxLength={60} placeholder={editing.form.kind === 'ad' ? '예: 애드포스트' : '예: ○○카페'} onChange={e => set({ brand: e.target.value })} />
+            </div>
+            <div className="field">
+              <label htmlFor="c-title">캠페인 이름(선택)</label>
+              <input id="c-title" className="input" value={editing.form.title} maxLength={100} onChange={e => set({ title: e.target.value })} />
+            </div>
+            <div className="field">
+              <label htmlFor="c-amount">금액(원)</label>
+              <input id="c-amount" className="input" inputMode="numeric" value={editing.form.amount} placeholder="0" onChange={e => set({ amount: e.target.value })} />
+            </div>
+            <div className="field">
+              <label htmlFor="c-deadline">마감일(선택)</label>
+              <input id="c-deadline" className="input" type="date" value={editing.form.deadline ?? ''} onChange={e => set({ deadline: e.target.value || null })} />
+            </div>
+            {editing.form.status === 'paid' && (
+              <div className="field">
+                <label htmlFor="c-paid">받은 날</label>
+                <input id="c-paid" className="input" type="date" value={editing.form.paid_on ?? ''} onChange={e => set({ paid_on: e.target.value || null })} />
+              </div>
+            )}
+            <div className="field">
+              <label htmlFor="c-draft">연결 원고(선택)</label>
+              <select id="c-draft" className="input" value={editing.form.draft_id ?? ''} onChange={e => set({ draft_id: e.target.value || null })}>
+                <option value="">없음</option>
+                {drafts.map(d => <option key={d.id} value={d.id}>{d.title.trim() || '제목 없는 원고'}</option>)}
+              </select>
+            </div>
+          </div>
+          {editing.form.kind === 'sponsor' && (
+            <div className="field">
+              <label htmlFor="c-provided">제공 내용(선택)</label>
+              <textarea id="c-provided" className="textarea" style={{ minHeight: 80 }} value={editing.form.provided} maxLength={500} placeholder="예: 2인 식사권, 원고료 10만 원, 사진 5장 이상" onChange={e => set({ provided: e.target.value })} />
+            </div>
+          )}
+          <div className="field">
+            <label htmlFor="c-memo">메모(선택)</label>
+            <textarea id="c-memo" className="textarea" style={{ minHeight: 70 }} value={editing.form.memo} maxLength={1000} onChange={e => set({ memo: e.target.value })} />
+          </div>
+          <div className="ai-row">
+            <button className="btn primary" type="submit" disabled={busy}>{busy ? '저장하는 중…' : '저장'}</button>
+            <button className="btn ghost" type="button" onClick={() => setEditing(null)}>취소</button>
+            {editing.id && <button className="btn ghost" type="button" onClick={remove}>지우기</button>}
+          </div>
+        </form>
+      )}
+
+      <section className="card step" aria-labelledby="camp-list">
+        <div className="row-between">
+          <h2 id="camp-list" className="step-title">기록</h2>
+          <div className="style-tabs" role="tablist" aria-label="보기">
+            {FILTERS.map(([key, label]) => <button key={key} role="tab" aria-selected={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
+          </div>
+        </div>
+        {items === null && !message && <p className="muted small" role="status">불러오는 중…</p>}
+        {items && shown.length === 0 && (
+          <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>{filter === 'open' ? '진행 중인 협찬이 없어요. 새 협찬을 적어 보세요.' : '기록이 없어요.'}</p></div>
+        )}
+        {shown.length > 0 && (
+          <ul className="campaigns">
+            {shown.map(c => (
+              <li key={c.id}>
+                <button className="campaign" onClick={() => startEdit(c)} aria-label={`${c.brand} ${c.title} 고치기`}>
+                  <span className="c-main">
+                    <span className="c-brand">{c.brand}{c.title && <span className="muted"> · {c.title}</span>}</span>
+                    <span className="c-meta">
+                      <span className={`badge s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
+                      {c.kind !== 'sponsor' && <span className="badge">{KIND_LABEL[c.kind]}</span>}
+                      {c.deadline && OPEN.includes(c.status) && <span className={`dday${dDay(c.deadline).includes('지남') ? ' late' : ''}`}>{c.deadline.slice(5).replace('-', '/')} · {dDay(c.deadline)}</span>}
+                      {c.status === 'paid' && c.paid_on && <span className="muted small">{c.paid_on.slice(5).replace('-', '/')} 받음</span>}
+                      {c.draft_id && <span className="muted small">원고: {draftTitle(c.draft_id)}</span>}
+                    </span>
+                  </span>
+                  <span className="c-amount">{c.amount ? won(c.amount) : '—'}</span>
+                </button>
+                {c.draft_id && <button className="btn ghost small" onClick={() => onOpenDraft(c.draft_id!)}>원고 열기</button>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </article>
+  );
+}

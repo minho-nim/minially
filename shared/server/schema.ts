@@ -25,6 +25,9 @@ export async function ensureHubSchema(db: D1Database) {
     // 문체: kind='mine'(내 문체, 사용자당 1개) 또는 'reference'(참고 블로거, 여러 개). samples = 붙여 넣은 글(JSON 배열), profile = AI 요약(JSON)
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_styles (id TEXT PRIMARY KEY, user TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '', samples TEXT NOT NULL DEFAULT '[]', profile TEXT, analyzed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_styles_user ON minilog_styles (user, kind, created_at)'),
+    // 협찬·광고 캠페인과 수익. 계약 정보라 본인만 보고, 통합 대시보드·통계 API에는 내보내지 않는다.
+    db.prepare("CREATE TABLE IF NOT EXISTS minilog_campaigns (id TEXT PRIMARY KEY, user TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'sponsor', brand TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '', provided TEXT NOT NULL DEFAULT '', amount INTEGER NOT NULL DEFAULT 0, deadline TEXT, status TEXT NOT NULL DEFAULT 'proposed', paid_on TEXT, draft_id TEXT, memo TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
+    db.prepare('CREATE INDEX IF NOT EXISTS minilog_campaigns_user ON minilog_campaigns (user, status, deadline)'),
   ]);
   ready = true;
 }

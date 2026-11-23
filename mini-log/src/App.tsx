@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
+import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
@@ -187,7 +188,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
       <main className="main">
         {view === 'style' ? <StylesView onBack={() => setView('drafts')} />
-        : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} />
+        : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
+        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
@@ -204,20 +206,21 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   );
 }
 
-type View = 'drafts' | 'dashboard' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['dashboard', '대시보드'], ['style', '문체']];
+type View = 'drafts' | 'dashboard' | 'campaigns' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
   ai: { calls: number; errors: number; input_tokens: number; output_tokens: number; tasks: { task: string; calls: number; tokens: number }[]; error_codes: { error_code: string; count: number }[] };
   drafts: { draft: number; approved: number; published: number; published_this_month: number };
   photos: { count: number; bytes: number; expiring: { id: string; title: string; count: number; expires_at: number }[] };
+  revenue: { this_month: number; months: { month: string; total: number; count: number }[]; pending: { total: number; count: number }; upcoming: { id: string; brand: string; title: string; deadline: string; status: CampaignStatus }[] };
 }
 const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '내 문체 분석', style_reference: '참고 문체 분석' };
 const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
 const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}MB`;
 
-function DashboardView({ onBack, onOpen }: { onBack: () => void; onOpen: (id: string) => void }) {
+function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; onOpen: (id: string) => void; onCampaigns: () => void }) {
   const [data, setData] = useState<Dashboard | null>(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -293,11 +296,27 @@ function DashboardView({ onBack, onOpen }: { onBack: () => void; onOpen: (id: st
             </section>
 
             <section className="card step" aria-labelledby="d-revenue">
-              <h2 id="d-revenue" className="step-title">협찬·광고 수익</h2>
-              <div className="profile">
-                <Tomong kind="minilog" size={44} />
-                <p className="muted small" style={{ margin: 0 }}>수익 기록은 다음 단계에서 만들어요. 협찬 캠페인과 광고 수익을 적으면 여기에 월별로 모여요.</p>
+              <h2 id="d-revenue" className="step-title">협찬·광고 수익<span className="step-sub">받을 금액 {won(data.revenue.pending.total)} · {data.revenue.pending.count}건</span></h2>
+              <p style={{ margin: 0 }}><span className="muted small">{month}월 받은 금액</span><br /><strong className="revenue-now">{won(data.revenue.this_month)}</strong></p>
+              <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
+                {data.revenue.months.map(m => {
+                  const max = Math.max(1, ...data.revenue.months.map(x => x.total));
+                  return (
+                    <div key={m.month} className="rev-col">
+                      <span className="rev-bar" style={{ height: `${Math.max(m.total ? 6 : 2, (m.total / max) * 100)}%` }} />
+                      <span className="rev-label">{Number(m.month.slice(5))}월</span>
+                    </div>
+                  );
+                })}
               </div>
+              {data.revenue.upcoming.length > 0 && (
+                <ul className="expiring">
+                  {data.revenue.upcoming.map(u => (
+                    <li key={u.id}><span><b>{u.brand}</b>{u.title && <span className="muted"> · {u.title}</span>}</span><span className="muted small">{CAMPAIGN_STATUS[u.status]} · 마감 {u.deadline.slice(5).replace('-', '/')} ({dDay(u.deadline)})</span></li>
+                  ))}
+                </ul>
+              )}
+              <button className="btn" style={{ justifySelf: 'start' }} onClick={onCampaigns}>협찬·수익 기록 보기</button>
             </section>
           </div>
         </>
