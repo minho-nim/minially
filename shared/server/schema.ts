@@ -37,9 +37,9 @@ export async function ensureHubSchema(db: D1Database) {
     // 협찬·광고 캠페인과 수익. 계약 정보라 본인만 보고, 통합 대시보드·통계 API에는 내보내지 않는다.
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_campaigns (id TEXT PRIMARY KEY, user TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'sponsor', brand TEXT NOT NULL DEFAULT '', title TEXT NOT NULL DEFAULT '', provided TEXT NOT NULL DEFAULT '', amount INTEGER NOT NULL DEFAULT 0, deadline TEXT, status TEXT NOT NULL DEFAULT 'proposed', paid_on TEXT, draft_id TEXT, memo TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_campaigns_user ON minilog_campaigns (user, status, deadline)'),
-    // 내 네이버 블로그: 아이디와 RSS로 가져온 글(조회수·공감·댓글은 사용자가 캡처나 손으로 기록)
-    db.prepare('CREATE TABLE IF NOT EXISTS minilog_blogs (user TEXT PRIMARY KEY, blog_id TEXT NOT NULL, synced_at INTEGER, updated_at INTEGER NOT NULL)'),
-    db.prepare("CREATE TABLE IF NOT EXISTS minilog_posts (user TEXT NOT NULL, post_key TEXT NOT NULL, url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', published_on TEXT, summary TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', views INTEGER, likes INTEGER, comments INTEGER, stats_on TEXT, draft_id TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (user, post_key))"),
+    // 내 네이버 블로그(사용자당 여러 개): 아이디와 RSS로 가져온 글(조회수·공감·댓글은 사용자가 캡처나 손으로 기록)
+    db.prepare('CREATE TABLE IF NOT EXISTS minilog_blogs (user TEXT NOT NULL, blog_id TEXT NOT NULL, synced_at INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, blog_id))'),
+    db.prepare("CREATE TABLE IF NOT EXISTS minilog_posts (user TEXT NOT NULL, post_key TEXT NOT NULL, blog_id TEXT NOT NULL DEFAULT '', url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', published_on TEXT, summary TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', views INTEGER, likes INTEGER, comments INTEGER, stats_on TEXT, draft_id TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (user, post_key))"),
   ]);
   // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
   await ensureColumn(db, 'minilog_drafts', 'planned_on', 'TEXT'); // 게시 예정일 YYYY-MM-DD

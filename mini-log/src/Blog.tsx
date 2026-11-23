@@ -4,10 +4,13 @@ import { Tomong } from './Tomong';
 
 // 내 네이버 블로그: RSS로 글 목록, 통계는 캡처(AI가 읽음)나 손으로 기록
 export interface Post {
-  post_key: string; url: string; title: string; published_on: string | null; summary: string; tags: string[];
+  post_key: string; blog_id: string; url: string; title: string; published_on: string | null; summary: string; tags: string[];
   views: number | null; likes: number | null; comments: number | null; stats_on: string | null; draft_id: string | null;
 }
-interface Blog { blog_id: string | null; synced_at: number | null; posts: Post[] }
+interface BlogLink { blog_id: string; synced_at: number | null; post_count: number }
+interface Blog { blogs: BlogLink[]; posts: Post[] }
+type Synced = Blog & { added: number; total: number; matched: number; errors: string[] };
+const syncText = (r: Synced) => `글 ${r.total}개(새로 ${r.added}개)를 가져왔어요.${r.matched ? ` 미니로그 원고 ${r.matched}개와 짝지었어요.` : ''}${r.errors.length ? ` ${r.errors.join(' ')}` : ''}`;
 type Sort = 'recent' | 'views' | 'likes';
 const num = (n: number | null) => (n === null ? '—' : formatNumber(n));
 
@@ -24,35 +27,52 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
   const [blog, setBlog] = useState<Blog | null>(null);
   const [blogId, setBlogId] = useState('');
   const [sort, setSort] = useState<Sort>('recent');
+  const [only, setOnly] = useState<string>('all');
   const [busy, setBusy] = useState<'save' | 'sync' | 'stats' | null>(null);
   const [editing, setEditing] = useState<{ key: string; views: string; likes: string; comments: string } | null>(null);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
   useEffect(() => {
-    api<Blog>('/api/blog').then(d => { setBlog(d); setBlogId(d.blog_id ?? ''); }).catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
+    api<Blog>('/api/blog').then(d => setBlog(d)).catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
   }, []);
 
   const posts = useMemo(() => {
-    const list = [...(blog?.posts ?? [])];
+    const list = (blog?.posts ?? []).filter(p => only === 'all' || p.blog_id === only);
     if (sort === 'views') list.sort((a, b) => (b.views ?? -1) - (a.views ?? -1));
     if (sort === 'likes') list.sort((a, b) => (b.likes ?? -1) - (a.likes ?? -1));
     return list;
-  }, [blog, sort]);
+  }, [blog, sort, only]);
   const withStats = (blog?.posts ?? []).filter(p => p.views !== null);
   const top = [...withStats].sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).slice(0, 3);
 
-  async function saveAndSync(event: FormEvent) {
+  async function addAndSync(event: FormEvent) {
     event.preventDefault();
     setBusy('save'); setMessage(null);
     try {
-      const saved = await api<Blog>('/api/blog', { method: 'PUT', body: { blog_id: blogId } });
-      setBlog(saved); setBlogId(saved.blog_id ?? '');
+      const added = await api<Blog & { blog_id: string }>('/api/blog', { body: { blog_id: blogId } });
+      setBlog(added); setBlogId('');
       setBusy('sync');
-      const synced = await api<Blog & { added: number; total: number; matched: number }>('/api/blog/sync', { method: 'POST', body: {} });
+      const synced = await api<Synced>('/api/blog/sync', { body: { blog_id: added.blog_id } });
       setBlog(synced);
-      setMessage({ kind: 'info', text: `글 ${synced.total}개(새로 ${synced.added}개)를 가져왔어요.${synced.matched ? ` 미니로그 원고 ${synced.matched}개와 짝지었어요.` : ''}` });
+      setMessage({ kind: synced.errors.length ? 'error' : 'info', text: syncText(synced) });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '가져오지 못했어요.' }); }
     finally { setBusy(null); }
+  }
+
+  async function syncAll(one?: string) {
+    setBusy('sync'); setMessage(null);
+    try {
+      const synced = await api<Synced>('/api/blog/sync', { body: one ? { blog_id: one } : {} });
+      setBlog(synced);
+      setMessage({ kind: synced.errors.length ? 'error' : 'info', text: syncText(synced) });
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '가져오지 못했어요.' }); }
+    finally { setBusy(null); }
+  }
+
+  async function removeLink(id: string) {
+    if (!window.confirm(`${id} 블로그 연결을 지울까요? 이 블로그에서 가져온 글과 적어 둔 숫자도 지워져요.`)) return;
+    try { setBlog(await api<Blog>(`/api/blog?blog_id=${encodeURIComponent(id)}`, { method: 'DELETE' })); if (only === id) setOnly('all'); }
+    catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '지우지 못했어요.' }); }
   }
 
   async function onStatsFile(file: File | undefined) {
@@ -88,15 +108,31 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
 
-      <form className="card step" onSubmit={saveAndSync} aria-label="블로그 연결">
-        <h2 className="step-title">네이버 블로그 연결{blog?.synced_at ? <span className="step-sub">마지막 가져오기 {new Date(blog.synced_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span> : null}</h2>
-        <p className="muted small" style={{ margin: 0 }}>blog.naver.com/<b>아이디</b>의 아이디를 적어요. 공개 RSS로 최근 글 목록만 가져오고, 네이버에 로그인하거나 비밀번호를 받지 않아요.</p>
-        <div className="publish-row">
-          <label htmlFor="blog-id" className="sr-only">블로그 아이디</label>
-          <input id="blog-id" className="input" value={blogId} maxLength={80} placeholder="예: myblog123" onChange={e => setBlogId(e.target.value)} />
-          <button className="btn primary" type="submit" disabled={!blogId.trim() || busy !== null}>{busy === 'save' || busy === 'sync' ? '가져오는 중…' : blog?.blog_id ? '다시 가져오기' : '연결하고 가져오기'}</button>
-        </div>
-      </form>
+      <section className="card step" aria-labelledby="link-title">
+        <h2 id="link-title" className="step-title">네이버 블로그 연결<span className="step-sub">{blog?.blogs.length ?? 0}/5개</span></h2>
+        <p className="muted small" style={{ margin: 0 }}>blog.naver.com/<b>아이디</b>의 아이디를 적어요. 블로그가 여러 개면 하나씩 더하면 돼요. 공개 RSS로 최근 글 목록만 가져오고, 네이버에 로그인하거나 비밀번호를 받지 않아요.</p>
+        {blog && blog.blogs.length > 0 && (
+          <ul className="blog-links">
+            {blog.blogs.map(b => (
+              <li key={b.blog_id}>
+                <a href={`https://blog.naver.com/${b.blog_id}`} target="_blank" rel="noopener noreferrer"><b>{b.blog_id}</b></a>
+                <span className="muted small">글 {b.post_count}개{b.synced_at ? ` · ${new Date(b.synced_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+                <button className="btn ghost small" onClick={() => { void syncAll(b.blog_id); }} disabled={busy !== null} aria-label={`${b.blog_id} 가져오기`}>가져오기</button>
+                <button className="btn ghost small" onClick={() => { void removeLink(b.blog_id); }} disabled={busy !== null} aria-label={`${b.blog_id} 연결 지우기`}>×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(blog?.blogs.length ?? 0) < 5 && (
+          <form className="publish-row" onSubmit={addAndSync}>
+            <label htmlFor="blog-id" className="sr-only">블로그 아이디</label>
+            <input id="blog-id" className="input" value={blogId} maxLength={80} placeholder="예: myblog123 또는 blog.naver.com/myblog123" onChange={e => setBlogId(e.target.value)} />
+            <button className="btn primary" type="submit" disabled={!blogId.trim() || busy !== null}>{busy === 'save' ? '연결하는 중…' : '연결하고 가져오기'}</button>
+          </form>
+        )}
+        {blog && blog.blogs.length > 1 && <button className="btn" style={{ justifySelf: 'start' }} onClick={() => { void syncAll(); }} disabled={busy !== null}>{busy === 'sync' ? '가져오는 중…' : '모두 다시 가져오기'}</button>}
+        {busy === 'sync' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={28} bounce /><span className="hand">블로그 글을 가져오고 있어요</span></span>}
+      </section>
 
       {blog && blog.posts.length > 0 && (
         <section className="card step" aria-labelledby="stats-title">
@@ -117,7 +153,13 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       {blog && (
         <section className="card step" aria-labelledby="posts-title">
           <div className="row-between">
-            <h2 id="posts-title" className="step-title">가져온 글<span className="step-sub">{blog.posts.length}개</span></h2>
+            <h2 id="posts-title" className="step-title">가져온 글<span className="step-sub">{posts.length}개</span></h2>
+            {blog.blogs.length > 1 && (
+              <div className="style-tabs" role="tablist" aria-label="블로그">
+                <button role="tab" aria-selected={only === 'all'} onClick={() => setOnly('all')}>전체</button>
+                {blog.blogs.map(b => <button key={b.blog_id} role="tab" aria-selected={only === b.blog_id} onClick={() => setOnly(b.blog_id)}>{b.blog_id}</button>)}
+              </div>
+            )}
             <div className="style-tabs" role="tablist" aria-label="정렬">
               {([['recent', '최신순'], ['views', '조회수순'], ['likes', '공감순']] as [Sort, string][]).map(([k, l]) => <button key={k} role="tab" aria-selected={sort === k} onClick={() => setSort(k)}>{l}</button>)}
             </div>
@@ -130,7 +172,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
                 <li key={p.post_key} className="post">
                   <div className="post-main">
                     <a className="post-title" href={p.url} target="_blank" rel="noopener noreferrer">{p.title || '제목 없음'}</a>
-                    <span className="muted small">{p.published_on ?? ''}{p.tags.length ? ` · #${p.tags.slice(0, 3).join(' #')}` : ''}{p.draft_id ? ' · 미니로그 원고' : ''}</span>
+                    <span className="muted small">{blog.blogs.length > 1 ? `${p.blog_id} · ` : ''}{p.published_on ?? ''}{p.tags.length ? ` · #${p.tags.slice(0, 3).join(' #')}` : ''}{p.draft_id ? ' · 미니로그 원고' : ''}</span>
                   </div>
                   {editing?.key === p.post_key ? (
                     <form className="stat-edit" onSubmit={saveStats} aria-label={`${p.title} 숫자 적기`}>

@@ -14,12 +14,15 @@ createServer((req, res) => {
     if (rss) {
       if (rss[1] === 'nobody') { res.writeHead(404); return res.end('not found'); }
       const id = rss[1];
+      const pre = id === 'myblog' ? '223' : '224'; // 네이버 글 번호는 블로그끼리 겹치지 않는다
       const item = (no, title, date, tags) => `<item><title><![CDATA[${title}]]></title><link>https://blog.naver.com/${id}/${no}?fromRss=true&amp;trackingCode=rss</link><guid>https://blog.naver.com/${id}/${no}</guid><description><![CDATA[<p>${title} 본문 앞부분이에요 &amp; 사진도 있어요.</p>]]></description><pubDate>${date}</pubDate><tag><![CDATA[${tags}]]></tag></item>`;
       res.writeHead(200, { 'content-type': 'application/rss+xml; charset=utf-8' });
       return res.end(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${id}</title>` +
-        item('223000000001', '동네 빵집 소금빵 후기', 'Mon, 02 Nov 2026 10:00:00 +0900', '빵집,소금빵') +
-        item('223000000002', '겨울 카페 투어 3곳', 'Sat, 14 Nov 2026 18:30:00 +0900', '카페') +
-        item('223000000003', '앰플 한 달 사용기', 'Fri, 20 Nov 2026 09:00:00 +0900', '') + '</channel></rss>');
+        (id === 'myblog'
+          ? item(`${pre}000000001`, '동네 빵집 소금빵 후기', 'Mon, 02 Nov 2026 10:00:00 +0900', '빵집,소금빵') +
+            item(`${pre}000000002`, '겨울 카페 투어 3곳', 'Sat, 14 Nov 2026 18:30:00 +0900', '카페') +
+            item(`${pre}000000003`, '앰플 한 달 사용기', 'Fri, 20 Nov 2026 09:00:00 +0900', '')
+          : item(`${pre}000000001`, `${id}의 첫 글`, 'Sun, 22 Nov 2026 08:00:00 +0900', '')) + '</channel></rss>');
     }
     if (!/^\/v1beta\/models\/[^/]+:generateContent$/.test(req.url ?? '')) return send(404, { error: { message: 'not found' } });
     if (!req.headers['x-goog-api-key']) return send(400, { error: { message: 'API key not valid.' } });
