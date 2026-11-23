@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LINKS } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
+import { renumberMarkers } from './photoMarkers';
 
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
@@ -235,10 +236,36 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     if (fileInput.current) fileInput.current.value = '';
   }
 
+  /** 사진 순서가 바뀌면 본문의 [사진 n] 번호도 맞춘다(바뀐 게 있을 때만 저장). */
+  function syncMarkers(before: Photo[], after: Photo[]) {
+    const body = renumberMarkers(fields.body, before.map(p => p.id), after.map(p => p.id));
+    if (body !== fields.body) change({ body });
+  }
+
   async function removePhoto(photo: Photo, index: number) {
-    if (!window.confirm(`사진 ${index + 1}을 지울까요? 본문의 [사진 ${index + 1}] 표시는 직접 고쳐 주세요.`)) return;
-    try { await api(`/api/photos/${photo.id}`, { method: 'DELETE' }); setPhotos(current => current?.filter(p => p.id !== photo.id) ?? null); }
-    catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '사진을 지우지 못했어요.' }); }
+    if (!photos || !window.confirm(`사진 ${index + 1}을 지울까요? 본문의 [사진 ${index + 1}] 표시도 함께 지워요.`)) return;
+    try {
+      await api(`/api/photos/${photo.id}`, { method: 'DELETE' });
+      const next = photos.filter(p => p.id !== photo.id);
+      syncMarkers(photos, next);
+      setPhotos(next);
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '사진을 지우지 못했어요.' }); }
+  }
+
+  async function movePhoto(index: number, delta: -1 | 1) {
+    if (!photos) return;
+    const target = index + delta;
+    if (target < 0 || target >= photos.length) return;
+    const next = [...photos];
+    [next[index], next[target]] = [next[target], next[index]];
+    setPhotos(next);
+    try {
+      await api(`/api/drafts/${draft.id}/photos`, { method: 'PUT', body: { order: next.map(p => p.id) } });
+      syncMarkers(photos, next);
+    } catch (error) {
+      setPhotos(photos);
+      setMessage({ kind: 'error', text: error instanceof Error ? error.message : '순서를 바꾸지 못했어요.' });
+    }
   }
 
   async function setPublish(next: 'published' | 'approved') {
@@ -358,6 +385,10 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
                     <a href={`/api/photos/${photo.id}`} target="_blank" rel="noopener"><img src={`/api/photos/${photo.id}`} alt={`사진 ${index + 1}: ${photo.name}`} loading="lazy" /></a>
                     <span className="photo-n">사진 {index + 1}</span>
                     <button className="photo-x" onClick={() => removePhoto(photo, index)} aria-label={`사진 ${index + 1} 지우기`}>×</button>
+                    <span className="photo-move">
+                      <button onClick={() => movePhoto(index, -1)} disabled={index === 0} aria-label={`사진 ${index + 1} 앞으로`}>‹</button>
+                      <button onClick={() => movePhoto(index, 1)} disabled={index === photos.length - 1} aria-label={`사진 ${index + 1} 뒤로`}>›</button>
+                    </span>
                   </li>
                 ))}
               </ol>

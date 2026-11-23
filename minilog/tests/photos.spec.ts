@@ -25,10 +25,21 @@ test('사진 여러 장을 올리고, AI가 사진과 함께 초안을 쓰고, �
   await expect(page.getByRole('button', { name: /사진 2 ·/ })).toBeVisible(); // 목록에 사진 수
   await page.getByRole('button', { name: /가짜 Gemini가 쓴 제목/ }).click();
   await expect(page.getByRole('img', { name: /^사진 2:/ })).toBeVisible();
+  // 순서 바꾸기: 사진 2(소금빵)를 앞으로 → 본문 번호도 맞춰짐, 새로고침해도 유지
+  await page.getByRole('button', { name: '사진 2 앞으로' }).click();
+  await expect(page.getByRole('img', { name: /^사진 1: 소금빵/ })).toBeVisible();
+  await expect(page.getByLabel('본문')).toHaveValue(/\[사진 2\]\n\[사진 1\]/);
+  await expect(page.getByText('저장됨')).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: /가짜 Gemini가 쓴 제목/ }).click();
+  await expect(page.getByRole('img', { name: /^사진 1: 소금빵/ })).toBeVisible();
+  await expect(page.getByLabel('본문')).toHaveValue(/\[사진 2\]\n\[사진 1\]/);
+  // 지우기: 사진 1(소금빵)을 지우면 그 표시는 사라지고 빵집이 사진 1이 됨
   page.once('dialog', d => d.accept());
   await page.getByRole('button', { name: '사진 1 지우기' }).click();
   await expect(page.getByText('1/20장')).toBeVisible();
-  await expect(page.getByRole('img', { name: /소금빵/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /^사진 1: 빵집/ })).toBeVisible();
+  await expect(page.getByLabel('본문')).toHaveValue('첫 문단입니다.\n[사진 1]\n두 번째 문단입니다. [작성자 확인 필요]');
 });
 
 test('게시 주소를 넣으면 게시 완료, 사진 삭제 예정이 보이고 취소할 수 있다', async ({ page }) => {

@@ -64,3 +64,6 @@
 .published > div { flex: 1 1 200px; }
 .published-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app); }
 .badge.published { background: var(--ok); color: #fff; }
+.photo-move { position: absolute; right: 4px; bottom: 4px; display: flex; gap: 2px; }
+.photo-move button { width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(255, 255, 255, 0.92); color: #2B2233; font-size: 1.2rem; line-height: 1; cursor: pointer; }
+.photo-move button:disabled { opacity: 0.35; cursor: default; }
