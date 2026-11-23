@@ -4,9 +4,11 @@ Add-Type -AssemblyName System.Drawing
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 public static class InstallerWindows {
   public delegate bool Callback(IntPtr window, IntPtr value);
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left, Top, Right, Bottom; }
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr window, StringBuilder text, int count);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr window, IntPtr dc, uint flags);
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr window, out Rect rect);
   [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr window, int index);
@@ -39,7 +41,9 @@ try {
         [void][InstallerWindows]::GetWindowThreadProcessId($window,[ref]$ownerId)
         $owner = Get-Process -Id $ownerId -ErrorAction SilentlyContinue
         if ($owner -and $owner.ProcessName -like '*Minially-Setup*') { $script:visibleInstaller = $true }
-        if ($owner -and $owner.ProcessName -eq 'MiniallyUpdate' -and $owner.MainWindowTitle -like '*미니어리 업데이트 중*') {
+        $caption = New-Object System.Text.StringBuilder 256
+        [void][InstallerWindows]::GetWindowText($window,$caption,256)
+        if ($owner -and $owner.ProcessName -eq 'MiniallyUpdate' -and $caption.ToString() -like '*미니어리 업데이트 중*') {
           $script:updatingTitle = $true
           $script:captionless = ([InstallerWindows]::GetWindowLong($window,-16) -band 0x00C00000) -eq 0
           if (-not $script:captured -and $elapsed.ElapsedMilliseconds -gt 700) {
