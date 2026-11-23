@@ -348,7 +348,9 @@
  .desktop-content .notes-workspace { height: calc(var(--desktop-page-height) - 116px); min-height: min(520px, calc(var(--desktop-page-height) - 116px)); }
 }
 @media (max-width: 600px) {
- .desktop-update-label { display: none; }
+ .desktop-titlebar { grid-template-columns: 76px minmax(0,1fr) auto; gap: 4px; }
+ .desktop-window-title { text-align: center; }
+ .desktop-titlebar .desktop-version-button { padding-inline: 4px; gap: 3px; }
  .desktop-titlebar { padding-inline: 8px; }
 }
 .desktop-content .app-titlebar { top: var(--desktop-bar-height); }
@@ -360,3 +362,6 @@
  .note-pane-separator:hover::after, .note-pane-separator:focus-visible::after { background: var(--color-app-accent); }
 }
 @media (max-width: 767px) { .note-pane-separator { display: none; } }
+
+.desktop-version-button[data-update-state="available"], .desktop-version-button[data-update-state="ready"] { color: var(--color-app-accent-hover); background: var(--color-app-soft); }
+.desktop-update-label { font-weight: 600; }

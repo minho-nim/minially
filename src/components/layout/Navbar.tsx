@@ -1,4 +1,3 @@
-import { SyncDot } from '../common/SyncDot';
 import React from 'react';
 import { ActiveNavTab } from '../../types';
 import { Search, Settings, Calendar, CheckSquare, Plus, Download, FileText } from 'lucide-react';
@@ -28,7 +27,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="text-base font-bold tracking-tight text-app-ink">
             미니<span className="text-app-accent">어리</span>
           </span>
-          <SyncDot onClick={onOpenSettingsModal} />
         </div>
 
         {/* 2 Main Tabs: Segmented Control */}

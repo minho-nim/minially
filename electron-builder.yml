@@ -17,6 +17,7 @@ win:
       arch: [x64]
   icon: icon.ico
 nsis:
+  include: desktop/installer.nsh
   oneClick: false
   perMachine: false
   allowElevation: false

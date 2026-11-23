@@ -21,7 +21,7 @@ export function DesktopShell({children}:{children:ReactNode}){
  if(!api)return <>{children}</>;
  async function control(action:'minimize'|'maximize'|'close'){setWindowError('');try{await api!.windowAction(action);}catch{setWindowError('창을 조작하지 못했습니다. 다시 시도해 주세요.');}}
  const kind=state?.update.kind;
- const badge=kind==='ready'?'업데이트 준비':kind==='downloading'?`${Math.round(state!.update.percent)}%`:kind==='available'?'새 버전':kind==='checking'?'확인 중':kind==='error'?'확인 필요':'';
+ const badge=kind==='ready'?'재시작 준비':kind==='downloading'?`${Math.round(state!.update.percent)}%`:kind==='available'?'새 버전':kind==='checking'?'확인 중':kind==='error'?'확인 필요':'';
  return <div className="desktop-shell" data-window-focused={state?.window?.focused!==false}>
   <header aria-label="앱 창 제목 표시줄" className="desktop-titlebar">
    <div role="group" aria-label="창 제어" className="desktop-window-controls">
@@ -30,9 +30,9 @@ export function DesktopShell({children}:{children:ReactNode}){
     <button type="button" aria-label={state?.window?.maximized?'창 크기 복원':'창 최대화'} title={state?.window?.maximized?'이전 크기로 복원':'최대화'} onClick={()=>void control('maximize')} className="desktop-window-button desktop-window-maximize"><span>{state?.window?.maximized?<Minimize2 size={9} strokeWidth={2}/>:<Maximize2 size={9} strokeWidth={2}/>}</span></button>
    </div>
    <span className="desktop-window-title">{api.mode==='quick'?'빠른 메모':'미니어리'}</span>
-   <button type="button" aria-label="앱 버전 및 업데이트 열기" aria-expanded={open} aria-haspopup="dialog" onClick={()=>{if(open)setOpen(false);else if(!document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"]'))setOpen(true);}} className="desktop-version-button" title="버전 정보 · 자동 업데이트">
+   <button type="button" aria-label="앱 버전 및 업데이트 열기" aria-expanded={open} aria-haspopup="dialog" onClick={()=>{if(open)setOpen(false);else if(!document.querySelector('[role="dialog"][aria-modal="true"], [role="alertdialog"]'))setOpen(true);}} className="desktop-version-button" data-update-state={kind} title={badge?`버전 정보 · ${badge}`:'버전 정보 · 자동 업데이트'}>
     {['downloading','ready','available'].includes(kind??'')?<Download aria-hidden size={12}/>:kind==='checking'?<RefreshCw aria-hidden size={12} className="animate-spin"/>:<span aria-hidden className={'desktop-update-dot '+(kind==='error'?'needs-attention':'')}/>}
-    <span>{formatAppVersion(state?.version??__APP_RELEASE__)}</span>{badge&&<span className="desktop-update-label">{badge}</span>}
+    <span>{formatAppVersion(state?.version??__APP_RELEASE__)}</span>{badge&&<span role="status" aria-live="polite" className="desktop-update-label">{badge}</span>}
    </button>
   </header>
   {windowError&&<p role="alert" className="fixed top-10 inset-x-0 z-[75] bg-white px-3 py-2 text-xs text-red-600">{windowError}</p>}

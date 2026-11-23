@@ -17,7 +17,7 @@ function createUpdates({updater,currentVersion,onChange=()=>{},autoDownload=true
   setAutoDownload(value){if(updater)updater.autoDownload=value;},
   async check(){if(!updater||['checking','downloading','ready','installing'].includes(state.kind))return{...state};try{await updater.checkForUpdates();}catch{fail();}return{...state};},
   async download(){if(!updater||state.kind!=='available')return{...state};emit({kind:'downloading',percent:0});try{await updater.downloadUpdate();}catch{fail();}return{...state};},
-  install(){if(!updater||state.kind!=='ready')throw new Error('설치할 업데이트가 준비되지 않았습니다.');emit({kind:'installing'});updater.quitAndInstall(false,true);}
+  install(){if(!updater||state.kind!=='ready')throw new Error('설치할 업데이트가 준비되지 않았습니다.');emit({kind:'installing'});updater.quitAndInstall(true,true);}
  };
 }
 module.exports={createUpdates};
