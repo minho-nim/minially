@@ -1,6 +1,7 @@
 import { json, type HubContext } from '../../../shared/server/d1';
 import { requireSession } from '../../../shared/server/auth';
 import { geminiStatus, monthStart } from '../../../shared/server/usage';
+import { revenueSummary } from '../_campaigns';
 
 // 미니로그 개인 대시보드: 로그인한 사용자 본인 숫자만(원고 내용·사진·키는 내보내지 않음).
 export const onRequestGet = async (ctx: HubContext) => {
@@ -29,7 +30,7 @@ export const onRequestGet = async (ctx: HubContext) => {
     ai: { calls: ai?.calls ?? 0, errors: ai?.errors ?? 0, input_tokens: ai?.input_tokens ?? 0, output_tokens: ai?.output_tokens ?? 0, tasks: tasks.results, error_codes: errors.results },
     drafts: { draft: byStatus.draft ?? 0, approved: byStatus.approved ?? 0, published: byStatus.published ?? 0, published_this_month: publishedThisMonth?.count ?? 0 },
     photos: { count: photos?.count ?? 0, bytes: photos?.bytes ?? 0, expiring: expiring.results.map(r => ({ ...r, title: r.title.slice(0, 80) })) },
-    // shortcut: 협찬·광고 수익 기록은 2단계 기능이라 아직 없다. 생기면 여기에 합계를 넣는다.
-    revenue: null,
+    // 날짜는 한국 시간 기준(정산일을 사람이 YYYY-MM-DD로 적기 때문)
+    revenue: await revenueSummary(db, user, new Date(now + 9 * 3600000).toISOString().slice(0, 10)),
   });
 };

@@ -115,3 +115,31 @@
 .style-pick { max-width: 360px; }
 select.input { appearance: auto; }
 @media (max-width: 560px) { .ref-meta { grid-template-columns: minmax(0, 1fr); } }
+
+.views button { font-size: 0.875rem; }
+.kpis.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.campaigns { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.campaigns li { display: flex; align-items: center; gap: 6px; }
+.campaign { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); text-align: left; cursor: pointer; }
+.campaign:hover { background: var(--surface-2); }
+.c-main { display: grid; gap: 4px; min-width: 0; }
+.c-brand { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 0.8rem; }
+.c-amount { font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dday { font-weight: 700; color: var(--app); }
+.dday.late { color: var(--danger); }
+.badge.s-in_progress { color: var(--app); }
+.badge.s-posted { color: #2F6FB0; }
+.badge.s-paid { background: var(--ok); color: #fff; }
+.badge.s-cancelled { color: var(--muted); text-decoration: line-through; }
+.revenue-now { font-size: 1.6rem; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.rev-bars { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; height: 96px; align-items: end; }
+.rev-col { display: grid; grid-template-rows: 1fr auto; height: 100%; gap: 4px; justify-items: center; }
+.rev-bar { width: 100%; max-width: 32px; align-self: end; border-radius: 6px 6px 2px 2px; background: var(--app); }
+.rev-label { font-size: 0.75rem; color: var(--muted); }
+@media (max-width: 760px) { .kpis.three { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .form-grid { grid-template-columns: minmax(0, 1fr); } .campaigns li { flex-wrap: wrap; } }
+.views button { white-space: nowrap; padding: 0 4px; font-size: 0.84rem; }
+.row-between { flex-wrap: wrap; }
+.row-between > .step-title { white-space: nowrap; }
