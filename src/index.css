@@ -329,7 +329,7 @@
 .desktop-titlebar { -webkit-app-region: drag; user-select: none; position: fixed; inset: 0 0 auto; height: var(--desktop-bar-height); z-index: 70; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 12px; background: #fffafb; border-bottom: 1px solid var(--color-app-line); color: var(--color-app-ink); }
 .desktop-window-controls { -webkit-app-region: no-drag; display: flex; justify-self: start; gap: 2px; }
 .desktop-titlebar .desktop-window-button { -webkit-app-region: no-drag; width: 24px; height: 28px; min-height: 28px; padding: 0; border: 0; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; }
-.desktop-window-button > span { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(0,0,0,.1); display: flex; align-items: center; justify-content: center; }
+.desktop-window-button > span { width: 10px; height: 10px; border-radius: 50%; border: 1px solid rgba(0,0,0,.1); display: flex; align-items: center; justify-content: center; }
 .desktop-window-close > span { background: #ff6058; color: #84201b; }
 .desktop-window-minimize > span { background: #ffbf2f; color: #80530a; }
 .desktop-window-maximize > span { background: #28c840; color: #12621d; }
@@ -365,3 +365,8 @@
 
 .desktop-version-button[data-update-state="available"], .desktop-version-button[data-update-state="ready"] { color: var(--color-app-accent-hover); background: var(--color-app-soft); }
 .desktop-update-label { font-weight: 600; }
+
+@media (min-width: 768px) {
+ .notes-editor > article { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+ .notes-editor > article > header, .notes-editor > article > footer, .notes-editor > article > details { flex-shrink: 0; }
+}

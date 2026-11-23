@@ -1,0 +1,5 @@
+import {test,expect} from '@playwright/test';
+test('상단 단축키 목록은 바로 열리고 낮은 창에서도 끝까지 볼 수 있다',async({page})=>{
+ await page.setViewportSize({width:1000,height:600});await page.goto('/');await page.getByRole('button',{name:'단축키 목록 열기'}).click();const dialog=page.getByRole('dialog',{name:'단축키',exact:true});await expect(dialog).toContainText('메모 편집');expect(await page.evaluate(()=>document.body.style.overflow)).toBe('hidden');await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);
+ await page.getByRole('button',{name:'메모',exact:true}).filter({visible:true}).click();await page.getByRole('button',{name:'새 메모',exact:true}).click();const editor=page.getByRole('article',{name:'메모 편집기'});await editor.getByLabel('메모 본문',{exact:true}).fill('작은 창에서 쓰는 메모');const register=editor.getByRole('button',{name:'할 일로 등록',exact:true});await register.scrollIntoViewIfNeeded();await expect(register).toBeInViewport();await register.click();await expect(page.getByRole('dialog',{name:'메모에서 할 일 등록'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});

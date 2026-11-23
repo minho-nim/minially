@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveNavTab } from '../../types';
-import { Search, Settings, Calendar, CheckSquare, Plus, Download, FileText } from 'lucide-react';
+import { Search, Settings, Calendar, CheckSquare, Plus, Download, FileText, Keyboard } from 'lucide-react';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 interface NavbarProps {
@@ -8,6 +8,7 @@ interface NavbarProps {
   onTabChange: (tab: ActiveNavTab) => void;
   onOpenSettingsModal: () => void;
   onOpenSearchModal: () => void;
+  onOpenShortcuts: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onTabChange,
   onOpenSettingsModal,
   onOpenSearchModal,
+  onOpenShortcuts,
 }) => {
   const { isInstallable, promptInstall } = usePWAInstall();
 
@@ -23,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
         {/* Brand */}
         <div className="flex items-center gap-2 select-none shrink-0">
-          <div className="w-6 h-6 rounded-md bg-app-accent text-white flex items-center justify-center font-bold text-xs shadow-2xs">M</div>
+          <div className="w-6 h-6 rounded-lg bg-app-accent text-white flex items-center justify-center font-bold text-xs shadow-2xs">M</div>
           <span className="text-base font-bold tracking-tight text-app-ink">
             미니<span className="text-app-accent">어리</span>
           </span>
@@ -60,6 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action icons: Search, PWA, Settings */}
         <div className="flex items-center gap-1 shrink-0">
+          <button type="button" onClick={onOpenShortcuts} aria-label="단축키 목록 열기" title="단축키 (?)" className="hidden md:flex w-9 h-9 items-center justify-center text-app-muted hover:bg-app-soft rounded-xl"><Keyboard className="w-4 h-4"/></button>
           <button
             type="button"
             onClick={onOpenSearchModal}

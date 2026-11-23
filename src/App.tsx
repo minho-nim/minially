@@ -707,6 +707,7 @@ export default function App() {
         onTabChange={(tab) => {setOpenNoteId(undefined);setFocusedTaskId(undefined);setActiveTab(tab);}}
         onOpenSettingsModal={() => setSettingsModalOpen(true)}
         onOpenSearchModal={openSearch}
+        onOpenShortcuts={() => setShortcutHelpOpen(true)}
       />
 
       {registrationNotice && !(daySheetOpen&&activeTab==='calendar') && !scheduleModalOpen && !presetLibraryOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget && <RegistrationNotice key={registrationNotice.id} notice={registrationNotice} onDismiss={()=>setRegistrationNotice(null)} onUndo={registrationNotice.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}/>}

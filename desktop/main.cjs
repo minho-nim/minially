@@ -27,13 +27,13 @@ function secureWindow(win){
 function webPreferences(quick=false){return{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,backgroundThrottling:false,additionalArguments:quick?['--minially-quick']:[]};}
 function createMain(){
  if(mainWindow&&!mainWindow.isDestroyed()){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();return mainWindow;}
- mainWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width:1280,height:850,minWidth:820,minHeight:600,title:`미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/pwa-192x192.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
+ mainWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width:1280,height:850,minWidth:820,minHeight:600,title:`미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/desktop-icon.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
  secureWindow(mainWindow);mainWindow.on('close',event=>{if(quitAllowed)return;event.preventDefault();if(preferences.get().closeToTray&&tray)mainWindow.hide();else void finishApp(false);});mainWindow.on('closed',()=>{mainWindow=null;});void mainWindow.loadURL(ORIGIN+(testMode?'/demo':'/'));return mainWindow;
 }
 function createQuick(){
  if(quickWindow&&!quickWindow.isDestroyed()){if(quickWindow.isMinimized())quickWindow.restore();quickWindow.show();quickWindow.focus();quickWindow.webContents.send('desktop:quick-focus');return;}
  const area=screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea,width=Math.min(460,area.width),height=Math.min(600,area.height);
- quickWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width,height,minWidth:320,minHeight:360,x:Math.max(area.x,area.x+area.width-width-24),y:Math.max(area.y,area.y+40),title:`빠른 메모 · 미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/pwa-192x192.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences(true)});
+ quickWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width,height,minWidth:320,minHeight:360,x:Math.max(area.x,area.x+area.width-width-24),y:Math.max(area.y,area.y+40),title:`빠른 메모 · 미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/desktop-icon.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences(true)});
  secureWindow(quickWindow);quickWindow.on('close',event=>{if(quitAllowed)return;event.preventDefault();void closeGuard.ask([quickWindow]).then(ok=>{if(ok)quickWindow?.hide();});});quickWindow.on('closed',()=>{quickWindow=null;});void quickWindow.loadURL(ORIGIN+'/?desktop=quick');
 }
 async function finishApp(install){
@@ -73,7 +73,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   session.defaultSession.setPermissionRequestHandler((contents,permission,callback)=>callback(trustedPage(contents.getURL())&&['notifications','clipboard-sanitized-write'].includes(permission)));
   let updater=null;if(app.isPackaged&&process.platform==='win32'){updater=require('electron-updater').autoUpdater;updater.setFeedURL({provider:'generic',url:UPDATE_FEED});}
   updates=createUpdates({updater,currentVersion:app.getVersion(),autoDownload:preferences.get().autoDownload,onChange:publishState});registerIPC();
-  if(!testMode){try{tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'renderer/pwa-192x192.png')).resize({width:20,height:20}));tray.setToolTip('미니어리');tray.on('double-click',()=>createMain());trayMenu();}catch{tray=null;}shortcutAvailable=globalShortcut.register(shortcut,createQuick);}
+  if(!testMode){try{tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'renderer/desktop-icon.png')).resize({width:20,height:20}));tray.setToolTip('미니어리');tray.on('double-click',()=>createMain());trayMenu();}catch{tray=null;}shortcutAvailable=globalShortcut.register(shortcut,createQuick);}
   createMain();if(process.argv.includes('--quick-note'))createQuick();
   if(updater){setTimeout(()=>{void updates.check();},10000).unref();setInterval(()=>{void updates.check();},4*60*60*1000).unref();}
   app.on('activate',()=>createMain());
