@@ -28,7 +28,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
 export const APP_LINKS = {
   hub: 'https://minihub.pages.dev',
   minially: 'https://minially.pages.dev',
-  minilog: 'https://minilog.pages.dev',
+  minilog: 'https://minilog-ef7.pages.dev', // minilog.pages.dev는 이미 다른 사람이 써서 Cloudflare가 붙인 주소
 } as const;
 
 export interface UsageRow { app: string; calls: number; errors: number; input_tokens: number; output_tokens: number }

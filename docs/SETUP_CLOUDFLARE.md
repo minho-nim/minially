@@ -21,7 +21,7 @@ Workers & Pages → Create → Pages → Connect to Git → `minho-nim/minially`
 | Root directory | `hub` | `minilog` |
 | Build watch paths | `hub/*`, `shared/*` | `minilog/*`, `shared/*` |
 
-주소가 `minihub.pages.dev`·`minilog.pages.dev`로 안 나오면(이미 다른 사람이 쓰는 이름) 실제 주소를 알려 주세요. `shared/client/api.ts`의 `APP_LINKS`를 고칩니다.
+주소가 `minihub.pages.dev`·`minilog-ef7.pages.dev`로 안 나오면(이미 다른 사람이 쓰는 이름) 실제 주소를 알려 주세요. `shared/client/api.ts`의 `APP_LINKS`를 고칩니다.
 
 ## 3. 데이터베이스 연결 (두 프로젝트 모두)
 Settings → Bindings → Add → D1 database
@@ -55,4 +55,4 @@ C와 D를 쉼표로 이어 붙여 `USER_CODE_HASHES`에 넣습니다. 예: `C:ab
 
 ## 6. 확인
 - minihub.pages.dev: 로그인 → 대시보드에 "사용자 C" · Gemini 연결됨
-- minilog.pages.dev: 로그인 → 새 원고 → 경험 적고 "AI로 초안 만들기"
+- minilog-ef7.pages.dev: 로그인 → 새 원고 → 경험 적고 "AI로 초안 만들기"
