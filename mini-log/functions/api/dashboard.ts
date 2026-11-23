@@ -23,6 +23,7 @@ export const onRequestGet = async (ctx: HubContext) => {
     db.prepare('SELECT d.id, d.title, COUNT(*) AS count, MIN(p.expires_at) AS expires_at FROM minilog_photos p JOIN minilog_drafts d ON d.id = p.draft_id AND d.user = p.user WHERE p.user = ? AND p.expires_at IS NOT NULL AND p.expires_at > ? GROUP BY d.id ORDER BY expires_at LIMIT 5')
       .bind(user, now).all<{ id: string; title: string; count: number; expires_at: number }>(),
   ]);
+  const topPosts = (await db.prepare('SELECT title, url, views, likes FROM minilog_posts WHERE user = ? AND views IS NOT NULL ORDER BY views DESC LIMIT 3').bind(user).all<{ title: string; url: string; views: number; likes: number | null }>()).results;
   const byStatus = Object.fromEntries(statuses.results.map(r => [r.status, r.count]));
   return json({
     since: new Date(since).toISOString(),
@@ -31,6 +32,7 @@ export const onRequestGet = async (ctx: HubContext) => {
     drafts: { draft: byStatus.draft ?? 0, approved: byStatus.approved ?? 0, published: byStatus.published ?? 0, published_this_month: publishedThisMonth?.count ?? 0 },
     photos: { count: photos?.count ?? 0, bytes: photos?.bytes ?? 0, expiring: expiring.results.map(r => ({ ...r, title: r.title.slice(0, 80) })) },
     // 날짜는 한국 시간 기준(정산일을 사람이 YYYY-MM-DD로 적기 때문)
+    top_posts: topPosts,
     revenue: await revenueSummary(db, user, new Date(now + 9 * 3600000).toISOString().slice(0, 10)),
   });
 };
