@@ -45,3 +45,22 @@
   .main { padding: 16px 16px 48px; }
   .back { display: inline-flex; }
 }
+
+.step-sub { margin-left: auto; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.photos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.photo { position: relative; border-radius: 12px; overflow: hidden; background: var(--surface-2); aspect-ratio: 1; }
+.photo a { display: block; width: 100%; height: 100%; }
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-n { position: absolute; left: 6px; bottom: 6px; padding: 1px 8px; border-radius: 999px; background: rgba(43, 34, 51, 0.78); color: #fff; font-size: 0.75rem; font-weight: 700; }
+.photo-x { position: absolute; top: 4px; right: 4px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(43, 34, 51, 0.72); color: #fff; font-size: 1.1rem; line-height: 1; cursor: pointer; }
+.photo-x:hover { background: var(--danger); }
+.dropzone.pick { cursor: pointer; display: grid; place-items: center; min-height: 64px; }
+.dropzone.pick:hover { background: var(--app-soft); }
+.dropzone.pick:focus-within { outline: 2px solid var(--app); outline-offset: 2px; }
+.dropzone.pick.busy { cursor: progress; }
+.publish-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.publish-row .input { flex: 1 1 240px; }
+.published { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.published > div { flex: 1 1 200px; }
+.published-url { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app); }
+.badge.published { background: var(--ok); color: #fff; }

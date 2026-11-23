@@ -15,8 +15,13 @@ export async function ensureHubSchema(db: D1Database) {
     db.prepare('CREATE TABLE IF NOT EXISTS ai_usage (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT NOT NULL, app TEXT NOT NULL, model TEXT NOT NULL, task TEXT NOT NULL, input_tokens INTEGER NOT NULL DEFAULT 0, output_tokens INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, error_code TEXT, created_at INTEGER NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS ai_usage_user_time ON ai_usage (user, created_at)'),
     // 미니로그 원고
-    db.prepare("CREATE TABLE IF NOT EXISTS minilog_drafts (id TEXT PRIMARY KEY, user TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', hashtags TEXT NOT NULL DEFAULT '', experience TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
+    // 주의: 운영 DB에 표가 생긴 뒤에는 이 CREATE 문을 고쳐도 기존 표에 칸이 생기지 않는다. 칸을 늘릴 때는 ALTER TABLE을 따로 넣는다.
+    db.prepare("CREATE TABLE IF NOT EXISTS minilog_drafts (id TEXT PRIMARY KEY, user TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', hashtags TEXT NOT NULL DEFAULT '', experience TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', published_url TEXT NOT NULL DEFAULT '', published_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_drafts_user ON minilog_drafts (user, updated_at)'),
+    // 미니로그 사진: 파일은 R2(키 = 사용자/원고/사진id), 여기에는 정보만. expires_at이 지나면 지운다(게시 후 30일).
+    db.prepare('CREATE TABLE IF NOT EXISTS minilog_photos (id TEXT PRIMARY KEY, user TEXT NOT NULL, draft_id TEXT NOT NULL, r2_key TEXT NOT NULL, name TEXT NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL, position INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS minilog_photos_draft ON minilog_photos (user, draft_id, position)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS minilog_photos_expiry ON minilog_photos (user, expires_at)'),
   ]);
   ready = true;
 }

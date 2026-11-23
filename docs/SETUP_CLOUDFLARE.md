@@ -30,6 +30,13 @@ Settings → Bindings → Add → D1 database
 
 처음 로그인할 때 새 표(hub_sessions·hub_attempts·ai_usage·minilog_drafts)가 자동으로 생깁니다. 미니어리 표(sync_*)는 건드리지 않습니다.
 
+## 3-1. 사진 저장소 R2 (minilog 프로젝트만)
+1. Cloudflare 왼쪽 메뉴 **R2 Object Storage** → **Create bucket** → 이름 `minilog-photos` (지역은 자동). 처음 쓰면 R2 사용 신청(무료 10GB)을 먼저 해야 할 수 있습니다.
+2. minilog 프로젝트 Settings → Bindings → Add → **R2 bucket** → Variable name `MINILOG_PHOTOS`, bucket `minilog-photos`
+3. 공개 주소(Public access)는 **켜지 않습니다.** 사진은 로그인한 본인만 앱을 거쳐 봅니다.
+
+사진은 게시 완료 후 30일이 지나면 앱이 지웁니다(원고 목록을 열 때 정리). R2 수명 규칙은 따로 넣지 않아도 됩니다.
+
 ## 4. 비밀값 (Settings → Variables and Secrets → Add → **Secret**)
 | 이름 | 값 | minihub | minilog |
 |---|---|---|---|

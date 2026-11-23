@@ -11,6 +11,14 @@ export interface D1Database {
   batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
 }
 
+/** Cloudflare R2(사진 저장소)의 최소 타입 */
+export interface R2ObjectBody { body: ReadableStream; httpMetadata?: { contentType?: string }; size: number }
+export interface R2Bucket {
+  put(key: string, value: ArrayBuffer | Uint8Array, options?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+  get(key: string): Promise<R2ObjectBody | null>;
+  delete(keys: string | string[]): Promise<void>;
+}
+
 /** hub·minilog가 함께 쓰는 환경 값. 값은 Cloudflare 대시보드(비밀값)에만 둔다. */
 export interface HubEnv {
   DB?: D1Database;
@@ -22,6 +30,8 @@ export interface HubEnv {
   GEMINI_MODEL?: string;
   /** 시험용: Gemini 주소를 가짜 서버로 바꿀 때만 쓴다 */
   GEMINI_API_BASE?: string;
+  /** 미니로그 사진 저장소(R2) */
+  MINILOG_PHOTOS?: R2Bucket;
   /** Minoffia 통계 API용 토큰 */
   STATS_API_TOKEN?: string;
   [key: string]: unknown;

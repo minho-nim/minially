@@ -41,11 +41,17 @@
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `minilog/src/App.tsx`, `minilog/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
 | 사용자별 데이터 분리(모든 쿼리에 `WHERE user = ?`) | `minilog/functions/_drafts.ts` | 시험(D가 C 원고 목록·조회·수정 불가, 비로그인 401) |
+| 미니로그 사진 여러 장 올리기(브라우저에서 긴 변 1600px JPG로 줄임, 장당 5MB·원고당 20장, 매직 바이트 검사) | `minilog/functions/_photos.ts`, `api/drafts/[id]/photos.ts`, `api/photos/[id].ts` | 시험(로컬 R2) |
+| 사진 보기·지우기(본인만, R2 공개 주소 없음) | `api/photos/[id].ts` | 시험(D가 C 사진 보기·지우기·올리기 404, 비로그인 401, 사진 아닌 파일 415) |
+| 사진 분석: 앞 8장을 Gemini에 함께 보내 [사진 n] 위치 표시 | `api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험(보낸 사진 수 확인) |
+| 게시 완료 URL(http/https만) 기록, 게시 후 30일 지나면 사진 삭제, 게시 취소 시 삭제 예정 취소 | `_drafts.ts` `updateDraft`, `_photos.ts` `cleanupExpired` | 화면 시험 + node:sqlite로 시간 흐름 시험(29일 유지·31일 삭제·다른 사용자 사진 유지) |
 
 ## 3. 미완료(계획만)
 - **실제 배포 안 됨.** minihub·minilog Cloudflare 프로젝트는 아직 없습니다(`docs/SETUP_CLOUDFLARE.md`). minihub.pages.dev·minilog.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
 - **실제 Gemini 호출 검증 안 됨.** 가짜 서버로만 시험했습니다. 기본 모델 `gemini-2.5-flash`가 지금도 있는지 확인이 필요합니다(`GEMINI_MODEL`로 바꿀 수 있음).
-- 미니로그 1단계 남은 것: 사진 다중 업로드(R2 `MINILOG_PHOTOS`)·사진 분석·사진 위치 연결, 개인별 참고 블로그 분석, 게시 완료 URL 기록, 사진 30일 보관(R2 수명 규칙)
+- 미니로그 1단계 남은 것: 개인별 참고 블로그 분석(붙여 넣기 방식), 사진 순서 바꾸기, 본문 [사진 n]과 사진 지우기 연동(지금은 사진을 지워도 본문 표시는 그대로)
+- 사진 30일 정리는 원고 목록을 열 때만 돕니다(정해진 시각 작업 없음). 오래 접속하지 않으면 늦게 지워집니다.
+- HEIC(아이폰 기본 형식) 사진은 브라우저가 못 열면 올릴 수 없습니다(안내 문구만 있음).
 - 미니로그 개인 대시보드(호출량·원고 현황·사진 용량·수익)
 - 미니로그 2·3단계 전체
 - **미니어리 Gemini 연결 안 함.** 미니어리는 아직 AI 기능이 없고, `callGemini`가 `app: 'minially'`를 받을 수 있게만 해 둠
@@ -76,10 +82,10 @@
 | `STATS_API_TOKEN` | 비밀값 | hub |
 | `GEMINI_MODEL` | 변수(선택) | hub, minilog |
 | `GEMINI_API_BASE` | **시험 전용**. 운영에는 넣지 않음 | 시험 |
-| `MINILOG_PHOTOS` | R2 바인딩(계획) | minilog |
+| `MINILOG_PHOTOS` | R2 바인딩(버킷 `minilog-photos`, 공개 주소 끔) | minilog |
 | `MINIHUB_LAYOUT_READY` | GitHub 저장소 변수 | deploy-release.yml |
 
-D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
+D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
 
 ## 7. 실제 배포 상태 (2026-11-23)
 - minially.pages.dev: 기존 운영 그대로. Cloudflare Root directory는 `minially`로 바꿔 둠. `release` 브랜치는 아직 예전 구조라, **PR #29 병합 전에 운영 배포를 돌리면 빌드가 실패합니다.**
@@ -97,7 +103,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 6 passed |
 | `minilog`: `npm run lint`, `npm run build` | 성공 |
-| `minilog`: `npm test` | 6 passed |
+| `minilog`: `npm test` | 10 passed (사진·게시·30일 정리 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
@@ -110,12 +116,13 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 - `STATS_API_TOKEN` 비교는 해시끼리 문자열 비교입니다(타이밍 차이는 거의 없지만 상수 시간 비교는 아님).
 - 자동 저장은 마지막에 저장한 것이 이깁니다. 같은 원고를 두 기기에서 동시에 고치면 한쪽 수정이 사라질 수 있습니다(버전 검사 없음).
 - 원고 목록은 최근 200개까지만 불러옵니다.
+- `minilog_drafts`·`minilog_photos` 표는 아직 운영 DB에 없어서 CREATE 문에 칸을 바로 넣었습니다. 운영에 한 번 생긴 뒤 칸을 늘리려면 `ALTER TABLE`이 필요합니다(`schema.ts` 주석).
 - AI 초안은 지금 본문을 덮어씁니다(확인 창이 있음, 되돌리기는 없음).
 
 ## 10. 다음 개발 우선순위(권장)
 1. 소유자 설정 후 실제 배포 확인 + 실제 Gemini 1회 호출 확인(모델 이름)
-2. 미니로그 사진: R2 `MINILOG_PHOTOS` 업로드(크기·형식 검사, 사용자별 키 접두어 `C/…`), 30일 수명 규칙, Gemini 사진 분석(inline_data)
-3. 게시 완료 URL 칸, 승인 → 발행 흐름
+2. 실제 Gemini로 사진 분석 품질 확인(사진 8장 기준 토큰·속도)
+3. 사진 순서 바꾸기, 사진 지울 때 본문 [사진 n] 번호 맞추기
 4. 미니로그 개인 대시보드, 참고 블로그(붙여 넣기 방식) 분석
 5. 추정 비용(모델 단가 표)
 6. 원고 동시 수정 버전 검사

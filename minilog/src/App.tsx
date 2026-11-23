@@ -2,9 +2,48 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, APP_LINKS } from '../../shared/client/api';
 import { Totom, Signature } from './Totom';
 
+type Status = 'draft' | 'approved' | 'published';
 interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
-  status: 'draft' | 'approved'; created_at: number; updated_at: number;
+  status: Status; published_url: string; published_at: number | null; created_at: number; updated_at: number;
+  photo_count?: number;
+}
+interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null }
+const STATUS_LABEL: Record<Status, string> = { draft: '작성 중', approved: '승인됨', published: '게시됨' };
+const dayLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(ms);
+
+/** 올리기 전에 브라우저에서 긴 변을 1600px로 줄이고 JPG로 바꾼다(저장 공간·AI 토큰 절약, 위치 정보 등 메타데이터도 빠짐). */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  let bitmap: ImageBitmap;
+  try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch { throw new Error(`${file.name}: 이 사진 형식은 열 수 없어요(HEIC는 JPG로 바꿔 올려 주세요).`); }
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('사진을 처리하지 못했어요.');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+  if (!blob) throw new Error('사진을 처리하지 못했어요.');
+  return blob;
+}
+
+async function uploadPhoto(draftId: string, file: File): Promise<Photo> {
+  const blob = await shrinkPhoto(file);
+  let response: Response;
+  try {
+    response = await fetch(`/api/drafts/${draftId}/photos`, {
+      method: 'POST', body: blob, credentials: 'same-origin',
+      headers: { 'content-type': 'image/jpeg', 'x-file-name': encodeURIComponent(file.name.slice(0, 120)) },
+    });
+  } catch { throw new Error('인터넷 연결을 확인해 주세요.'); }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new ApiError((data as { error?: string }).error ?? '사진을 올리지 못했어요.', response.status);
+  return (data as { photo: Photo }).photo;
 }
 interface Me { user: 'C' | 'D'; gemini: { connected: boolean } }
 type State = { kind: 'loading' } | { kind: 'login' } | { kind: 'error'; message: string } | { kind: 'ready'; me: Me };
@@ -101,7 +140,12 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   }
 
   const selected = drafts?.find(d => d.id === selectedId) ?? null;
-  const onSaved = useCallback((draft: Draft) => setDrafts(list => list?.map(d => (d.id === draft.id ? draft : d)).sort((a, b) => b.updated_at - a.updated_at) ?? null), []);
+  const onSaved = useCallback((draft: Draft) => setDrafts(list => list?.map(d => (d.id === draft.id ? { ...draft, photo_count: draft.photo_count ?? d.photo_count } : d)).sort((a, b) => b.updated_at - a.updated_at) ?? null), []);
+  const onPhotoCount = useCallback((n: number) => setDrafts(list => {
+    if (!list || !selectedId) return list;
+    const current = list.find(d => d.id === selectedId);
+    return current && current.photo_count !== n ? list.map(d => (d.id === selectedId ? { ...d, photo_count: n } : d)) : list;
+  }), [selectedId]);
   const onDeleted = useCallback((id: string) => { setDrafts(list => list?.filter(d => d.id !== id) ?? null); setSelectedId(null); }, []);
 
   return (
@@ -122,7 +166,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             {drafts.map(d => (
               <button key={d.id} aria-current={d.id === selectedId} onClick={() => setSelectedId(d.id)}>
                 <span className="t">{d.title.trim() || '제목 없는 원고'}</span>
-                <span className="m">{d.status === 'approved' ? '승인됨' : '작성 중'} · {dateLabel(d.updated_at)}</span>
+                <span className="m">{STATUS_LABEL[d.status]}{d.photo_count ? ` · 사진 ${d.photo_count}` : ''} · {dateLabel(d.updated_at)}</span>
               </button>
             ))}
           </nav>
@@ -135,7 +179,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
       <main className="main">
         {selected
-          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
+          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
               <Totom kind="minilog" size={104} pose="wave" />
@@ -153,9 +197,64 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
 type SaveState = 'saved' | 'dirty' | 'saving' | 'failed';
 type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status'>;
 
-function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
-  draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onDeleted: (id: string) => void; onBack: () => void;
+function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
+  draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
 }) {
+  const [photos, setPhotos] = useState<Photo[] | null>(null);
+  const [storage, setStorage] = useState(true);
+  const [uploading, setUploading] = useState(0);
+  const [publishUrl, setPublishUrl] = useState(draft.published_url);
+  const [published, setPublished] = useState({ url: draft.published_url, at: draft.published_at });
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api<{ photos: Photo[]; storage: boolean }>(`/api/drafts/${draft.id}/photos`)
+      .then(data => { if (alive) { setPhotos(data.photos); setStorage(data.storage); } })
+      .catch(() => { if (alive) { setPhotos([]); setMessage({ kind: 'error', text: '사진 목록을 불러오지 못했어요.' }); } });
+    return () => { alive = false; };
+  }, [draft.id]);
+  useEffect(() => { if (photos) onPhotoCount(photos.length); }, [photos, onPhotoCount]);
+
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length) return;
+    const list = [...files].slice(0, 20 - (photos?.length ?? 0));
+    if (list.length < files.length) setMessage({ kind: 'error', text: '사진은 원고 하나에 20장까지예요. 넘는 사진은 빼고 올려요.' });
+    else setMessage(null);
+    setUploading(list.length);
+    for (const file of list) {
+      try {
+        const photo = await uploadPhoto(draft.id, file);
+        setPhotos(current => [...(current ?? []), photo]);
+      } catch (error) {
+        setMessage({ kind: 'error', text: error instanceof Error ? error.message : '사진을 올리지 못했어요.' });
+      } finally {
+        setUploading(n => n - 1);
+      }
+    }
+    if (fileInput.current) fileInput.current.value = '';
+  }
+
+  async function removePhoto(photo: Photo, index: number) {
+    if (!window.confirm(`사진 ${index + 1}을 지울까요? 본문의 [사진 ${index + 1}] 표시는 직접 고쳐 주세요.`)) return;
+    try { await api(`/api/photos/${photo.id}`, { method: 'DELETE' }); setPhotos(current => current?.filter(p => p.id !== photo.id) ?? null); }
+    catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '사진을 지우지 못했어요.' }); }
+  }
+
+  async function setPublish(next: 'published' | 'approved') {
+    await flush();
+    try {
+      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: next === 'published' ? { status: 'published', published_url: publishUrl } : { status: 'approved' } });
+      setFields(current => ({ ...current, status: saved.status }));
+      setPublished({ url: saved.published_url, at: saved.published_at });
+      onSaved(saved);
+      if (next === 'published') setPhotos(current => current?.map(p => ({ ...p, expires_at: (saved.published_at ?? Date.now()) + 30 * 86400000 })) ?? null);
+      else setPhotos(current => current?.map(p => ({ ...p, expires_at: null })) ?? null);
+      setMessage({ kind: 'info', text: next === 'published' ? '게시 완료로 기록했어요. 사진은 30일 뒤에 지워져요.' : '게시 기록을 취소했어요. 사진 삭제 예정도 취소했어요.' });
+    } catch (error) {
+      setMessage({ kind: 'error', text: error instanceof Error ? error.message : '게시 상태를 바꾸지 못했어요.' });
+    }
+  }
   const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status });
   const [tagText, setTagText] = useState(draft.hashtags.map(t => `#${t}`).join(' '));
   const [save, setSave] = useState<SaveState>('saved');
@@ -203,7 +302,7 @@ function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
       setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
       onSaved(made);
-      setMessage({ kind: 'info', text: 'AI 초안을 넣었어요. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.' });
+      setMessage({ kind: 'info', text: `AI 초안을 넣었어요${photos?.length ? `(사진 ${Math.min(photos.length, 8)}장 분석)` : ''}. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.` });
     } catch (error) {
       setMessage({ kind: 'error', text: error instanceof Error ? error.message : 'AI 초안을 만들지 못했어요.' });
     } finally { setAiBusy(false); }
@@ -230,13 +329,15 @@ function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
       <div className="editor-head">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn ghost back" onClick={() => { void flush(); onBack(); }}>← 목록</button>
-          <span className={`badge${fields.status === 'approved' ? ' approved' : ''}`}>{fields.status === 'approved' ? '승인됨' : '작성 중'}</span>
+          <span className={`badge ${fields.status}`}>{STATUS_LABEL[fields.status]}</span>
           <span className={`save-state${save === 'failed' ? ' fail' : ''}`} role="status">{saveLabel}</span>
           {save === 'failed' && <button className="btn small" onClick={() => { void flush(); }}>다시 저장</button>}
         </div>
         <div className="actions">
           <button className="btn" onClick={copyPackage} disabled={!fields.title.trim() && !fields.body.trim()}>발행용 복사</button>
-          <button className="btn" onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
+          {fields.status !== 'published' && (
+            <button className="btn" onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
+          )}
           <button className="btn ghost" onClick={remove}>삭제</button>
         </div>
       </div>
@@ -244,12 +345,37 @@ function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
 
       <section className="card step" aria-labelledby="s1">
-        <h2 id="s1" className="step-title"><span className="n">1</span>사진</h2>
-        <div className="dropzone small">사진 올리기·분석은 준비 중이에요(사진 저장소 R2 연결 뒤 사용 가능).</div>
+        <h2 id="s1" className="step-title"><span className="n">1</span>사진<span className="step-sub">{photos ? `${photos.length}/20장` : ''}</span></h2>
+        {!storage ? (
+          <div className="dropzone small">사진 저장소(R2)가 아직 연결되지 않아 사진을 올릴 수 없어요.</div>
+        ) : (
+          <>
+            {photos === null && <p className="muted small" role="status">사진을 불러오는 중…</p>}
+            {photos && photos.length > 0 && (
+              <ol className="photos" aria-label="올린 사진">
+                {photos.map((photo, index) => (
+                  <li key={photo.id} className="photo">
+                    <a href={`/api/photos/${photo.id}`} target="_blank" rel="noopener"><img src={`/api/photos/${photo.id}`} alt={`사진 ${index + 1}: ${photo.name}`} loading="lazy" /></a>
+                    <span className="photo-n">사진 {index + 1}</span>
+                    <button className="photo-x" onClick={() => removePhoto(photo, index)} aria-label={`사진 ${index + 1} 지우기`}>×</button>
+                  </li>
+                ))}
+              </ol>
+            )}
+            <label className={`dropzone pick${uploading ? ' busy' : ''}`}>
+              <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,image/*" multiple className="sr-only" onChange={e => { void addPhotos(e.target.files); }} disabled={uploading > 0 || (photos?.length ?? 0) >= 20} />
+              {uploading > 0
+                ? <span className="ai-busy" role="status"><Totom kind="minilog" size={32} bounce /><span className="hand">사진 {uploading}장 올리는 중</span></span>
+                : <span><b>사진 고르기</b> · 여러 장 한 번에 · 긴 변 1600px로 줄여서 올려요</span>}
+            </label>
+            {published.at && photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>게시 후 30일이 지나면 사진이 지워져요({dayLabel(published.at + 30 * 86400000)} 예정). 필요한 사진은 미리 받아 두세요.</p>}
+          </>
+        )}
       </section>
 
       <section className="card step" aria-labelledby="s2">
         <h2 id="s2" className="step-title"><span className="n">2</span>실제 방문·사용 경험</h2>
+        {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지)' : ''}.</p>}
         <div className="field">
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>언제·어디서·무엇을 했고 어땠는지 직접 겪은 내용을 적어 주세요. AI는 여기 적힌 것만 써요.</label>
           <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
@@ -280,6 +406,29 @@ function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
             onChange={e => { setTagText(e.target.value); change({ hashtags: e.target.value.split(/[\s,]+/).map(t => t.replace(/^#+/, '')).filter(Boolean).slice(0, 30) }); }}
           />
         </div>
+      </section>
+
+      <section className="card step" aria-labelledby="s4">
+        <h2 id="s4" className="step-title"><span className="n">4</span>게시</h2>
+        {fields.status === 'published' && published.url ? (
+          <div className="published">
+            <Totom kind="minilog" size={44} pose="wave" />
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontWeight: 700 }}>게시 완료{published.at ? ` · ${dayLabel(published.at)}` : ''}</p>
+              <a className="small published-url" href={published.url} target="_blank" rel="noopener noreferrer">{published.url}</a>
+            </div>
+            <button className="btn ghost" onClick={() => { void setPublish('approved'); }}>게시 취소</button>
+          </div>
+        ) : (
+          <>
+            <p className="muted small" style={{ margin: 0 }}>네이버 블로그에 올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>
+            <div className="publish-row">
+              <label htmlFor="published-url" className="sr-only">게시한 글 주소</label>
+              <input id="published-url" className="input" type="url" inputMode="url" placeholder="https://blog.naver.com/…" value={publishUrl} maxLength={500} onChange={e => setPublishUrl(e.target.value)} />
+              <button className="btn primary" onClick={() => { void setPublish('published'); }} disabled={!publishUrl.trim()}>게시 완료</button>
+            </div>
+          </>
+        )}
       </section>
     </article>
   );

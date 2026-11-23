@@ -11,10 +11,13 @@ createServer((req, res) => {
     if (req.url === '/health') return send(200, { ok: true });
     if (!/^\/v1beta\/models\/[^/]+:generateContent$/.test(req.url ?? '')) return send(404, { error: { message: 'not found' } });
     if (!req.headers['x-goog-api-key']) return send(400, { error: { message: 'API key not valid.' } });
-    const prompt = JSON.parse(raw || '{}').contents?.[0]?.parts?.[0]?.text ?? '';
+    const parts = JSON.parse(raw || '{}').contents?.[0]?.parts ?? [];
+    const prompt = parts.map(p => p.text ?? '').join('');
+    const images = parts.filter(p => p.inline_data?.data).length;
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
-    const draft = { title: '가짜 Gemini가 쓴 제목', body: '첫 문단입니다.\n[사진]\n두 번째 문단입니다. [작성자 확인 필요]', hashtags: ['#시험', '미니로그', '시험'] };
+    const photoLines = images ? Array.from({ length: images }, (_, i) => `[사진 ${i + 1}]`).join('\n') : '[사진]';
+    const draft = { title: images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목', body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]`, hashtags: ['#시험', '미니로그', '시험'] };
     send(200, {
       candidates: [{ content: { parts: [{ text: JSON.stringify(draft) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 },

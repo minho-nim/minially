@@ -38,6 +38,8 @@ export interface GeminiRequest {
   /** 작업 이름(예: draft) — 통계용 */
   task: string;
   prompt: string;
+  /** 함께 보낼 사진(base64). 사진 분석에 쓴다. */
+  images?: { mimeType: string; data: string }[];
   json?: boolean;
   model?: string;
 }
@@ -73,7 +75,7 @@ export async function callGemini(req: GeminiRequest): Promise<GeminiResult> {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: req.prompt }] }],
+        contents: [{ role: 'user', parts: [...(req.images ?? []).map(image => ({ inline_data: { mime_type: image.mimeType, data: image.data } })), { text: req.prompt }] }],
         ...(req.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),

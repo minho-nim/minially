@@ -2,13 +2,16 @@
 import type { D1Database } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 
+export type DraftStatus = 'draft' | 'approved' | 'published';
 export interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
-  status: 'draft' | 'approved'; created_at: number; updated_at: number;
+  status: DraftStatus; published_url: string; published_at: number | null; created_at: number; updated_at: number;
 }
 interface Row extends Omit<Draft, 'hashtags'> { hashtags: string }
 
-export const LIMITS = { title: 200, body: 50000, experience: 5000, hashtags: 30, hashtag: 40 };
+export const LIMITS = { title: 200, body: 50000, experience: 5000, hashtags: 30, hashtag: 40, url: 500 };
+
+const COLUMNS = 'id, title, body, hashtags, experience, status, published_url, published_at, created_at, updated_at';
 
 const toDraft = (row: Row): Draft => ({ ...row, hashtags: row.hashtags ? row.hashtags.split('\n').filter(Boolean) : [] });
 
@@ -21,8 +24,23 @@ export function cleanHashtags(value: unknown): string[] | null {
 }
 
 /** 사용자가 보낸 값 중 고칠 수 있는 칸만 골라 검사한다. 틀리면 오류 문구를 돌려준다. */
-export function readPatch(body: Record<string, unknown>): Partial<Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status'>> | string {
-  const patch: Partial<Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status'>> = {};
+type Patch = Partial<Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'published_url'>>;
+
+/** 게시 주소: http(s) 주소만 받는다(자바스크립트 주소 등은 거절). */
+export function cleanUrl(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  if (trimmed.length > LIMITS.url) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+export function readPatch(body: Record<string, unknown>): Patch | string {
+  const patch: Patch = {};
   for (const key of ['title', 'body', 'experience'] as const) {
     if (body[key] === undefined) continue;
     if (typeof body[key] !== 'string') return '글자만 저장할 수 있어요.';
@@ -35,19 +53,25 @@ export function readPatch(body: Record<string, unknown>): Partial<Pick<Draft, 't
     patch.hashtags = tags;
   }
   if (body.status !== undefined) {
-    if (body.status !== 'draft' && body.status !== 'approved') return '알 수 없는 상태예요.';
+    if (body.status !== 'draft' && body.status !== 'approved' && body.status !== 'published') return '알 수 없는 상태예요.';
     patch.status = body.status;
+  }
+  if (body.published_url !== undefined) {
+    if (typeof body.published_url !== 'string') return '게시 주소 형식이 올바르지 않아요.';
+    const url = cleanUrl(body.published_url);
+    if (url === null) return '게시 주소는 https://로 시작하는 주소여야 해요.';
+    patch.published_url = url;
   }
   return patch;
 }
 
 export async function listDrafts(db: D1Database, user: UserName) {
-  const rows = await db.prepare('SELECT id, title, body, hashtags, experience, status, created_at, updated_at FROM minilog_drafts WHERE user = ? ORDER BY updated_at DESC LIMIT 200').bind(user).all<Row>();
+  const rows = await db.prepare(`SELECT ${COLUMNS} FROM minilog_drafts WHERE user = ? ORDER BY updated_at DESC LIMIT 200`).bind(user).all<Row>();
   return rows.results.map(toDraft);
 }
 
 export async function getDraft(db: D1Database, user: UserName, id: string) {
-  const row = await db.prepare('SELECT id, title, body, hashtags, experience, status, created_at, updated_at FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, id).first<Row>();
+  const row = await db.prepare(`SELECT ${COLUMNS} FROM minilog_drafts WHERE user = ? AND id = ?`).bind(user, id).first<Row>();
   return row ? toDraft(row) : null;
 }
 
@@ -58,12 +82,28 @@ export async function createDraft(db: D1Database, user: UserName) {
   return (await getDraft(db, user, id))!;
 }
 
-export async function updateDraft(db: D1Database, user: UserName, id: string, patch: ReturnType<typeof readPatch> & object) {
+export const PHOTO_KEEP_DAYS = 30;
+
+/**
+ * 원고 고치기. 게시 완료(published)로 바꾸면 게시 주소가 있어야 하고, 그 원고의 사진은 30일 뒤 지워지도록 표시한다.
+ * 게시를 취소하면 삭제 예정도 취소한다.
+ */
+export async function updateDraft(db: D1Database, user: UserName, id: string, patch: Patch): Promise<Draft | null | string> {
   const current = await getDraft(db, user, id);
   if (!current) return null;
   const next = { ...current, ...patch };
-  await db.prepare('UPDATE minilog_drafts SET title = ?, body = ?, hashtags = ?, experience = ?, status = ?, updated_at = ? WHERE user = ? AND id = ?')
-    .bind(next.title, next.body, next.hashtags.join('\n'), next.experience, next.status, Date.now(), user, id).run();
+  if (next.status === 'published' && !next.published_url) return '게시 완료하려면 게시한 글 주소를 넣어 주세요.';
+  const now = Date.now();
+  const becamePublished = next.status === 'published' && current.status !== 'published';
+  const leftPublished = next.status !== 'published' && current.status === 'published';
+  const publishedAt = becamePublished ? now : leftPublished ? null : current.published_at;
+  const statements = [
+    db.prepare('UPDATE minilog_drafts SET title = ?, body = ?, hashtags = ?, experience = ?, status = ?, published_url = ?, published_at = ?, updated_at = ? WHERE user = ? AND id = ?')
+      .bind(next.title, next.body, next.hashtags.join('\n'), next.experience, next.status, next.published_url, publishedAt, now, user, id),
+  ];
+  if (becamePublished) statements.push(db.prepare('UPDATE minilog_photos SET expires_at = ? WHERE user = ? AND draft_id = ?').bind(now + PHOTO_KEEP_DAYS * 86400000, user, id));
+  if (leftPublished) statements.push(db.prepare('UPDATE minilog_photos SET expires_at = NULL WHERE user = ? AND draft_id = ?').bind(user, id));
+  await db.batch(statements);
   return getDraft(db, user, id);
 }
 
