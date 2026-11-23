@@ -22,6 +22,8 @@ export async function ensureHubSchema(db: D1Database) {
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_photos (id TEXT PRIMARY KEY, user TEXT NOT NULL, draft_id TEXT NOT NULL, r2_key TEXT NOT NULL, name TEXT NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL, position INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER)'),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_photos_draft ON minilog_photos (user, draft_id, position)'),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_photos_expiry ON minilog_photos (user, expires_at)'),
+    // 내 문체: 사용자가 붙여 넣은 예전 글(samples, JSON 배열)과 AI가 정리한 문체 요약(profile, JSON)
+    db.prepare("CREATE TABLE IF NOT EXISTS minilog_styles (user TEXT PRIMARY KEY, samples TEXT NOT NULL DEFAULT '[]', profile TEXT, analyzed_at INTEGER, updated_at INTEGER NOT NULL)"),
   ]);
   ready = true;
 }

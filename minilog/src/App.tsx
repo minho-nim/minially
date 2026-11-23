@@ -114,6 +114,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [listError, setListError] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<View>('drafts');
   const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -131,6 +132,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: {} });
       setDrafts(list => [draft, ...(list ?? [])]);
       setSelectedId(draft.id);
+      setView('drafts');
     } catch (error) { setListError(error instanceof Error ? error.message : '새 원고를 만들지 못했어요.'); }
     finally { setCreating(false); }
   }
@@ -150,9 +152,14 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const onDeleted = useCallback((id: string) => { setDrafts(list => list?.filter(d => d.id !== id) ?? null); setSelectedId(null); }, []);
 
   return (
-    <div className={`shell${selected ? ' editing' : ''}`}>
+    <div className={`shell${selected || view !== 'drafts' ? ' editing' : ''}`}>
       <aside className="side" aria-label="원고 목록">
         <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
+        <nav className="views" aria-label="미니로그 메뉴">
+          {VIEWS.map(([key, label]) => (
+            <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{label}</button>
+          ))}
+        </nav>
         <button className="btn primary" onClick={create} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <p className="muted small" role="status">불러오는 중…</p>}
@@ -165,7 +172,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         {drafts && drafts.length > 0 && (
           <nav className="list" aria-label="원고">
             {drafts.map(d => (
-              <button key={d.id} aria-current={d.id === selectedId} onClick={() => setSelectedId(d.id)}>
+              <button key={d.id} aria-current={d.id === selectedId} onClick={() => { setSelectedId(d.id); setView('drafts'); }}>
                 <span className="t">{d.title.trim() || '제목 없는 원고'}</span>
                 <span className="m">{STATUS_LABEL[d.status]}{d.photo_count ? ` · 사진 ${d.photo_count}` : ''} · {dateLabel(d.updated_at)}</span>
               </button>
@@ -179,7 +186,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
-        {selected
+        {view === 'style' ? <StyleView onBack={() => setView('drafts')} />
+        : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
@@ -192,6 +200,108 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
           )}
       </main>
     </div>
+  );
+}
+
+type View = 'drafts' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['style', '내 문체']];
+
+interface StyleProfile { summary: string; tone: string; sentence: string; structure: string; expressions: string[]; emoji: string; hashtags: string }
+interface Style { samples: string[]; profile: StyleProfile | null; analyzed_at: number | null; updated_at: number | null }
+
+function StyleView({ onBack }: { onBack: () => void }) {
+  const [style, setStyle] = useState<Style | null>(null);
+  const [samples, setSamples] = useState<string[]>(['']);
+  const [busy, setBusy] = useState<'save' | 'analyze' | null>(null);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const dirty = style !== null && JSON.stringify(samples.map(x => x.trim()).filter(Boolean)) !== JSON.stringify(style.samples);
+
+  useEffect(() => {
+    api<Style>('/api/style')
+      .then(data => { setStyle(data); setSamples(data.samples.length ? data.samples : ['']); })
+      .catch(error => setMessage({ kind: 'error', text: error instanceof Error ? error.message : '불러오지 못했어요.' }));
+  }, []);
+
+  async function save() {
+    setBusy('save'); setMessage(null);
+    try {
+      const data = await api<Style>('/api/style', { method: 'PUT', body: { samples } });
+      setStyle(data); setSamples(data.samples.length ? data.samples : ['']);
+      setMessage({ kind: 'info', text: '글을 저장했어요.' });
+      return true;
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '저장하지 못했어요.' }); return false; }
+    finally { setBusy(null); }
+  }
+
+  async function analyze() {
+    if (dirty && !(await save())) return;
+    setBusy('analyze'); setMessage(null);
+    try {
+      const data = await api<Style>('/api/style/analyze', { method: 'POST', body: {} });
+      setStyle(data);
+      setMessage({ kind: 'info', text: '문체를 정리했어요. 이제 AI 초안이 이 문체로 써요.' });
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '분석하지 못했어요.' }); }
+    finally { setBusy(null); }
+  }
+
+  const total = samples.reduce((n, x) => n + x.trim().length, 0);
+  const profile = style?.profile;
+  return (
+    <article className="stack" aria-labelledby="style-title">
+      <div className="editor-head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn ghost back" onClick={onBack}>← 목록</button>
+          <h1 id="style-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>내 문체</h1>
+        </div>
+      </div>
+      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+
+      <section className="card step" aria-labelledby="profile-title">
+        <h2 id="profile-title" className="step-title">정리된 문체{style?.analyzed_at ? <span className="step-sub">{dateLabel(style.analyzed_at)} 분석</span> : null}</h2>
+        {style === null ? <p className="muted small" role="status">불러오는 중…</p> : profile ? (
+          <div className="profile">
+            <Tomong kind="minilog" size={56} />
+            <div className="stack" style={{ gap: 10 }}>
+              <p className="hand profile-summary">{profile.summary}</p>
+              <dl className="kv">
+                {profile.tone && <><dt>말투</dt><dd>{profile.tone}</dd></>}
+                {profile.sentence && <><dt>문장</dt><dd>{profile.sentence}</dd></>}
+                {profile.structure && <><dt>구성</dt><dd>{profile.structure}</dd></>}
+                {profile.emoji && <><dt>이모티콘</dt><dd>{profile.emoji}</dd></>}
+                {profile.hashtags && <><dt>해시태그</dt><dd>{profile.hashtags}</dd></>}
+              </dl>
+              {profile.expressions.length > 0 && <p className="chips" aria-label="자주 쓰는 표현">{profile.expressions.map(x => <span key={x} className="chip">{x}</span>)}</p>}
+              <p className="muted small" style={{ margin: 0 }}>AI 초안을 만들 때 이 문체를 따라 써요.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="profile">
+            <Tomong kind="minilog" size={56} />
+            <p className="muted small" style={{ margin: 0 }}>아직 문체를 정리하지 않았어요. 아래에 예전에 쓴 블로그 글을 붙여 넣고 <b>문체 분석하기</b>를 눌러 주세요.</p>
+          </div>
+        )}
+      </section>
+
+      <section className="card step" aria-labelledby="samples-title">
+        <h2 id="samples-title" className="step-title">예전에 쓴 글<span className="step-sub">{total.toLocaleString('ko-KR')}자 · {samples.filter(x => x.trim()).length}/5개</span></h2>
+        <p className="muted small" style={{ margin: 0 }}>내 블로그 글 1~5개를 그대로 복사해 붙여 넣어요(합쳐서 200자 이상). 다른 사람 글은 넣지 마세요. 글은 내 계정에만 저장되고 문체를 정리하는 데만 써요.</p>
+        {samples.map((sample, index) => (
+          <div className="field" key={index}>
+            <div className="row-between">
+              <label htmlFor={`sample-${index}`}>글 {index + 1}</label>
+              {samples.length > 1 && <button className="btn ghost small" onClick={() => setSamples(list => list.filter((_, i) => i !== index))}>빼기</button>}
+            </div>
+            <textarea id={`sample-${index}`} className="textarea" value={sample} maxLength={8000} onChange={e => setSamples(list => list.map((x, i) => (i === index ? e.target.value : x)))} />
+          </div>
+        ))}
+        <div className="ai-row">
+          {samples.length < 5 && <button className="btn" onClick={() => setSamples(list => [...list, ''])}>글 하나 더</button>}
+          <button className="btn" onClick={save} disabled={!dirty || busy !== null}>{busy === 'save' ? '저장하는 중…' : '저장'}</button>
+          <button className="btn primary" onClick={analyze} disabled={busy !== null || total < 200}>{busy === 'analyze' ? '분석하는 중…' : '문체 분석하기'}</button>
+          {busy === 'analyze' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">토몽이가 글을 읽고 있어요</span></span>}
+        </div>
+      </section>
+    </article>
   );
 }
 
