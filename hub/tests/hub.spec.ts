@@ -7,7 +7,7 @@ test('로그인 후 대시보드에 본인 정보만 보이고 로그아웃된�
   await page.goto('/');
   await page.getByLabel('로그인 코드').fill(CODE_D);
   await page.getByRole('button', { name: '로그인' }).click();
-  await expect(page.getByRole('heading', { name: '사용자 D님, 안녕하세요' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'D님, 오늘도 반가워요' })).toBeVisible();
   // D는 키가 없어서 연결 안 됨 + 연결 방법 안내
   await expect(page.locator('.kpi .value.off')).toHaveText('연결 안 됨');
   await expect(page.getByText('GEMINI_KEY_D').first()).toBeVisible();

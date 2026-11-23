@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LINKS } from '../../shared/client/api';
+import { Minito, Signature } from './Minito';
 
 interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
@@ -50,9 +51,11 @@ function Login({ onDone }: { onDone: () => void }) {
   return (
     <main className="page">
       <form className="card login stack" onSubmit={submit} noValidate>
-        <div>
-          <div className="brand">미니로그</div>
-          <p className="muted small" style={{ margin: '4px 0 0' }}>미니어리에서 쓰는 코드로 로그인해요.</p>
+        <div className="login-hero">
+          <Minito kind="minilog" size={88} pose="wave" bounce />
+          <h1 className="sr-only">미니로그 로그인</h1>
+          <Signature kind="minilog" word="log" size={22} minito={0} />
+          <p className="hand login-line">미니어리 코드로 들어와요</p>
         </div>
         <div className="field">
           <label htmlFor="code">로그인 코드</label>
@@ -104,11 +107,16 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   return (
     <div className={`shell${selected ? ' editing' : ''}`}>
       <aside className="side" aria-label="원고 목록">
-        <div className="brand"><img src="/icon.svg" alt="" />미니로그</div>
+        <div className="brand"><Signature kind="minilog" word="log" size={17} minito={32} /></div>
         <button className="btn primary" onClick={create} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <p className="muted small" role="status">불러오는 중…</p>}
-        {drafts?.length === 0 && <p className="muted small">아직 원고가 없어요. <b>새 원고</b>로 시작하세요.</p>}
+        {drafts?.length === 0 && (
+          <div className="list-empty">
+            <Minito kind="minilog" size={44} />
+            <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요. <b>새 원고</b>로 시작하세요.</p>
+          </div>
+        )}
         {drafts && drafts.length > 0 && (
           <nav className="list" aria-label="원고">
             {drafts.map(d => (
@@ -130,7 +138,9 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
-              <h1 style={{ margin: 0, fontSize: '1.2rem' }}>사진과 경험으로 블로그 원고 만들기</h1>
+              <Minito kind="minilog" size={104} pose="wave" />
+              <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
+              <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
               {!me.gemini.connected && <p className="error">Gemini 키가 아직 연결되지 않아 AI 초안은 만들 수 없어요. 원고 저장은 할 수 있어요.</p>}
             </div>
@@ -244,9 +254,12 @@ function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>언제·어디서·무엇을 했고 어땠는지 직접 겪은 내용을 적어 주세요. AI는 여기 적힌 것만 써요.</label>
           <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
         </div>
-        <button className="btn primary" style={{ justifySelf: 'start' }} onClick={generate} disabled={aiBusy || !gemini}>
-          {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
-        </button>
+        <div className="ai-row">
+          <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>
+            {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
+          </button>
+          {aiBusy && <span className="ai-busy" role="status"><Minito kind="minilog" size={36} bounce /><span className="hand">미니토가 열심히 쓰고 있어요</span></span>}
+        </div>
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(미니허브 설정 참고).</p>}
       </section>
 

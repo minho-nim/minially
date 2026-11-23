@@ -1,31 +1,44 @@
-/* 미니허브 공통 색·글자 기준(hub·minilog). 앱마다 --accent만 바꿔 쓴다. */
+/* 미니 가족 공통 색·글자 기준(hub·minilog). 앱마다 --app·--app-soft·--font-hand만 바꿔 쓴다. */
+/* 미니 가족 기준(hub/DESIGN.md): 종이 바탕 + 잉크 글자 + 토마토 서명 색 하나. 앱은 --app·--app-soft만 바꾼다. */
 :root {
-  --bg: #f7f5f2;
+  --bg: #FFF9F4;
   --surface: #ffffff;
-  --surface-2: #f0ede8;
-  --line: #e3ded6;
-  --text: #24211d;
-  --muted: #6b645b;
-  --accent: #3d5a4a;
-  --accent-text: #ffffff;
-  --danger: #b42318;
-  --ok: #2f7d4f;
-  --radius: 12px;
-  --shadow: 0 1px 2px rgba(36, 33, 29, 0.06);
+  --surface-2: #F8EFE8;
+  --line: #EFE4DC;
+  --text: #2B2233;
+  --muted: #6F6473;
+  --ink: #2B2233;
+  --ink-text: #ffffff;
+  --sig: #F2493E;          /* 토마토 서명 색: 화면당 한두 곳만 */
+  --sig-soft: #FFE3DE;
+  --app: #F2493E;
+  --app-soft: #FFE3DE;
+  --accent: var(--ink);
+  --accent-text: var(--ink-text);
+  --danger: #C8322A;
+  --ok: #2F8A55;
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(43, 34, 51, 0.05);
+  --font: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-sign: "Caveat", "Gaegu", cursive;   /* 로고 'mini' 서명 */
+  --font-hand: "Gaegu", cursive;             /* 앱별 한 줄 말(앱에서 바꿈) */
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #171614;
-    --surface: #211f1c;
-    --surface-2: #2a2824;
-    --line: #36332e;
-    --text: #efebe5;
-    --muted: #a8a095;
-    --accent: #8fb9a0;
-    --accent-text: #14211a;
-    --danger: #f2877c;
-    --ok: #7cc79a;
+    --bg: #1B1719;
+    --surface: #241F22;
+    --surface-2: #2E282B;
+    --line: #3A3236;
+    --text: #F3ECE8;
+    --muted: #B3A7AC;
+    --ink: #F3ECE8;
+    --ink-text: #1B1719;
+    --sig: #FF7A6E;
+    --sig-soft: #3D2523;
+    --app-soft: #33262A;
+    --danger: #FF8A80;
+    --ok: #7CC79A;
     --shadow: none;
     color-scheme: dark;
   }
@@ -36,7 +49,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-family: var(--font);
   font-size: 16px;
   line-height: 1.55;
   word-break: keep-all;
@@ -62,7 +75,7 @@ a { color: inherit; }
 }
 .btn:hover { background: var(--surface-2); }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.btn.primary { background: var(--accent); color: var(--accent-text); border-color: transparent; }
+.btn.primary { background: var(--ink); color: var(--ink-text); border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.05); }
 .btn.ghost { border-color: transparent; background: transparent; }
 .field { display: grid; gap: 6px; }
@@ -81,3 +94,17 @@ table.usage { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 table.usage th, table.usage td { text-align: right; padding: 8px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 table.usage th:first-child, table.usage td:first-child { text-align: left; }
 .table-wrap { overflow-x: auto; }
+
+/* 손글씨 서명 로고: 미니토 + mini + 앱 글자 */
+.signature { display: inline-flex; align-items: flex-end; gap: 4px; line-height: 1; white-space: nowrap; color: var(--text); text-decoration: none; }
+.signature .mini { font-family: var(--font-sign); font-weight: 700; font-size: 2.1em; letter-spacing: -0.01em; }
+.signature .app { font-family: var(--font-sign); font-weight: 700; font-size: 1.6em; color: var(--app); margin-bottom: 0.06em; }
+.signature svg { flex: none; margin-bottom: -0.1em; }
+.hand { font-family: var(--font-hand); }
+.minito { display: inline-grid; place-items: center; flex: none; }
+.minito.bounce svg { animation: minito-bounce 1.2s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes minito-bounce { 0%, 100% { transform: translateY(0) scale(1, 1); } 40% { transform: translateY(-6px) scale(0.98, 1.02); } 60% { transform: translateY(0) scale(1.03, 0.97); } }
+@media (prefers-reduced-motion: reduce) { .minito.bounce svg { animation: none; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.login-hero { display: grid; justify-items: center; gap: 6px; text-align: center; padding-top: 4px; }
+.login-line { margin: 0; font-size: 1.2rem; color: var(--muted); }
