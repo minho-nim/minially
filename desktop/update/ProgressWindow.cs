@@ -14,17 +14,20 @@ internal sealed class ProgressWindow : Form {
     private readonly float scale;
     private readonly Image icon;
     private double phase;
+    private readonly bool animate;
     private readonly Color canvas = Color.FromArgb(255, 250, 251);
     private readonly Color ink = Color.FromArgb(62, 52, 56);
     private readonly Color muted = Color.FromArgb(133, 119, 125);
     private readonly Color accent = Color.FromArgb(207, 143, 168);
     [DllImport("user32.dll")] private static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern bool SystemParametersInfo(uint action, uint parameter, out bool value, uint flags);
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wparam, IntPtr lparam);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr window, int attribute, ref int value, int size);
 
     private ProgressWindow(Process owner, string release) {
         parent = owner; version = release;
+        bool enabled; animate = !SystemParametersInfo(0x1042, 0, out enabled, 0) || enabled;
         using (Graphics screen = Graphics.FromHwnd(IntPtr.Zero)) scale = screen.DpiX / 96f;
         var area = Screen.FromPoint(Cursor.Position).WorkingArea;
         scale = Math.Min(scale, Math.Min((area.Width - 32) / 420f, (area.Height - 32) / 244f));
@@ -43,7 +46,7 @@ internal sealed class ProgressWindow : Form {
         timer.Interval = 32;
         timer.Tick += delegate {
             try { if (parent.HasExited) { Close(); return; } } catch { Close(); return; }
-            if (SystemInformation.IsClientAreaAnimationEnabled) phase = (phase + .012) % 1;
+            if (animate) phase = (phase + .012) % 1;
             Invalidate();
         };
         Shown += delegate { int rounded = 2; try { DwmSetWindowAttribute(Handle, 33, ref rounded, 4); } catch { } timer.Start(); };
