@@ -54,3 +54,16 @@ test('게시 30일이 지나면 그 사용자 사진만 지우고, 게시 안 �
   expect(await listPhotos(db, 'D', other.id)).toHaveLength(1);
   expect([...store.keys()].sort()).toEqual([`C/${kept.id}/${(await listPhotos(db, 'C', kept.id))[0].id}`, `D/${other.id}/${(await listPhotos(db, 'D', other.id))[0].id}`].sort());
 });
+
+test('운영 DB처럼 원고 표가 이미 있으면 게시 예정일 칸만 더하고 기존 원고는 그대로 둔다', async () => {
+  const db = fakeD1();
+  // 예전 구조(planned_on 없음)로 먼저 만든 표 + 기존 원고 1개
+  await db.prepare("CREATE TABLE minilog_drafts (id TEXT PRIMARY KEY, user TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', hashtags TEXT NOT NULL DEFAULT '', experience TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', published_url TEXT NOT NULL DEFAULT '', published_at INTEGER, style_id TEXT NOT NULL DEFAULT 'mine', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)").run();
+  await db.prepare("INSERT INTO minilog_drafts (id, user, title, created_at, updated_at) VALUES ('old', 'C', '예전 원고', 1, 1)").run();
+  await ensureHubSchema(db);
+  await ensureHubSchema(db); // 두 번 돌려도 오류 없음
+  const row = await db.prepare("SELECT title, planned_on FROM minilog_drafts WHERE id = 'old'").first<{ title: string; planned_on: string | null }>();
+  expect(row).toEqual({ title: '예전 원고', planned_on: null });
+  const made = await createDraft(db, 'C', '2026-12-24');
+  expect(made.planned_on).toBe('2026-12-24');
+});

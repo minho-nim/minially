@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
+import { CalendarView } from './Calendar';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
-  status: Status; published_url: string; published_at: number | null; style_id: string; created_at: number; updated_at: number;
+  status: Status; published_url: string; published_at: number | null; style_id: string; planned_on: string | null; created_at: number; updated_at: number;
   photo_count?: number;
 }
 interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null }
@@ -127,10 +128,10 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   }, [onLogout]);
   useEffect(() => { void refresh(); }, [refresh]);
 
-  async function create() {
+  async function create(plannedOn?: string) {
     setCreating(true);
     try {
-      const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: {} });
+      const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: plannedOn ? { planned_on: plannedOn } : {} });
       setDrafts(list => [draft, ...(list ?? [])]);
       setSelectedId(draft.id);
       setView('drafts');
@@ -161,7 +162,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{label}</button>
           ))}
         </nav>
-        <button className="btn primary" onClick={create} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
+        <button className="btn primary" onClick={() => { void create(); }} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <p className="muted small" role="status">불러오는 중…</p>}
         {drafts?.length === 0 && (
@@ -188,6 +189,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
       <main className="main">
         {view === 'style' ? <StylesView onBack={() => setView('drafts')} />
+        : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : selected
@@ -206,8 +208,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   );
 }
 
-type View = 'drafts' | 'dashboard' | 'campaigns' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['style', '문체']];
+type View = 'drafts' | 'calendar' | 'dashboard' | 'campaigns' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
@@ -497,7 +499,7 @@ function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (
 }
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'failed';
-type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'style_id'>;
+type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'style_id' | 'planned_on'>;
 
 function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
@@ -583,7 +585,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
       setMessage({ kind: 'error', text: error instanceof Error ? error.message : '게시 상태를 바꾸지 못했어요.' });
     }
   }
-  const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status, style_id: draft.style_id });
+  const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status, style_id: draft.style_id, planned_on: draft.planned_on });
   const [styleOptions, setStyleOptions] = useState<Style[]>([]);
   useEffect(() => { api<{ styles: Style[] }>('/api/styles').then(d => setStyleOptions(d.styles)).catch(() => setStyleOptions([])); }, []);
   const [tagText, setTagText] = useState(draft.hashtags.map(t => `#${t}`).join(' '));
@@ -629,7 +631,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     setAiBusy(true); setMessage(null);
     try {
       const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience } });
-      setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id });
+      setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
       onSaved(made);
       setMessage({ kind: 'info', text: `AI 초안을 넣었어요${photos?.length ? `(사진 ${Math.min(photos.length, 8)}장 분석)` : ''}. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.` });
@@ -763,6 +765,10 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
           </div>
         ) : (
           <>
+            <div className="field" style={{ maxWidth: 240 }}>
+              <label htmlFor="planned-on">게시 예정일(캘린더에 표시)</label>
+              <input id="planned-on" className="input" type="date" value={fields.planned_on ?? ''} onChange={e => change({ planned_on: e.target.value || null })} />
+            </div>
             <p className="muted small" style={{ margin: 0 }}>네이버 블로그에 올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>
             <div className="publish-row">
               <label htmlFor="published-url" className="sr-only">게시한 글 주소</label>
