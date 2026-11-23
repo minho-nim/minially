@@ -9,6 +9,13 @@ createServer((req, res) => {
   req.on('end', () => {
     const send = (status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (req.url === '/health') return send(200, { ok: true });
+    // 티스토리 RSS 흉내: /rss/tistory/{이름}/rss (태그는 <category>로)
+    const tistory = (req.url ?? '').match(/^\/rss\/tistory\/([^/]+)\/rss$/);
+    if (tistory) {
+      const name = tistory[1];
+      res.writeHead(200, { 'content-type': 'application/xml; charset=utf-8' });
+      return res.end(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${name}</title><item><title>제주 여행 3박 4일 코스</title><link>https://${name}.tistory.com/42</link><description>&lt;p&gt;제주 여행 정리&lt;/p&gt;</description><category>여행</category><category>제주</category><pubDate>Sun, 22 Nov 2026 07:00:00 +0900</pubDate></item></channel></rss>`);
+    }
     // 네이버 블로그 RSS 흉내: /rss/{아이디}.xml (아이디 'nobody'는 없는 블로그)
     const rss = (req.url ?? '').match(/^\/rss\/([^/]+)\.xml$/);
     if (rss) {
@@ -32,7 +39,7 @@ createServer((req, res) => {
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
-    if (prompt.includes('네이버 블로그 통계 화면')) {
+    if (prompt.includes('통계 화면')) {
       return ok({ posts: [{ title: '동네 빵집 소금빵 후기', views: 1520, likes: 48, comments: 12 }, { title: '겨울 카페 투어', views: 830, likes: 21, comments: null }, { title: '없는 글 제목', views: 5, likes: 0, comments: 0 }] });
     }
     if (prompt.includes('문체를 분석') && prompt.includes('다른 블로거의 글이다')) {

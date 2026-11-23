@@ -13,6 +13,11 @@ type Synced = Blog & { added: number; total: number; matched: number; errors: st
 const syncText = (r: Synced) => `글 ${r.total}개(새로 ${r.added}개)를 가져왔어요.${r.matched ? ` 미니로그 원고 ${r.matched}개와 짝지었어요.` : ''}${r.errors.length ? ` ${r.errors.join(' ')}` : ''}`;
 type Sort = 'recent' | 'views' | 'likes';
 const num = (n: number | null) => (n === null ? '—' : formatNumber(n));
+/** 블로그 키 → 보여 줄 이름·플랫폼·주소(네이버: 아이디, 티스토리: 'tistory:이름') */
+export function blogInfo(key: string) {
+  if (key.startsWith('tistory:')) { const name = key.slice(8); return { name, platform: '티스토리', home: `https://${name}.tistory.com` }; }
+  return { name: key, platform: '네이버', home: `https://blog.naver.com/${key}` };
+}
 
 async function uploadStats(file: File) {
   let response: Response;
@@ -70,7 +75,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
   }
 
   async function removeLink(id: string) {
-    if (!window.confirm(`${id} 블로그 연결을 지울까요? 이 블로그에서 가져온 글과 적어 둔 숫자도 지워져요.`)) return;
+    if (!window.confirm(`${blogInfo(id).name} 블로그 연결을 지울까요? 이 블로그에서 가져온 글과 적어 둔 숫자도 지워져요.`)) return;
     try { setBlog(await api<Blog>(`/api/blog?blog_id=${encodeURIComponent(id)}`, { method: 'DELETE' })); if (only === id) setOnly('all'); }
     catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '지우지 못했어요.' }); }
   }
@@ -109,24 +114,25 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
 
       <section className="card step" aria-labelledby="link-title">
-        <h2 id="link-title" className="step-title">네이버 블로그 연결<span className="step-sub">{blog?.blogs.length ?? 0}/5개</span></h2>
-        <p className="muted small" style={{ margin: 0 }}>blog.naver.com/<b>아이디</b>의 아이디를 적어요. 블로그가 여러 개면 하나씩 더하면 돼요. 공개 RSS로 최근 글 목록만 가져오고, 네이버에 로그인하거나 비밀번호를 받지 않아요.</p>
+        <h2 id="link-title" className="step-title">블로그 연결(네이버·티스토리)<span className="step-sub">{blog?.blogs.length ?? 0}/5개</span></h2>
+        <p className="muted small" style={{ margin: 0 }}>네이버는 blog.naver.com/<b>아이디</b>, 티스토리는 <b>이름</b>.tistory.com 주소를 적어요. 블로그가 여러 개면 하나씩 더하면 돼요. 공개 RSS로 최근 글 목록만 가져오고, 로그인하거나 비밀번호를 받지 않아요.</p>
         {blog && blog.blogs.length > 0 && (
           <ul className="blog-links">
-            {blog.blogs.map(b => (
+            {blog.blogs.map(b => { const info = blogInfo(b.blog_id); return (
               <li key={b.blog_id}>
-                <a href={`https://blog.naver.com/${b.blog_id}`} target="_blank" rel="noopener noreferrer"><b>{b.blog_id}</b></a>
+                <span className={`platform p-${info.platform === '티스토리' ? 'tistory' : 'naver'}`}>{info.platform}</span>
+                <a href={info.home} target="_blank" rel="noopener noreferrer"><b>{info.name}</b></a>
                 <span className="muted small">글 {b.post_count}개{b.synced_at ? ` · ${new Date(b.synced_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-                <button className="btn ghost small" onClick={() => { void syncAll(b.blog_id); }} disabled={busy !== null} aria-label={`${b.blog_id} 가져오기`}>가져오기</button>
-                <button className="btn ghost small" onClick={() => { void removeLink(b.blog_id); }} disabled={busy !== null} aria-label={`${b.blog_id} 연결 지우기`}>×</button>
+                <button className="btn ghost small" onClick={() => { void syncAll(b.blog_id); }} disabled={busy !== null} aria-label={`${info.name} 가져오기`}>가져오기</button>
+                <button className="btn ghost small" onClick={() => { void removeLink(b.blog_id); }} disabled={busy !== null} aria-label={`${info.name} 연결 지우기`}>×</button>
               </li>
-            ))}
+            ); })}
           </ul>
         )}
         {(blog?.blogs.length ?? 0) < 5 && (
           <form className="publish-row" onSubmit={addAndSync}>
             <label htmlFor="blog-id" className="sr-only">블로그 아이디</label>
-            <input id="blog-id" className="input" value={blogId} maxLength={80} placeholder="예: myblog123 또는 blog.naver.com/myblog123" onChange={e => setBlogId(e.target.value)} />
+            <input id="blog-id" className="input" value={blogId} maxLength={80} placeholder="예: blog.naver.com/myblog 또는 mytravel.tistory.com" onChange={e => setBlogId(e.target.value)} />
             <button className="btn primary" type="submit" disabled={!blogId.trim() || busy !== null}>{busy === 'save' ? '연결하는 중…' : '연결하고 가져오기'}</button>
           </form>
         )}
@@ -137,7 +143,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       {blog && blog.posts.length > 0 && (
         <section className="card step" aria-labelledby="stats-title">
           <h2 id="stats-title" className="step-title">조회수·공감 기록<span className="step-sub">숫자 있는 글 {withStats.length}/{blog.posts.length}</span></h2>
-          <p className="muted small" style={{ margin: 0 }}>네이버는 조회수를 가져갈 길을 열어 두지 않아서, 블로그 앱의 <b>통계</b> 화면(글별 조회수)을 캡처해 올리면 AI가 숫자를 읽어 기록해요. 글마다 직접 적어도 돼요. 캡처는 저장하지 않아요.</p>
+          <p className="muted small" style={{ margin: 0 }}>네이버·티스토리는 조회수를 가져갈 길을 열어 두지 않아서, 블로그 <b>통계</b> 화면(글별 조회수)을 캡처해 올리면 AI가 숫자를 읽어 기록해요. 글마다 직접 적어도 돼요. 캡처는 저장하지 않아요.</p>
           <label className={`dropzone pick${busy === 'stats' ? ' busy' : ''}`}>
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy !== null} onChange={e => { void onStatsFile(e.target.files?.[0]); e.target.value = ''; }} />
             {busy === 'stats' ? <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">토몽이가 숫자를 읽고 있어요</span></span> : <span><b>통계 캡처 올리기</b> · PNG·JPG</span>}
@@ -157,7 +163,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
             {blog.blogs.length > 1 && (
               <div className="style-tabs" role="tablist" aria-label="블로그">
                 <button role="tab" aria-selected={only === 'all'} onClick={() => setOnly('all')}>전체</button>
-                {blog.blogs.map(b => <button key={b.blog_id} role="tab" aria-selected={only === b.blog_id} onClick={() => setOnly(b.blog_id)}>{b.blog_id}</button>)}
+                {blog.blogs.map(b => <button key={b.blog_id} role="tab" aria-selected={only === b.blog_id} onClick={() => setOnly(b.blog_id)}>{blogInfo(b.blog_id).name}</button>)}
               </div>
             )}
             <div className="style-tabs" role="tablist" aria-label="정렬">
@@ -172,7 +178,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
                 <li key={p.post_key} className="post">
                   <div className="post-main">
                     <a className="post-title" href={p.url} target="_blank" rel="noopener noreferrer">{p.title || '제목 없음'}</a>
-                    <span className="muted small">{blog.blogs.length > 1 ? `${p.blog_id} · ` : ''}{p.published_on ?? ''}{p.tags.length ? ` · #${p.tags.slice(0, 3).join(' #')}` : ''}{p.draft_id ? ' · 미니로그 원고' : ''}</span>
+                    <span className="muted small">{blog.blogs.length > 1 ? `${blogInfo(p.blog_id).name} · ` : ''}{p.published_on ?? ''}{p.tags.length ? ` · #${p.tags.slice(0, 3).join(' #')}` : ''}{p.draft_id ? ' · 미니로그 원고' : ''}</span>
                   </div>
                   {editing?.key === p.post_key ? (
                     <form className="stat-edit" onSubmit={saveStats} aria-label={`${p.title} 숫자 적기`}>
