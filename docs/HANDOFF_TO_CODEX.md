@@ -44,6 +44,7 @@
 | 미니로그 협찬·광고 수익 기록: 캠페인(업체·이름·제공 내용·금액·마감일·상태·받은 날·연결 원고·메모), 광고 수익, 내 대시보드 수익 칸(이번 달·6개월·받을 금액·다가오는 마감). 본인 화면 + 미니허브 통합 대시보드(소유자 요청, C·D 합계·사용자별·6개월·다가오는 마감)에서 봄. Minoffia 통계 API(/api/stats)에는 내보내지 않음 | `mini-log/functions/_campaigns.ts`, `api/campaigns/*`, `mini-log/src/Campaigns.tsx` | 시험(정산→수익 합계, 잘못된 날짜·금액·상태·남의 원고 거절, 다른 사용자 404) |
 | 미니로그 콘텐츠 캘린더: 게시 예정 원고·게시 완료·협찬 마감을 한 달 달력에, 날짜를 골라 그날 게시할 원고 만들기, 원고에 게시 예정일 | `mini-log/src/Calendar.tsx`, `minilog_drafts.planned_on` | 시험(예정·마감 표시, 날짜로 원고 생성, 예정일 지우면 빠짐, 잘못된 날짜 400, 다른 사용자 안 보임) |
 | 운영 DB 기존 표에 칸 더하기: `ensureColumn`(PRAGMA로 확인 뒤 없을 때만 ALTER TABLE ADD COLUMN) | `shared/server/schema.ts` | 시험(예전 구조 표 + 기존 원고 유지, 두 번 실행해도 안전) |
+| 미니로그 내 블로그: 블로그 아이디 → 공개 RSS(rss.blog.naver.com/아이디.xml)로 최근 글 가져오기, 게시 주소(logNo)로 미니로그 원고 자동 짝짓기, 통계 캡처를 Gemini가 읽어 조회·공감·댓글 기록(캡처 저장 안 함), 직접 적기, 조회수·공감 정렬, 대시보드 조회수 TOP 3 | `mini-log/functions/_blog.ts`, `api/blog/*`, `mini-log/src/Blog.tsx`, 표 `minilog_blogs`·`minilog_posts`, 시험용 `BLOG_RSS_BASE` | 가짜 RSS·가짜 Gemini로 시험(없는 블로그, 짝짓기, 캡처 읽기·못 찾은 글, 쉼표 숫자, 다시 가져와도 숫자 유지, 다른 사용자 404). **실제 네이버 RSS 호출은 미검증**(작업 공간에서 접속 불가) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
@@ -92,7 +93,7 @@
 | `MINILOG_PHOTOS` | R2 바인딩(버킷 `minilog-photos`, 공개 주소 끔) | minilog |
 | `MINIHUB_LAYOUT_READY` | GitHub 저장소 변수 | deploy-release.yml |
 
-D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`·`minilog_campaigns`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
+D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`·`minilog_campaigns`·`minilog_blogs`·`minilog_posts`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
 
 ## 7. 실제 배포 상태 (2026-11-23)
 - minially.pages.dev: Windows 앱 0.1.9와 함께 운영 배포 완료(`3de87db`). 전용 배포판 `minially-latest` 생성 확인.
@@ -113,7 +114,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 7 passed (통합 대시보드 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 21 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가 포함) |
+| `mini-log`: `npm test` | 23 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
@@ -126,6 +127,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 - `STATS_API_TOKEN` 비교는 해시끼리 문자열 비교입니다(타이밍 차이는 거의 없지만 상수 시간 비교는 아님).
 - 자동 저장은 마지막에 저장한 것이 이깁니다. 같은 원고를 두 기기에서 동시에 고치면 한쪽 수정이 사라질 수 있습니다(버전 검사 없음).
 - 원고 목록은 최근 200개까지만 불러옵니다(캘린더도 이 목록을 씀).
+- 네이버는 블로그 글쓰기 API를 종료했고(개발자센터 공지), 조회수·공감·애드포스트 수익 API도 없음. 자동 게시·자동 통계는 하지 않음(약관). 검색·데이터랩 API는 NAVER API HUB(네이버 클라우드)로 이관 중이라 무료 여부 확인 전에는 쓰지 않음.
 - 표 만들기 확인(`ensureHubSchema`)은 DB 바인딩 객체마다 한 번(WeakSet). 요청마다 바인딩 객체가 새로 오면 매 요청 CREATE IF NOT EXISTS·PRAGMA를 돌게 되니, D1 읽기 사용량이 늘면 확인할 것.
 - `minilog_drafts`·`minilog_photos` 표는 아직 운영 DB에 없어서 CREATE 문에 칸을 바로 넣었습니다. 운영에 한 번 생긴 뒤 칸을 늘리려면 `ALTER TABLE`이 필요합니다(`schema.ts` 주석).
 - AI 초안은 지금 본문을 덮어씁니다(확인 창이 있음, 되돌리기는 없음).

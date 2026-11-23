@@ -3,6 +3,7 @@ import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api'
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
 import { CalendarView } from './Calendar';
+import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 
 type Status = 'draft' | 'approved' | 'published';
@@ -189,6 +190,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       </aside>
       <main className="main">
         {view === 'style' ? <StylesView onBack={() => setView('drafts')} />
+        : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
@@ -208,14 +210,15 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   );
 }
 
-type View = 'drafts' | 'calendar' | 'dashboard' | 'campaigns' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['style', '문체']];
+type View = 'drafts' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
   ai: { calls: number; errors: number; input_tokens: number; output_tokens: number; tasks: { task: string; calls: number; tokens: number }[]; error_codes: { error_code: string; count: number }[] };
   drafts: { draft: number; approved: number; published: number; published_this_month: number };
   photos: { count: number; bytes: number; expiring: { id: string; title: string; count: number; expires_at: number }[] };
+  top_posts: { title: string; url: string; views: number; likes: number | null }[];
   revenue: { this_month: number; months: { month: string; total: number; count: number }[]; pending: { total: number; count: number }; upcoming: { id: string; brand: string; title: string; deadline: string; status: CampaignStatus }[] };
 }
 const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '내 문체 분석', style_reference: '참고 문체 분석' };
@@ -294,6 +297,17 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               )}
               {data.ai.error_codes.length > 0 && (
                 <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
+              )}
+            </section>
+
+            <section className="card step" aria-labelledby="d-top">
+              <h2 id="d-top" className="step-title">조회수 TOP 3</h2>
+              {data.top_posts.length === 0 ? (
+                <p className="muted small" style={{ margin: 0 }}>블로그 탭에서 내 글을 가져오고 통계 캡처를 올리면 잘된 글이 여기에 보여요.</p>
+              ) : (
+                <ol className="top-posts">
+                  {data.top_posts.map((p, i) => <li key={p.url}><span className="rank">{i + 1}</span><a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a><span className="muted small">조회 {formatNumber(p.views)}{p.likes !== null ? ` · 공감 ${formatNumber(p.likes)}` : ''}</span></li>)}
+                </ol>
               )}
             </section>
 

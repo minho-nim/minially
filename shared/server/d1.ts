@@ -28,6 +28,8 @@ export interface HubEnv {
   GEMINI_KEY_D?: string;
   /** 기본 Gemini 모델(없으면 DEFAULT_MODEL) */
   GEMINI_MODEL?: string;
+  /** 시험용: 네이버 블로그 RSS 주소를 가짜 서버로 바꿀 때만 쓴다(기본 https://rss.blog.naver.com) */
+  BLOG_RSS_BASE?: string;
   /** 시험용: Gemini 주소를 가짜 서버로 바꿀 때만 쓴다 */
   GEMINI_API_BASE?: string;
   /** 미니로그 사진 저장소(R2) */
