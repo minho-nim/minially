@@ -91,3 +91,17 @@ jobs:
           gh release create "$tag" --draft --target "$GITHUB_SHA" --title "미니어리 Windows ${version}" --notes-file desktop/RELEASE-NOTES.md
           gh release upload "$tag" desktop-dist/Minially-Setup.exe desktop-dist/Minially-Setup.exe.blockmap desktop-dist/latest.yml
           gh release edit "$tag" --draft=false --latest
+      - name: 미니어리 전용 배포판(minially-latest) 갱신
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 0.1.9부터 앱은 저장소의 '최근 배포판(latest)'이 아니라 이 전용 배포판만 본다.
+          # 그래서 나중에 같은 저장소의 다른 앱이 배포판을 만들어도 미니어리 업데이트가 섞이지 않는다.
+          if ! gh release view minially-latest >/dev/null 2>&1; then
+            gh release create minially-latest --target "$GITHUB_SHA" --latest=false \
+              --title "미니어리 Windows 최신판(자동 갱신)" \
+              --notes "미니어리 Windows 앱이 업데이트를 받는 전용 배포판입니다. 배포할 때마다 파일이 새 버전으로 바뀝니다. 버전별 기록은 desktop-v* 배포판을 보세요."
+          fi
+          # 설치 파일을 먼저 바꾸고 업데이트 안내(latest.yml)를 마지막에 바꿔, 안내가 없는 파일을 가리키지 않게 한다.
+          gh release upload minially-latest desktop-dist/Minially-Setup.exe desktop-dist/Minially-Setup.exe.blockmap --clobber
+          gh release upload minially-latest desktop-dist/latest.yml --clobber

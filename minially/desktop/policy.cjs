@@ -1,7 +1,7 @@
 const path=require('node:path');
 const ORIGIN='minially://app';
 const API_ORIGIN='https://minially.pages.dev';
-const UPDATE_FEED='https://github.com/minho-nim/minihub/releases/latest/download/';
+const UPDATE_FEED='https://github.com/minho-nim/minihub/releases/download/minially-latest/';
 const DOWNLOAD_URL=UPDATE_FEED+'Minially-Setup.exe';
 const API_PATHS=new Set(['/api/sync','/api/share','/api/shared']);
 const DEFAULT_PREFERENCES={alwaysOnTop:false,startOnLogin:false,closeToTray:true,autoDownload:true,zoomFactor:1};
