@@ -39,7 +39,7 @@
 | 코드 해시 도우미(브라우저 안에서만 계산) | `hub/public/code-hash.html` | 시험(서버 요청 없음) |
 | 미니허브 통합 대시보드(기본, C·D 합계·사용자별·앱별·모델·작업별·오류 종류·게시 글 수) ↔ 내 대시보드 토글(선택은 브라우저에 기억) | `hub/functions/api/overview.ts`, `hub/src/App.tsx` | 시험(합계·사용자별 숫자, 토글 유지, 비로그인 401) |
 | 미니로그 내 대시보드(게시 글·AI 호출·토큰·오류·작업별·원고 상태·사진 용량·삭제 예정) | `minilog/functions/api/dashboard.ts` | 시험(다른 사용자 숫자 섞이지 않음) |
-| 미니로그 내 문체: 예전 글 1~5개 붙여 넣기 → 문체 분석 → AI 초안에 반영 | `minilog/functions/_style.ts`, `api/style/*` | 가짜 Gemini로 시험 |
+| 미니로그 문체: 내 문체 1개 + 참고 블로그 문체 여러 개(최대 10). 글 붙여 넣기 → 분석 → 원고마다 문체 선택(내 문체/참고/없음). 참고 문체는 말투·리듬·구성만 쓰고 자주 쓰는 표현은 AI에 보내지 않으며 베끼지 말라고 안내 | `minilog/functions/_style.ts`, `api/styles/*`, `minilog_drafts.style_id` | 가짜 Gemini로 시험(참고 문체 표현이 프롬프트에 안 들어감, 남의 문체 수정·삭제 404, 지우면 원고는 내 문체로) |
 | 사진 순서 바꾸기, 순서 변경·삭제 시 본문 [사진 n] 번호 자동 맞춤 | `api/drafts/[id]/photos.ts` PUT, `minilog/src/photoMarkers.ts` | 시험 |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초)·승인·삭제·발행용 복사 | `minilog/src/App.tsx`, `minilog/functions/` | 시험 |
@@ -53,7 +53,7 @@
 ## 3. 미완료(계획만)
 - **실제 배포 안 됨.** minihub·minilog Cloudflare 프로젝트는 아직 없습니다(`docs/SETUP_CLOUDFLARE.md`). minihub.pages.dev·minilog.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
 - **실제 Gemini 호출 검증 안 됨.** 가짜 서버로만 시험했습니다. 기본 모델 `gemini-2.5-flash`가 지금도 있는지 확인이 필요합니다(`GEMINI_MODEL`로 바꿀 수 있음).
-- 미니로그 1단계는 모두 1차 구현. 참고 블로그는 붙여 넣기만(네이버 자동 수집 안 함)
+- 미니로그 1단계는 모두 1차 구현. 참고 블로그는 붙여 넣기만(네이버 자동 수집 안 함). 참고 문체 원문(남의 글)은 사용자 계정에만 저장되며, 저작권 안내 문구를 화면에 표시
 - 통합 대시보드는 로그인한 C·D 누구나 두 사람의 **숫자**를 봅니다(원고·사진·문체 글은 안 보임). 사용자가 늘면 권한을 나눠야 합니다.
 - 사진 30일 정리는 원고 목록을 열 때만 돕니다(정해진 시각 작업 없음). 오래 접속하지 않으면 늦게 지워집니다.
 - HEIC(아이폰 기본 형식) 사진은 브라우저가 못 열면 올릴 수 없습니다(안내 문구만 있음).
@@ -93,7 +93,8 @@
 D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
 
 ## 7. 실제 배포 상태 (2026-11-23)
-- minially.pages.dev: 기존 운영 그대로. Cloudflare Root directory는 `minially`로 바꿔 둠. `release` 브랜치는 아직 예전 구조라, **PR #29 병합 전에 운영 배포를 돌리면 빌드가 실패합니다.**
+- PR #29 병합 완료(main `eb88a48`), main 전체 검사 성공. Windows 앱 0.1.8로 미니어리 운영 배포 진행(결과는 GitHub Actions 확인).
+- minially.pages.dev: Cloudflare Root directory `minially`.
 - minihub.pages.dev, minilog.pages.dev: 프로젝트 없음(배포 안 됨)
 
 ## 8. 시험 실행 결과 (이 세션에서 실제로 돌림)
@@ -108,7 +109,7 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 7 passed (통합 대시보드 포함) |
 | `minilog`: `npm run lint`, `npm run build` | 성공 |
-| `minilog`: `npm test` | 14 passed (사진·순서·게시·30일 정리·문체·대시보드 포함) |
+| `minilog`: `npm test` | 15 passed (사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 

@@ -1,0 +1,21 @@
+import { json, readJson, type HubContext } from '../../../../shared/server/d1';
+import { requireSession } from '../../../../shared/server/auth';
+import { cleanText, createReference, listStyles, STYLE_LIMITS } from '../../_style';
+
+// GET: 내 문체 + 참고 문체 목록 · POST: 참고 문체 추가 { name, source }
+export const onRequestGet = async (ctx: HubContext) => {
+  const auth = await requireSession(ctx, 'minilog');
+  if (auth instanceof Response) return auth;
+  return json({ styles: await listStyles(auth.db, auth.session.user) });
+};
+
+export const onRequestPost = async (ctx: HubContext) => {
+  const auth = await requireSession(ctx, 'minilog');
+  if (auth instanceof Response) return auth;
+  const body = await readJson(ctx.request);
+  const name = cleanText(body?.name, STYLE_LIMITS.name);
+  if (!name) return json({ error: '참고할 블로그 이름을 적어 주세요.' }, 400);
+  const style = await createReference(auth.db, auth.session.user, name, cleanText(body?.source, STYLE_LIMITS.source));
+  if (typeof style === 'string') return json({ error: style }, 400);
+  return json({ style }, 201);
+};
