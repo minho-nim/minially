@@ -1,3 +1,4 @@
+import {ScheduleReminderField} from '../common/ScheduleReminderField';
 import { RegistrationNotice, type RegistrationNoticeData } from '../common/RegistrationNotice';
 import { MultipleDateSelection } from '../common/MultipleDateSelection';
 import { CategoryGrid } from '../common/CategoryGrid';
@@ -98,6 +99,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
   const [category, setCategory] = useState<ScheduleCategory>('');
+  const [reminderMinutes,setReminderMinutes]=useState<number|null|undefined>(undefined);
+  const reminderBaseline=useRef<number|null|undefined>(undefined);
   const [memo, setMemo] = useState('');
   const [completed, setCompleted] = useState(false);
   const [continuousAdd, setContinuousAdd] = useState(false);
@@ -132,7 +135,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   useRevealSheetPanel(isOpen && inlinePresetsOpen && !isPhraseModalOpen,modalRef,mobileSheet.expand);
   const allDates = [...new Set([date, ...extraDates])].filter(Boolean).sort();
   const snapshot = (t: string, d: string, all: boolean, start: string, end: string, cat: string, note: string, done: boolean, extra: string[], blocks: TitleBlock[] = []) => JSON.stringify([t, d, all, all ? '' : start, all ? '' : end, cat, note, done, extra, blocks.map(b => [b.text, b.presetId])]);
-  const dirty = JSON.stringify(repeat) !== repeatBaseline.current || isImportant !== importantBaseline.current || snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
+  const dirty = reminderMinutes!==reminderBaseline.current || JSON.stringify(repeat) !== repeatBaseline.current || isImportant !== importantBaseline.current || snapshot(title, date, isAllDay, startTime, endTime, category, memo, completed, extraDates, titleBlocks) !== baseline.current;
   const closeGuard = useDiscardGuard(dirty || panelDirty, saving || savingPhrase || panelBusy);
   const panelGuard = useDiscardGuard(panelDirty, saving || panelBusy);
   const returnToSchedule = () => { setIsPhraseModalOpen(false); setCategoryPanel(null); setDatePanel(false); setPanelDirty(false); setPanelBusy(false); requestAnimationFrame(() => titleInputRef.current?.focus()); };
@@ -160,8 +163,9 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     setRepeat(initialRepeat); repeatBaseline.current = JSON.stringify(initialRepeat);
     importantBaseline.current = Boolean(initialSchedule?.isImportant);
     setIsImportant(importantBaseline.current);
+    reminderBaseline.current=initialSchedule?.reminderMinutes;setReminderMinutes(reminderBaseline.current);
     setTitle(t); setDate(d); setIsAllDay(all); setStartTime(start); setEndTime(end); setCategory(cat); setMemo(note); setCompleted(done);
-    setShowAdditionalOptions(Boolean(note || originalRule)); setExtraDates([]); setDatePanel(initialBatch);
+    setShowAdditionalOptions(Boolean(note || originalRule || initialSchedule?.reminderMinutes!==undefined)); setExtraDates([]); setDatePanel(initialBatch);
     setIsPhraseModalOpen(false); setInlinePresetsOpen(false); setPhraseMode('select'); setPhraseModalInitialType('title'); setCategoryPanel(null); setPanelDirty(false); setPanelBusy(false); setHasSaved(false); scheduleDraftId.current = crypto.randomUUID(); setContinuousAdd(false); setDeleting(false); setAskScope(false);
     closeGuard.cancel(); panelGuard.cancel();
     setSaveError(''); setApplyMode('append'); setTitleHistory([]); setPhraseMessage(''); titlePhraseDraftId.current = null;
@@ -270,6 +274,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
       completed,
       isImportant,
       memo: memo.trim(),
+      reminderMinutes,
     };
 
     const repeatChanged = JSON.stringify(repeat) !== repeatBaseline.current;
@@ -285,7 +290,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
     } else if (continuousAdd && !isEditing) {
       await onSave(newSchedule, true, rule);
       setTitle(''); setTitleBlocks([]);
-      setMemo(''); setIsImportant(false); importantBaseline.current = false; repeatBaseline.current = JSON.stringify(repeat);
+      setMemo(''); reminderBaseline.current=reminderMinutes; setIsImportant(false); importantBaseline.current = false; repeatBaseline.current = JSON.stringify(repeat);
       setTitleHistory([]);
       setPhraseMessage(''); setHasSaved(true); scheduleDraftId.current = crypto.randomUUID();
       baseline.current = snapshot('', date, isAllDay, startTime, endTime, category, '', completed, extraDates);
@@ -451,6 +456,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                     <RepeatPicker key={isOpen ? initialSchedule?.id || "new" : "closed"} idPrefix="schedule" value={repeat} onChange={setRepeat} date={date} />
                   </>}
                 </div>
+                <ScheduleReminderField value={reminderMinutes} onChange={setReminderMinutes} allDay={isAllDay}/>
                 {/* Memo with Memo Phrase Selector */}
                 <div>
                   <div className="flex items-center justify-between mb-1">

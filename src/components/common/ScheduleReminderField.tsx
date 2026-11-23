@@ -1,0 +1,8 @@
+import {useState} from 'react';
+import {notificationSupported} from '../../hooks/useScheduleReminders';
+
+export function ScheduleReminderField({value,onChange,allDay}:{value:number|null|undefined;onChange:(value:number|null|undefined)=>void;allDay:boolean}){
+ const [message,setMessage]=useState('');
+ async function change(raw:string){const next=raw==='default'?undefined:raw==='off'?null:Number(raw);onChange(next);setMessage('');if(typeof next!=='number')return;if(!notificationSupported()){setMessage('이 브라우저에서는 알림을 지원하지 않아요.');return;}try{const permission=Notification.permission==='default'?await Notification.requestPermission():Notification.permission;if(permission!=='granted')setMessage('이 기기에서는 알림이 차단돼 있어요. 사이트 설정에서 알림을 허용해 주세요.');}catch{setMessage('알림 권한을 확인하지 못했어요. 기기 설정을 확인해 주세요.');}}
+ return <div className="space-y-1"><label className="text-xs font-semibold block">알림<select aria-label="일정별 알림" disabled={allDay} value={value===undefined?'default':value===null?'off':String(value)} onChange={event=>void change(event.target.value)} className="w-full min-h-9 mt-1 px-2 rounded-lg border border-app-line bg-app-canvas text-sm disabled:opacity-50"><option value="default">공통 알림 설정 사용</option><option value="off">이 일정은 알림 끄기</option>{[0,5,10,30,60].map(minutes=><option key={minutes} value={String(minutes)}>{minutes===0?'시작할 때':minutes===60?'1시간 전':`${minutes}분 전`}</option>)}</select></label><p className="text-[11px] text-app-muted">{allDay?'알림을 받으려면 일정 시간을 설정해 주세요.':'앱이 실행 중일 때 이 기기에서 알려드려요.'}</p>{message&&<p role="status" className="text-[11px] text-app-muted">{message}</p>}</div>;
+}

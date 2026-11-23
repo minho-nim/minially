@@ -40,6 +40,8 @@ export interface TitleBlock {
 }
 
 export interface Schedule {
+  /** undefined: 공통 설정, null: 끄기, 숫자: 시작 전 분 */
+  reminderMinutes?: number | null;
   sourceTaskId?: string;
   sourceNoteId?: string;
   sourceNoteExcerpt?: string;
