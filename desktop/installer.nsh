@@ -6,6 +6,12 @@
   ${endIf}
 !macroend
 
+!macro customInstallMode
+  ${if} ${isUpdated}
+    StrCpy $isForceCurrentInstall "1"
+  ${endIf}
+!macroend
+
 !macro customPageAfterChangeDir
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW miniallyUpdateProgress
   Function miniallyUpdateProgress
