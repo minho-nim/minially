@@ -104,3 +104,14 @@
 @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .dash-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 420px) { .kpi .value { font-size: 1.5rem; } }
+
+.style-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.style-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; color: var(--muted); cursor: pointer; }
+.style-tabs button[aria-selected="true"] { background: var(--app-soft); border-color: var(--app); color: var(--text); }
+.style-tabs button.add { border-style: dashed; }
+.style-tabs .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.style-tabs .dot.on { background: var(--ok); }
+.ref-meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 10px; }
+.style-pick { max-width: 360px; }
+select.input { appearance: auto; }
+@media (max-width: 560px) { .ref-meta { grid-template-columns: minmax(0, 1fr); } }

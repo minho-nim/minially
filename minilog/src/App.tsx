@@ -6,7 +6,7 @@ import { renumberMarkers } from './photoMarkers';
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
-  status: Status; published_url: string; published_at: number | null; created_at: number; updated_at: number;
+  status: Status; published_url: string; published_at: number | null; style_id: string; created_at: number; updated_at: number;
   photo_count?: number;
 }
 interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null }
@@ -186,7 +186,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
-        {view === 'style' ? <StyleView onBack={() => setView('drafts')} />
+        {view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} />
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
@@ -205,7 +205,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
 }
 
 type View = 'drafts' | 'dashboard' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['dashboard', '대시보드'], ['style', '내 문체']];
+const VIEWS: [View, string][] = [['drafts', '원고'], ['dashboard', '대시보드'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
@@ -213,7 +213,7 @@ interface Dashboard {
   drafts: { draft: number; approved: number; published: number; published_this_month: number };
   photos: { count: number; bytes: number; expiring: { id: string; title: string; count: number; expires_at: number }[] };
 }
-const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '문체 분석' };
+const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '내 문체 분석', style_reference: '참고 문체 분석' };
 const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
 const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}MB`;
 
@@ -307,27 +307,89 @@ function DashboardView({ onBack, onOpen }: { onBack: () => void; onOpen: (id: st
 }
 
 interface StyleProfile { summary: string; tone: string; sentence: string; structure: string; expressions: string[]; emoji: string; hashtags: string }
-interface Style { samples: string[]; profile: StyleProfile | null; analyzed_at: number | null; updated_at: number | null }
+interface Style { id: string; kind: 'mine' | 'reference'; name: string; source: string; samples: string[]; profile: StyleProfile | null; analyzed_at: number | null; updated_at: number }
 
-function StyleView({ onBack }: { onBack: () => void }) {
-  const [style, setStyle] = useState<Style | null>(null);
-  const [samples, setSamples] = useState<string[]>(['']);
-  const [busy, setBusy] = useState<'save' | 'analyze' | null>(null);
+/** 문체 목록: 내 문체 1개 + 참고 문체 여러 개. 하나를 골라 글을 넣고 분석한다. */
+function StylesView({ onBack }: { onBack: () => void }) {
+  const [styles, setStyles] = useState<Style[] | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newSource, setNewSource] = useState('');
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
-  const dirty = style !== null && JSON.stringify(samples.map(x => x.trim()).filter(Boolean)) !== JSON.stringify(style.samples);
 
   useEffect(() => {
-    api<Style>('/api/style')
-      .then(data => { setStyle(data); setSamples(data.samples.length ? data.samples : ['']); })
+    api<{ styles: Style[] }>('/api/styles')
+      .then(data => { setStyles(data.styles); setSelectedId(data.styles[0]?.id ?? null); })
       .catch(error => setMessage({ kind: 'error', text: error instanceof Error ? error.message : '불러오지 못했어요.' }));
   }, []);
+
+  async function addReference(event: FormEvent) {
+    event.preventDefault();
+    if (!newName.trim()) { setMessage({ kind: 'error', text: '참고할 블로그 이름을 적어 주세요.' }); return; }
+    try {
+      const { style } = await api<{ style: Style }>('/api/styles', { body: { name: newName, source: newSource } });
+      setStyles(list => [...(list ?? []), style]);
+      setSelectedId(style.id);
+      setAdding(false); setNewName(''); setNewSource(''); setMessage(null);
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '추가하지 못했어요.' }); }
+  }
+
+  const replace = useCallback((style: Style) => setStyles(list => list?.map(s => (s.id === style.id ? style : s)) ?? null), []);
+  const remove = useCallback((id: string) => { setStyles(list => list?.filter(s => s.id !== id) ?? null); setSelectedId(current => (current === id ? null : current)); }, []);
+  const selected = styles?.find(s => s.id === selectedId) ?? null;
+
+  return (
+    <article className="stack" aria-labelledby="style-title">
+      <div className="editor-head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn ghost back" onClick={onBack}>← 목록</button>
+          <h1 id="style-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>문체</h1>
+        </div>
+      </div>
+      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+      {styles === null && !message && <p className="muted small" role="status">불러오는 중…</p>}
+      {styles && (
+        <div className="style-tabs" role="tablist" aria-label="문체 고르기">
+          {styles.map(style => (
+            <button key={style.id} role="tab" aria-selected={style.id === selectedId} onClick={() => setSelectedId(style.id)}>
+              {style.kind === 'mine' ? '내 문체' : style.name}
+              <span className={`dot${style.profile ? ' on' : ''}`} aria-label={style.profile ? '분석됨' : '분석 전'} />
+            </button>
+          ))}
+          {styles.filter(s => s.kind === 'reference').length < 10 && (
+            <button className="add" onClick={() => setAdding(v => !v)} aria-expanded={adding}>+ 참고 블로그</button>
+          )}
+        </div>
+      )}
+      {adding && (
+        <form className="card step" onSubmit={addReference} aria-label="참고 블로그 추가">
+          <p className="muted small" style={{ margin: 0 }}>따라 하고 싶은 블로거의 글을 붙여 넣으면 <b>쓰는 방식</b>(말투·문장 리듬·구성)만 정리해 참고해요. 그 사람의 문장이나 고유한 표현은 쓰지 않도록 AI에 안내해요.</p>
+          <div className="field"><label htmlFor="ref-name">이름</label><input id="ref-name" className="input" value={newName} maxLength={40} placeholder="예: 동네맛집 블로거" onChange={e => setNewName(e.target.value)} /></div>
+          <div className="field"><label htmlFor="ref-source">출처 메모(선택)</label><input id="ref-source" className="input" value={newSource} maxLength={300} placeholder="https://blog.naver.com/…" onChange={e => setNewSource(e.target.value)} /></div>
+          <div className="ai-row"><button className="btn primary" type="submit">추가</button><button className="btn ghost" type="button" onClick={() => setAdding(false)}>취소</button></div>
+        </form>
+      )}
+      {selected && <StyleEditor key={selected.id} style={selected} onChange={replace} onDeleted={remove} />}
+    </article>
+  );
+}
+
+function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (s: Style) => void; onDeleted: (id: string) => void }) {
+  const [samples, setSamples] = useState<string[]>(style.samples.length ? style.samples : ['']);
+  const [name, setName] = useState(style.name);
+  const [source, setSource] = useState(style.source);
+  const [busy, setBusy] = useState<'save' | 'analyze' | null>(null);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const mine = style.kind === 'mine';
+  const dirty = JSON.stringify(samples.map(x => x.trim()).filter(Boolean)) !== JSON.stringify(style.samples) || (!mine && (name.trim() !== style.name || source.trim() !== style.source));
 
   async function save() {
     setBusy('save'); setMessage(null);
     try {
-      const data = await api<Style>('/api/style', { method: 'PUT', body: { samples } });
-      setStyle(data); setSamples(data.samples.length ? data.samples : ['']);
-      setMessage({ kind: 'info', text: '글을 저장했어요.' });
+      const { style: saved } = await api<{ style: Style }>(`/api/styles/${style.id}`, { method: 'PUT', body: mine ? { samples } : { samples, name, source } });
+      onChange(saved); setSamples(saved.samples.length ? saved.samples : ['']); setName(saved.name); setSource(saved.source);
+      setMessage({ kind: 'info', text: '저장했어요.' });
       return true;
     } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '저장하지 못했어요.' }); return false; }
     finally { setBusy(null); }
@@ -337,28 +399,27 @@ function StyleView({ onBack }: { onBack: () => void }) {
     if (dirty && !(await save())) return;
     setBusy('analyze'); setMessage(null);
     try {
-      const data = await api<Style>('/api/style/analyze', { method: 'POST', body: {} });
-      setStyle(data);
-      setMessage({ kind: 'info', text: '문체를 정리했어요. 이제 AI 초안이 이 문체로 써요.' });
+      const { style: saved } = await api<{ style: Style }>(`/api/styles/${style.id}/analyze`, { method: 'POST', body: {} });
+      onChange(saved);
+      setMessage({ kind: 'info', text: mine ? '문체를 정리했어요. AI 초안이 이 문체로 써요.' : '참고 문체를 정리했어요. 원고에서 이 문체를 고를 수 있어요.' });
     } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '분석하지 못했어요.' }); }
     finally { setBusy(null); }
   }
 
-  const total = samples.reduce((n, x) => n + x.trim().length, 0);
-  const profile = style?.profile;
-  return (
-    <article className="stack" aria-labelledby="style-title">
-      <div className="editor-head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn ghost back" onClick={onBack}>← 목록</button>
-          <h1 id="style-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>내 문체</h1>
-        </div>
-      </div>
-      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+  async function removeStyle() {
+    if (!window.confirm(`'${style.name}' 참고 문체를 지울까요? 이 문체를 고른 원고는 내 문체로 바뀌어요.`)) return;
+    try { await api(`/api/styles/${style.id}`, { method: 'DELETE' }); onDeleted(style.id); }
+    catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '지우지 못했어요.' }); }
+  }
 
+  const total = samples.reduce((n, x) => n + x.trim().length, 0);
+  const profile = style.profile;
+  return (
+    <>
+      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
       <section className="card step" aria-labelledby="profile-title">
-        <h2 id="profile-title" className="step-title">정리된 문체{style?.analyzed_at ? <span className="step-sub">{dateLabel(style.analyzed_at)} 분석</span> : null}</h2>
-        {style === null ? <p className="muted small" role="status">불러오는 중…</p> : profile ? (
+        <h2 id="profile-title" className="step-title">{mine ? '정리된 내 문체' : `정리된 참고 문체 · ${style.name}`}{style.analyzed_at ? <span className="step-sub">{dateLabel(style.analyzed_at)} 분석</span> : null}</h2>
+        {profile ? (
           <div className="profile">
             <Tomong kind="minilog" size={56} />
             <div className="stack" style={{ gap: 10 }}>
@@ -370,21 +431,31 @@ function StyleView({ onBack }: { onBack: () => void }) {
                 {profile.emoji && <><dt>이모티콘</dt><dd>{profile.emoji}</dd></>}
                 {profile.hashtags && <><dt>해시태그</dt><dd>{profile.hashtags}</dd></>}
               </dl>
-              {profile.expressions.length > 0 && <p className="chips" aria-label="자주 쓰는 표현">{profile.expressions.map(x => <span key={x} className="chip">{x}</span>)}</p>}
-              <p className="muted small" style={{ margin: 0 }}>AI 초안을 만들 때 이 문체를 따라 써요.</p>
+              {mine && profile.expressions.length > 0 && <p className="chips" aria-label="자주 쓰는 표현">{profile.expressions.map(x => <span key={x} className="chip">{x}</span>)}</p>}
+              <p className="muted small" style={{ margin: 0 }}>{mine ? 'AI 초안을 만들 때 기본으로 이 문체를 따라 써요.' : '원고의 "어떤 문체로 쓸까요?"에서 고르면 쓰는 방식만 참고해요(문장·표현은 베끼지 않음).'}</p>
             </div>
           </div>
         ) : (
           <div className="profile">
             <Tomong kind="minilog" size={56} />
-            <p className="muted small" style={{ margin: 0 }}>아직 문체를 정리하지 않았어요. 아래에 예전에 쓴 블로그 글을 붙여 넣고 <b>문체 분석하기</b>를 눌러 주세요.</p>
+            <p className="muted small" style={{ margin: 0 }}>아직 정리하지 않았어요. 아래에 글을 붙여 넣고 <b>문체 분석하기</b>를 눌러 주세요.</p>
           </div>
         )}
       </section>
 
       <section className="card step" aria-labelledby="samples-title">
-        <h2 id="samples-title" className="step-title">예전에 쓴 글<span className="step-sub">{total.toLocaleString('ko-KR')}자 · {samples.filter(x => x.trim()).length}/5개</span></h2>
-        <p className="muted small" style={{ margin: 0 }}>내 블로그 글 1~5개를 그대로 복사해 붙여 넣어요(합쳐서 200자 이상). 다른 사람 글은 넣지 마세요. 글은 내 계정에만 저장되고 문체를 정리하는 데만 써요.</p>
+        <h2 id="samples-title" className="step-title">{mine ? '내가 예전에 쓴 글' : '참고할 글'}<span className="step-sub">{total.toLocaleString('ko-KR')}자 · {samples.filter(x => x.trim()).length}/5개</span></h2>
+        {!mine && (
+          <div className="ref-meta">
+            <div className="field"><label htmlFor="ref-name-edit">이름</label><input id="ref-name-edit" className="input" value={name} maxLength={40} onChange={e => setName(e.target.value)} /></div>
+            <div className="field"><label htmlFor="ref-source-edit">출처 메모</label><input id="ref-source-edit" className="input" value={source} maxLength={300} onChange={e => setSource(e.target.value)} /></div>
+          </div>
+        )}
+        <p className="muted small" style={{ margin: 0 }}>
+          {mine
+            ? '내 블로그 글 1~5개를 그대로 복사해 붙여 넣어요(합쳐서 200자 이상). 글은 내 계정에만 저장되고 문체를 정리하는 데만 써요.'
+            : '참고할 블로거의 글 1~5개를 붙여 넣어요(합쳐서 200자 이상). 내 계정에만 저장되고, 문체를 정리하는 데만 써요. 남의 글을 그대로 게시하면 저작권 문제가 될 수 있어요.'}
+        </p>
         {samples.map((sample, index) => (
           <div className="field" key={index}>
             <div className="row-between">
@@ -398,15 +469,16 @@ function StyleView({ onBack }: { onBack: () => void }) {
           {samples.length < 5 && <button className="btn" onClick={() => setSamples(list => [...list, ''])}>글 하나 더</button>}
           <button className="btn" onClick={save} disabled={!dirty || busy !== null}>{busy === 'save' ? '저장하는 중…' : '저장'}</button>
           <button className="btn primary" onClick={analyze} disabled={busy !== null || total < 200}>{busy === 'analyze' ? '분석하는 중…' : '문체 분석하기'}</button>
+          {!mine && <button className="btn ghost" onClick={removeStyle}>참고 문체 지우기</button>}
           {busy === 'analyze' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">토몽이가 글을 읽고 있어요</span></span>}
         </div>
       </section>
-    </article>
+    </>
   );
 }
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'failed';
-type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status'>;
+type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'style_id'>;
 
 function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
@@ -492,7 +564,9 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
       setMessage({ kind: 'error', text: error instanceof Error ? error.message : '게시 상태를 바꾸지 못했어요.' });
     }
   }
-  const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status });
+  const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status, style_id: draft.style_id });
+  const [styleOptions, setStyleOptions] = useState<Style[]>([]);
+  useEffect(() => { api<{ styles: Style[] }>('/api/styles').then(d => setStyleOptions(d.styles)).catch(() => setStyleOptions([])); }, []);
   const [tagText, setTagText] = useState(draft.hashtags.map(t => `#${t}`).join(' '));
   const [save, setSave] = useState<SaveState>('saved');
   const [aiBusy, setAiBusy] = useState(false);
@@ -536,7 +610,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     setAiBusy(true); setMessage(null);
     try {
       const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience } });
-      setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status });
+      setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
       onSaved(made);
       setMessage({ kind: 'info', text: `AI 초안을 넣었어요${photos?.length ? `(사진 ${Math.min(photos.length, 8)}장 분석)` : ''}. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.` });
@@ -620,6 +694,14 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
         <div className="field">
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>언제·어디서·무엇을 했고 어땠는지 직접 겪은 내용을 적어 주세요. AI는 여기 적힌 것만 써요.</label>
           <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
+        </div>
+        <div className="field style-pick">
+          <label htmlFor="style-pick">어떤 문체로 쓸까요?</label>
+          <select id="style-pick" className="input" value={fields.style_id} onChange={e => change({ style_id: e.target.value })}>
+            <option value="mine">내 문체{styleOptions.find(s => s.kind === 'mine')?.profile ? '' : ' (아직 분석 전)'}</option>
+            {styleOptions.filter(s => s.kind === 'reference').map(s => <option key={s.id} value={s.id}>참고: {s.name}{s.profile ? '' : ' (분석 전)'}</option>)}
+            <option value="none">문체 없이</option>
+          </select>
         </div>
         <div className="ai-row">
           <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>

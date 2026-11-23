@@ -16,14 +16,15 @@ export async function ensureHubSchema(db: D1Database) {
     db.prepare('CREATE INDEX IF NOT EXISTS ai_usage_user_time ON ai_usage (user, created_at)'),
     // 미니로그 원고
     // 주의: 운영 DB에 표가 생긴 뒤에는 이 CREATE 문을 고쳐도 기존 표에 칸이 생기지 않는다. 칸을 늘릴 때는 ALTER TABLE을 따로 넣는다.
-    db.prepare("CREATE TABLE IF NOT EXISTS minilog_drafts (id TEXT PRIMARY KEY, user TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', hashtags TEXT NOT NULL DEFAULT '', experience TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', published_url TEXT NOT NULL DEFAULT '', published_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS minilog_drafts (id TEXT PRIMARY KEY, user TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', hashtags TEXT NOT NULL DEFAULT '', experience TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'draft', published_url TEXT NOT NULL DEFAULT '', published_at INTEGER, style_id TEXT NOT NULL DEFAULT 'mine', created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_drafts_user ON minilog_drafts (user, updated_at)'),
     // 미니로그 사진: 파일은 R2(키 = 사용자/원고/사진id), 여기에는 정보만. expires_at이 지나면 지운다(게시 후 30일).
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_photos (id TEXT PRIMARY KEY, user TEXT NOT NULL, draft_id TEXT NOT NULL, r2_key TEXT NOT NULL, name TEXT NOT NULL, content_type TEXT NOT NULL, size INTEGER NOT NULL, position INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER)'),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_photos_draft ON minilog_photos (user, draft_id, position)'),
     db.prepare('CREATE INDEX IF NOT EXISTS minilog_photos_expiry ON minilog_photos (user, expires_at)'),
-    // 내 문체: 사용자가 붙여 넣은 예전 글(samples, JSON 배열)과 AI가 정리한 문체 요약(profile, JSON)
-    db.prepare("CREATE TABLE IF NOT EXISTS minilog_styles (user TEXT PRIMARY KEY, samples TEXT NOT NULL DEFAULT '[]', profile TEXT, analyzed_at INTEGER, updated_at INTEGER NOT NULL)"),
+    // 문체: kind='mine'(내 문체, 사용자당 1개) 또는 'reference'(참고 블로거, 여러 개). samples = 붙여 넣은 글(JSON 배열), profile = AI 요약(JSON)
+    db.prepare("CREATE TABLE IF NOT EXISTS minilog_styles (id TEXT PRIMARY KEY, user TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT '', samples TEXT NOT NULL DEFAULT '[]', profile TEXT, analyzed_at INTEGER, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)"),
+    db.prepare('CREATE INDEX IF NOT EXISTS minilog_styles_user ON minilog_styles (user, kind, created_at)'),
   ]);
   ready = true;
 }

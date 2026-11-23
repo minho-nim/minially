@@ -3,7 +3,7 @@ import { requireSession } from '../../../../../shared/server/auth';
 import { AiError, callGemini } from '../../../../../shared/server/ai';
 import { cleanHashtags, getDraft, LIMITS, updateDraft } from '../../../_drafts';
 import { listPhotos, PHOTO_LIMITS, toBase64 } from '../../../_photos';
-import { getStyle, styleBlock } from '../../../_style';
+import { styleBlock, styleForDraft } from '../../../_style';
 
 // AI 원고 초안: 사용자가 적은 실제 경험을 재료로 네이버 블로그용 제목·본문·해시태그를 만든다.
 // 사용자 글은 지시문과 섞지 않고 <경험> 안의 "자료"로만 넘긴다.
@@ -46,7 +46,7 @@ export const onRequestPost = async (ctx: HubContext) => {
 
   let text: string;
   try {
-    ({ text } = await callGemini({ env: ctx.env, db: auth.db, user: auth.session.user, app: 'minilog', task: images.length ? 'draft_with_photos' : 'draft', prompt: buildPrompt(experience, draft.title, images.length, styleBlock((await getStyle(auth.db, auth.session.user)).profile)), images, json: true }));
+    ({ text } = await callGemini({ env: ctx.env, db: auth.db, user: auth.session.user, app: 'minilog', task: images.length ? 'draft_with_photos' : 'draft', prompt: buildPrompt(experience, draft.title, images.length, styleBlock(await styleForDraft(auth.db, auth.session.user, draft.style_id))), images, json: true }));
   } catch (error) {
     if (error instanceof AiError) return json({ error: error.message, code: error.code }, error.status);
     throw error;
