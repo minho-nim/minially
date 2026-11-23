@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LINKS } from '../../shared/client/api';
-import { Minito, Signature } from './Minito';
+import { Totom, Signature } from './Totom';
 
 interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
@@ -52,9 +52,9 @@ function Login({ onDone }: { onDone: () => void }) {
     <main className="page">
       <form className="card login stack" onSubmit={submit} noValidate>
         <div className="login-hero">
-          <Minito kind="minilog" size={88} pose="wave" bounce />
+          <Totom kind="minilog" size={88} pose="wave" bounce />
           <h1 className="sr-only">미니로그 로그인</h1>
-          <Signature kind="minilog" word="log" size={22} minito={0} />
+          <Signature kind="minilog" word="log" size={22} totom={0} />
           <p className="hand login-line">미니어리 코드로 들어와요</p>
         </div>
         <div className="field">
@@ -107,13 +107,13 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   return (
     <div className={`shell${selected ? ' editing' : ''}`}>
       <aside className="side" aria-label="원고 목록">
-        <div className="brand"><Signature kind="minilog" word="log" size={17} minito={32} /></div>
+        <div className="brand"><Signature kind="minilog" word="log" size={17} totom={32} /></div>
         <button className="btn primary" onClick={create} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <p className="muted small" role="status">불러오는 중…</p>}
         {drafts?.length === 0 && (
           <div className="list-empty">
-            <Minito kind="minilog" size={44} />
+            <Totom kind="minilog" size={44} />
             <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요. <b>새 원고</b>로 시작하세요.</p>
           </div>
         )}
@@ -138,7 +138,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
-              <Minito kind="minilog" size={104} pose="wave" />
+              <Totom kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
               <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
@@ -258,7 +258,7 @@ function Editor({ draft, gemini, onSaved, onDeleted, onBack }: {
           <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
-          {aiBusy && <span className="ai-busy" role="status"><Minito kind="minilog" size={36} bounce /><span className="hand">미니토가 열심히 쓰고 있어요</span></span>}
+          {aiBusy && <span className="ai-busy" role="status"><Totom kind="minilog" size={36} bounce /><span className="hand">토톰이가 열심히 쓰고 있어요</span></span>}
         </div>
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(미니허브 설정 참고).</p>}
       </section>

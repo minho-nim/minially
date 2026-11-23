@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
-import { Minito, Signature } from './Minito';
+import { Totom, Signature } from './Totom';
 
 interface Me {
   user: 'C' | 'D';
@@ -65,9 +65,9 @@ function Login({ onDone }: { onDone: () => void }) {
     <main className="page">
       <form className="card login stack" onSubmit={submit} noValidate>
         <div className="login-hero">
-          <Minito kind="hub" size={88} pose="wave" bounce />
+          <Totom kind="hub" size={88} pose="wave" bounce />
           <h1 className="sr-only">미니허브 로그인</h1>
-          <Signature kind="hub" word="hub" size={22} minito={0} />
+          <Signature kind="hub" word="hub" size={22} totom={0} />
           <p className="hand login-line">미니어리 코드로 들어와요</p>
         </div>
         <div className="field">
@@ -119,7 +119,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
   return (
     <div className="shell">
       <aside className="side" aria-label="메뉴">
-        <a className="brand" href="#overview" aria-label="미니허브 처음으로"><Signature kind="hub" word="hub" size={17} minito={32} /></a>
+        <a className="brand" href="#overview" aria-label="미니허브 처음으로"><Signature kind="hub" word="hub" size={17} totom={32} /></a>
         <nav className="nav-wrap" aria-label="미니허브 메뉴">
           <div className="nav">
             <a href="#overview">대시보드</a>
@@ -130,7 +130,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <div className="nav-label">바로 가기</div>
           <div className="nav">
             {APPS.map(app => (
-              <a key={app.id} href={app.href}><span className="nav-app"><Minito kind={app.kind} size={20} />{app.name}</span><span className="ext" aria-hidden="true">↗</span></a>
+              <a key={app.id} href={app.href}><span className="nav-app"><Totom kind={app.kind} size={20} />{app.name}</span><span className="ext" aria-hidden="true">↗</span></a>
             ))}
           </div>
         </nav>
@@ -146,7 +146,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
       <main className="main">
         <section id="overview" className="stack" aria-labelledby="hello-title">
           <div className="card hello">
-            <Minito kind="hub" size={76} pose="wave" />
+            <Totom kind="hub" size={76} pose="wave" />
             <div>
               <h1 id="hello-title">{me.user}님, 오늘도 반가워요</h1>
               <p className="hand hello-line">{line}</p>
@@ -184,9 +184,9 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
               const row = byApp.get(app.id);
               return (
                 <article key={app.id} className={`card app-card ${app.id}`}>
-                  <Minito kind={app.kind} size={64} />
+                  <Totom kind={app.kind} size={64} />
                   <div className="app-info">
-                    <h3><Signature kind={app.kind} word={app.word} size={17} minito={0} /><span className="sr-only">{app.name}</span></h3>
+                    <h3><Signature kind={app.kind} word={app.word} size={17} totom={0} /><span className="sr-only">{app.name}</span></h3>
                     <p>{app.name} · {app.desc}</p>
                     <div className="app-stats">
                       <span>AI 호출 <strong>{formatNumber(row?.calls ?? 0)}</strong></span>
@@ -204,7 +204,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <h2 id="usage-title" className="section-title">{month}월 앱별 AI 사용량</h2>
           {me.usage.apps.length === 0 ? (
             <div className="empty-usage">
-              <Minito kind="hub" size={48} />
+              <Totom kind="hub" size={48} />
               <p className="muted small" style={{ margin: 0 }}>이번 달에는 아직 AI를 쓰지 않았어요. 미니로그에서 원고를 만들면 여기에 쌓여요.</p>
             </div>
           ) : (
