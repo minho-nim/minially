@@ -58,6 +58,8 @@
 | 미니어리 0.1.11 메모 사진: 문서 블록 `{type:'image', photoId}`(본문 글에는 `[사진]`), 사진은 `notePhotos` 저장소(동기화됨, 긴 변 1280px JPEG·240KB 이하, data URL). 편집기 '사진 넣기'·붙여넣기·끌어다 놓기. 서버 sync가 notePhotos 검사. 영구 삭제 시 사진도 삭제. **0.1.10 이하 앱은 사진 블록을 모르는 형식으로 보고 동기화가 멈춤 → 모든 기기 0.1.11로** | `src/types.ts` NoteImage·NotePhoto, `utils/noteRichDocument.ts`, `utils/notePhotos.ts`, `utils/imageResize.ts`, `notes/noteRichDom.ts`, `notes/RichNoteBody.tsx`, `functions/api/sync.ts` | 시험(형식 검사, 넣기·다시 열기·백업 포함·삭제, 실제 서버 동기화). 붙여넣기 시험은 없음(클립보드 파일 흉내가 어려움). shortcut: 원고에서 지운 사진의 고아 기록은 메모 영구 삭제 때까지 남음 |
 | mini-log 원고 동시 수정 보호: 편집 화면이 PUT에 `base_updated_at`(마지막으로 본 수정 시각)을 보냄. 서버 원고가 더 새것이고 제목·본문·경험·해시태그가 다르면 덮어쓰지 않고 '… · 다른 기기 수정 사본' 원고로 남기고 409(code conflict, 최신 원고·사본) → 화면은 최신 내용으로 바꾸고 사본을 목록에 더함 | `functions/api/drafts/[id]/index.ts`, `_drafts.ts` `saveConflictCopy`, `src/App.tsx` Editor, `shared/client/api.ts`(ApiError.data) | 시험(두 기기) |
 | mini-log 광고 수익 가져오기(CSV, 애드센스 준비): 협찬 화면 '광고 수익 가져오기' → CSV(애드센스·애드포스트 날짜별/월별 보고서, 한글·영어 머리글·탭·설명 줄·합계 줄) 읽어 달마다 합계 → `POST /api/campaigns/import-ads` → 달마다 '광고' 수익 1개(받은 날 = 말일, memo `import:출처:YYYY-MM`로 같은 달 다시 올리면 금액만 바꿈). 월간 보고·대시보드 수익에 들어감. 구글 자동 연결은 준비 중(앱 승인 필요) | `src/adsImport.ts`, `src/Campaigns.tsx` `AdImport`, `functions/api/campaigns/import-ads.ts` | 시험(CSV 읽기·기록·다시 올리기·월간 보고 반영·400) |
+| mini-log 데이터 백업(대시보드 아래 '데이터 백업'): `GET /api/backup` = 원고·협찬·문체·제안서 양식·내 블로그·글 숫자·참고 블로그 JSON(사진·채팅·로그인 제외), `POST /api/backup` = 합치기(없으면 더함, 같은 id는 백업 updated_at이 더 클 때만 바꿈, 다른 사용자 id와 겹치면 건너뜀, 형식이 틀린 항목은 건너뜀, 내 문체는 하나로 합침, 블로그 5·참고 10·참고 문체 10 제한 지킴). 불러오기 전에 지금 데이터를 `minilog-backup-날짜-before-restore.json`으로 자동 받기 | `mini-log/functions/_backup.ts`, `api/backup.ts`, `src/Backup.tsx` | 시험(받기·같은 것 다시 합치기·최신만 바꿈·다른 사용자 건너뜀·잘못된 파일 400·비로그인 401) |
+| hub 왼쪽 메뉴 'AI 사용량' → 내 대시보드의 AI 사용량 칸으로 이동(처음 볼 대시보드 설정은 그대로) | `hub/src/App.tsx` | 시험 |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초, 창 닫기·다른 앱으로 갈 때는 바로 저장 keepalive, 저장 전 닫으면 확인)·승인·삭제·발행용 복사. 지금 탭·원고를 주소 해시(`#ideas`, `#draft/아이디`)에 남김(새로고침 유지, 뒤로 가기 = 이전 화면) | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
@@ -126,9 +128,9 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 | `minially`: `npm run test:sync` | 13 passed (1.5m) |
 | `minially`: `npm test` | 230 passed (11.0m), `npm run test:sync` 14 passed |
 | `hub`: `npm run lint`, `npm run build` | 성공 |
-| `hub`: `npm test` | 14 passed (설정·로그인 유지, 월간 보고, 통합 대시보드·PWA 포함) |
+| `hub`: `npm test` | 15 passed (AI 사용량 메뉴, 설정·로그인 유지, 월간 보고, 통합 대시보드·PWA 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 43 passed (동시 수정·광고 수익 가져오기, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
+| `mini-log`: `npm test` | 45 passed (데이터 백업, 동시 수정·광고 수익 가져오기, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 

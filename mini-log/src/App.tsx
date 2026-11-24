@@ -8,6 +8,7 @@ import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
+import { BackupCard } from './Backup';
 import { applyTheme, type Theme } from '../../shared/client/theme';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
@@ -383,6 +384,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               <button className="btn" style={{ justifySelf: 'start' }} onClick={onCampaigns}>협찬·수익 기록 보기</button>
             </section>
           </div>
+          <BackupCard />
         </>
       )}
     </article>
