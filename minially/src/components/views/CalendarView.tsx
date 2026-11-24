@@ -2,6 +2,8 @@ import { SwipePager } from '../common/SwipePager';
 import { calendarPageDays, shiftCalendarPage } from '../../utils/calendarPages';
 import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { compareSchedules } from '../../utils/scheduleOrder';
+import { holidaysOn, longWeekends } from '../../utils/koreanHolidays';
+import { buildRuns, layoutWeek, type SpanSlot } from '../../utils/scheduleSpans';
 import React, { useState, useMemo, useRef } from 'react';
 import {
   Schedule,
@@ -46,6 +48,13 @@ interface CalendarViewProps {
 }
 
 type CalendarMode = 'month' | 'week';
+
+
+/** 이어진 일정 모양: 이어지는 쪽은 둥근 모서리를 없애고 칸 끝까지 늘린다 */
+const spanShape = (slot: SpanSlot) => [
+  slot.joinsPrev ? 'calendar-span-prev rounded-l-none' : 'rounded-l-md',
+  slot.joinsNext ? 'calendar-span-next rounded-r-none' : 'rounded-r-md',
+].join(' ');
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
   schedules,
@@ -115,6 +124,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return map;
   }, [visibleSchedules]);
 
+  // 같은 일정이 며칠 이어지면 달력에서 한 줄로 이어 그린다
+  const runOf = useMemo(() => buildRuns(visibleSchedules), [visibleSchedules]);
+
   const handlePrev = () => { setActiveDateMenu(null); onSelectDate(shiftCalendarPage(selectedDate, viewMode, -1)); };
   const handleNext = () => { setActiveDateMenu(null); onSelectDate(shiftCalendarPage(selectedDate, viewMode, 1)); };
 
@@ -162,6 +174,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const selectedDate = pageDate;
     const monthDays = calendarPageDays(pageDate, 'month', startDayOffset, todayStr);
     const weekDays = calendarPageDays(pageDate, 'week', startDayOffset, todayStr);
+    const slotsByDate = new Map<string, (SpanSlot | null)[]>();
+    for (let i = 0; i < monthDays.length; i += 7) {
+      const days = monthDays.slice(i, i + 7).map(c => c.dateStr);
+      layoutWeek(days, schedulesByDate, runOf).forEach((lanes, col) => slotsByDate.set(days[col], lanes));
+    }
+    const offRuns = longWeekends(monthDays[0].dateStr, monthDays[monthDays.length - 1].dateStr);
     return <>        {/* Weekday Row */}
         <div className="grid grid-cols-7 text-center text-xs font-medium text-app-muted py-2">
           {weekdayLabels.map((day, idx) => {
@@ -188,6 +206,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               const isDragTarget = dragOverDate === cell.dateStr;
               const daySchedules = schedulesByDate.get(cell.dateStr) || [];
               const isMenuOpen = !preview && activeDateMenu === cell.dateStr;
+              const slots = (slotsByDate.get(cell.dateStr) || []).slice(0, 2);
+              const hidden = daySchedules.length - slots.filter(Boolean).length;
+              const holidays = holidaysOn(cell.dateStr);
+              const offRun = offRuns.get(cell.dateStr);
+              const isRedDay = holidays.length > 0 || new Date(cell.dateStr + 'T12:00:00').getDay() === 0;
 
               return (
                 <div
@@ -201,8 +224,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   onDragOver={(e) => handleDragOver(e, cell.dateStr)}
                   onDragLeave={(e) => handleDragLeave(e, cell.dateStr)}
                   onDrop={(e) => handleDrop(e, cell.dateStr)}
+                  data-holiday={holidays.length ? holidays.map(h => h.name).join(', ') : undefined} data-long-weekend={offRun ? offRun.days : undefined}
                   className={`calendar-date-cell calendar-day-cell min-h-0 min-w-0 overflow-hidden p-0.5 sm:p-1.5 transition-colors cursor-pointer flex flex-col justify-between relative group ${
-                    isDragTarget ? 'bg-app-soft/60' : 'bg-transparent'
+                    isDragTarget ? 'bg-app-soft/60' : offRun && cell.isCurrentMonth ? 'calendar-long-weekend' : 'bg-transparent'
                   }`}
                 >
                   {/* Date Number Header */}
@@ -214,12 +238,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           : isSelected
                           ? 'bg-app-accent/20 text-app-ink font-bold'
                           : cell.isCurrentMonth
-                          ? 'text-app-ink'
-                          : 'text-app-muted/60'
+                          ? isRedDay ? 'text-[#D9534F]' : 'text-app-ink'
+                          : isRedDay ? 'text-[#D9534F]/50' : 'text-app-muted/60'
                       }`}
                     >
                       {cell.dayNum}
                     </span>
+                    {(holidays.length > 0 || (offRun && offRun.start === cell.dateStr && cell.isCurrentMonth)) && (
+                      <span data-holiday-name className={`min-w-0 flex-1 truncate px-0.5 text-[9px] sm:text-[10px] font-medium leading-none ${cell.isCurrentMonth ? 'text-[#D9534F]' : 'text-[#D9534F]/50'}`} title={[...holidays.map(h => h.name), offRun && offRun.start === cell.dateStr ? `${offRun.days}일 연휴` : ''].filter(Boolean).join(' · ')}>
+                        {holidays.length ? holidays[0].name.replace('대체공휴일', '대체') : <><span className="sm:hidden">연휴</span><span className="hidden sm:inline">{offRun!.days}일 연휴</span></>}
+                      </span>
+                    )}
 
                     {/* Subtle Menu Icon on hover/selected */}
                     <div className="relative">
@@ -279,53 +308,61 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </div>
 
                   {/* Schedule title previews on mobile and desktop */}
-                  <div className="flex-1 overflow-hidden">
+                  <div className="calendar-span-area flex-1">
                     {/* Mobile: readable title previews; tapping opens the day sheet. */}
                     <div data-mobile-calendar-titles className="sm:hidden space-y-1 mt-0.5 min-w-0">
-                      {daySchedules.slice(0,2).map(schedule=>{
+                      {slots.map((slot,lane)=>{
+                        if(!slot)return <div key={'empty'+lane} data-calendar-lane-empty aria-hidden="true" className="h-[18px]"/>;
+                        const schedule=slot.schedule;
                         const color=categoryMap.get(schedule.category)?.color || '#DCA78F';
-                        return <div key={schedule.id} data-calendar-title title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap rounded-md px-0.5 py-0.5 text-[10px] leading-[18px] '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold text-app-ink':'text-app-ink')} style={{borderLeft:'3px solid '+color,backgroundColor:color+'35'}}>{schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{schedule.recurrenceRuleId&&<Repeat aria-label="반복 일정" className="inline w-2 h-2 mr-px -mt-px opacity-70"/>}{Array.from(schedule.title).slice(0,3-(schedule.isImportant?1:0)-(schedule.recurrenceRuleId?1:0)).join('')}</div>;
+                        const label=slot.showTitle?Array.from(schedule.title).slice(0,(slot.length>1?4:3)-(schedule.isImportant?1:0)-(schedule.recurrenceRuleId?1:0)).join(''):'';
+                        return <div key={schedule.id} data-calendar-title data-span={slot.length>1?slot.length:undefined} title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap px-0.5 py-0.5 text-[10px] leading-[18px] '+spanShape(slot)+' '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold text-app-ink':'text-app-ink')} style={{borderLeft:slot.joinsPrev?undefined:'3px solid '+color,backgroundColor:color+'35'}}>{slot.showTitle&&schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{slot.showTitle&&schedule.recurrenceRuleId&&<Repeat aria-label="반복 일정" className="inline w-2 h-2 mr-px -mt-px opacity-70"/>}{label||'\u00a0'}</div>;
                       })}
                       {daySchedules.length>1&&<span className="calendar-compact-count hidden absolute top-2 right-1 text-[9px] text-app-muted">+{daySchedules.length-1}</span>}
-                      {daySchedules.length>2&&<p className="calendar-extra-count text-[9px] leading-3 text-app-muted text-right">+{daySchedules.length-2}개</p>}
+                      {hidden>0&&<p className="calendar-extra-count text-[9px] leading-3 text-app-muted text-right">+{hidden}개</p>}
                     </div>
 
                     {/* Desktop: Concise schedule bars */}
                     <div className="hidden sm:block space-y-1 mt-0.5">
-                      {daySchedules.slice(0, 2).map((s) => {
+                      {slots.map((slot, lane) => {
+                        if (!slot) return <div key={'empty' + lane} data-calendar-lane-empty aria-hidden="true" className="h-[22px]" />;
+                        const s = slot.schedule;
                         const cat = categoryMap.get(s.category);
                         return (
                           <div
                             key={s.id}
+                            data-span={slot.length > 1 ? slot.length : undefined}
                             draggable="true"
                             onDragStart={(e) => handleDragStart(e, s.id)}
                             onClick={(e) => {
                               e.stopPropagation();
                               onEditSchedule(s);
                             }}
-                            className={`px-1.5 py-0.5 rounded text-[11px] truncate leading-tight flex items-center gap-1 transition-all ${
+                            className={`px-1.5 py-0.5 text-[11px] truncate leading-tight flex items-center gap-1 transition-all ${spanShape(slot)} ${
                               s.completed
                                 ? 'line-through text-app-muted/70 bg-stone-100'
                                 : 'text-app-ink hover:shadow-2xs'
                             }`}
                             style={{
-                              backgroundColor: s.completed ? undefined : `${cat?.color || '#DCA78F'}18`,
-                              borderLeft: `3px solid ${cat?.color || '#DCA78F'}`,
+                              backgroundColor: s.completed ? undefined : `${cat?.color || '#DCA78F'}${slot.length > 1 ? '30' : '18'}`,
+                              borderLeft: slot.joinsPrev ? undefined : `3px solid ${cat?.color || '#DCA78F'}`,
                             }}
-                            title={`${s.startTime ? `[${s.startTime}] ` : ''}${s.title}`}
+                            title={`${s.startTime ? `[${s.startTime}] ` : ''}${s.title}${slot.length > 1 ? ` (${slot.length}일)` : ''}`}
                           >
-                            {s.startTime && (
-                              <span className="font-semibold shrink-0 text-[10px] text-app-muted">
-                                {s.startTime}
-                              </span>
-                            )}
-                            <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-2.5 h-2.5 mr-0.5 opacity-70" />}{s.title}</span>
+                            {slot.showTitle ? <>
+                              {s.startTime && (
+                                <span className="font-semibold shrink-0 text-[10px] text-app-muted">
+                                  {s.startTime}
+                                </span>
+                              )}
+                              <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-2.5 h-2.5 mr-0.5 opacity-70" />}{s.title}</span>
+                            </> : <span aria-hidden="true">{'\u00a0'}</span>}
                           </div>
                         );
                       })}
-                      {daySchedules.length > 2 && (
+                      {hidden > 0 && (
                         <div className="text-[10px] text-app-muted font-semibold text-right pr-0.5">
-                          +{daySchedules.length - 2}
+                          +{hidden}
                         </div>
                       )}
                     </div>
@@ -481,7 +518,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <SwipePager gap={24} pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+      <SwipePager preload gap={24} pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
         {renderPage(selectedDate)}
       </SwipePager>
 

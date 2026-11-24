@@ -405,3 +405,12 @@
 .note-rich-body figure.note-photo { margin: 8px 0; display: block; user-select: none; }
 .note-rich-body figure.note-photo img { display: block; max-width: min(100%, 640px); max-height: 480px; min-height: 48px; min-width: 64px; border-radius: 10px; border: 1px solid var(--color-app-line); background: var(--color-app-soft); object-fit: contain; }
 .note-rich-body figure.note-photo:focus-within img, .note-rich-body figure.note-photo.selected img { outline: 2px solid var(--color-app-accent); outline-offset: 2px; }
+
+/* 여러 날 이어진 일정: 칸 안쪽 여백만큼 밖으로 늘려 옆 칸과 붙인다(세로만 자른다). */
+.calendar-day-cell { --cell-pad: 2px; }
+@media (min-width: 640px) { .calendar-day-cell { --cell-pad: 6px; } }
+.calendar-span-area { overflow-x: visible; overflow-y: clip; min-height: 0; }
+.calendar-span-prev { margin-left: calc(-1 * var(--cell-pad)); }
+.calendar-span-next { margin-right: calc(-1 * var(--cell-pad)); }
+/* 연휴(쉬는 날 3일 이상): 은은한 붉은 바탕 */
+.calendar-long-weekend { background-color: rgb(217 83 79 / 0.06); }

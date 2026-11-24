@@ -68,6 +68,12 @@
 | 사진 보기·지우기(본인만, R2 공개 주소 없음) | `api/photos/[id].ts` | 시험(D가 C 사진 보기·지우기·올리기 404, 비로그인 401, 사진 아닌 파일 415) |
 | 사진 분석: 앞 8장을 Gemini에 함께 보내 [사진 n] 위치 표시 | `api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험(보낸 사진 수 확인) |
 | 게시 완료 URL(http/https만) 기록, 게시 후 30일 지나면 사진 삭제, 게시 취소 시 삭제 예정 취소 | `_drafts.ts` `updateDraft`, `_photos.ts` `cleanupExpired` | 화면 시험 + node:sqlite로 시간 흐름 시험(29일 유지·31일 삭제·다른 사용자 사진 유지) |
+| mini-log 체험단 가이드 자동 정리: 새 협찬 '✨ 가이드로 채우기'(글 붙여넣기·링크·캡처) → Gemini가 업체·캠페인·제공·금액·마감일과 지킬 것(키워드·해시태그·사진 수·글자 수·링크·방문일·주의)을 정리, 빈 칸만 채우고 가이드는 협찬에 저장(백업 포함). 링크는 공개 https만, 리디렉트도 다시 검사 | `mini-log/functions/_guide.ts`, `api/campaigns/guide.ts`, `src/GuideFill.tsx`, `minilog_campaigns.guide` | 가짜 Gemini로 시험(글·캡처, 내부 주소 거절). 실제 페이지 읽기 성공 경로는 미확인 |
+| mini-log 원고 점검: 원고 편집에 연결된 협찬 가이드 + 기본 검색 노출 기준(제목 15~40자, 본문 1,000자, 사진 5장, 해시태그 3개) 점검, 통과 비율 도넛 | `src/DraftCheck.tsx` | 시험(규칙 단위 + 화면) |
+| Gemini 일시 오류 다시 부르기: 5xx·끊김은 1초·2.5초 뒤 두 번까지 다시 부름. 503은 '붐빔', 400·404는 '요청 거절'로 따로 알리고 Cloudflare 로그에 상태와 구글 메시지 앞 300자(키 모양 가림) | `shared/server/ai.ts` | 가짜 Gemini로 시험(한 번 503 뒤 성공, 계속 503, 400) |
+| 보안 헤더: hub·mini-log·미니어리 `public/_headers`에 CSP(`default-src 'self'`)·HSTS. 코드 해시 도우미 스크립트는 `code-hash.js`로 분리 | `*/public/_headers` | hub·mini-log 시험, 미니어리 동기화 시험(wrangler pages dev) |
+| 미니어리 달력: 대한민국 공휴일(설·추석·부처님오신날 표 2024~2030, 대체공휴일 규칙, 선거일, 2026년부터 제헌절)·연휴(공휴일 낀 3일 이상 쉬는 날) 표시, 같은 이름·분류·시작 시간 일정이 이어진 날짜면 한 줄로 이어 그림, 달력 밀어 넘기기 가볍게(앞뒤 달 미리 그림, 넘어가는 중 다시 밀기 받음) | `minially/src/utils/koreanHolidays.ts`, `utils/scheduleSpans.ts`, `components/common/SwipePager.tsx` | 시험(공휴일 계산 단위, 390·1280 화면) |
+| mini-log 협찬 제안 화면 개편(먼저 연락하기): ① 업체·제안할 것·**왜 이 업체인지**·일정 ② 메시지(보내기 전 확인 막대: 업체·이유·숫자·방식·답장 받을 곳) ③ 내 소개(한 번 써 두면 접힘). 오른쪽에 받는 사람이 보는 메일·DM 미리보기와 제안서 PDF 탭. 기본 글 순서: 자기소개 → 왜 이 업체 → 업체에 도움이 되는 점(독자·숫자·대표 글) → 제안 내용(방식·일정·비용·결과 공유) → 답장 방법 | `mini-log/src/Proposal.tsx`, `src/proposalKit.ts` | 시험(글 순서·내용 단위 + 화면 흐름) |
 
 ## 3. 미완료(계획만)
 - Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
@@ -126,18 +132,21 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 | `minially`: `node --import tsx --test tests/*.unit.mjs` | 32 passed |
 | `minially`: `npm run desktop:prepare && npm run test:desktop:unit` | 20 passed |
 | `minially`: `npm run test:sync` | 13 passed (1.5m) |
-| `minially`: `npm test` | 230 passed (11.0m), `npm run test:sync` 14 passed |
+| `minially`: `npm test` | 233개 중 225 passed(8.6m) + 실패했던 밀기·공휴일 시험 6파일 12개 고친 뒤 다시 통과, `npm run test:sync` 14 passed |
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 15 passed (AI 사용량 메뉴, 설정·로그인 유지, 월간 보고, 통합 대시보드·PWA 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 45 passed (데이터 백업, 동시 수정·광고 수익 가져오기, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
+| `mini-log`: `npm test` | 48 passed(가이드 정리·원고 점검·Gemini 붐빔 다시 부르기 포함), 제안 화면 개편 뒤 제안 시험 4 passed (데이터 백업, 동시 수정·광고 수익 가져오기, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
 로컬 시험 브라우저는 `PLAYWRIGHT_CHANNEL` 기본값 `chrome`, CI는 `chromium`. `@playwright/test`는 미니어리와 같은 1.64.1로 고정했습니다(실행 환경의 브라우저 버전과 맞추려고).
 
 ## 9. 알려진 오류·보안 위험
-- `.env.example`(minially)은 AI Studio 시절 것이라 지금 구조와 맞지 않습니다. `@google/genai`도 미니어리에서 안 쓰는데 의존성에 남아 있습니다. 브라우저 번들에 들어가는지 확인 후 정리 권장.
+- 보안 규칙은 저장소 루트 `CLAUDE.md`·`AGENTS.md`의 'MINIHUB 보안 규칙'에 있습니다.
+- 미니어리는 동기화 코드를 브라우저 localStorage에 둡니다(오프라인 앱 구조). 화면에 스크립트가 끼어들면 코드도 함께 새므로 CSP를 느슨하게 하지 마세요.
+- 음력 공휴일 표는 2030년까지, 임시공휴일은 정부 발표 때 `EXTRA`에 직접 더해야 합니다.
+- `.env.example`(minially)은 지금 구조에 맞게 고쳤습니다(브라우저 쪽 비밀값 없음). `@google/genai`도 미니어리에서 안 쓰는데 의존성에 남아 있습니다. 브라우저 번들에 들어가는지 확인 후 정리 권장.
 - 세션 쿠키는 SameSite=Lax이고, 상태를 바꾸는 요청(POST·PUT·DELETE)은 `Origin`이 같은 사이트일 때만 받습니다(`sameOrigin`). Origin이 없는 요청은 통과시키므로(서버 간 호출) 세션 쿠키 검사가 마지막 방어선입니다.
 - 로그인 시도 제한은 IP 기준이라 IP를 바꾸며 시도하면 막지 못합니다(코드가 80비트라 실질 위험은 낮음).
 - `STATS_API_TOKEN` 비교는 해시끼리 문자열 비교입니다(타이밍 차이는 거의 없지만 상수 시간 비교는 아님).
