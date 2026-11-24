@@ -3,6 +3,7 @@ import { Help } from './Help';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
+import { campaignsCsv, downloadCsv } from './csvExport';
 import { AD_SOURCE_LABEL, parseAdCsv, type AdSource } from './adsImport';
 
 // 협찬·광고 캠페인과 수익 기록(본인만 보는 계약 정보)
@@ -137,6 +138,11 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
           <button className="btn" onClick={onProposal}>제안서·메일 만들기</button>
           <button className="btn" onClick={() => setImporting(v => !v)} aria-expanded={importing}>광고 수익 가져오기</button>
           <button className="btn" onClick={() => startNew('ad')}>광고 수익 적기</button>
+          <button className="btn" disabled={!items?.length} onClick={() => {
+            const list = filter === 'brand' ? items ?? [] : shown;
+            downloadCsv(campaignsCsv(list), `minilog_campaigns_${todayKst().replace(/-/g, '')}.csv`);
+            setMessage({ kind: 'info', text: `${list.length}건을 CSV로 받았어요(지금 보는 목록 기준).` });
+          }}>CSV로 받기</button>
           <button className="btn primary" onClick={() => startNew('sponsor')}>새 협찬</button>
         </div>
       </div>

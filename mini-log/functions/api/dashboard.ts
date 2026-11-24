@@ -31,6 +31,7 @@ export const onRequestGet = async (ctx: HubContext) => {
   const firstMs = Date.parse(`${months[0]}-01T00:00:00+09:00`);
   const published = (await db.prepare("SELECT published_at FROM minilog_drafts WHERE user = ? AND status = 'published' AND published_at >= ?").bind(user, firstMs).all<{ published_at: number }>()).results;
   const publishedMonths = months.map(month => ({ month, count: published.filter(r => kstMonth(r.published_at) === month).length }));
+  const goal = await db.prepare('SELECT monthly FROM minilog_goals WHERE user = ?').bind(user).first<{ monthly: number }>();
   const byStatus = Object.fromEntries(statuses.results.map(r => [r.status, r.count]));
   return json({
     since: new Date(since).toISOString(),
@@ -40,6 +41,7 @@ export const onRequestGet = async (ctx: HubContext) => {
     photos: { count: photos?.count ?? 0, bytes: photos?.bytes ?? 0, expiring: expiring.results.map(r => ({ ...r, title: r.title.slice(0, 80) })) },
     // 날짜는 한국 시간 기준(정산일을 사람이 YYYY-MM-DD로 적기 때문)
     top_posts: topPosts,
+    goal: goal?.monthly ?? null,
     revenue: await revenueSummary(db, user, new Date(now + 9 * 3600000).toISOString().slice(0, 10)),
   });
 };

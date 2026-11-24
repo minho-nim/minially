@@ -4,6 +4,7 @@ import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
+import { GoalBar } from './GoalBar';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
@@ -251,6 +252,7 @@ interface Dashboard {
   drafts: { draft: number; approved: number; published: number; published_this_month: number; months: { month: string; count: number }[] };
   photos: { count: number; bytes: number; expiring: { id: string; title: string; count: number; expires_at: number }[] };
   top_posts: { title: string; url: string; views: number; likes: number | null }[];
+  goal: number | null;
   revenue: { this_month: number; months: { month: string; total: number; count: number }[]; pending: { total: number; count: number }; upcoming: { id: string; brand: string; title: string; deadline: string; status: CampaignStatus }[] };
 }
 /** 그래프 위 짧은 금액: 12,000 → 1.2만 */
@@ -344,6 +346,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
             <section className="card step" aria-labelledby="d-revenue">
               <h2 id="d-revenue" className="step-title">협찬·광고 수익<span className="step-sub">받을 금액 {won(data.revenue.pending.total)} · {data.revenue.pending.count}건</span></h2>
               <p style={{ margin: 0 }}><span className="muted small">{month}월 받은 금액</span><br /><strong className="revenue-now">{won(data.revenue.this_month)}</strong></p>
+              <GoalBar goal={data.goal} paid={data.revenue.this_month} pending={data.revenue.pending.total} month={month} onChange={goal => setData(d => d && { ...d, goal })} />
               {data.revenue.months.some(m => m.total > 0) ? (
               <Columns label="최근 6개월 받은 금액" items={data.revenue.months.map(m => ({ label: `${Number(m.month.slice(5))}월`, value: m.total }))} format={shortWon} />
               ) : <p className="muted small" style={{ margin: 0 }}>최근 6개월 받은 금액이 아직 없어요.</p>}
