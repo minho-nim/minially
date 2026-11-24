@@ -7,6 +7,7 @@ import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
+import { ProposalView } from './Proposal';
 import { applyTheme, type Theme } from '../../shared/client/theme';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
@@ -222,13 +223,14 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
-        {view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
+        {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
+        : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
         : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
-        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
+        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
@@ -250,11 +252,11 @@ function readRoute(): { view: View; draftId: string | null } {
   const hash = window.location.hash.slice(1);
   const draft = hash.match(/^draft\/([0-9a-f-]{36})$/);
   if (draft) return { view: 'drafts', draftId: draft[1] };
-  return { view: VIEWS.some(([key]) => key === hash) ? (hash as View) : 'drafts', draftId: null };
+  return { view: VIEWS.some(([key]) => key === hash) || hash === 'proposal' ? (hash as View) : 'drafts', draftId: null }; // 제안서는 메뉴 대신 협찬 화면에서 연다
 }
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
-type View = 'drafts' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
+type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
 const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
 
 interface Dashboard {

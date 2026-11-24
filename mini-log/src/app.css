@@ -3,7 +3,7 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --app: #FFAE5C; --app-soft: #3A2A1C; } }
 :root[data-theme="dark"] { --app: #FFAE5C; --app-soft: #3A2A1C; }
 
-.shell { display: grid; grid-template-columns: clamp(220px, 18vw, 272px) minmax(0, 1fr); min-height: 100vh; }
+.shell { display: grid; grid-template-columns: clamp(244px, 18vw, 280px) minmax(0, 1fr); min-height: 100vh; }
 .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 12px; padding: 16px 12px; border-right: 1px solid var(--line); background: var(--surface); }
 .side .brand { padding: 0 6px; }
 .list { display: grid; gap: 2px; overflow-y: auto; align-content: start; margin: 0 -4px; padding: 0 4px; }
@@ -146,7 +146,8 @@ select.input { appearance: auto; }
 
 /* 메뉴 7개: 4개 + 3개 두 줄(자주 쓰는 원고·글감·캘린더·대시보드가 첫 줄) */
 .views { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.views button { padding: 0 2px; font-size: 0.8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.views { gap: 2px; }
+.views button { padding: 0 1px; font-size: 0.78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.02em; }
 .cal-nav { align-items: center; }
 .cal-month { font-weight: 800; min-width: 96px; text-align: center; font-variant-numeric: tabular-nums; }
 .cal-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
@@ -290,3 +291,29 @@ select.input { appearance: auto; }
 .report-table th, .report-table td { white-space: nowrap; }
 @media (max-width: 520px) { .report-table { font-size: 0.8rem; } .report-table th, .report-table td { padding: 6px 3px; } }
 .side-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 협찬 제안서 */
+.proposal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: var(--gap-lg); align-items: start; }
+.proposal-grid > section:last-child { grid-column: 1 / -1; }
+.prop-fields { display: grid; gap: 10px; }
+.proposal-doc { display: grid; gap: 12px; padding: clamp(16px, 2vw, 28px); }
+.pd-head { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 2px solid var(--app); }
+.pd-kicker { margin: 0; font-size: 0.8rem; font-weight: 700; color: var(--app); letter-spacing: 0.02em; }
+.pd-name { margin: 0; font-size: 1.6rem; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.pd-intro { margin: 0; font-size: 1rem; }
+.pd-links { margin: 0; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.pd-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.pd-nums div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--app-soft); text-align: center; }
+.pd-nums b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.pd-nums span { font-size: 0.75rem; color: var(--muted); }
+.pd-sec h4 { margin: 0 0 4px; font-size: 0.9rem; }
+.pd-sec p, .pd-sec ul, .pd-sec ol { margin: 0; line-height: 1.65; font-size: 0.9rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pd-sec ul, .pd-sec ol { padding-left: 1.2em; white-space: normal; }
+.pd-foot { padding-top: 10px; border-top: 1px solid var(--line); font-weight: 700; font-size: 0.9rem; overflow-wrap: anywhere; }
+.pd-note { margin: 0; font-size: 0.72rem; color: var(--muted); }
+@media print {
+  .proposal .proposal-grid { display: block; }
+  .proposal .proposal-doc { border: 0; padding: 0; box-shadow: none; }
+  .proposal .pd-nums div { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .proposal .pd-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

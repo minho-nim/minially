@@ -1,0 +1,177 @@
+import { useEffect, useMemo, useState } from 'react';
+import { api, formatNumber } from '../../shared/client/api';
+import { Tomong } from './Tomong';
+import { blogInfo } from './Blog';
+import { bullets, defaultMail, mailtoHref, priceLine, type ProposalForm, type ProposalStats } from './proposalKit';
+
+// 협찬 제안서: ① 기본 양식(직접 쓰기 + AI 초안) ② 미리보기·PDF ③ 제안 메일(기본 본문 → 고치기 → AI 다듬기 → 메일 앱)
+type Field = { key: keyof ProposalForm; label: string; rows?: number; placeholder: string };
+const FIELDS: Field[] = [
+  { key: 'blog_name', label: '블로그 이름', placeholder: '예: 토몽이의 동네 기록' },
+  { key: 'topic', label: '주제', placeholder: '예: 서울 카페·디저트, 주말 나들이' },
+  { key: 'intro', label: '한 줄 소개', placeholder: '예: 직접 가 보고 솔직하게 쓰는 동네 카페 기록' },
+  { key: 'about', label: '블로그 소개', rows: 3, placeholder: '어떤 글을 어떻게 쓰는지 2~3문장' },
+  { key: 'audience', label: '주요 독자층', rows: 2, placeholder: '예: 서울에 사는 20~30대, 주말 데이트 장소를 찾는 분' },
+  { key: 'strengths', label: '협찬하면 좋은 점', rows: 3, placeholder: '한 줄에 하나씩' },
+  { key: 'offers', label: '가능한 협찬 방식', rows: 3, placeholder: '한 줄에 하나씩(예: 체험단 방문 후기, 제품 리뷰, 원고 의뢰)' },
+  { key: 'cases', label: '진행 사례', rows: 2, placeholder: '한 줄에 하나씩(예: ○○카페 신메뉴 체험)' },
+];
+
+export function ProposalView({ name, onBack }: { name: string; onBack: () => void }) {
+  const [form, setForm] = useState<ProposalForm | null>(null);
+  const [stats, setStats] = useState<ProposalStats | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState<'save' | 'draft' | 'mail' | null>(null);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const [mail, setMail] = useState({ brand: '', to: '', product: '', subject: '', body: '' });
+  const [mailTouched, setMailTouched] = useState(false);
+  const fail = (e: unknown, text: string) => setMessage({ kind: 'error', text: e instanceof Error ? e.message : text });
+
+  useEffect(() => {
+    api<{ form: ProposalForm; stats: ProposalStats }>('/api/proposal').then(d => { setForm(d.form); setStats(d.stats); }).catch(e => fail(e, '불러오지 못했어요.'));
+  }, []);
+
+  const set = (patch: Partial<ProposalForm>) => { setForm(f => f && { ...f, ...patch }); setDirty(true); };
+
+  async function save() {
+    if (!form) return;
+    setBusy('save'); setMessage(null);
+    try { const r = await api<{ form: ProposalForm }>('/api/proposal', { method: 'PUT', body: form }); setForm(r.form); setDirty(false); setMessage({ kind: 'info', text: '기본 양식을 저장했어요.' }); }
+    catch (e) { fail(e, '저장하지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+
+  async function aiDraft() {
+    if (!form) return;
+    if (dirty) await save();
+    setBusy('draft'); setMessage(null);
+    try {
+      const { draft } = await api<{ draft: Partial<ProposalForm> }>('/api/proposal/draft', { body: {} });
+      setForm(f => f && { ...f, ...draft }); setDirty(true);
+      setMessage({ kind: 'info', text: 'AI 초안을 넣었어요. 사실과 다른 곳은 고친 뒤 "저장"을 눌러 주세요.' });
+    } catch (e) { fail(e, 'AI 초안을 만들지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+
+  // 업체 이름·제안 대상을 바꾸면, 아직 손대지 않은 메일은 기본 본문을 다시 채운다
+  const base = useMemo(() => (form && stats ? defaultMail(form, stats, name, mail.brand.trim(), mail.product.trim()) : null), [form, stats, name, mail.brand, mail.product]);
+  useEffect(() => { if (base && !mailTouched) setMail(m => ({ ...m, subject: base.subject, body: base.body })); }, [base, mailTouched]);
+
+  async function polish() {
+    setBusy('mail'); setMessage(null);
+    try {
+      const r = await api<{ subject: string; body: string }>('/api/proposal/mail', { body: { brand: mail.brand, product: mail.product, subject: mail.subject, body: mail.body } });
+      setMail(m => ({ ...m, ...r })); setMailTouched(true);
+      setMessage({ kind: 'info', text: 'AI가 메일을 다듬었어요. 확인하고 고친 뒤 보내세요.' });
+    } catch (e) { fail(e, '메일을 다듬지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+
+  async function copyMail() {
+    try { await navigator.clipboard.writeText(`${mail.subject}\n\n${mail.body}`); setMessage({ kind: 'info', text: '제목과 본문을 복사했어요.' }); }
+    catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 본문을 직접 선택해 복사해 주세요.' }); }
+  }
+
+  const validTo = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(mail.to.trim());
+  const price = form ? priceLine(form) : '';
+
+  return (
+    <article className="stack proposal" aria-labelledby="prop-title">
+      <div className="editor-head no-print">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn ghost back" style={{ display: 'inline-flex' }} onClick={onBack}>← 협찬</button>
+          <h1 id="prop-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>협찬 제안서</h1>
+        </div>
+      </div>
+      {message && <p className={`no-print ${message.kind === 'error' ? 'error' : 'muted small'}`} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+      {!form && !message && <p className="muted small" role="status">불러오는 중…</p>}
+
+      {form && stats && (
+        <div className="proposal-grid">
+          <section className="card step no-print" aria-labelledby="p-form">
+            <h2 id="p-form" className="step-title"><span className="n">1</span>기본 양식{dirty && <span className="step-sub">저장 안 됨</span>}</h2>
+            <p className="muted small" style={{ margin: 0 }}>한 번 써 두면 업체마다 다시 쓸 필요 없어요. 비어 있어도 <b>AI로 초안 쓰기</b>를 누르면 내 블로그 글·숫자를 보고 채워 줘요(숫자는 실제 기록만).</p>
+            <div className="ai-row">
+              <button className="btn primary" onClick={() => { void aiDraft(); }} disabled={busy !== null}>{busy === 'draft' ? '쓰는 중…' : 'AI로 초안 쓰기'}</button>
+              <button className="btn" onClick={() => { void save(); }} disabled={busy !== null || !dirty}>{busy === 'save' ? '저장 중…' : '저장'}</button>
+              {busy === 'draft' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={28} bounce /><span className="hand">토몽이가 제안서를 쓰고 있어요</span></span>}
+            </div>
+            <div className="prop-fields">
+              {FIELDS.map(f => (
+                <div className="field" key={f.key}>
+                  <label htmlFor={`p-${f.key}`}>{f.label}</label>
+                  {f.rows
+                    ? <textarea id={`p-${f.key}`} className="textarea" rows={f.rows} value={form[f.key] as string} placeholder={f.placeholder} onChange={e => set({ [f.key]: e.target.value })} />
+                    : <input id={`p-${f.key}`} className="input" value={form[f.key] as string} placeholder={f.placeholder} onChange={e => set({ [f.key]: e.target.value })} />}
+                </div>
+              ))}
+              <div className="field">
+                <label className="check"><input type="checkbox" checked={form.show_price} onChange={e => set({ show_price: e.target.checked })} /> 단가 넣기(제안서·메일)</label>
+                <input id="p-price" aria-label="단가" className="input" value={form.price} disabled={!form.show_price} placeholder="예: 원고료 10만 원부터, 체험단은 제품 제공만" onChange={e => set({ price: e.target.value })} />
+                <span className="muted small">먼저 제안할 때 시작 단가를 적어 두면 연락이 빨라져요. 정하기 어려우면 끄고 '협의'로 두세요.</span>
+              </div>
+              <div className="field">
+                <label htmlFor="p-contact_email">연락받을 이메일</label>
+                <input id="p-contact_email" className="input" type="email" autoComplete="email" value={form.contact_email} placeholder="name@example.com" onChange={e => set({ contact_email: e.target.value })} />
+              </div>
+              <div className="field">
+                <label htmlFor="p-contact_extra">다른 연락처(선택)</label>
+                <input id="p-contact_extra" className="input" value={form.contact_extra} placeholder="예: 인스타그램 @tomong" onChange={e => set({ contact_extra: e.target.value })} />
+              </div>
+            </div>
+          </section>
+
+          <section className="step" aria-labelledby="p-preview">
+            <div className="row-between no-print">
+              <h2 id="p-preview" className="step-title"><span className="n">2</span>미리보기·PDF</h2>
+              <button className="btn primary" onClick={() => window.print()}>PDF 만들기</button>
+            </div>
+            <p className="muted small no-print" style={{ margin: 0 }}>인쇄 창에서 <b>"PDF로 저장"</b>을 고르세요. 아래 모습 그대로 A4 한 장으로 나와요.</p>
+            <div className="card proposal-doc">
+              <header className="pd-head">
+                <p className="pd-kicker">협찬 제안서{form.topic ? ` · ${form.topic}` : ''}</p>
+                <h3 className="pd-name">{form.blog_name || '블로그 이름'}</h3>
+                {form.intro && <p className="pd-intro">{form.intro}</p>}
+                <p className="pd-links">{stats.blogs.map(b => blogInfo(b).home.replace('https://', '')).join(' · ')}</p>
+              </header>
+              <div className="pd-nums">
+                <div><b>{stats.avg_views === null ? '—' : formatNumber(stats.avg_views)}</b><span>글 평균 조회수</span></div>
+                <div><b>{stats.posts_per_month}</b><span>한 달 평균 글</span></div>
+                <div><b>{formatNumber(stats.sponsor_done)}</b><span>진행한 협찬</span></div>
+              </div>
+              {form.about && <div className="pd-sec"><h4>블로그 소개</h4><p>{form.about}</p></div>}
+              {form.audience && <div className="pd-sec"><h4>주요 독자층</h4><p>{form.audience}</p></div>}
+              {form.strengths && <div className="pd-sec"><h4>협찬하면 좋은 점</h4><ul>{bullets(form.strengths).map(l => <li key={l}>{l}</li>)}</ul></div>}
+              {stats.top.length > 0 && <div className="pd-sec"><h4>대표 글</h4><ol>{stats.top.map(t => <li key={t.url}>{t.title} <span className="muted">· 조회 {formatNumber(t.views)}</span></li>)}</ol></div>}
+              {form.offers && <div className="pd-sec"><h4>협찬 방식</h4><ul>{bullets(form.offers).map(l => <li key={l}>{l}</li>)}</ul></div>}
+              {form.cases && <div className="pd-sec"><h4>진행 사례</h4><ul>{bullets(form.cases).map(l => <li key={l}>{l}</li>)}</ul></div>}
+              {price && <div className="pd-sec"><h4>진행 비용</h4><p>{price}</p></div>}
+              <footer className="pd-foot">{name}{form.contact_email ? ` · ${form.contact_email}` : ''}{form.contact_extra ? ` · ${form.contact_extra}` : ''}</footer>
+              <p className="pd-note">조회수는 블로그 통계 기록(글 {stats.with_stats}개) 기준이에요.</p>
+            </div>
+          </section>
+
+          <section className="card step no-print" aria-labelledby="p-mail">
+            <h2 id="p-mail" className="step-title"><span className="n">3</span>제안 메일</h2>
+            <div className="form-grid">
+              <div className="field"><label htmlFor="m-brand">업체 이름</label><input id="m-brand" className="input" value={mail.brand} maxLength={60} placeholder="예: ○○카페" onChange={e => setMail(m => ({ ...m, brand: e.target.value }))} /></div>
+              <div className="field"><label htmlFor="m-to">업체 이메일</label><input id="m-to" className="input" type="email" value={mail.to} placeholder="partner@example.com" onChange={e => setMail(m => ({ ...m, to: e.target.value }))} /></div>
+              <div className="field"><label htmlFor="m-product">제안할 제품·서비스(선택)</label><input id="m-product" className="input" value={mail.product} maxLength={100} placeholder="예: 겨울 신메뉴" onChange={e => setMail(m => ({ ...m, product: e.target.value }))} /></div>
+            </div>
+            <div className="field"><label htmlFor="m-subject">제목</label><input id="m-subject" className="input" value={mail.subject} onChange={e => { setMail(m => ({ ...m, subject: e.target.value })); setMailTouched(true); }} /></div>
+            <div className="field"><label htmlFor="m-body">본문</label><textarea id="m-body" className="textarea" rows={12} value={mail.body} onChange={e => { setMail(m => ({ ...m, body: e.target.value })); setMailTouched(true); }} /></div>
+            <div className="ai-row">
+              <button className="btn" onClick={() => { void polish(); }} disabled={busy !== null || !mail.brand.trim() || !mail.body.trim()}>{busy === 'mail' ? '다듬는 중…' : 'AI로 다듬기'}</button>
+              {mailTouched && <button className="btn ghost small" onClick={() => setMailTouched(false)}>기본 본문으로 되돌리기</button>}
+              <button className="btn" onClick={() => { void copyMail(); }} disabled={!mail.body.trim()}>복사</button>
+              {validTo
+                ? <a className="btn primary" href={mailtoHref(mail.to, mail.subject, mail.body)}>메일 앱 열기</a>
+                : <button className="btn primary" disabled>메일 앱 열기</button>}
+            </div>
+            <p className="muted small" style={{ margin: 0 }}>메일 앱이 제목·본문이 채워진 채로 열려요. <b>PDF는 메일 앱에서 직접 첨부</b>해 주세요(브라우저는 파일을 자동으로 붙일 수 없어요).{mail.body.length > 1800 ? ' 본문이 길어 메일 앱에는 1,800자까지만 들어가요. 나머지는 복사해서 붙여 주세요.' : ''}</p>
+          </section>
+        </div>
+      )}
+    </article>
+  );
+}
