@@ -80,6 +80,7 @@
 | mini-log 협찬 CSV 받기(지금 보는 목록, 엑셀용 BOM, 수식 막기) · 대시보드 이번 달 수익 목표(받은 금액·받을 금액 막대, `minilog_goals`, `PUT /api/goal`, 백업에는 아직 안 들어감) | `src/csvExport.ts`, `src/GoalBar.tsx`, `functions/api/goal.ts` | 시험 |
 | mini-log 원고 글 종류 9가지(맛집·카페·제품 리뷰·여행·나들이·체험단·협찬·뷰티·패션·정보·일상): 고르면 경험 칸에 뼈대(비었거나 이전 뼈대일 때만), AI 초안에 종류별 구성 안내. `minilog_drafts.post_type`(비면 none), 백업 포함 | `mini-log/functions/_postTypes.ts`, `src/App.tsx` | 시험 |
 | mini-log 썸네일 만들기(올리기 칸): 원고 사진 위에 글자를 얹어 1:1·4:3 JPG(1080 폭)로. 시작 틀 2개(아래 띠·가운데 큰 글씨) + 자유 편집(글자 여러 개, 끌어 옮기기, 크기·색·바탕·손글씨 글꼴, 사진 어둡게). 브라우저에서만 그림(서버 저장·AI 없음) | `mini-log/src/Thumbnail.tsx` | 시험(틀·글자·끌기·비율·JPG 크기) |
+| mini-log 블로그 구조(왼쪽 메뉴 '구조'): 카테고리 나무 2단(목록 붙여 넣기·이름 바꾸기·순서·지우기), 글 배치(PC 끌어다 놓기·휴대폰 골라서 옮기기, 태그가 카테고리 이름과 같으면 자동 배치), 카테고리별 글 비율·월별 게시·평균 조회수·잠잠함(90일)·쏠림(40%) 표시, 주제 묶음(대표+세부)과 빠진 내부 링크 점검(미니로그 원고 본문 기준)·링크 문구 복사. 원고 편집에 '블로그 카테고리' 고르기, 글감 추천이 잠잠한 카테고리를 꼭 넣음, 백업에 구조·수익 목표 포함(다른 계정 백업은 새 아이디로, 같은 이름이면 다시 안 만듦) | `mini-log/functions/_structure.ts`, `api/structure/*`, `src/Structure.tsx`, `src/CategoryPick.tsx`, 표 `minilog_categories`·`minilog_placements`·`minilog_bundles` | 시험 |
 
 ## 3. 미완료(계획만)
 - Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.

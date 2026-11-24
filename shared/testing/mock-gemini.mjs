@@ -69,6 +69,7 @@ createServer((req, res) => {
       const ideas = [
         /\[다가오는 시기\]\n- \d\d-\d\d~/.test(prompt) ? { topic: '시기에 맞춘 카페 글', title: '시기 맞춤: 창가 자리 카페 3곳', reason: '다가오는 시기', hashtags: ['#카페', '데이트'], source: 'trend' } : { topic: '시기 없음', title: '시기 없이 쓴 글감', reason: '시기 없음', hashtags: [], source: 'mine' },
         { topic: '겨울 여행 코스', title: prompt.includes('제주 여행 3박 4일 코스') ? '참고 블로그 반영: 겨울 제주 코스' : '겨울 국내 여행 코스', reason: '참고 블로그 흐름', hashtags: ['여행'], source: 'blogs' },
+        ...((q => (q ? [{ topic: `잠잠한 카테고리: ${q[1]}`, title: `${q[1]} 새 글`, reason: '오래 글이 없는 카테고리', hashtags: [], source: 'mine' }] : []))(prompt.match(/\[오래 글이 없는 내 블로그 카테고리[^\]]*\]\n- ([^\n]+)/))),
         ...(search ? [{ topic: '검색으로 찾은 글감', title: '요즘 뜨는 연말 팝업 후기', reason: '구글 검색', hashtags: ['팝업'], source: 'search' }] : []),
       ];
       const text = JSON.stringify({ ideas });

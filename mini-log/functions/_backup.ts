@@ -1,4 +1,4 @@
-// mini-log 백업: 원고·협찬·문체·제안서 양식·내 블로그(글·숫자)·참고 블로그를 JSON 하나로. 사진(30일 보관)·채팅·로그인 정보는 빼고.
+// mini-log 백업: 원고·협찬·문체·제안서 양식·내 블로그(글·숫자)·참고 블로그·블로그 구조·수익 목표를 JSON 하나로. 사진(30일 보관)·채팅·로그인 정보는 빼고.
 // 불러오기는 '합치기': 없는 것은 더하고, 같은 것은 백업 쪽 updated_at이 더 클 때만 바꾼다. 다른 사용자의 id와 겹치면 건너뛴다.
 import type { D1Database } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
@@ -15,7 +15,7 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max
 
 export async function exportBackup(db: D1Database, user: UserName) {
   const all = (sql: string) => db.prepare(sql).bind(user).all<Record<string, unknown>>().then(r => r.results);
-  const [drafts, campaigns, styles, blogs, posts, watch, proposal] = await Promise.all([
+  const [drafts, campaigns, styles, blogs, posts, watch, proposal, categories, placements, bundles, goal] = await Promise.all([
     all('SELECT id, title, body, hashtags, experience, status, published_url, published_at, style_id, COALESCE(post_type, \'none\') AS post_type, planned_on, created_at, updated_at FROM minilog_drafts WHERE user = ?'),
     all('SELECT id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, created_at, updated_at FROM minilog_campaigns WHERE user = ?'),
     all('SELECT id, kind, name, source, samples, profile, analyzed_at, created_at, updated_at FROM minilog_styles WHERE user = ?'),
@@ -23,6 +23,10 @@ export async function exportBackup(db: D1Database, user: UserName) {
     all('SELECT post_key, blog_id, url, title, published_on, summary, tags, views, likes, comments, stats_on, draft_id, created_at FROM minilog_posts WHERE user = ?'),
     all('SELECT blog_id, titles, synced_at, created_at FROM minilog_watch WHERE user = ?'),
     db.prepare('SELECT form, updated_at FROM minilog_proposals WHERE user = ?').bind(user).first<{ form: string; updated_at: number }>(),
+    all('SELECT id, name, parent_id, sort FROM minilog_categories WHERE user = ? ORDER BY sort'),
+    all('SELECT item, category_id FROM minilog_placements WHERE user = ?'),
+    all('SELECT id, name, hub, members, created_at, updated_at FROM minilog_bundles WHERE user = ?'),
+    db.prepare('SELECT monthly FROM minilog_goals WHERE user = ?').bind(user).first<{ monthly: number }>(),
   ]);
   return {
     app: 'mini-log', version: BACKUP_VERSION, exported_at: Date.now(),
@@ -31,6 +35,9 @@ export async function exportBackup(db: D1Database, user: UserName) {
     styles: styles.map(s => ({ ...s, samples: JSON.parse(String(s.samples || '[]')), profile: s.profile ? JSON.parse(String(s.profile)) : null })),
     blogs, posts, watch: watch.map(w => ({ ...w, titles: JSON.parse(String(w.titles || '[]')) })),
     proposal: proposal ? { form: JSON.parse(proposal.form), updated_at: proposal.updated_at } : null,
+    // 블로그 구조(카테고리·배치·묶음)와 수익 목표
+    structure: { categories, placements, bundles: bundles.map(b => ({ ...b, members: JSON.parse(String(b.members || '[]')) })) },
+    goal: goal?.monthly ?? null,
   };
 }
 
@@ -40,7 +47,7 @@ const counts = (): Counts => ({ added: 0, updated: 0, kept: 0, skipped: 0 });
 /** 백업 합치기. 형식이 틀린 항목은 건너뛴다(전체를 거절하지 않음). */
 export async function mergeBackup(db: D1Database, user: UserName, data: Record<string, unknown>) {
   if (data.app !== 'mini-log' || data.version !== BACKUP_VERSION) throw new Error('mini-log 백업 파일이 아니에요.');
-  const result = { drafts: counts(), campaigns: counts(), styles: counts(), blogs: counts(), posts: counts(), proposal: counts() };
+  const result = { drafts: counts(), campaigns: counts(), styles: counts(), blogs: counts(), posts: counts(), proposal: counts(), structure: counts() };
   const list = (v: unknown) => (Array.isArray(v) ? v.slice(0, 5000) as Record<string, unknown>[] : []);
 
   // 원고
@@ -85,7 +92,9 @@ export async function mergeBackup(db: D1Database, user: UserName, data: Record<s
     if (cur) { await db.prepare('UPDATE minilog_styles SET name = ?, source = ?, samples = ?, profile = ?, analyzed_at = ?, updated_at = ? WHERE id = ? AND user = ?').bind(...row, updated, cur.id, user).run(); result.styles.updated++; }
     else {
       if (kind === 'reference' && ((await db.prepare("SELECT COUNT(*) AS n FROM minilog_styles WHERE user = ? AND kind = 'reference'").bind(user).first<{ n: number }>())?.n ?? 0) >= STYLE_LIMITS.references) { result.styles.skipped++; continue; }
-      await db.prepare('INSERT INTO minilog_styles (id, user, kind, name, source, samples, profile, analyzed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(s.id, user, kind, ...row, created, updated).run(); result.styles.added++;
+      // 내 문체는 아이디가 다른 사람 것과 겹칠 수 있다(다른 계정 백업) → 새 아이디로
+      const styleId = (await db.prepare('SELECT 1 AS ok FROM minilog_styles WHERE id = ?').bind(s.id).first()) ? crypto.randomUUID() : s.id;
+      await db.prepare('INSERT INTO minilog_styles (id, user, kind, name, source, samples, profile, analyzed_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(styleId, user, kind, ...row, created, updated).run(); result.styles.added++;
     }
   }
 
@@ -129,6 +138,45 @@ export async function mergeBackup(db: D1Database, user: UserName, data: Record<s
     if (typeof form === 'string' || !updated) result.proposal.skipped++;
     else if (cur && cur.updated_at >= updated) result.proposal.kept++;
     else { await db.prepare('INSERT INTO minilog_proposals (user, form, updated_at) VALUES (?, ?, ?) ON CONFLICT(user) DO UPDATE SET form = excluded.form, updated_at = excluded.updated_at').bind(user, JSON.stringify(form), updated).run(); result.proposal[cur ? 'updated' : 'added']++; }
+  }
+  // 블로그 구조: 없는 카테고리·묶음만 더하고(다른 사용자 아이디와 겹치면 건너뜀), 배치는 비어 있는 글에만
+  const st = (data.structure ?? {}) as { categories?: unknown; placements?: unknown; bundles?: unknown };
+  const cats = list(st.categories).slice(0, 60);
+  const mine = new Set((await db.prepare('SELECT id FROM minilog_categories WHERE user = ?').bind(user).all<{ id: string }>()).results.map(r => r.id));
+  // 다른 사용자 아이디와 겹치면 새 아이디로(다른 계정 백업을 합칠 때). 같은 이름·같은 상위의 내 카테고리가 이미 있으면 그걸 쓴다(다시 합쳐도 두 번 생기지 않게)
+  const idMap = new Map<string, string>();
+  const mapId = (id: unknown) => (uuid(id) ? (mine.has(id) ? id : idMap.get(id) ?? null) : null);
+  for (const c of [...cats].sort((x, y) => (x.parent_id ? 1 : 0) - (y.parent_id ? 1 : 0))) {
+    const name = str(c.name, 30).trim();
+    if (!uuid(c.id) || !name) { result.structure.skipped++; continue; }
+    if (mine.has(c.id)) { result.structure.kept++; continue; }
+    const parent = mapId(c.parent_id);
+    const same = await db.prepare('SELECT id FROM minilog_categories WHERE user = ? AND name = ? AND parent_id IS ?').bind(user, name, parent).first<{ id: string }>();
+    if (same) { idMap.set(c.id, same.id); result.structure.kept++; continue; }
+    const id = (await db.prepare('SELECT 1 AS ok FROM minilog_categories WHERE id = ?').bind(c.id).first()) ? crypto.randomUUID() : c.id;
+    idMap.set(c.id, id);
+    await db.prepare('INSERT INTO minilog_categories (id, user, name, parent_id, sort, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(id, user, name, parent, Number(c.sort) || 0, Date.now()).run();
+    result.structure.added++;
+  }
+  const owned = new Set((await db.prepare('SELECT id FROM minilog_categories WHERE user = ?').bind(user).all<{ id: string }>()).results.map(r => r.id));
+  for (const p of list(st.placements).slice(0, 2000)) {
+    const item = str(p.item, 320), cat = mapId(p.category_id);
+    if (!/^(post:\S{1,300}|draft:[0-9a-f-]{36})$/.test(item) || !cat || !owned.has(cat)) continue;
+    await db.prepare('INSERT INTO minilog_placements (user, item, category_id) VALUES (?, ?, ?) ON CONFLICT(user, item) DO NOTHING').bind(user, item, cat).run();
+  }
+  for (const b of list(st.bundles).slice(0, 50)) {
+    const name = str(b.name, 40).trim(), hub = str(b.hub, 320);
+    const members = Array.isArray(b.members) ? b.members.filter((m): m is string => typeof m === 'string').slice(0, 20) : [];
+    if (!uuid(b.id) || !name || !hub || !members.length) { result.structure.skipped++; continue; }
+    const cur = await db.prepare('SELECT user FROM minilog_bundles WHERE id = ?').bind(b.id).first<{ user: string }>();
+    if (cur?.user === user || await db.prepare('SELECT 1 AS ok FROM minilog_bundles WHERE user = ? AND name = ?').bind(user, name).first()) { result.structure.kept++; continue; }
+    await db.prepare('INSERT INTO minilog_bundles (id, user, name, hub, members, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(cur ? crypto.randomUUID() : b.id, user, name, hub, JSON.stringify(members), time(b.created_at) ?? Date.now(), time(b.updated_at) ?? Date.now()).run();
+    result.structure.added++;
+  }
+  // 수익 목표: 지금 없을 때만
+  const goal = Number(data.goal);
+  if (Number.isSafeInteger(goal) && goal >= 1000 && !(await db.prepare('SELECT 1 AS ok FROM minilog_goals WHERE user = ?').bind(user).first())) {
+    await db.prepare('INSERT INTO minilog_goals (user, monthly, updated_at) VALUES (?, ?, ?)').bind(user, goal, Date.now()).run();
   }
   return result;
 }

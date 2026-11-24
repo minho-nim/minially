@@ -6,6 +6,8 @@ import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
 import { GoalBar } from './GoalBar';
 import { ThumbnailMaker } from './Thumbnail';
+import { StructureView } from './Structure';
+import { CategoryPick } from './CategoryPick';
 import { outlineText, POST_TYPES, type PostType } from '../functions/_postTypes';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
@@ -216,6 +218,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
         : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
+        : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
@@ -245,8 +248,8 @@ function readRoute(): { view: View; draftId: string | null } {
 }
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
-type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
+type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['blog', '블로그'], ['structure', '구조'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
@@ -901,9 +904,12 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           </div>
         ) : (
           <>
+<div className="ai-row" style={{ alignItems: 'flex-end' }}>
             <div className="field" style={{ maxWidth: 240 }}>
               <label htmlFor="planned-on">게시 예정일(캘린더에 표시)</label>
               <input id="planned-on" className="input" type="date" value={fields.planned_on ?? ''} onChange={e => change({ planned_on: e.target.value || null })} />
+            </div>
+            <CategoryPick draftId={draft.id} onMessage={setMessage} />
             </div>
             <ol className="post-kit">
               <li className="kit-wide">

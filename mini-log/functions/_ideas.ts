@@ -1,3 +1,4 @@
+import { quietCategories } from './_structure';
 // 글감 추천: 다가오는 시기(앱 안 달력) + 참고 블로그 최근 글 제목 + 내 블로그·문체·일정 (+ 켰을 때만 Gemini 구글 검색) → Gemini가 글감 제안.
 // 다른 블로그는 제목만 참고하고 내용은 가져오지 않는다.
 import type { D1Database, HubEnv } from '../../shared/server/d1';
@@ -84,7 +85,8 @@ export async function myMaterial(db: D1Database, user: UserName) {
   const today = kstDay();
   const deadlines = (await db.prepare("SELECT brand, title, deadline FROM minilog_campaigns WHERE user = ? AND status IN ('proposed', 'in_progress') AND deadline >= ? ORDER BY deadline LIMIT 5").bind(user, today).all<{ brand: string; title: string; deadline: string }>()).results;
   const planned = (await db.prepare("SELECT title, planned_on FROM minilog_drafts WHERE user = ? AND status != 'published' AND planned_on >= ? ORDER BY planned_on LIMIT 5").bind(user, today).all<{ title: string; planned_on: string }>()).results;
-  return { top, tags, recent, styleSummary: style?.profile ? (JSON.parse(style.profile).summary as string) : '', deadlines, planned };
+  const quiet = await quietCategories(db, user, today);
+  return { top, tags, recent, styleSummary: style?.profile ? (JSON.parse(style.profile).summary as string) : '', deadlines, planned, quiet };
 }
 
 export function ideasPrompt(input: { today: string; seasons: Season[]; watch: Watch[]; mine: Awaited<ReturnType<typeof myMaterial>>; search: boolean; count: number }) {
@@ -104,6 +106,7 @@ export function ideasPrompt(input: { today: string; seasons: Season[]; watch: Wa
     input.mine.styleSummary ? `[내 문체]\n${input.mine.styleSummary}` : '',
     `[다가오는 협찬 마감]\n${list(input.mine.deadlines.map(d => `${d.deadline} ${d.brand}${d.title ? ` ${d.title}` : ''}`))}`,
     `[게시 예정 원고]\n${list(input.mine.planned.map(d => `${d.planned_on} ${d.title || '제목 없음'}`))}`,
+    input.mine.quiet.length ? `[오래 글이 없는 내 블로그 카테고리(이 중 하나 이상은 꼭 글감에 넣는다)]\n${list(input.mine.quiet)}` : '',
     '</자료>',
   ].filter(Boolean).join('\n\n');
 }
