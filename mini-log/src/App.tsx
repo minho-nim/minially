@@ -8,6 +8,7 @@ import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
+import { ChatPanel } from './Chat';
 import { applyTheme, type Theme } from '../../shared/client/theme';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
@@ -243,6 +244,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             </div>
           )}
       </main>
+      <ChatPanel draftId={view === 'drafts' && selected ? selected.id : null} draftTitle={view === 'drafts' && selected ? selected.title : ''} />
     </div>
   );
 }
@@ -692,6 +694,20 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     timer.current = window.setTimeout(() => { void flush(); }, 800);
   }
   useEffect(() => () => { void flush(); }, [flush]);
+  // 토몽이 채팅의 '원고 끝에 넣기'
+  useEffect(() => {
+    const onInsert = (event: Event) => {
+      const text = String((event as CustomEvent<string>).detail ?? '').trim();
+      if (!text) return;
+      setFields(current => { const next = { ...current, body: current.body.trim() ? `${current.body.trimEnd()}\n\n${text}` : text }; pending.current = next; return next; });
+      setSave('dirty');
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => { void flush(); }, 800);
+      setMessage({ kind: 'info', text: '토몽이 답을 본문 끝에 넣었어요.' });
+    };
+    window.addEventListener('minilog:insert', onInsert);
+    return () => window.removeEventListener('minilog:insert', onInsert);
+  }, [flush]);
   // 창 닫기·새로고침·다른 앱으로 넘어갈 때 0.8초를 기다리지 않고 바로 저장. 저장 전이면 닫기 전에 한 번 묻는다.
   useEffect(() => {
     const onHide = () => { if (document.visibilityState === 'hidden') void flush(true); };

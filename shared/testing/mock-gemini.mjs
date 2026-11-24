@@ -44,6 +44,11 @@ createServer((req, res) => {
       const avg = prompt.match(/평균 조회수 (\S+?)\(/)?.[1] ?? '?';
       return ok({ blog_name: '토몽이의 동네 기록', topic: '동네 카페·빵집', intro: '직접 가 보고 솔직하게 쓰는 동네 기록', about: `평균 조회수 ${avg} 기준으로 소개해요.`, audience: '주말 나들이를 찾는 20~30대로 보여요.', strengths: '- 사진이 많아요\n- 솔직한 후기\n- 꾸준한 업로드', offers: '- 체험단(방문 후기)\n- 제품 리뷰', cases: prompt.includes('보고시험카페') ? '- 보고시험카페 체험단' : '' });
     }
+    if (prompt.includes("블로그 작성 도우미 '토몽이'")) {
+      const q = prompt.match(/사용자의 새 질문: (.*)/)?.[1] ?? '';
+      const extra = [prompt.includes('<원고>\n[제목]') ? '원고 참고' : '', prompt.includes('<대화>\n') ? '대화 기억' : '', prompt.includes('[자연스러운 한국어 규칙]') ? '규칙' : ''].filter(Boolean).join('·');
+      return send(200, { candidates: [{ content: { parts: [{ text: `토몽이 답: ${q}${extra ? ` (${extra})` : ''}` }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 200, candidatesTokenCount: 30, totalTokenCount: 230 } });
+    }
     if (prompt.includes('인스타그램 게시물 글로 바꾸는')) {
       return ok({ caption: `오늘의 기록 한 줄 [사진 1]\n\n가짜 AI 인스타 글이에요.${prompt.includes('[자연스러운 한국어 규칙]') ? ' (규칙 적용)' : ''}`, hashtags: ['#카페', '시험 태그', '카페'] });
     }
