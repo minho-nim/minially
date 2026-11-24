@@ -317,3 +317,7 @@ select.input { appearance: auto; }
   .proposal .pd-nums div { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .proposal .pd-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+.custom-banner { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--app-soft); font-size: 0.875rem; }
+.custom-banner span { flex: 1 1 240px; }
+
+.insta-box { grid-column: 1 / -1; display: grid; gap: 6px; }

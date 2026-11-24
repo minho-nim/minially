@@ -354,6 +354,9 @@
  .desktop-titlebar { padding-inline: 8px; }
 }
 .desktop-content .app-titlebar { top: var(--desktop-bar-height); }
+/* 캘린더·메모처럼 화면 안에서 따로 스크롤하는 탭은 머리줄 기준이 이미 제목 표시줄 아래라서 다시 내리지 않는다(두 번 내려가 내용을 가리던 문제). */
+.desktop-content .h-dvh.overflow-hidden .app-titlebar { top: 0; }
+@media (min-width: 768px) { .desktop-content .md\:h-dvh.md\:overflow-hidden .app-titlebar { top: 0; } }
 @media (min-width: 768px) {
  .notes-workspace { position: relative; grid-template-columns: var(--notes-folder-width, 180px) var(--notes-list-width, 240px) minmax(0, 1fr); }
  .notes-workspace.notes-focus { grid-template-columns: minmax(0, 1fr); }

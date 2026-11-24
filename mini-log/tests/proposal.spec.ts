@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
 import { login } from './helpers';
-import { defaultMail, mailtoHref, priceLine, sentence, type ProposalForm, type ProposalStats } from '../src/proposalKit';
+import { defaultDm, defaultMail, instagramDmHref, mailtoHref, priceLine, sentence, type ProposalForm, type ProposalStats } from '../src/proposalKit';
 
 const form: ProposalForm = { blog_name: '토몽이의 동네 기록', topic: '동네 카페', intro: '솔직한 동네 기록', about: '', audience: '', strengths: '', offers: '- 체험단\n- 제품 리뷰', cases: '', price: '원고료 10만 원부터', show_price: false, contact_email: 'me@example.com', contact_extra: '' };
 const stats: ProposalStats = { blogs: ['myblog'], posts_total: 12, posts_per_month: 4, avg_views: 1234, with_stats: 5, top: [], tags: [], sponsor_done: 2, brands: [] };
@@ -26,6 +26,19 @@ test('기본 메일·단가 문장·메일 앱 주소(규칙, AI 없이)', () =>
   expect(mail.body).toContain('블로그 소개서(PDF)를 첨부했어요.');
   expect(mailtoHref('a@b.co', '제목', '본문')).toBe('mailto:a%40b.co?subject=%EC%A0%9C%EB%AA%A9&body=%EB%B3%B8%EB%AC%B8');
   expect(decodeURIComponent(mailtoHref('a@b.co', 's', 'x'.repeat(3000)).split('body=')[1]).length).toBe(1800);
+});
+
+test('인스타 DM 기본 글·DM 주소', () => {
+  const dm = defaultDm(form, stats, '토마토', '○○카페', '겨울 신메뉴');
+  expect(dm).toContain('안녕하세요, ○○카페 담당자님!');
+  expect(dm).toContain('겨울 신메뉴를 직접 경험하고');
+  expect(dm).toContain('한 달에 4개 정도 글을 올리고, 글 평균 조회수는 1,234회예요.');
+  expect(dm).toContain('메일로 보내 드릴게요(me@example.com)');
+  expect(dm.length).toBeLessThan(300);
+  expect(defaultDm(form, stats, '토마토', '○○카페', '')).toContain('○○카페의 제품·서비스를 직접');
+  expect(instagramDmHref('@cafe_example')).toBe('https://ig.me/m/cafe_example');
+  expect(instagramDmHref('https://www.instagram.com/cafe.ex/?hl=ko')).toBe('https://ig.me/m/cafe.ex');
+  expect(instagramDmHref('나쁜 아이디!')).toBeNull();
 });
 
 test('제안서: AI 초안 → 고치고 저장 → 미리보기·PDF(단가 옵션) → 메일 본문 수정·AI 다듬기·메일 앱', async ({ page, browser }) => {
@@ -94,6 +107,27 @@ test('제안서: AI 초안 → 고치고 저장 → 미리보기·PDF(단가 옵
   expect(decodeURIComponent(href!.split('body=')[1])).toContain('다듬은 본문이에요');
   await page.getByRole('button', { name: '기본 본문으로 되돌리기' }).click();
   await expect(page.getByLabel('본문')).toHaveValue(/신메뉴를 직접 경험하고/);
+
+  // 이번 제안용으로 고치기: 미리보기·메일에는 들어가고 기본 양식은 그대로
+  await page.getByRole('button', { name: '이번 제안용으로 고치기' }).click();
+  await page.getByLabel('한 줄 소개').fill('○○카페만을 위한 소개');
+  await expect(doc).toContainText('○○카페만을 위한 소개');
+  await expect(page.getByRole('button', { name: '저장', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '기본 양식으로 돌아가기' }).click();
+  await expect(page.getByLabel('한 줄 소개')).toHaveValue('직접 가 보고 쓰는 솔직한 동네 기록');
+  expect(await page.evaluate(async () => (await (await fetch('/api/proposal')).json()).form.intro)).toBe('직접 가 보고 쓰는 솔직한 동네 기록');
+
+  // 인스타 DM: 짧은 기본 글, 아이디로 DM 열기, AI 다듬기(자연스러운 한국어 규칙 포함)
+  await page.getByRole('tab', { name: '인스타 DM' }).click();
+  await expect(page.getByLabel('제목')).toHaveCount(0);
+  await expect(page.getByLabel(/DM 내용/)).toHaveValue(/안녕하세요, ○○카페 담당자님!/);
+  await expect(page.getByRole('button', { name: /인스타 DM 열기/ })).toBeDisabled(); // 아이디를 넣기 전
+  await page.getByLabel('업체 인스타 아이디').fill('@cafe_example');
+  await expect(page.getByRole('link', { name: /인스타 DM 열기/ })).toHaveAttribute('href', 'https://ig.me/m/cafe_example');
+  await page.getByRole('button', { name: 'AI로 다듬기' }).click();
+  await expect(page.getByLabel(/DM 내용/)).toHaveValue('안녕하세요! 다듬은 DM이에요. (규칙 적용)');
+  await page.getByRole('tab', { name: '메일' }).click();
+  await expect(page.getByLabel('제목')).toHaveValue(/\[협찬 제안\]/);
 
   // 다른 사용자는 C 양식을 못 본다, 잘못된 이메일 400
   const d = await (await browser.newContext()).newPage();

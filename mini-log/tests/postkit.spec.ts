@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C } from '../playwright.config';
 import { login, pngBytes } from './helpers';
-import { fullText, pasteBody, photoFileName } from '../src/publishKit';
+import { fullText, instagramText, pasteBody, photoFileName } from '../src/publishKit';
 import { eulReul, splitBody } from '../src/PostPreview';
 
 test('올리기 글·사진 이름 만들기', () => {
@@ -14,6 +14,16 @@ test('올리기 글·사진 이름 만들기', () => {
   ]);
   expect(photoFileName(0, Date.parse('2026-11-23T16:00:00Z'))).toBe('minilog_20261124_01.jpg'); // 한국 시간 기준 날짜
   expect(photoFileName(11, Date.parse('2026-11-23T10:00:00Z'))).toBe('minilog_20261123_12.jpg');
+});
+
+test('인스타 글(규칙): 사진 표시 빼기·해시태그 30개·2,200자', () => {
+  expect(instagramText('제목', '첫 문단\n[사진 1]\n\n\n\n둘째', ['#카페', '카페', '빵 집'])).toBe('제목\n\n첫 문단\n\n둘째\n\n#카페 #빵집');
+  const many = Array.from({ length: 40 }, (_, i) => `태그${i}`);
+  expect((instagramText('t', 'b', many).match(/#/g) ?? []).length).toBe(30);
+  const long = instagramText('t', 'ㄱ'.repeat(5000), ['a']);
+  expect(long.length).toBeLessThanOrEqual(2200);
+  expect(long.endsWith('#a')).toBe(true);
+  expect(instagramText('t', 'b', ['x'], 'AI 글')).toBe('AI 글\n\n#x');
 });
 
 test('올리기 보조: 한 번에·따로 복사, 사진 번호 붙여 받기, 주소 넣어 게시 완료', async ({ page, context }) => {
@@ -65,6 +75,17 @@ test('올리기 보조: 한 번에·따로 복사, 사진 번호 붙여 받기, 
   await expect.poll(() => names.length).toBe(2);
   expect(names).toEqual([photoFileName(0), photoFileName(1)]);
   await expect(kit.getByRole('link', { name: /네이버 블로그 글쓰기/ })).toHaveAttribute('href', 'https://blog.naver.com/GoBlogWrite.naver');
+
+  // 인스타 게시물 글: 규칙 글 → AI 글(자연스러운 한국어 규칙) → 고치기 → 복사
+  await kit.getByRole('button', { name: '인스타 게시물 글 만들기' }).click();
+  const insta = page.getByLabel('인스타 게시물 글');
+  await expect(insta).toHaveValue('올리기 시험 원고\n\n첫 문단\n\n두 번째 문단\n\n#카페 #시험');
+  await kit.getByRole('button', { name: 'AI로 인스타 글 쓰기' }).click();
+  await expect(insta).toHaveValue('오늘의 기록 한 줄\n\n가짜 AI 인스타 글이에요. (규칙 적용)\n\n#카페 #시험태그');
+  await insta.fill('내가 고친 인스타 글 #카페');
+  await kit.getByRole('button', { name: '인스타 글 복사' }).click();
+  expect(await clip()).toBe('내가 고친 인스타 글 #카페');
+  await expect(kit).toContainText('해시태그 1/30개');
 
   // 올린 뒤 주소 → 게시 완료
   await page.getByLabel('게시한 글 주소').fill('https://blog.naver.com/myblog/223999999999');

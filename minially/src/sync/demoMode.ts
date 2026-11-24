@@ -59,7 +59,9 @@ export function demoData(today = new Date()) {
   const add = (date: string, title: string, category: string, extra: Partial<Schedule> = {}) => {
     schedules.push({ id: `demo-s${schedules.length + 1}`, date, title, category, completed: date < todayKey, ...extra });
   };
-  const rules: RecurrenceRule[] = [], exceptions: RecurrenceException[] = [];
+  const rules: RecurrenceRule[] = [], exceptions: RecurrenceException[] = [], repeatDays = new Set<string>();
+  /** 반복 일정이 없는 가장 가까운 날(달력 칸에 '+1개'로 접혀 안 보이는 일이 없게) */
+  const freeDay = (from: number) => { for (let d = from; d < from + 14; d++) if (!repeatDays.has(ymd(today, d))) return ymd(today, d); return ymd(today, from); };
   const first = ymd(new Date(today.getFullYear(), today.getMonth() - 1, 1), 0);
   const last = ymd(new Date(today.getFullYear(), today.getMonth() + 2, 0), 0);
   /** 프리셋 블록 두 개를 눌러 만든 반복 일정(지난달 1일 ~ 다음 달 말일). 오늘 이전 회차는 완료로 둔다. */
@@ -67,6 +69,7 @@ export function demoData(today = new Date()) {
     const n = schedules.length + 1, id = `demo-s${n}`;
     const full: RecurrenceRule = { id: id + '-repeat', scheduleId: id, startDate: rule.startDate || first, endDate: last, frequency: rule.frequency, ...(rule.weekdays ? { weekdays: rule.weekdays } : {}) };
     const dates = expandRecurringSchedules([{ id, title: '', date: full.startDate, category, completed: false }], [full], [], first, last).map(s => s.date);
+    dates.forEach(d => repeatDays.add(d));
     const titleBlocks = presetIds.map((presetId, i) => {
       usage.set(presetId, (usage.get(presetId) ?? 0) + dates.length);
       return { id: `demo-b${n}-${i}`, text: presetDefs.find(d => d[0] === presetId)![1], presetId };
@@ -86,7 +89,7 @@ export function demoData(today = new Date()) {
   // 오늘과 가까운 날의 한 번뿐인 일정(직접 입력)
   add(todayKey, '저녁 산책', 'demo-exercise');
   add(todayKey, '영어 단어 30개', 'demo-study', { isImportant: true });
-  add(ymd(today, 1), '친구 생일', 'demo-meet', { isImportant: true });
+  add(freeDay(1), '친구 생일', 'demo-meet', { isImportant: true });
   add(ymd(today, 3), '과학 수행평가', 'demo-study', { isImportant: true });
   add(ymd(today, 11), '모의고사', 'demo-study', { isImportant: true });
   add(ymd(today, 14), '가족 저녁', 'demo-meet', { startTime: '18:00' });

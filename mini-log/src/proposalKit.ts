@@ -61,3 +61,25 @@ export function defaultMail(f: ProposalForm, s: ProposalStats, name: string, bra
 export function mailtoHref(to: string, subject: string, body: string) {
   return `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.slice(0, 1800))}`;
 }
+
+/** 인스타 DM용 짧은 제안(규칙, 300자 안팎) */
+export function defaultDm(f: ProposalForm, s: ProposalStats, name: string, brand: string, product: string) {
+  const blog = f.blog_name || '제 블로그';
+  const target = product ? `${product}${eulReul(product)}` : `${brand || '제품·서비스'}${brand ? '의 제품·서비스를' : ''}`.replace('제품·서비스을', '제품·서비스를');
+  return [
+    `안녕하세요, ${brand ? `${brand} ` : ''}담당자님!`,
+    `${f.topic ? `${f.topic} 블로그 ` : '블로그 '}「${blog}」${eulReul(blog) === '를' ? '를' : '을'} 운영하는 ${name}입니다.`,
+    `${target} 직접 경험하고 솔직한 후기로 소개하고 싶어 연락드렸어요.`,
+    s.posts_per_month && s.avg_views ? `한 달에 ${s.posts_per_month}개 정도 글을 올리고, 글 평균 조회수는 ${s.avg_views.toLocaleString('ko-KR')}회예요.`
+      : s.posts_per_month ? `한 달에 ${s.posts_per_month}개 정도 글을 올리고 있어요.` : s.avg_views ? `글 평균 조회수는 ${s.avg_views.toLocaleString('ko-KR')}회예요.` : '',
+    priceLine(f) ? `진행 비용: ${priceLine(f)}` : '',
+    f.contact_email ? `자세한 제안서는 메일로 보내 드릴게요(${f.contact_email}).` : '자세한 제안서도 보내 드릴 수 있어요.',
+    '편하게 답장 주세요. 감사합니다!',
+  ].filter(Boolean).join('\n');
+}
+
+/** 인스타 아이디(@포함·주소도 됨) → DM 열기 주소. 형식이 틀리면 null */
+export function instagramDmHref(handle: string) {
+  const id = handle.trim().replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/[/?#].*$/, '');
+  return /^[A-Za-z0-9._]{1,30}$/.test(id) ? `https://ig.me/m/${id}` : null;
+}

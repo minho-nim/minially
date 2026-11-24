@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
-import { fullText, photoFileName } from './publishKit';
+import { fullText, instagramText, photoFileName } from './publishKit';
 import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
@@ -572,6 +572,9 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
   const [publishUrl, setPublishUrl] = useState(draft.published_url);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // 인스타 게시물 글: 처음엔 규칙으로 만든 글, 'AI로 인스타 글 쓰기'를 누르면 AI 글. 고친 내용은 이 화면에서만(저장 안 함)
+  const [insta, setInsta] = useState<string | null>(null);
+  const [instaBusy, setInstaBusy] = useState(false);
   const [published, setPublished] = useState({ url: draft.published_url, at: draft.published_at });
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -725,6 +728,21 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     const text = fullText(fields.title, fields.body, fields.hashtags);
     if (!text) { setMessage({ kind: 'error', text: '복사할 내용이 없어요.' }); return; }
     try { await navigator.clipboard.writeText(text); setCopied(true); setMessage({ kind: 'info', text: `제목·본문·해시태그를 복사했어요. 글쓰기 화면에 붙여 넣으세요.${/\[사진\s*\d+\]/.test(fields.body) ? ' 📷 사진 n 자리에 사진을 넣으면 돼요.' : ''}` }); }
+    catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 글을 직접 선택해 복사해 주세요.' }); }
+  }
+
+  async function aiInstagram() {
+    await flush();
+    setInstaBusy(true); setMessage(null);
+    try {
+      const r = await api<{ caption: string; hashtags: string[] }>(`/api/drafts/${draft.id}/instagram`, { body: {} });
+      setInsta(instagramText(fields.title, fields.body, r.hashtags.length ? r.hashtags : fields.hashtags, r.caption));
+      setMessage({ kind: 'info', text: 'AI가 인스타 글을 썼어요. 고친 뒤 복사해서 올리세요.' });
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '인스타 글을 만들지 못했어요.' }); }
+    finally { setInstaBusy(false); }
+  }
+  async function copyInstagram(text: string) {
+    try { await navigator.clipboard.writeText(text); setMessage({ kind: 'info', text: '인스타 글을 복사했어요. 인스타 새 게시물의 문구 칸에 붙여 넣으세요.' }); }
     catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 글을 직접 선택해 복사해 주세요.' }); }
   }
 
@@ -893,6 +911,24 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
                   <a className="btn small" href="https://blog.naver.com/GoBlogWrite.naver" target="_blank" rel="noopener noreferrer">네이버 블로그 글쓰기 ↗</a>
                   <span className="muted small">티스토리는 내 블로그 관리 → 글쓰기</span>
                 </div>
+              </li>
+              <li className="kit-wide">
+                <span className="kit-label">인스타</span>
+                <div className="kit-buttons">
+                  <button className="btn small" onClick={() => setInsta(v => (v === null ? instagramText(fields.title, fields.body, fields.hashtags) : null))} aria-expanded={insta !== null}>{insta === null ? '인스타 게시물 글 만들기' : '인스타 글 닫기'}</button>
+                  {insta !== null && <button className="btn small" onClick={() => { void aiInstagram(); }} disabled={instaBusy || fields.body.trim().length < 20}>{instaBusy ? '쓰는 중…' : 'AI로 인스타 글 쓰기'}</button>}
+                  <span className="muted small">인스타는 앱이 대신 올릴 수 없어서 글을 복사해 올려요. 사진은 '번호 붙여 받기' 순서대로 최대 20장.</span>
+                </div>
+                {insta !== null && (
+                  <div className="insta-box">
+                    <label htmlFor="insta-text" className="sr-only">인스타 게시물 글</label>
+                    <textarea id="insta-text" className="textarea" rows={10} value={insta} onChange={e => setInsta(e.target.value)} />
+                    <div className="kit-buttons">
+                      <button className="btn primary small" onClick={() => { void copyInstagram(insta); }} disabled={!insta.trim()}>인스타 글 복사</button>
+                      <span className={`small ${insta.length > 2200 ? 'error' : 'muted'}`}>{insta.length.toLocaleString('ko-KR')} / 2,200자 · 해시태그 {(insta.match(/#[^\s#]+/g) ?? []).length}/30개</span>
+                    </div>
+                  </div>
+                )}
               </li>
             </ol>
             <p className="muted small" style={{ margin: 0 }}>올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>

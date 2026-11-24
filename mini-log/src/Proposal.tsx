@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { blogInfo } from './Blog';
-import { bullets, defaultMail, mailtoHref, priceLine, type ProposalForm, type ProposalStats } from './proposalKit';
+import { bullets, defaultDm, defaultMail, instagramDmHref, mailtoHref, priceLine, type ProposalForm, type ProposalStats } from './proposalKit';
 
-// 협찬 제안서: ① 기본 양식(직접 쓰기 + AI 초안) ② 미리보기·PDF ③ 제안 메일(기본 본문 → 고치기 → AI 다듬기 → 메일 앱)
+// 협찬 제안서: ① 기본 양식(직접 쓰기 + AI 초안, 업체마다 '이번 제안용'으로 고치기) ② 미리보기·PDF ③ 제안 메일·인스타 DM(기본 본문 → 고치기 → AI 다듬기 → 메일 앱·인스타)
 type Field = { key: keyof ProposalForm; label: string; rows?: number; placeholder: string };
 const FIELDS: Field[] = [
   { key: 'blog_name', label: '블로그 이름', placeholder: '예: 토몽이의 동네 기록' },
@@ -18,32 +18,37 @@ const FIELDS: Field[] = [
 ];
 
 export function ProposalView({ name, onBack }: { name: string; onBack: () => void }) {
-  const [form, setForm] = useState<ProposalForm | null>(null);
+  const [base, setBase] = useState<ProposalForm | null>(null);
+  // 이번 제안용(업체 맞춤): 기본 양식을 복사해 고치고, 저장하지 않는다
+  const [custom, setCustom] = useState<ProposalForm | null>(null);
+  const form = custom ?? base;
+  const setForm = (next: ProposalForm | ((f: ProposalForm | null) => ProposalForm | null)) => (custom ? setCustom : setBase)(next as never);
   const [stats, setStats] = useState<ProposalStats | null>(null);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState<'save' | 'draft' | 'mail' | null>(null);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
-  const [mail, setMail] = useState({ brand: '', to: '', product: '', subject: '', body: '' });
+  const [mail, setMail] = useState({ brand: '', to: '', ig: '', product: '', subject: '', body: '' });
+  const [channel, setChannel] = useState<'mail' | 'dm'>('mail');
   const [mailTouched, setMailTouched] = useState(false);
   const fail = (e: unknown, text: string) => setMessage({ kind: 'error', text: e instanceof Error ? e.message : text });
 
   useEffect(() => {
-    api<{ form: ProposalForm; stats: ProposalStats }>('/api/proposal').then(d => { setForm(d.form); setStats(d.stats); }).catch(e => fail(e, '불러오지 못했어요.'));
+    api<{ form: ProposalForm; stats: ProposalStats }>('/api/proposal').then(d => { setBase(d.form); setStats(d.stats); }).catch(e => fail(e, '불러오지 못했어요.'));
   }, []);
 
-  const set = (patch: Partial<ProposalForm>) => { setForm(f => f && { ...f, ...patch }); setDirty(true); };
+  const set = (patch: Partial<ProposalForm>) => { setForm(f => f && { ...f, ...patch }); if (!custom) setDirty(true); };
 
   async function save() {
-    if (!form) return;
+    if (!base) return;
     setBusy('save'); setMessage(null);
-    try { const r = await api<{ form: ProposalForm }>('/api/proposal', { method: 'PUT', body: form }); setForm(r.form); setDirty(false); setMessage({ kind: 'info', text: '기본 양식을 저장했어요.' }); }
+    try { const r = await api<{ form: ProposalForm }>('/api/proposal', { method: 'PUT', body: base }); setBase(r.form); setDirty(false); setMessage({ kind: 'info', text: '기본 양식을 저장했어요.' }); }
     catch (e) { fail(e, '저장하지 못했어요.'); }
     finally { setBusy(null); }
   }
 
   async function aiDraft() {
     if (!form) return;
-    if (dirty) await save();
+    if (dirty && !custom) await save();
     setBusy('draft'); setMessage(null);
     try {
       const { draft } = await api<{ draft: Partial<ProposalForm> }>('/api/proposal/draft', { body: {} });
@@ -54,25 +59,30 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
   }
 
   // 업체 이름·제안 대상을 바꾸면, 아직 손대지 않은 메일은 기본 본문을 다시 채운다
-  const base = useMemo(() => (form && stats ? defaultMail(form, stats, name, mail.brand.trim(), mail.product.trim()) : null), [form, stats, name, mail.brand, mail.product]);
-  useEffect(() => { if (base && !mailTouched) setMail(m => ({ ...m, subject: base.subject, body: base.body })); }, [base, mailTouched]);
+  const draftText = useMemo(() => {
+    if (!form || !stats) return null;
+    return channel === 'dm' ? { subject: '', body: defaultDm(form, stats, name, mail.brand.trim(), mail.product.trim()) } : defaultMail(form, stats, name, mail.brand.trim(), mail.product.trim());
+  }, [form, stats, name, mail.brand, mail.product, channel]);
+  useEffect(() => { if (draftText && !mailTouched) setMail(m => ({ ...m, subject: draftText.subject, body: draftText.body })); }, [draftText, mailTouched]);
+  function switchChannel(next: 'mail' | 'dm') { if (next === channel) return; setChannel(next); setMailTouched(false); }
 
   async function polish() {
     setBusy('mail'); setMessage(null);
     try {
-      const r = await api<{ subject: string; body: string }>('/api/proposal/mail', { body: { brand: mail.brand, product: mail.product, subject: mail.subject, body: mail.body } });
+      const r = await api<{ subject: string; body: string }>('/api/proposal/mail', { body: { brand: mail.brand, product: mail.product, subject: mail.subject, body: mail.body, kind: channel } });
       setMail(m => ({ ...m, ...r })); setMailTouched(true);
-      setMessage({ kind: 'info', text: 'AI가 메일을 다듬었어요. 확인하고 고친 뒤 보내세요.' });
+      setMessage({ kind: 'info', text: `AI가 ${channel === 'dm' ? 'DM' : '메일'}을 다듬었어요. 확인하고 고친 뒤 보내세요.` });
     } catch (e) { fail(e, '메일을 다듬지 못했어요.'); }
     finally { setBusy(null); }
   }
 
   async function copyMail() {
-    try { await navigator.clipboard.writeText(`${mail.subject}\n\n${mail.body}`); setMessage({ kind: 'info', text: '제목과 본문을 복사했어요.' }); }
+    try { await navigator.clipboard.writeText(channel === 'dm' ? mail.body : `${mail.subject}\n\n${mail.body}`); setMessage({ kind: 'info', text: channel === 'dm' ? 'DM을 복사했어요. 인스타 대화창에 붙여 넣으세요.' : '제목과 본문을 복사했어요.' }); }
     catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 본문을 직접 선택해 복사해 주세요.' }); }
   }
 
   const validTo = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(mail.to.trim());
+  const igHref = instagramDmHref(mail.ig);
   const price = form ? priceLine(form) : '';
 
   return (
@@ -89,11 +99,19 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
       {form && stats && (
         <div className="proposal-grid">
           <section className="card step no-print" aria-labelledby="p-form">
-            <h2 id="p-form" className="step-title"><span className="n">1</span>기본 양식{dirty && <span className="step-sub">저장 안 됨</span>}</h2>
+            <h2 id="p-form" className="step-title"><span className="n">1</span>{custom ? '이번 제안용 양식' : '기본 양식'}{dirty && !custom && <span className="step-sub">저장 안 됨</span>}</h2>
+            {custom ? (
+              <div className="custom-banner" role="status">
+                <span>업체에 맞춰 고치는 중이에요. <b>기본 양식은 그대로</b> 남아요(미리보기·PDF·메일에는 고친 내용이 들어가요).</span>
+                <button className="btn small" onClick={() => setCustom(null)}>기본 양식으로 돌아가기</button>
+              </div>
+            ) : (
+              <button className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => base && setCustom({ ...base })} disabled={busy !== null}>이번 제안용으로 고치기</button>
+            )}
             <p className="muted small" style={{ margin: 0 }}>한 번 써 두면 업체마다 다시 쓸 필요 없어요. 비어 있어도 <b>AI로 초안 쓰기</b>를 누르면 내 블로그 글·숫자를 보고 채워 줘요(숫자는 실제 기록만).</p>
             <div className="ai-row">
               <button className="btn primary" onClick={() => { void aiDraft(); }} disabled={busy !== null}>{busy === 'draft' ? '쓰는 중…' : 'AI로 초안 쓰기'}</button>
-              <button className="btn" onClick={() => { void save(); }} disabled={busy !== null || !dirty}>{busy === 'save' ? '저장 중…' : '저장'}</button>
+              {!custom && <button className="btn" onClick={() => { void save(); }} disabled={busy !== null || !dirty}>{busy === 'save' ? '저장 중…' : '저장'}</button>}
               {busy === 'draft' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={28} bounce /><span className="hand">토몽이가 제안서를 쓰고 있어요</span></span>}
             </div>
             <div className="prop-fields">
@@ -152,23 +170,36 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
           </section>
 
           <section className="card step no-print" aria-labelledby="p-mail">
-            <h2 id="p-mail" className="step-title"><span className="n">3</span>제안 메일</h2>
+            <div className="row-between">
+              <h2 id="p-mail" className="step-title"><span className="n">3</span>제안 보내기</h2>
+              <div className="style-tabs" role="tablist" aria-label="보낼 곳">
+                <button role="tab" aria-selected={channel === 'mail'} onClick={() => switchChannel('mail')}>메일</button>
+                <button role="tab" aria-selected={channel === 'dm'} onClick={() => switchChannel('dm')}>인스타 DM</button>
+              </div>
+            </div>
             <div className="form-grid">
               <div className="field"><label htmlFor="m-brand">업체 이름</label><input id="m-brand" className="input" value={mail.brand} maxLength={60} placeholder="예: ○○카페" onChange={e => setMail(m => ({ ...m, brand: e.target.value }))} /></div>
-              <div className="field"><label htmlFor="m-to">업체 이메일</label><input id="m-to" className="input" type="email" value={mail.to} placeholder="partner@example.com" onChange={e => setMail(m => ({ ...m, to: e.target.value }))} /></div>
+              {channel === 'mail'
+                ? <div className="field"><label htmlFor="m-to">업체 이메일</label><input id="m-to" className="input" type="email" value={mail.to} placeholder="partner@example.com" onChange={e => setMail(m => ({ ...m, to: e.target.value }))} /></div>
+                : <div className="field"><label htmlFor="m-ig">업체 인스타 아이디</label><input id="m-ig" className="input" value={mail.ig} placeholder="@cafe_example 또는 인스타 주소" autoCapitalize="none" spellCheck={false} onChange={e => setMail(m => ({ ...m, ig: e.target.value }))} /></div>}
               <div className="field"><label htmlFor="m-product">제안할 제품·서비스(선택)</label><input id="m-product" className="input" value={mail.product} maxLength={100} placeholder="예: 겨울 신메뉴" onChange={e => setMail(m => ({ ...m, product: e.target.value }))} /></div>
             </div>
-            <div className="field"><label htmlFor="m-subject">제목</label><input id="m-subject" className="input" value={mail.subject} onChange={e => { setMail(m => ({ ...m, subject: e.target.value })); setMailTouched(true); }} /></div>
-            <div className="field"><label htmlFor="m-body">본문</label><textarea id="m-body" className="textarea" rows={12} value={mail.body} onChange={e => { setMail(m => ({ ...m, body: e.target.value })); setMailTouched(true); }} /></div>
+            {channel === 'mail' && <div className="field"><label htmlFor="m-subject">제목</label><input id="m-subject" className="input" value={mail.subject} onChange={e => { setMail(m => ({ ...m, subject: e.target.value })); setMailTouched(true); }} /></div>}
+            <div className="field"><label htmlFor="m-body">{channel === 'dm' ? 'DM 내용' : '본문'}<span className="muted small"> · {mail.body.length}자</span></label><textarea id="m-body" className="textarea" rows={channel === 'dm' ? 8 : 12} value={mail.body} onChange={e => { setMail(m => ({ ...m, body: e.target.value })); setMailTouched(true); }} /></div>
             <div className="ai-row">
               <button className="btn" onClick={() => { void polish(); }} disabled={busy !== null || !mail.brand.trim() || !mail.body.trim()}>{busy === 'mail' ? '다듬는 중…' : 'AI로 다듬기'}</button>
               {mailTouched && <button className="btn ghost small" onClick={() => setMailTouched(false)}>기본 본문으로 되돌리기</button>}
-              <button className="btn" onClick={() => { void copyMail(); }} disabled={!mail.body.trim()}>복사</button>
-              {validTo
+              <button className={channel === 'dm' ? 'btn primary' : 'btn'} onClick={() => { void copyMail(); }} disabled={!mail.body.trim()}>{channel === 'dm' ? 'DM 복사' : '복사'}</button>
+              {channel === 'mail' && (validTo
                 ? <a className="btn primary" href={mailtoHref(mail.to, mail.subject, mail.body)}>메일 앱 열기</a>
-                : <button className="btn primary" disabled>메일 앱 열기</button>}
+                : <button className="btn primary" disabled>메일 앱 열기</button>)}
+              {channel === 'dm' && (igHref
+                ? <a className="btn" href={igHref} target="_blank" rel="noopener noreferrer">인스타 DM 열기 ↗</a>
+                : <button className="btn" disabled>인스타 DM 열기 ↗</button>)}
             </div>
-            <p className="muted small" style={{ margin: 0 }}>메일 앱이 제목·본문이 채워진 채로 열려요. <b>PDF는 메일 앱에서 직접 첨부</b>해 주세요(브라우저는 파일을 자동으로 붙일 수 없어요).{mail.body.length > 1800 ? ' 본문이 길어 메일 앱에는 1,800자까지만 들어가요. 나머지는 복사해서 붙여 주세요.' : ''}</p>
+            {channel === 'mail'
+              ? <p className="muted small" style={{ margin: 0 }}>메일 앱이 제목·본문이 채워진 채로 열려요. <b>PDF는 메일 앱에서 직접 첨부</b>해 주세요(브라우저는 파일을 자동으로 붙일 수 없어요).{mail.body.length > 1800 ? ' 본문이 길어 메일 앱에는 1,800자까지만 들어가요. 나머지는 복사해서 붙여 주세요.' : ''}</p>
+              : <p className="muted small" style={{ margin: 0 }}>인스타는 앱이 대신 보낼 수 없어서 <b>복사 → DM 열기 → 붙여 넣기</b>로 보내요. 제안서 PDF는 DM에 사진으로 넣기보다 답장이 오면 메일로 보내는 걸 추천해요.{mail.body.length > 300 ? ' DM은 300자 안쪽이 읽기 좋아요.' : ''}</p>}
           </section>
         </div>
       )}
