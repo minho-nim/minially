@@ -122,6 +122,8 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
     if (disabled || event.pointerType !== 'touch' || (event.target as Element).closest('button, a, input, textarea, select, [contenteditable="true"], [data-no-swipe]')) return;
     const now = performance.now();
     gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, time: Date.now(), horizontal: false, lastX: event.clientX, lastT: now, vx: 0 };
+    // 손가락을 대는 순간 레이어를 미리 띄워 둔다(첫 움직임에서 레이어를 만드느라 끊기지 않게)
+    if (track.current) track.current.style.willChange = 'transform';
   };
   const move = (event: PointerEvent<HTMLDivElement>) => {
     const start = gesture.current;
@@ -156,7 +158,7 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
     const dir = disabled ? 0 : flick || (Math.abs(x) >= Math.min(64, width * 0.18) ? (x < 0 ? 1 : -1) : 0);
     settle(dir as -1 | 0 | 1, velocity);
   };
-  const paneClass = 'flex min-h-0 w-full shrink-0 flex-col' + (autoHeight ? '' : ' h-full');
+  const paneClass = 'swipe-pane flex min-h-0 w-full shrink-0 flex-col' + (autoHeight ? '' : ' h-full');
   const showSides = preloaded || phase !== 'idle';
   return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction: 'pan-y pinch-zoom', height: autoHeight ? height : undefined, transition: autoHeight && phase !== 'dragging' ? 'height 220ms cubic-bezier(.22,.68,0,1)' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
     <div ref={track} data-swipe-track className={autoHeight ? 'absolute top-0 left-0 flex w-full items-start' : 'flex h-full min-h-0 w-full'} style={{ columnGap: gap, transform: `translate3d(calc(-100% - ${gap}px), 0, 0)`, willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
