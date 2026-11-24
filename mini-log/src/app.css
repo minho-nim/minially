@@ -357,3 +357,8 @@ select.input { appearance: auto; }
 .pitch-chip.late { background: #FDE2DF; color: #9B2C22; }
 .brand-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .feed-url { display: grid; gap: 6px; }
+.goal { display: grid; gap: 6px; }
+.goal-track { display: flex; height: 10px; border-radius: 999px; background: var(--chart-empty); overflow: hidden; }
+.goal-paid { background: var(--app); }
+.goal-pending { background: var(--app); opacity: 0.3; }
+.goal-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
