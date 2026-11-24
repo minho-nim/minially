@@ -5,6 +5,7 @@ import { DraftCheck } from './DraftCheck';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
 import { GoalBar } from './GoalBar';
+import { ThumbnailMaker } from './Thumbnail';
 import { outlineText, POST_TYPES, type PostType } from '../functions/_postTypes';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
@@ -556,6 +557,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   const [publishUrl, setPublishUrl] = useState(draft.published_url);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [thumbOpen, setThumbOpen] = useState(false);
   // 인스타 게시물 글: 처음엔 규칙으로 만든 글, 'AI로 인스타 글 쓰기'를 누르면 AI 글. 고친 내용은 이 화면에서만(저장 안 함)
   const [insta, setInsta] = useState<string | null>(null);
   const [instaBusy, setInstaBusy] = useState(false);
@@ -911,6 +913,14 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                   <span className="muted small">또는 아래 미리보기에서 제목·문단·사진·해시태그를 하나씩 눌러 복사</span>
                 </div>
                 <PostPreview title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos ?? []} onMessage={setMessage} />
+              </li>
+              <li className="kit-wide">
+                <span className="kit-label">썸네일</span>
+                <div className="kit-buttons">
+                  <button className="btn small" aria-expanded={thumbOpen} onClick={() => setThumbOpen(v => !v)} disabled={!photos?.length}>{thumbOpen ? '썸네일 닫기' : '썸네일 만들기'}</button>
+                  <span className="muted small">{photos?.length ? '사진 위에 제목을 얹어 대표 이미지(1:1·4:3)로' : '사진을 올리면 만들 수 있어요.'}</span>
+                </div>
+                {thumbOpen && photos && photos.length > 0 && <ThumbnailMaker photos={photos} title={fields.title} onMessage={setMessage} />}
               </li>
               <li>
                 <span className="kit-label">사진 받기</span>
