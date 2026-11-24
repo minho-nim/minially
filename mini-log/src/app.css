@@ -321,3 +321,12 @@ select.input { appearance: auto; }
 .custom-banner span { flex: 1 1 240px; }
 
 .insta-box { grid-column: 1 / -1; display: grid; gap: 6px; }
+.guide-fill { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: var(--app-soft); }
+.guide-box { padding: 8px 10px; border-radius: 12px; border: 1px dashed var(--line, #ddd); margin-bottom: 4px; }
+.check-head { display: flex; align-items: center; gap: 10px; }
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.check-list li { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 6px 10px; border-radius: 10px; background: var(--app-soft); font-size: 0.92rem; }
+.check-list li > span:first-child { font-weight: 800; width: 1em; text-align: center; }
+.check-list li.no > span:first-child { color: #C0392B; }
+.check-list li.ok > span:first-child { color: #2E8B57; }
+.check-hint { margin-left: auto; overflow-wrap: anywhere; }

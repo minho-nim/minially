@@ -7,12 +7,31 @@ export const STATUSES = ['proposed', 'in_progress', 'posted', 'paid', 'cancelled
 export type Kind = (typeof KINDS)[number];
 export type Status = (typeof STATUSES)[number];
 
+/** 체험단 가이드 정리(업체 가이드에서 뽑은 조건). 원고 점검과 캘린더(방문일)에 쓴다. */
+export interface Guide { keywords: string[]; hashtags: string[]; min_photos: number | null; min_chars: number | null; links: string[]; visit_on: string | null; notes: string }
 export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
   deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string;
-  created_at: number; updated_at: number;
+  guide: Guide | null; created_at: number; updated_at: number;
 }
-const COLUMNS = 'id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, created_at, updated_at';
+const COLUMNS = 'id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, created_at, updated_at';
+type Row = Omit<Campaign, 'guide'> & { guide: string | null };
+const toCampaign = (r: Row): Campaign => ({ ...r, guide: r.guide ? cleanGuide(JSON.parse(r.guide)) : null });
+
+const words = (v: unknown, n: number, max: number) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string').map(x => x.replace(/^#+/, '').trim().slice(0, max)).filter(Boolean))].slice(0, n) : []);
+const count = (v: unknown, max: number) => { const n = Number(v); return Number.isInteger(n) && n > 0 && n <= max ? n : null; };
+/** 가이드 값 정리(모르는 칸 버리고 길이 자르기). 다 비면 null */
+export function cleanGuide(v: unknown): Guide | null {
+  if (!v || typeof v !== 'object') return null;
+  const g = v as Record<string, unknown>;
+  const guide: Guide = {
+    keywords: words(g.keywords, 10, 40), hashtags: words(g.hashtags, 30, 40), min_photos: count(g.min_photos, 50), min_chars: count(g.min_chars, 20000),
+    links: Array.isArray(g.links) ? g.links.filter((x): x is string => typeof x === 'string' && /^https:\/\/\S+$/.test(x) && x.length <= 500).slice(0, 5) : [],
+    visit_on: typeof g.visit_on === 'string' && validDate(g.visit_on) ? g.visit_on : null,
+    notes: typeof g.notes === 'string' ? g.notes.trim().slice(0, 1000) : '',
+  };
+  return guide.keywords.length || guide.hashtags.length || guide.min_photos || guide.min_chars || guide.links.length || guide.visit_on || guide.notes ? guide : null;
+}
 const LIMITS = { brand: 60, title: 100, provided: 500, memo: 1000, amount: 10_000_000_000 };
 
 /** YYYY-MM-DD 이고 실제 있는 날짜인지 */
@@ -53,6 +72,7 @@ export function readCampaign(body: Record<string, unknown>): Patch | string {
     if (typeof body[key] !== 'string' || !validDate(body[key] as string)) return '날짜 형식이 올바르지 않아요.';
     patch[key] = body[key] as string;
   }
+  if (body.guide !== undefined) patch.guide = body.guide === null ? null : cleanGuide(body.guide);
   if (body.draft_id !== undefined) {
     if (body.draft_id === null || body.draft_id === '') patch.draft_id = null;
     else if (typeof body.draft_id === 'string' && /^[0-9a-f-]{36}$/.test(body.draft_id)) patch.draft_id = body.draft_id;
@@ -62,11 +82,12 @@ export function readCampaign(body: Record<string, unknown>): Patch | string {
 }
 
 export async function listCampaigns(db: D1Database, user: UserName) {
-  return (await db.prepare(`SELECT ${COLUMNS} FROM minilog_campaigns WHERE user = ? ORDER BY status IN ('paid', 'cancelled'), deadline IS NULL, deadline, updated_at DESC LIMIT 500`).bind(user).all<Campaign>()).results;
+  return (await db.prepare(`SELECT ${COLUMNS} FROM minilog_campaigns WHERE user = ? ORDER BY status IN ('paid', 'cancelled'), deadline IS NULL, deadline, updated_at DESC LIMIT 500`).bind(user).all<Row>()).results.map(toCampaign);
 }
 
 export async function getCampaign(db: D1Database, user: UserName, id: string) {
-  return db.prepare(`SELECT ${COLUMNS} FROM minilog_campaigns WHERE user = ? AND id = ?`).bind(user, id).first<Campaign>();
+  const row = await db.prepare(`SELECT ${COLUMNS} FROM minilog_campaigns WHERE user = ? AND id = ?`).bind(user, id).first<Row>();
+  return row ? toCampaign(row) : null;
 }
 
 /** 연결할 원고가 본인 것인지 */
@@ -83,13 +104,13 @@ function normalize(next: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) {
 }
 
 export async function createCampaign(db: D1Database, user: UserName, patch: Patch): Promise<Campaign | string> {
-  const base = normalize({ kind: 'sponsor', brand: '', title: '', provided: '', amount: 0, deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', ...patch });
+  const base = normalize({ kind: 'sponsor', brand: '', title: '', provided: '', amount: 0, deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, ...patch });
   if (!base.brand) return '업체 이름을 적어 주세요.';
   if (!(await ownsDraft(db, user, base.draft_id))) return '연결할 원고를 찾을 수 없어요.';
   const id = crypto.randomUUID();
   const now = Date.now();
-  await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, user, base.kind, base.brand, base.title, base.provided, base.amount, base.deadline, base.status, base.paid_on, base.draft_id, base.memo, now, now).run();
+  await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(id, user, base.kind, base.brand, base.title, base.provided, base.amount, base.deadline, base.status, base.paid_on, base.draft_id, base.memo, base.guide ? JSON.stringify(base.guide) : null, now, now).run();
   return (await getCampaign(db, user, id))!;
 }
 
@@ -99,8 +120,8 @@ export async function updateCampaign(db: D1Database, user: UserName, id: string,
   const next = normalize({ ...current, ...patch });
   if (!next.brand) return '업체 이름을 적어 주세요.';
   if (!(await ownsDraft(db, user, next.draft_id))) return '연결할 원고를 찾을 수 없어요.';
-  await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, updated_at = ? WHERE user = ? AND id = ?')
-    .bind(next.kind, next.brand, next.title, next.provided, next.amount, next.deadline, next.status, next.paid_on, next.draft_id, next.memo, Date.now(), user, id).run();
+  await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, guide = ?, updated_at = ? WHERE user = ? AND id = ?')
+    .bind(next.kind, next.brand, next.title, next.provided, next.amount, next.deadline, next.status, next.paid_on, next.draft_id, next.memo, next.guide ? JSON.stringify(next.guide) : null, Date.now(), user, id).run();
   return getCampaign(db, user, id);
 }
 
