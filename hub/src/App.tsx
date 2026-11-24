@@ -298,7 +298,8 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
             <a href="#overview">대시보드</a>
             <a href="#monthly">월간 보고</a>
             <a href="#apps">앱</a>
-            <a href="#overview">AI 사용량</a>
+            {/* 'AI 사용량'은 내 대시보드의 사용량 칸으로(통합 화면이면 잠깐 내 대시보드로 바꿔 보여 줌, 기본 보기 설정은 그대로) */}
+            <a href="#usage" onClick={event => { event.preventDefault(); setScopeState('me'); window.setTimeout(() => document.getElementById('usage')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }}>AI 사용량</a>
             <a href="#settings">설정</a>
           </div>
           <div className="nav-label">바로 가기</div>

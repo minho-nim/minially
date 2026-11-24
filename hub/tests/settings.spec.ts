@@ -78,3 +78,15 @@ test('로그인 유지: 쓰는 동안 만료가 다가오면 기간을 다시 �
 test('설정 API는 로그인 없이 쓸 수 없다', async ({ request }) => {
   expect((await request.put('/api/settings', { data: { name: 'x' } })).status()).toBe(401);
 });
+
+test("왼쪽 메뉴 'AI 사용량'은 내 AI 사용량 칸으로 가고, 처음 볼 대시보드 설정은 바꾸지 않는다", async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('로그인 코드').fill(CODE_C);
+  await page.getByRole('button', { name: '로그인' }).click();
+  await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('navigation', { name: '미니허브 메뉴' }).getByRole('link', { name: 'AI 사용량' }).click();
+  await expect(page.locator('#usage')).toBeInViewport();
+  await expect(page.getByRole('button', { name: '내 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await page.reload();
+  await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+});
