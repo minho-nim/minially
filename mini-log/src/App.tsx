@@ -5,6 +5,7 @@ import { DraftCheck } from './DraftCheck';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
 import { GoalBar } from './GoalBar';
+import { outlineText, POST_TYPES, type PostType } from '../functions/_postTypes';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
@@ -22,7 +23,7 @@ import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status 
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
   id: string; title: string; body: string; hashtags: string[]; experience: string;
-  status: Status; published_url: string; published_at: number | null; style_id: string; planned_on: string | null; created_at: number; updated_at: number;
+  status: Status; published_url: string; published_at: number | null; style_id: string; post_type: string; planned_on: string | null; created_at: number; updated_at: number;
   photo_count?: number;
 }
 interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null }
@@ -539,7 +540,9 @@ function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (
 }
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'failed';
-type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'style_id' | 'planned_on'>;
+type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'style_id' | 'post_type' | 'planned_on'>;
+
+const isPostTypeKey = (v: string): v is PostType => v in POST_TYPES;
 
 function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack }: {
   draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
@@ -633,7 +636,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
       setMessage({ kind: 'error', text: error instanceof Error ? error.message : '게시 상태를 바꾸지 못했어요.' });
     }
   }
-  const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status, style_id: draft.style_id, planned_on: draft.planned_on });
+  const [fields, setFields] = useState<Fields>({ title: draft.title, body: draft.body, experience: draft.experience, hashtags: draft.hashtags, status: draft.status, style_id: draft.style_id, post_type: draft.post_type ?? 'none', planned_on: draft.planned_on });
   const [styleOptions, setStyleOptions] = useState<Style[]>([]);
   useEffect(() => { api<{ styles: Style[] }>('/api/styles').then(d => setStyleOptions(d.styles)).catch(() => setStyleOptions([])); }, []);
   const [tagText, setTagText] = useState(draft.hashtags.map(t => `#${t}`).join(' '));
@@ -663,7 +666,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
         pending.current = null;
         baseUpdatedAt.current = conflict.draft.updated_at;
         const latest = conflict.draft;
-        setFields({ title: latest.title, body: latest.body, experience: latest.experience, hashtags: latest.hashtags, status: latest.status, style_id: latest.style_id, planned_on: latest.planned_on });
+        setFields({ title: latest.title, body: latest.body, experience: latest.experience, hashtags: latest.hashtags, status: latest.status, style_id: latest.style_id, post_type: latest.post_type ?? 'none', planned_on: latest.planned_on });
         setTagText(latest.hashtags.map(t => `#${t}`).join(' '));
         onSaved(latest);
         onCopied(conflict.copy);
@@ -709,8 +712,8 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
     await flush();
     setAiBusy(true); setMessage(null);
     try {
-      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience } });
-      setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, planned_on: made.planned_on });
+      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience, post_type: fields.post_type } });
+      setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, post_type: made.post_type ?? 'none', planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
       onSaved(made);
       setMessage({ kind: 'info', text: `AI 초안을 넣었어요${photos?.length ? `(사진 ${Math.min(photos.length, 8)}장 분석)` : ''}. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.` });
@@ -827,6 +830,19 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
 
       <section className="card step" aria-labelledby="s2">
         <h2 id="s2" className="step-title"><span className="n">2</span>실제 방문·사용 경험</h2>
+        <div className="type-pick" role="group" aria-label="글 종류">
+          {(Object.keys(POST_TYPES) as PostType[]).filter(t => t !== 'none').map(t => (
+            <button key={t} type="button" className="chip-btn" aria-pressed={fields.post_type === t} onClick={() => {
+              const next = fields.post_type === t ? 'none' : t;
+              const patch: Partial<Fields> = { post_type: next };
+              // 경험 칸이 비었거나 이전 뼈대만 있으면 새 뼈대로 바꾼다(직접 쓴 글은 건드리지 않음)
+              const prev = isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
+              if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineText(next);
+              if (next === 'none' && fields.experience.trim() === prev.trim()) patch.experience = '';
+              change(patch);
+            }}>{POST_TYPES[t].label}</button>
+          ))}
+        </div>
         {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지)' : ''}.</p>}
         <div className="field">
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>언제·어디서·무엇을 했고 어땠는지 직접 겪은 내용을 적어 주세요. AI는 여기 적힌 것만 써요.</label>
