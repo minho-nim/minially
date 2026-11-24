@@ -180,6 +180,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       layoutWeek(days, schedulesByDate, runOf).forEach((lanes, col) => slotsByDate.set(days[col], lanes));
     }
     const offRuns = longWeekends(monthDays[0].dateStr, monthDays[monthDays.length - 1].dateStr);
+    // 이름 줄이 있는 주는 그 주의 모든 칸에 같은 높이를 비워 둔다(이어진 일정 막대 높이를 맞추려고)
+    const hasLabel = (c: { dateStr: string; isCurrentMonth: boolean }) => holidaysOn(c.dateStr).length > 0 || (offRuns.get(c.dateStr)?.start === c.dateStr && c.isCurrentMonth);
+    const labelWeeks = new Set<number>();
+    monthDays.forEach((c, i) => { if (hasLabel(c)) labelWeeks.add(Math.floor(i / 7)); });
     return <>        {/* Weekday Row */}
         <div className="grid grid-cols-7 text-center text-xs font-medium text-app-muted py-2">
           {weekdayLabels.map((day, idx) => {
@@ -201,7 +205,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
         {/* Unified Calendar Grid (Natural Grid without heavy per-day card borders) */}
         {viewMode === 'month' ? (
           <div className="calendar-month-grid min-h-0 flex-1 grid grid-cols-7" style={{'--calendar-rows':monthDays.length/7} as React.CSSProperties}>
-            {monthDays.map((cell) => {
+            {monthDays.map((cell, cellIndex) => {
               const isSelected = cell.dateStr === selectedDate;
               const isDragTarget = dragOverDate === cell.dateStr;
               const daySchedules = schedulesByDate.get(cell.dateStr) || [];
@@ -244,11 +248,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     >
                       {cell.dayNum}
                     </span>
-                    {(holidays.length > 0 || (offRun && offRun.start === cell.dateStr && cell.isCurrentMonth)) && (
-                      <span data-holiday-name className={`min-w-0 flex-1 truncate px-0.5 text-[9px] sm:text-[10px] font-medium leading-none ${cell.isCurrentMonth ? 'text-[#D9534F]' : 'text-[#D9534F]/50'}`} title={[...holidays.map(h => h.name), offRun && offRun.start === cell.dateStr ? `${offRun.days}일 연휴` : ''].filter(Boolean).join(' · ')}>
-                        {holidays.length ? holidays[0].name.replace('대체공휴일', '대체') : <><span className="sm:hidden">연휴</span><span className="hidden sm:inline">{offRun!.days}일 연휴</span></>}
-                      </span>
-                    )}
 
                     {/* Subtle Menu Icon on hover/selected */}
                     <div className="relative">
@@ -307,6 +306,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </div>
                   </div>
 
+                  {/* 공휴일·연휴 이름: 날짜 아래 줄에 */}
+                  {(holidays.length > 0 || (offRun && offRun.start === cell.dateStr && cell.isCurrentMonth)) && (
+                    <p data-holiday-name className={`block min-w-0 truncate px-0.5 -mt-0.5 mb-0.5 text-[10px] sm:text-[11px] font-semibold leading-tight ${cell.isCurrentMonth ? 'text-[#D9534F]' : 'text-[#D9534F]/50'}`} title={[...holidays.map(h => h.name), offRun && offRun.start === cell.dateStr ? `${offRun.days}일 연휴` : ''].filter(Boolean).join(' · ')}>
+                      {holidays.length ? holidays[0].name.replace(/\(.*\)$/, '') : <><span className="sm:hidden">연휴</span><span className="hidden sm:inline">{offRun!.days}일 연휴</span></>}
+                    </p>
+                  )}
+                  {!(holidays.length > 0 || (offRun && offRun.start === cell.dateStr && cell.isCurrentMonth)) && labelWeeks.has(Math.floor(cellIndex / 7)) && (
+                    <p aria-hidden="true" className="block invisible -mt-0.5 mb-0.5 text-[10px] sm:text-[11px] leading-tight">·</p>
+                  )}
                   {/* Schedule title previews on mobile and desktop */}
                   <div className="calendar-span-area flex-1">
                     {/* Mobile: readable title previews; tapping opens the day sheet. */}

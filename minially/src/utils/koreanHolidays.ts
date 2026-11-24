@@ -53,8 +53,9 @@ export function holidaysOfYear(year: number): Map<string, Holiday[]> {
     const [seol, buddha, chuseok] = lunar.map(md => `${year}-${md}`);
     const seolDays = [addDays(seol, -1), seol, addDays(seol, 1)];
     const chuseokDays = [addDays(chuseok, -1), chuseok, addDays(chuseok, 1)];
-    seolDays.forEach(d => add(d, '설날'));
-    chuseokDays.forEach(d => add(d, '추석'));
+    // 앞뒤 날은 'OO 연휴', 당일은 '설날'·'추석'
+    seolDays.forEach((d, i) => add(d, i === 1 ? '설날' : '설 연휴'));
+    chuseokDays.forEach((d, i) => add(d, i === 1 ? '추석' : '추석 연휴'));
     add(buddha, '부처님오신날');
     substituteOnWeekend.push([buddha.slice(5), '부처님오신날']);
     lunarBlocks.push(seolDays, chuseokDays);
