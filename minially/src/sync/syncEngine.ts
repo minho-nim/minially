@@ -3,7 +3,7 @@ import type { Note, NoteFolder } from '../types';
 // 기기 동기화: 이 기기 IndexedDB ↔ 서버(/api/sync).
 // 마지막으로 서버와 맞춘 각 항목의 지문(shadow)을 기억해 두고, 달라진 항목만 올린다.
 // 서버에서 받은 항목은 그사이 이 기기에서 또 바뀌지 않았을 때만 덮어쓴다(바뀌었으면 다음 번에 올라감).
-import { getDB, DEFAULT_CATEGORIES } from '../db/indexedDB';
+import { getDB, DEFAULT_CATEGORIES, recordNoteVersion } from '../db/indexedDB';
 
 const STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'notes', 'noteFolders'] as const;
 type SyncStore = (typeof STORES)[number];
@@ -92,7 +92,7 @@ async function applyRemote(records: RemoteRecord[], state: SyncState, expected?:
     if (record.store === 'noteFolders') validateNoteFolder(record.data as NoteFolder);
   }
   const db = await getDB();
-  const tx = db.transaction([...STORES], 'readwrite');
+  const tx = db.transaction([...STORES, 'noteVersions' as const], 'readwrite');
   let changed = false;
   for (const r of records) {
     if (!(STORES as readonly string[]).includes(r.store)) continue;
@@ -111,7 +111,11 @@ async function applyRemote(records: RemoteRecord[], state: SyncState, expected?:
       delete state.shadow[k];
     } else {
       const remotePrint = fingerprint(r.data);
-      if (currentPrint !== remotePrint) { await os.put(r.data as never); changed = true; }
+      if (currentPrint !== remotePrint) {
+        // 다른 기기에서 바뀐 메모도 바뀌기 전 내용을 수정 이력에 남긴다(이 기기에만)
+        if (r.store === 'notes') await recordNoteVersion(tx.objectStore('noteVersions'), current as Note | undefined, r.data as Note, 'sync');
+        await os.put(r.data as never); changed = true;
+      }
       state.shadow[k] = remotePrint;
     }
   }

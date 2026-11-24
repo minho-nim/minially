@@ -6,7 +6,7 @@ import type { CategoryItem, PhrasePreset, PresetGroup, RecurrenceException, Recu
 import { expandRecurringSchedules } from '../utils/recurrenceEngine';
 
 const DEMO_KEY = 'minially-demo';
-const CLEAR_STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'changeHistory', 'notes', 'noteFolders'] as const;
+const CLEAR_STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'changeHistory', 'notes', 'noteFolders', 'noteVersions'] as const;
 
 export function isDemo() {
   try { return localStorage.getItem(DEMO_KEY) === '1'; } catch { return false; }
