@@ -199,6 +199,7 @@ export interface AppSettings {
 export interface AppData {
   notes?: Note[];
   noteFolders?: NoteFolder[];
+  notePhotos?: NotePhoto[];
   schedules: Schedule[];
   presets: PhrasePreset[];
   categories: CategoryItem[];
@@ -241,7 +242,11 @@ export interface NoteParagraph {
 }
 export interface NoteTableCell { runs: NoteTextRun[]; align?: NoteAlignment }
 export interface NoteTable { type: 'table'; rows: NoteTableCell[][] }
-export type NoteBlock = NoteParagraph | NoteTable;
+/** 메모 속 사진(실제 사진은 notePhotos 저장소에, 문서에는 번호만) */
+export interface NoteImage { type: 'image'; photoId: string; width?: number; height?: number }
+export type NoteBlock = NoteParagraph | NoteTable | NoteImage;
+/** 메모 사진 한 장: 줄인 JPEG(data URL, 240KB 이하). 동기화된다. */
+export interface NotePhoto { id: string; noteId: string; dataUrl: string; width: number; height: number; createdAt: number; updatedAt: number }
 
 export interface Note {
   defaultStyle?: NoteDefaults;

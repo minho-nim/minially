@@ -1,11 +1,12 @@
 import { validateNote, validateNoteFolder, LEGACY_NOTE_FOLDERS } from '../utils/notes';
-import type { Note, NoteFolder } from '../types';
+import type { Note, NoteFolder, NotePhoto } from '../types';
+import { validateNotePhoto } from '../utils/notePhotos';
 // 기기 동기화: 이 기기 IndexedDB ↔ 서버(/api/sync).
 // 마지막으로 서버와 맞춘 각 항목의 지문(shadow)을 기억해 두고, 달라진 항목만 올린다.
 // 서버에서 받은 항목은 그사이 이 기기에서 또 바뀌지 않았을 때만 덮어쓴다(바뀌었으면 다음 번에 올라감).
 import { getDB, DEFAULT_CATEGORIES, recordNoteVersion } from '../db/indexedDB';
 
-const STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'notes', 'noteFolders'] as const;
+const STORES = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'notes', 'noteFolders', 'notePhotos'] as const;
 type SyncStore = (typeof STORES)[number];
 const CONTENT_STORES: SyncStore[] = ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'notes'];
 const STATE_KEY = 'minially-sync-v1';
@@ -90,6 +91,7 @@ async function applyRemote(records: RemoteRecord[], state: SyncState, expected?:
     if (record.data === null) continue;
     if (record.store === 'notes') validateNote(record.data as Note);
     if (record.store === 'noteFolders') validateNoteFolder(record.data as NoteFolder);
+    if (record.store === 'notePhotos') validateNotePhoto(record.data as NotePhoto);
   }
   const db = await getDB();
   const tx = db.transaction([...STORES, 'noteVersions' as const], 'readwrite');

@@ -10,7 +10,11 @@ import {RichNoteBody} from './RichNoteBody';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {ArrowLeft, CheckSquare, CalendarPlus, FileText, Folder, Plus, Search, Pin, Trash2, Maximize2, Minimize2, RotateCcw, Settings, X, History} from 'lucide-react';
 import {NoteHistoryDialog} from './NoteHistoryDialog';
-import {snapshotNoteBeforeRestore} from '../../db/indexedDB';
+import {snapshotNoteBeforeRestore,saveNotePhoto,getNotePhoto} from '../../db/indexedDB';
+import {setNotePhotoLoader} from './noteRichDom';
+import {resizeNotePhoto} from '../../utils/imageResize';
+
+setNotePhotoLoader(async id=>(await getNotePhoto(id))?.dataUrl);
 import type {Note, NoteFolder, Task, CategoryItem, Schedule, NoteDefaults} from '../../types';
 import {noteTitle, recommendNoteFolders} from '../../utils/notes';
 import {getTodayDateString} from '../../utils/dateHelpers';
@@ -136,7 +140,7 @@ function NoteEditor({noteDefaults,onSaveDefaults,onRegisterEntries,notes,note,on
   <input autoFocus={!note.title&&!note.body&&!note.deletedAt} aria-label="메모 제목" placeholder="제목 없는 메모" maxLength={500} readOnly={!!draft.deletedAt} value={draft.title} onChange={e=>void update({title:e.target.value})} className="min-w-0 w-full px-3 pt-1.5 pb-2 text-xl font-bold outline-none bg-transparent"/>
   {settingsOpen&&<NoteSettingsModal value={noteDefaults} onSave={onSaveDefaults} onClose={()=>setSettingsOpen(false)}/>}
   <NoteHistoryDialog noteId={historyOpen?draft.id:null} currentBody={draft.body} onClose={()=>setHistoryOpen(false)} onRestore={async version=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');await snapshotNoteBeforeRestore(draft.id);await update({title:version.note.title,body:version.note.body,richBody:version.note.richBody,richDocument:version.note.richDocument});setBodyKey(k=>k+1);setNotice('선택한 버전으로 되돌렸어요. 되돌리기 전 내용은 수정 기록에 있어요.');}}/>
-  <RichNoteBody key={bodyKey} defaults={draft.defaultStyle} body={draft.body} runs={draft.richBody} blocks={draft.richDocument} readOnly={!!draft.deletedAt} onChange={(body,richBody,richDocument)=>void update({body,richBody,richDocument})}/>
+  <RichNoteBody key={bodyKey} onAddPhoto={async file=>{setError('');try{const {dataUrl,width,height}=await resizeNotePhoto(file),now=Date.now(),id=crypto.randomUUID();await saveNotePhoto({id,noteId:draft.id,dataUrl,width,height,createdAt:now,updatedAt:now});return {id,dataUrl};}catch(e){setError(e instanceof Error?e.message:'사진을 넣지 못했습니다.');return null;}}} defaults={draft.defaultStyle} body={draft.body} runs={draft.richBody} blocks={draft.richDocument} readOnly={!!draft.deletedAt} onChange={(body,richBody,richDocument)=>void update({body,richBody,richDocument})}/>
   <div className="px-4 sm:px-6 py-2 flex gap-2 items-center"><label htmlFor="note-tags" className="text-xs text-app-muted shrink-0">태그</label><input id="note-tags" aria-label="메모 태그" placeholder="쉼표로 구분" readOnly={!!draft.deletedAt} value={draft.tags.join(', ')} onChange={e=>void update({tags:e.target.value.split(',').map(tag=>tag.trimStart())})} className="min-w-0 flex-1 py-1 text-xs outline-none"/></div>
   <NoteTaskModal source={taskSource} categories={categories} onClose={()=>setTaskSource(null)} onSave={async(source,options)=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');await onTask(source.note,source.date,source.categoryId,source.excerpt,options);setDate(source.date);setCategoryOverride(source.categoryId);setLinkExcerpt(source.excerpt);setLinkTitle(source.note.title);setNotice('기존 할 일 목록에 등록했습니다.');}}/>
   <NoteRegistrationModal note={registrationSource} preferredCategory={categoryId||folders.find(folder=>folder.id===recommendations[0]?.id)?.defaultCategoryId||''} categories={categories} tasks={tasks} schedules={schedules} onClose={()=>setRegistrationSource(null)} onRegister={async(source,entries)=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');const result=await onRegisterEntries(source,entries);setNotice(`할 일 ${result.tasks}개 · 일정 ${result.schedules}개 등록${result.skipped?` · 중복 ${result.skipped}개 제외`:''}`);return result;}}/>
