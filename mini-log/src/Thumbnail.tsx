@@ -3,11 +3,14 @@ import { useEffect, useRef, useState, type PointerEvent } from 'react';
 // 썸네일 만들기: 원고 사진 위에 글자를 얹어 블로그 대표 이미지(1:1·4:3)를 브라우저에서 만든다(AI·서버 저장 없음).
 // 글자는 끌어서 옮기고, 여러 개 넣을 수 있다. 시작용 틀 2개(아래 띠 / 가운데 큰 글씨).
 export interface Layer { id: string; text: string; x: number; y: number; size: number; color: string; bg: 'none' | 'band' | 'box'; font: 'sans' | 'hand'; bold: boolean }
-export interface ThumbState { photoId: string | null; ratio: '1:1' | '4:3'; dim: number; layers: Layer[] }
+export type Ratio = '1:1' | '4:5' | '4:3';
+/** zoom 1~3, ox·oy -1~1: 사진을 꽉 채운 뒤 남는 만큼 어디를 보여 줄지(0이 가운데) */
+export interface ThumbState { photoId: string | null; ratio: Ratio; dim: number; zoom: number; ox: number; oy: number; guide: boolean; layers: Layer[] }
+export const RATIOS: [Ratio, string][] = [['1:1', '1:1 블로그·인스타'], ['4:5', '4:5 인스타 세로'], ['4:3', '4:3 가로']];
 
 const COLORS = ['#FFFFFF', '#2B2233', '#E37D12', '#F2493E', '#FFE07A', '#7C8CE0'];
 const W = 1080;
-const height = (ratio: ThumbState['ratio']) => (ratio === '1:1' ? 1080 : 810);
+const height = (ratio: Ratio) => (ratio === '1:1' ? 1080 : ratio === '4:5' ? 1350 : 810);
 const uid = () => Math.random().toString(36).slice(2, 9);
 const FONT = { sans: '"Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif', hand: '"Nanum Pen Script", "Gaegu", cursive' };
 
@@ -27,9 +30,9 @@ export function drawThumb(ctx: CanvasRenderingContext2D, img: CanvasImageSource 
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = '#E8E2DD'; ctx.fillRect(0, 0, W, H);
   if (img && imgW && imgH) {
-    const scale = Math.max(W / imgW, H / imgH); // 꽉 채우고 가운데 맞춤
+    const scale = Math.max(W / imgW, H / imgH) * s.zoom; // 꽉 채운 뒤 확대
     const dw = imgW * scale, dh = imgH * scale;
-    ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.drawImage(img, (W - dw) / 2 - (s.ox * (dw - W)) / 2, (H - dh) / 2 - (s.oy * (dh - H)) / 2, dw, dh);
   }
   if (s.dim > 0) { ctx.fillStyle = `rgba(0,0,0,${s.dim})`; ctx.fillRect(0, 0, W, H); }
   const boxes: Box[] = [];
@@ -55,16 +58,25 @@ export function drawThumb(ctx: CanvasRenderingContext2D, img: CanvasImageSource 
     boxes.push(box);
     if (selected === l.id) { ctx.setLineDash([12, 8]); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 4; ctx.strokeRect(box.x, box.y, box.w, box.h); ctx.setLineDash([]); }
   }
+  // 목록 미리보기 영역: 블로그 목록·인스타 격자는 가운데 정사각형만 보여 준다(미리보기에서만, selected가 null이면 내보내기)
+  if (selected !== null && selected !== undefined && s.guide && s.ratio !== '1:1') {
+    const side = Math.min(W, H), gx = (W - side) / 2, gy = (H - side) / 2;
+    ctx.save(); ctx.setLineDash([16, 10]); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 4; ctx.strokeRect(gx + 2, gy + 2, side - 4, side - 4);
+    ctx.font = `700 28px ${FONT.sans}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    const label = '목록·격자에 보이는 곳'; const tw = ctx.measureText(label).width;
+    ctx.fillRect(gx + 12, gy + 12, tw + 20, 40); ctx.fillStyle = '#fff'; ctx.fillText(label, gx + 22, gy + 18); ctx.restore();
+  }
   return boxes;
 }
 
 export function ThumbnailMaker({ photos, title, onMessage }: { photos: { id: string; name: string }[]; title: string; onMessage: (m: { kind: 'error' | 'info'; text: string }) => void }) {
-  const [state, setState] = useState<ThumbState>(() => ({ photoId: photos[0]?.id ?? null, ratio: '1:1', ...TEMPLATES[0].make(title.trim() || '제목을 적어 주세요') }));
+  const [state, setState] = useState<ThumbState>(() => ({ photoId: photos[0]?.id ?? null, ratio: '1:1', zoom: 1, ox: 0, oy: 0, guide: true, ...TEMPLATES[0].make(title.trim() || '제목을 적어 주세요') }));
   const [selected, setSelected] = useState<string | null>(state.layers[0]?.id ?? null);
   const [img, setImg] = useState<{ el: HTMLImageElement; w: number; h: number } | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const boxes = useRef<Box[]>([]);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const pan = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const H = height(state.ratio);
 
   useEffect(() => {
@@ -77,7 +89,7 @@ export function ThumbnailMaker({ photos, title, onMessage }: { photos: { id: str
   useEffect(() => {
     const ctx = canvas.current?.getContext('2d');
     if (!ctx) return;
-    const redraw = () => { boxes.current = drawThumb(ctx, img?.el ?? null, img?.w ?? 0, img?.h ?? 0, state, selected); };
+    const redraw = () => { boxes.current = drawThumb(ctx, img?.el ?? null, img?.w ?? 0, img?.h ?? 0, state, selected ?? ''); };
     redraw();
     void document.fonts?.ready.then(redraw); // 손글씨 글꼴이 늦게 오면 다시
   }, [state, img, selected, H]);
@@ -94,18 +106,26 @@ export function ThumbnailMaker({ photos, title, onMessage }: { photos: { id: str
     const p = point(e);
     const hit = [...boxes.current].reverse().find(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h);
     setSelected(hit?.id ?? null);
-    if (!hit) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (!hit) { pan.current = { x: p.x, y: p.y, ox: state.ox, oy: state.oy }; return; } // 글자 밖을 끌면 사진을 옮긴다
     const l = state.layers.find(x => x.id === hit.id)!;
     drag.current = { id: hit.id, dx: p.x - l.x * W, dy: p.y - l.y * H };
-    e.currentTarget.setPointerCapture(e.pointerId);
   }
   function move(e: PointerEvent<HTMLCanvasElement>) {
+    if (pan.current && img) {
+      const p = point(e), st = pan.current;
+      const scale = Math.max(W / img.w, H / img.h) * state.zoom;
+      const slackX = Math.max(1, img.w * scale - W), slackY = Math.max(1, img.h * scale - H);
+      const c = (v: number) => Math.min(1, Math.max(-1, v));
+      set({ ox: c(st.ox - ((p.x - st.x) * 2) / slackX), oy: c(st.oy - ((p.y - st.y) * 2) / slackY) });
+      return;
+    }
     if (!drag.current) return;
     const p = point(e), d = drag.current;
     const clamp = (v: number) => Math.min(0.98, Math.max(0.02, v));
     setState(s => ({ ...s, layers: s.layers.map(l => (l.id === d.id ? { ...l, x: clamp((p.x - d.dx) / W), y: clamp((p.y - d.dy) / H) } : l)) }));
   }
-  const up = () => { drag.current = null; };
+  const up = () => { drag.current = null; pan.current = null; };
 
   function addText() {
     const l: Layer = { id: uid(), text: '글자', x: 0.5, y: 0.2, size: 60, color: '#FFFFFF', bg: 'box', font: 'sans', bold: true };
@@ -135,7 +155,7 @@ export function ThumbnailMaker({ photos, title, onMessage }: { photos: { id: str
     <div className="thumb-maker">
       <div className="thumb-stage">
         <canvas ref={canvas} width={W} height={H} role="img" aria-label={`썸네일 미리보기: ${state.layers.map(l => l.text).join(' / ')}`}
-          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{ aspectRatio: `${W} / ${H}`, touchAction: 'none' }} />
+          data-view={`${state.zoom.toFixed(2)},${state.ox.toFixed(2)},${state.oy.toFixed(2)}`} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} style={{ aspectRatio: `${W} / ${H}`, touchAction: 'none' }} />
       </div>
       <div className="thumb-tools">
         <div className="ai-row" role="group" aria-label="시작 틀">
@@ -153,8 +173,11 @@ export function ThumbnailMaker({ photos, title, onMessage }: { photos: { id: str
         )}
         <div className="ai-row">
           <div className="style-tabs" role="group" aria-label="비율">
-            {(['1:1', '4:3'] as const).map(r => <button key={r} type="button" aria-pressed={state.ratio === r} onClick={() => set({ ratio: r })}>{r}</button>)}
+            {RATIOS.map(([r, label]) => <button key={r} type="button" aria-pressed={state.ratio === r} title={label} onClick={() => set({ ratio: r })}>{r}</button>)}
           </div>
+          <label className="small thumb-range">확대<input type="range" min={1} max={3} step={0.05} value={state.zoom} onChange={e => set({ zoom: Number(e.target.value) })} /></label>
+          {state.ratio !== '1:1' && <label className="small check"><input type="checkbox" checked={state.guide} onChange={e => set({ guide: e.target.checked })} /> 목록 영역 보기</label>}
+          <button type="button" className="btn ghost small" onClick={() => set({ zoom: 1, ox: 0, oy: 0 })}>사진 가운데로</button>
           <label className="small thumb-range">사진 어둡게<input type="range" min={0} max={0.7} step={0.05} value={state.dim} onChange={e => set({ dim: Number(e.target.value) })} /></label>
         </div>
         {layer ? (
@@ -176,7 +199,7 @@ export function ThumbnailMaker({ photos, title, onMessage }: { photos: { id: str
               <button type="button" className="btn ghost small" onClick={() => { setState(s => ({ ...s, layers: s.layers.filter(l => l.id !== selected) })); setSelected(null); }}>글자 지우기</button>
             </div>
           </div>
-        ) : <p className="muted small" style={{ margin: 0 }}>미리보기에서 글자를 누르면 고치고, 끌어서 옮길 수 있어요.</p>}
+        ) : <p className="muted small" style={{ margin: 0 }}>글자를 누르면 고치고 끌어서 옮겨요. 글자 밖을 끌면 사진 위치가 바뀌어요.</p>}
         <button type="button" className="btn primary" onClick={() => { void exportJpg(); }}>썸네일 받기(JPG)</button>
       </div>
     </div>

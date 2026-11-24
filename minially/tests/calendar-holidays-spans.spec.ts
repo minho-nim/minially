@@ -6,7 +6,7 @@ test('대한민국 공휴일·대체공휴일·연휴를 계산한다', () => {
   expect(subs(2025)).toEqual(['2025-03-03', '2025-05-06', '2025-10-08']);
   expect(subs(2026)).toEqual(['2026-03-02', '2026-05-25', '2026-08-17', '2026-10-05']);
   const y2026 = holidaysOfYear(2026);
-  expect(['2026-02-16', '2026-02-17', '2026-02-18'].map(d => y2026.get(d)?.[0].name)).toEqual(['설날', '설날', '설날']);
+  expect(['2026-02-16', '2026-02-17', '2026-02-18'].map(d => y2026.get(d)?.[0].name)).toEqual(['설 연휴', '설날', '설 연휴']);
   expect(y2026.get('2026-07-17')?.[0].name).toBe('제헌절');
   expect(y2026.get('2026-06-03')?.[0].name).toBe('지방선거일');
   expect(longWeekends('2026-02-01', '2026-02-28').get('2026-02-18')).toEqual({ start: '2026-02-14', days: 5 });
@@ -27,6 +27,12 @@ for (const width of [390, 1280]) test.describe(`${width}px 달력 공휴일·이
     const cell = (d: string) => page.locator(`[data-calendar-date="${d}"]`);
     await expect(cell('2026-02-17')).toHaveAttribute('data-holiday', '설날');
     await expect(cell('2026-02-17').locator('[data-holiday-name]')).toHaveText('설날');
+    await expect(cell('2026-02-16').locator('[data-holiday-name]')).toHaveText('설 연휴');
+    await expect(cell('2026-02-18').locator('[data-holiday-name]')).toHaveText('설 연휴');
+    // 이름은 날짜 숫자 아래 줄에(사진처럼)
+    const numBox = (await cell('2026-02-17').locator('[data-date-number]').boundingBox())!;
+    const nameBox = (await cell('2026-02-17').locator('[data-holiday-name]').boundingBox())!;
+    expect(nameBox.y).toBeGreaterThanOrEqual(numBox.y + numBox.height - 2);
     await expect(cell('2026-02-14')).toHaveAttribute('data-long-weekend', '5');
     await expect.poll(() => cell('2026-02-14').locator('[data-holiday-name]').innerText()).toBe(width < 640 ? '연휴' : '5일 연휴'); // 보이는 글자만
     await expect(cell('2026-02-10')).not.toHaveAttribute('data-long-weekend');

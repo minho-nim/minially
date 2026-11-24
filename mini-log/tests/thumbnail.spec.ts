@@ -37,6 +37,18 @@ test('썸네일: 틀 2개·글자 더하기·끌어 옮기기·비율 바꾸기 
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.8, { steps: 5 });
   await page.mouse.up();
+  // 글자 밖(왼쪽 아래 구석)을 끌면 사진이 움직이고 글자는 그대로
+  await page.getByLabel('확대').fill('2');
+  await preview.scrollIntoViewIfNeeded();
+  const b2 = (await preview.boundingBox())!;
+  await page.mouse.move(b2.x + 10, b2.y + b2.height * 0.95);
+  await page.mouse.down();
+  await page.mouse.move(b2.x + 60, b2.y + b2.height * 0.95 - 30, { steps: 4 });
+  await page.mouse.up();
+  await expect(preview).toHaveAttribute('data-view', /^2\.00,-0\.\d+,0\.\d+$/); // 오른쪽 위로 끌면 사진의 왼쪽 아래가 보인다
+  await expect(preview).toHaveAttribute('aria-label', /12월 신메뉴$/);
+  await page.getByRole('group', { name: '비율' }).getByRole('button', { name: '4:5' }).click();
+  await expect(page.getByLabel('목록 영역 보기')).toBeChecked();
   await page.getByRole('group', { name: '비율' }).getByRole('button', { name: '4:3' }).click();
   await page.getByRole('group', { name: '사진 고르기' }).getByRole('button', { name: '사진 2' }).click();
   await page.screenshot({ path: 'test-results/thumbnail.png' });
