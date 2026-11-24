@@ -2,7 +2,7 @@
 // 세션은 HttpOnly 쿠키라 자바스크립트에서 읽지 않는다(키·토큰을 브라우저 저장소에 두지 않음).
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public code?: string) { super(message); }
+  constructor(message: string, public status: number, public code?: string, public data?: unknown) { super(message); }
 }
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown; signal?: AbortSignal; keepalive?: boolean } = {}): Promise<T> {
@@ -21,7 +21,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     throw new ApiError('인터넷 연결을 확인해 주세요.', 0);
   }
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new ApiError((data as { error?: string }).error ?? `요청이 실패했어요(${response.status}).`, response.status, (data as { code?: string }).code);
+  if (!response.ok) throw new ApiError((data as { error?: string }).error ?? `요청이 실패했어요(${response.status}).`, response.status, (data as { code?: string }).code, data);
   return data as T;
 }
 

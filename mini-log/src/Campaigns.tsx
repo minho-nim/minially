@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
+import { AD_SOURCE_LABEL, parseAdCsv, type AdSource } from './adsImport';
 
 // 협찬·광고 캠페인과 수익 기록(본인만 보는 계약 정보)
 export type Kind = 'sponsor' | 'ad' | 'other';
@@ -31,6 +32,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
 }) {
   const [items, setItems] = useState<Campaign[] | null>(null);
+  const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState<Filter>('open');
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -103,11 +105,14 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
         </div>
         <div className="actions">
           <button className="btn" onClick={onProposal}>제안서·메일 만들기</button>
+          <button className="btn" onClick={() => setImporting(v => !v)} aria-expanded={importing}>광고 수익 가져오기</button>
           <button className="btn" onClick={() => startNew('ad')}>광고 수익 적기</button>
           <button className="btn primary" onClick={() => startNew('sponsor')}>새 협찬</button>
         </div>
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+
+      {importing && <AdImport onClose={() => setImporting(false)} onDone={() => { api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setItems(d.campaigns)).catch(() => {}); }} />}
 
       <div className="kpis three">
         <div className="card kpi"><span className="label">진행 중</span><span className="value">{formatNumber(summary.openCount)}건</span><span className="hint">제안·진행·게시 완료</span></div>
@@ -214,5 +219,57 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
         )}
       </section>
     </article>
+  );
+}
+
+// 광고 수익 가져오기(CSV): 애드센스·애드포스트 보고서를 달마다 더해 '광고' 수익으로 기록. 자동 연결은 준비 중.
+function AdImport({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
+  const [source, setSource] = useState<AdSource>('adsense');
+  const [preview, setPreview] = useState<{ months: { month: string; amount: number }[]; rows: number; skipped: number } | null>(null);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function read(file: File | undefined) {
+    setMessage(null); setPreview(null);
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setMessage({ kind: 'error', text: '파일이 너무 커요(5MB까지).' }); return; }
+    const parsed = parseAdCsv(await file.text());
+    if (typeof parsed === 'string') setMessage({ kind: 'error', text: parsed }); else setPreview(parsed);
+  }
+  async function save() {
+    if (!preview) return;
+    setBusy(true); setMessage(null);
+    try {
+      const r = await api<{ added: number; updated: number }>('/api/campaigns/import-ads', { body: { source, months: preview.months } });
+      setMessage({ kind: 'info', text: `${AD_SOURCE_LABEL[source]} 수익을 기록했어요(새로 ${r.added}달, 바꿈 ${r.updated}달). 월간 보고·대시보드에 들어가요.` });
+      setPreview(null); onDone();
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '기록하지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <section className="card step" aria-labelledby="ad-import-title">
+      <div className="row-between"><h2 id="ad-import-title" className="step-title">광고 수익 가져오기(CSV)</h2><button className="btn ghost small" onClick={onClose}>닫기</button></div>
+      <p className="muted small" style={{ margin: 0 }}>애드센스는 <b>보고서 → 날짜별 보고서 → 내보내기(CSV)</b>, 애드포스트는 <b>수입 내역 → 엑셀(CSV) 받기</b>로 받은 파일을 올리세요. 달마다 더해서 '광고 수익'으로 적어요. 같은 달을 다시 올리면 금액을 바꿔요.</p>
+      <div className="publish-row" style={{ alignItems: 'center' }}>
+        <label className="sr-only" htmlFor="ad-source">광고 종류</label>
+        <select id="ad-source" className="input" style={{ maxWidth: 160 }} value={source} onChange={e => setSource(e.target.value as AdSource)}>
+          {(Object.keys(AD_SOURCE_LABEL) as AdSource[]).map(k => <option key={k} value={k}>{AD_SOURCE_LABEL[k]}</option>)}
+        </select>
+        <label className="btn">CSV 파일 고르기<input type="file" accept=".csv,.tsv,text/csv,text/plain" className="sr-only" onChange={e => { void read(e.target.files?.[0]); e.target.value = ''; }} /></label>
+      </div>
+      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+      {preview && (
+        <>
+          <table className="mini-table" aria-label="가져올 광고 수익">
+            <thead><tr><th>달</th><th>수익</th></tr></thead>
+            <tbody>{preview.months.map(m => <tr key={m.month}><td>{m.month.slice(0, 4)}년 {Number(m.month.slice(5))}월</td><td>{won(m.amount)}</td></tr>)}</tbody>
+          </table>
+          <p className="muted small" style={{ margin: 0 }}>{preview.rows}줄을 읽었어요{preview.skipped ? `(합계·빈 줄 ${preview.skipped}줄 제외)` : ''}. 달러 보고서는 원화로 바꿔 받아 주세요.</p>
+          <button className="btn primary" style={{ justifySelf: 'start' }} onClick={() => { void save(); }} disabled={busy}>{busy ? '기록하는 중…' : `${preview.months.length}달 기록하기`}</button>
+        </>
+      )}
+      <p className="muted small" style={{ margin: 0 }}>애드센스 자동 연결(매일 자동으로 가져오기)은 구글 앱 승인이 필요해서 준비 중이에요.</p>
+    </section>
   );
 }

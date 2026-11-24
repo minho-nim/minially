@@ -103,6 +103,14 @@ export const PHOTO_KEEP_DAYS = 30;
  * 원고 고치기. 게시 완료(published)로 바꾸면 게시 주소가 있어야 하고, 그 원고의 사진은 30일 뒤 지워지도록 표시한다.
  * 게시를 취소하면 삭제 예정도 취소한다.
  */
+/** 다른 기기에서 먼저 바뀐 원고에 예전 기준으로 글을 고쳐 저장하려 할 때: 내 내용을 사본 원고로 남긴다(원본은 그대로) */
+export async function saveConflictCopy(db: D1Database, user: UserName, current: Draft, patch: Patch): Promise<Draft> {
+  const copy = await createDraft(db, user, current.planned_on);
+  const mine = { ...current, ...patch };
+  const saved = await updateDraft(db, user, copy.id, { title: `${(mine.title || '제목 없는 원고').slice(0, LIMITS.title - 20)} · 다른 기기 수정 사본`, body: mine.body, experience: mine.experience, hashtags: mine.hashtags, style_id: mine.style_id });
+  return typeof saved === 'object' && saved ? saved : copy;
+}
+
 export async function updateDraft(db: D1Database, user: UserName, id: string, patch: Patch): Promise<Draft | null | string> {
   const current = await getDraft(db, user, id);
   if (!current) return null;
