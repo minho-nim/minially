@@ -70,7 +70,10 @@ test('제안서: AI 초안 → 고치고 저장 → 미리보기·PDF(단가 옵
   await page.getByRole('button', { name: '제안서·메일 만들기' }).click();
   await expect(page).toHaveURL(/#proposal$/);
   await expect(page.getByRole('heading', { name: '협찬 제안하기' })).toBeVisible();
-  // 처음엔 내 소개가 비어 있어 펼쳐져 있다
+  // 내 소개가 비어 있으면 펼쳐져 있고, 이미 써 둔 게 있으면 접혀 있다(앞 시험이 남긴 값)
+  const profile = page.getByRole('button', { name: /내 소개/ });
+  await expect(profile).toBeVisible();
+  if ((await profile.getAttribute('aria-expanded')) === 'false') await profile.click();
 
   // AI 초안: 실제 숫자(평균 조회수)와 실제 협찬 업체만
   await page.getByRole('button', { name: 'AI로 초안 쓰기' }).click();
