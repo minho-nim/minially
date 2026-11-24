@@ -45,7 +45,7 @@ export function BackupCard() {
   return (
     <section className="card step" aria-labelledby="backup-title">
       <h2 id="backup-title" className="step-title">데이터 백업</h2>
-      <p className="muted small" style={{ margin: 0 }}>원고·협찬·문체·제안서 양식·블로그 숫자를 파일 하나로 받아 둬요. 사진은 게시 후 30일만 보관해서 빠져요. 불러오기는 <b>합치기</b>예요: 없는 것은 더하고, 같은 것은 백업이 더 최신일 때만 바꿔요.</p>
+      <p className="muted small" style={{ margin: 0 }}>원고·협찬·문체·블로그 숫자를 파일 하나로(사진 제외). 불러오기는 <b>합치기</b>(없는 것만 더하고, 더 최신인 것만 바꿈).</p>
       <div className="publish-row" style={{ alignItems: 'center' }}>
         <button className="btn" onClick={() => { void save(); }} disabled={busy}>{busy ? '처리 중…' : '백업 받기'}</button>
         <button className="btn" onClick={() => input.current?.click()} disabled={busy}>백업 불러오기</button>

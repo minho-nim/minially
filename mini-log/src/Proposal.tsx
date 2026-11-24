@@ -91,6 +91,26 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
     finally { setBusy(null); }
   }
 
+  // 보낸 뒤 협찬 기록에 '제안함(답장 기다림)'으로 남긴다. 같은 업체의 제안 중 기록이 있으면 그걸 고친다.
+  const [logged, setLogged] = useState(false);
+  async function logPitch() {
+    const brand = pitch.brand.trim();
+    if (!brand) return;
+    setBusy('save'); setMessage(null);
+    try {
+      const today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+      const log = { on: today, via: channel, reply: 'waiting' as const };
+      const { campaigns } = await api<{ campaigns: { id: string; kind: string; brand: string; status: string }[] }>('/api/campaigns');
+      const same = campaigns.find(c => c.kind === 'sponsor' && c.brand.trim() === brand && c.status === 'proposed');
+      if (same) await api(`/api/campaigns/${same.id}`, { method: 'PUT', body: { pitch: log } });
+      else await api('/api/campaigns', { body: { kind: 'sponsor', brand, title: pitch.product.trim(), status: 'proposed', memo: pitch.reason.trim(), pitch: log } });
+      setLogged(true);
+      setMessage({ kind: 'info', text: `협찬 기록에 '${brand} 제안함(답장 기다림)'으로 남겼어요. 답장이 오면 협찬 화면에서 바꿔 주세요.` });
+    } catch (e) { fail(e, '기록하지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+  useEffect(() => { setLogged(false); }, [pitch.brand, channel]);
+
   async function copyMail() {
     try { await navigator.clipboard.writeText(channel === 'dm' ? mail.body : `${mail.subject}\n\n${mail.body}`); setMessage({ kind: 'info', text: channel === 'dm' ? 'DM을 복사했어요. 인스타 대화창에 붙여 넣으세요.' : '제목과 본문을 복사했어요.' }); }
     catch { setMessage({ kind: 'error', text: '복사하지 못했어요. 본문을 직접 선택해 복사해 주세요.' }); }
@@ -166,6 +186,10 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
                 {channel === 'dm' && (igHref
                   ? <a className="btn" href={igHref} target="_blank" rel="noopener noreferrer">인스타 DM 열기 ↗</a>
                   : <button className="btn" disabled>인스타 DM 열기 ↗</button>)}
+              </div>
+              <div className="ai-row">
+                <button className="btn ghost small" onClick={() => { void logPitch(); }} disabled={busy !== null || !pitch.brand.trim() || logged}>{logged ? '기록함 ✓' : '보낸 걸로 기록'}</button>
+                <span className="muted small">보낸 날·답장 여부를 협찬 기록에 남겨요</span>
               </div>
               <details className="pitch-tips">
                 <summary className="muted small">ⓘ 답장이 잘 오는 제안 글</summary>

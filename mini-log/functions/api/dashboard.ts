@@ -24,12 +24,19 @@ export const onRequestGet = async (ctx: HubContext) => {
       .bind(user, now).all<{ id: string; title: string; count: number; expires_at: number }>(),
   ]);
   const topPosts = (await db.prepare('SELECT title, url, views, likes FROM minilog_posts WHERE user = ? AND views IS NOT NULL ORDER BY views DESC LIMIT 3').bind(user).all<{ title: string; url: string; views: number; likes: number | null }>()).results;
+  // 최근 6개월 게시 글 수(한국 시간 기준 달)
+  const kstMonth = (ms: number) => new Date(ms + 9 * 3600000).toISOString().slice(0, 7);
+  const months: string[] = [];
+  for (let i = 5; i >= 0; i--) { const d = new Date(now + 9 * 3600000); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - i); months.push(d.toISOString().slice(0, 7)); }
+  const firstMs = Date.parse(`${months[0]}-01T00:00:00+09:00`);
+  const published = (await db.prepare("SELECT published_at FROM minilog_drafts WHERE user = ? AND status = 'published' AND published_at >= ?").bind(user, firstMs).all<{ published_at: number }>()).results;
+  const publishedMonths = months.map(month => ({ month, count: published.filter(r => kstMonth(r.published_at) === month).length }));
   const byStatus = Object.fromEntries(statuses.results.map(r => [r.status, r.count]));
   return json({
     since: new Date(since).toISOString(),
     gemini: geminiStatus(ctx.env, user),
     ai: { calls: ai?.calls ?? 0, errors: ai?.errors ?? 0, input_tokens: ai?.input_tokens ?? 0, output_tokens: ai?.output_tokens ?? 0, tasks: tasks.results, error_codes: errors.results },
-    drafts: { draft: byStatus.draft ?? 0, approved: byStatus.approved ?? 0, published: byStatus.published ?? 0, published_this_month: publishedThisMonth?.count ?? 0 },
+    drafts: { draft: byStatus.draft ?? 0, approved: byStatus.approved ?? 0, published: byStatus.published ?? 0, published_this_month: publishedThisMonth?.count ?? 0, months: publishedMonths },
     photos: { count: photos?.count ?? 0, bytes: photos?.bytes ?? 0, expiring: expiring.results.map(r => ({ ...r, title: r.title.slice(0, 80) })) },
     // 날짜는 한국 시간 기준(정산일을 사람이 YYYY-MM-DD로 적기 때문)
     top_posts: topPosts,

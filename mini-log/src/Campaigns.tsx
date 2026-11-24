@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Help } from './Help';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
@@ -9,14 +10,19 @@ export type Kind = 'sponsor' | 'ad' | 'other';
 export type Status = 'proposed' | 'in_progress' | 'posted' | 'paid' | 'cancelled';
 export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
-  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null;
+  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null; pitch: PitchLog | null;
   created_at: number; updated_at: number;
 }
+/** 먼저 제안한 기록(제안 화면의 '보낸 걸로 기록') */
+export interface PitchLog { on: string; via: 'mail' | 'dm'; reply: 'waiting' | 'yes' | 'no' }
+const REPLY_LABEL: Record<PitchLog['reply'], string> = { waiting: '답장 기다림', yes: '좋다고 함', no: '거절' };
+/** 제안 뒤 지난 날 수(한국 날짜) */
+export const daysSince = (date: string) => Math.round((Date.parse(`${todayKst()}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86400000);
 export const KIND_LABEL: Record<Kind, string> = { sponsor: '협찬', ad: '광고 수익', other: '기타' };
 export const STATUS_LABEL: Record<Status, string> = { proposed: '제안 받음', in_progress: '진행 중', posted: '게시 완료', paid: '정산 완료', cancelled: '취소' };
 const OPEN: Status[] = ['proposed', 'in_progress', 'posted'];
-type Filter = 'open' | 'paid' | 'cancelled' | 'all';
-const FILTERS: [Filter, string][] = [['open', '진행 중'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체']];
+type Filter = 'open' | 'paid' | 'cancelled' | 'all' | 'brand';
+const FILTERS: [Filter, string][] = [['open', '진행 중'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체'], ['brand', '업체별']];
 
 export const won = (n: number) => `${formatNumber(n)}원`;
 /** 한국 날짜(YYYY-MM-DD) */
@@ -27,7 +33,7 @@ export function dDay(deadline: string) {
 }
 
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
-const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null };
+const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null };
 
 export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
@@ -45,6 +51,22 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   }, []);
 
   const shown = useMemo(() => (items ?? []).filter(c => filter === 'all' || (filter === 'open' ? OPEN.includes(c.status) : c.status === filter)), [items, filter]);
+  // 업체별: 같은 업체와 한 일을 모아 건수·받은 금액·마지막 날
+  const brands = useMemo(() => {
+    const map = new Map<string, { brand: string; count: number; paid: number; open: number; last: string }>();
+    for (const c of items ?? []) {
+      if (c.kind !== 'sponsor') continue;
+      const key = c.brand.trim();
+      const cur = map.get(key) ?? { brand: key, count: 0, paid: 0, open: 0, last: '' };
+      cur.count++;
+      if (c.status === 'paid') cur.paid += c.amount;
+      if (OPEN.includes(c.status)) cur.open++;
+      const day = c.paid_on ?? c.deadline ?? c.pitch?.on ?? new Date(c.updated_at + 9 * 3600000).toISOString().slice(0, 10);
+      if (day > cur.last) cur.last = day;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => b.paid - a.paid || b.count - a.count);
+  }, [items]);
   const month = todayKst().slice(0, 7);
   const summary = useMemo(() => {
     const list = items ?? [];
@@ -189,6 +211,18 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
               <textarea id="c-provided" className="textarea" style={{ minHeight: 80 }} value={editing.form.provided} maxLength={500} placeholder="예: 2인 식사권, 원고료 10만 원, 사진 5장 이상" onChange={e => set({ provided: e.target.value })} />
             </div>
           )}
+          {editing.form.pitch && (
+            <div className="field">
+              <label htmlFor="c-reply">답장 · {editing.form.pitch.on.slice(5).replace('-', '/')} {editing.form.pitch.via === 'mail' ? '메일' : 'DM'}로 제안</label>
+              <select id="c-reply" className="input" value={editing.form.pitch.reply} onChange={e => {
+                const reply = e.target.value as PitchLog['reply'];
+                const status = reply === 'yes' && editing.form.status === 'proposed' ? 'in_progress' : reply === 'no' ? 'cancelled' : editing.form.status;
+                set({ pitch: { ...editing.form.pitch!, reply }, status });
+              }}>
+                {Object.entries(REPLY_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+          )}
           <div className="field">
             <label htmlFor="c-memo">메모(선택)</label>
             <textarea id="c-memo" className="textarea" style={{ minHeight: 70 }} value={editing.form.memo} maxLength={1000} onChange={e => set({ memo: e.target.value })} />
@@ -209,10 +243,27 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
           </div>
         </div>
         {items === null && !message && <p className="muted small" role="status">불러오는 중…</p>}
-        {items && shown.length === 0 && (
+        {items && filter === 'brand' && (brands.length === 0
+          ? <p className="muted small" style={{ margin: 0 }}>협찬 기록이 생기면 업체별로 모아 보여요.</p>
+          : (
+            <ul className="brand-list" aria-label="업체별">
+              {brands.map(b => (
+                <li key={b.brand}>
+                  <button className="campaign" onClick={() => { setFilter('all'); }} aria-label={`${b.brand} 기록 보기`}>
+                    <span className="c-main">
+                      <span className="c-brand">{b.brand}</span>
+                      <span className="c-meta"><span className="muted small">{b.count}건{b.open ? ` · 진행 중 ${b.open}` : ''} · 마지막 {b.last.slice(2).replace(/-/g, '.')}</span></span>
+                    </span>
+                    <span className="c-amount">{b.paid ? won(b.paid) : '—'}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ))}
+        {items && filter !== 'brand' && shown.length === 0 && (
           <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>{filter === 'open' ? '진행 중인 협찬이 없어요. 새 협찬을 적어 보세요.' : '기록이 없어요.'}</p></div>
         )}
-        {shown.length > 0 && (
+        {filter !== 'brand' && shown.length > 0 && (
           <ul className="campaigns">
             {shown.map(c => (
               <li key={c.id}>
@@ -225,6 +276,11 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
                       {c.deadline && OPEN.includes(c.status) && <span className={`dday${dDay(c.deadline).includes('지남') ? ' late' : ''}`}>{c.deadline.slice(5).replace('-', '/')} · {dDay(c.deadline)}</span>}
                       {c.status === 'paid' && c.paid_on && <span className="muted small">{c.paid_on.slice(5).replace('-', '/')} 받음</span>}
                       {c.draft_id && <span className="muted small">원고: {draftTitle(c.draft_id)}</span>}
+                      {c.pitch && c.status === 'proposed' && (
+                        <span className={`pitch-chip${c.pitch.reply === 'waiting' && daysSince(c.pitch.on) >= 7 ? ' late' : ''}`}>
+                          {c.pitch.via === 'mail' ? '메일' : 'DM'} 제안 · {c.pitch.reply === 'waiting' ? (daysSince(c.pitch.on) >= 7 ? `${daysSince(c.pitch.on)}일째 답장 없음, 다시 연락해 볼까요?` : `${daysSince(c.pitch.on)}일째 답장 기다림`) : REPLY_LABEL[c.pitch.reply]}
+                        </span>
+                      )}
                     </span>
                   </span>
                   <span className="c-amount">{c.amount ? won(c.amount) : '—'}</span>
@@ -267,7 +323,7 @@ function AdImport({ onDone, onClose }: { onDone: () => void; onClose: () => void
   return (
     <section className="card step" aria-labelledby="ad-import-title">
       <div className="row-between"><h2 id="ad-import-title" className="step-title">광고 수익 가져오기(CSV)</h2><button className="btn ghost small" onClick={onClose}>닫기</button></div>
-      <p className="muted small" style={{ margin: 0 }}>애드센스는 <b>보고서 → 날짜별 보고서 → 내보내기(CSV)</b>, 애드포스트는 <b>수입 내역 → 엑셀(CSV) 받기</b>로 받은 파일을 올리세요. 달마다 더해서 '광고 수익'으로 적어요. 같은 달을 다시 올리면 금액을 바꿔요.</p>
+      <Help short={'애드센스·애드포스트에서 받은 CSV를 올리면 달마다 더해 적어요.'}>애드센스는 <b>보고서 → 날짜별 보고서 → 내보내기(CSV)</b>, 애드포스트는 <b>수입 내역 → 엑셀(CSV) 받기</b>로 받은 파일을 올리세요. 달마다 더해서 '광고 수익'으로 적어요. 같은 달을 다시 올리면 금액을 바꿔요.</Help>
       <div className="publish-row" style={{ alignItems: 'center' }}>
         <label className="sr-only" htmlFor="ad-source">광고 종류</label>
         <select id="ad-source" className="input" style={{ maxWidth: 160 }} value={source} onChange={e => setSource(e.target.value as AdSource)}>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Help } from './Help';
 import { api, ApiError, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 
@@ -115,7 +116,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
 
       <section className="card step" aria-labelledby="link-title">
         <h2 id="link-title" className="step-title">블로그 연결(네이버·티스토리)<span className="step-sub">{blog?.blogs.length ?? 0}/5개</span></h2>
-        <p className="muted small" style={{ margin: 0 }}>네이버는 blog.naver.com/<b>아이디</b>, 티스토리는 <b>이름</b>.tistory.com 주소를 적어요. 블로그가 여러 개면 하나씩 더하면 돼요. 공개 RSS로 최근 글 목록만 가져오고, 로그인하거나 비밀번호를 받지 않아요.</p>
+        <Help short={<>네이버 아이디나 티스토리 주소를 적어요(공개 RSS만, 로그인 없음).</>}>네이버는 blog.naver.com/<b>아이디</b>, 티스토리는 <b>이름</b>.tistory.com 주소를 적어요. 블로그가 여러 개면 하나씩 더하면 돼요. 공개 RSS로 최근 글 목록만 가져오고, 로그인하거나 비밀번호를 받지 않아요.</Help>
         {blog && blog.blogs.length > 0 && (
           <ul className="blog-links">
             {blog.blogs.map(b => { const info = blogInfo(b.blog_id); return (
@@ -143,7 +144,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       {blog && blog.posts.length > 0 && (
         <section className="card step" aria-labelledby="stats-title">
           <h2 id="stats-title" className="step-title">조회수·공감 기록<span className="step-sub">숫자 있는 글 {withStats.length}/{blog.posts.length}</span></h2>
-          <p className="muted small" style={{ margin: 0 }}>네이버·티스토리는 조회수를 가져갈 길을 열어 두지 않아서, 블로그 <b>통계</b> 화면(글별 조회수)을 캡처해 올리면 AI가 숫자를 읽어 기록해요. 글마다 직접 적어도 돼요. 캡처는 저장하지 않아요.</p>
+          <Help short={'통계 화면 캡처를 올리면 AI가 조회수를 읽어 적어요.'}>네이버·티스토리는 조회수를 가져갈 길을 열어 두지 않아서, 블로그 <b>통계</b> 화면(글별 조회수)을 캡처해 올리면 AI가 숫자를 읽어 기록해요. 글마다 직접 적어도 돼요. 캡처는 저장하지 않아요.</Help>
           <label className={`dropzone pick${busy === 'stats' ? ' busy' : ''}`}>
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy !== null} onChange={e => { void onStatsFile(e.target.files?.[0]); e.target.value = ''; }} />
             {busy === 'stats' ? <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">토몽이가 숫자를 읽고 있어요</span></span> : <span><b>통계 캡처 올리기</b> · PNG·JPG</span>}
