@@ -2,10 +2,9 @@ import { json, readJson, type HubContext } from '../../../../shared/server/d1';
 import { requireSession } from '../../../../shared/server/auth';
 import { AiError, callGemini } from '../../../../shared/server/ai';
 import { todayKst } from '../../../../shared/server/revenue';
-import { fetchGuidePage, GUIDE_PROMPT, readGuideAnswer } from '../../_guide';
+import { fetchGuidePage, GUIDE_PROMPT, isPublicHttps, readGuideAnswer } from '../../_guide';
 
 // POST { text?, url?, image?: 'data:image/jpeg;base64,…' } → 협찬 칸 채울 값 + 가이드. 저장은 화면에서 확인 뒤.
-const isPublicHttps = (u: URL) => u.protocol === 'https:' && !/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.|\[)/.test(u.hostname) && u.hostname.includes('.');
 
 export const onRequestPost = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');

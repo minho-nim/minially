@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
@@ -250,8 +251,6 @@ interface Dashboard {
   top_posts: { title: string; url: string; views: number; likes: number | null }[];
   revenue: { this_month: number; months: { month: string; total: number; count: number }[]; pending: { total: number; count: number }; upcoming: { id: string; brand: string; title: string; deadline: string; status: CampaignStatus }[] };
 }
-const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '내 문체 분석', style_reference: '참고 문체 분석' };
-const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
 const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}MB`;
 
 function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; onOpen: (id: string) => void; onCampaigns: () => void }) {
@@ -321,11 +320,11 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               {data.ai.tasks.length === 0 ? <p className="muted small" style={{ margin: 0 }}>이번 달에는 아직 AI를 쓰지 않았어요.</p> : (
                 <table className="mini-table">
                   <thead><tr><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
-                  <tbody>{data.ai.tasks.map(t => <tr key={t.task}><td>{TASK_LABEL[t.task] ?? t.task}</td><td>{formatNumber(t.calls)}</td><td>{formatNumber(t.tokens)}</td></tr>)}</tbody>
+                  <tbody>{data.ai.tasks.map(t => <tr key={t.task}><td>{AI_TASK_LABEL[t.task] ?? t.task}</td><td>{formatNumber(t.calls)}</td><td>{formatNumber(t.tokens)}</td></tr>)}</tbody>
                 </table>
               )}
               {data.ai.error_codes.length > 0 && (
-                <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
+                <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{AI_ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
               )}
             </section>
 

@@ -7,8 +7,9 @@ import type { AppName, UserName } from './auth';
 export const DEFAULT_MODEL = 'gemini-2.5-flash';
 const DEFAULT_BASE = 'https://generativelanguage.googleapis.com';
 const TIMEOUT_MS = 60000;
+const RETRIES = [1000, 2500]; // 다시 부르기 전 기다리는 시간(ms)
 
-export type AiErrorCode = 'no_key' | 'invalid_key' | 'rate_limited' | 'quota_exceeded' | 'blocked' | 'bad_response' | 'upstream_error' | 'timeout';
+export type AiErrorCode = 'no_key' | 'invalid_key' | 'rate_limited' | 'quota_exceeded' | 'blocked' | 'bad_response' | 'upstream_error' | 'overloaded' | 'bad_request' | 'timeout';
 
 export const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
   no_key: 'Gemini 키가 아직 연결되지 않았어요. 소유자에게 키 등록을 요청하세요.',
@@ -18,6 +19,8 @@ export const AI_ERROR_MESSAGES: Record<AiErrorCode, string> = {
   blocked: 'Gemini가 이 요청에 답하지 않았어요(안전 정책). 내용을 바꿔 다시 시도해 주세요.',
   bad_response: 'Gemini 답을 읽지 못했어요. 다시 시도해 주세요.',
   upstream_error: 'Gemini 서버에 문제가 있어요. 잠시 뒤에 다시 시도해 주세요.',
+  overloaded: 'Gemini 서버가 지금 붐벼요(구글 쪽 과부하). 1~2분 뒤에 다시 시도해 주세요.',
+  bad_request: 'Gemini가 요청을 받지 않았어요. 같은 일이 계속되면 소유자에게 알려 주세요.',
   timeout: 'Gemini 답이 너무 늦어요. 다시 시도해 주세요.',
 };
 
@@ -57,6 +60,8 @@ function classify(status: number, text: string): AiErrorCode {
   if (status === 429) return /quota|exceeded|limit: 0|per day/i.test(text) && !/per minute/i.test(text) ? 'quota_exceeded' : 'rate_limited';
   if (status === 400 && /api key/i.test(text)) return 'invalid_key';
   if (status === 401 || status === 403) return 'invalid_key';
+  if (status === 503 || /overloaded|UNAVAILABLE/i.test(text)) return 'overloaded';
+  if (status === 400 || status === 404) return 'bad_request';
   return 'upstream_error';
 }
 
@@ -71,23 +76,35 @@ export async function callGemini(req: GeminiRequest): Promise<GeminiResult> {
   const key = geminiKey(req.env, req.user);
   if (!key) return fail('no_key', 409);
 
-  let response: Response;
-  try {
-    response = await fetch(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [...(req.images ?? []).map(image => ({ inline_data: { mime_type: image.mimeType, data: image.data } })), { text: req.prompt }] }],
-        ...(req.search ? { tools: [{ google_search: {} }] } : req.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-  } catch (error) {
-    return fail(error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'upstream_error');
+  const body = JSON.stringify({
+    contents: [{ role: 'user', parts: [...(req.images ?? []).map(image => ({ inline_data: { mime_type: image.mimeType, data: image.data } })), { text: req.prompt }] }],
+    ...(req.search ? { tools: [{ google_search: {} }] } : req.json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
+  });
+  // 구글 서버가 잠깐 붐비거나(503) 끊기면 조금 기다렸다가 두 번까지 다시 부른다. 키 오류·한도·형식 오류는 다시 부르지 않는다.
+  const started = Date.now();
+  let response: Response | null = null;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      response = await fetch(`${base}/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': key }, body,
+        signal: AbortSignal.timeout(Math.max(5000, TIMEOUT_MS - (Date.now() - started))),
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'TimeoutError') return fail('timeout');
+      response = null;
+    }
+    const retryable = !response || response.status >= 500;
+    if (!retryable || attempt >= RETRIES.length || Date.now() - started > TIMEOUT_MS / 2) break;
+    await response?.body?.cancel().catch(() => {});
+    await new Promise(resolve => setTimeout(resolve, RETRIES[attempt]));
   }
+  if (!response) return fail('upstream_error');
   if (!response.ok) {
-    const code = classify(response.status, await response.text().catch(() => ''));
-    return fail(code, code === 'rate_limited' || code === 'quota_exceeded' ? 429 : 502);
+    const detail = await response.text().catch(() => '');
+    const code = classify(response.status, detail);
+    // 원인 확인용(키는 요청 머리에만 있고 응답에는 없다): Cloudflare 로그에 상태와 구글 메시지 앞부분만
+    console.error(`gemini ${req.app}/${req.task} ${response.status} ${code}: ${detail.replace(/AIza[0-9A-Za-z_-]{20,}/g, '[키 가림]').replace(/\s+/g, ' ').slice(0, 300)}`);
+    return fail(code, code === 'rate_limited' || code === 'quota_exceeded' ? 429 : code === 'overloaded' ? 503 : 502);
   }
   let data: { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; promptFeedback?: { blockReason?: string }; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } };
   try { data = await response.json(); } catch { return fail('bad_response'); }

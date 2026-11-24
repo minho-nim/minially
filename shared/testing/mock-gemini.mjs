@@ -1,8 +1,10 @@
 // 시험용 가짜 Gemini 서버(실제 Google API·크레딧을 쓰지 않음).
-// 사용: node mock-gemini.mjs <port>. 받은 글에 "RATE-LIMIT"가 있으면 429, "QUOTA-OVER"면 하루 한도 초과를 흉내 낸다.
+// 사용: node mock-gemini.mjs <port>. 받은 글에 "RATE-LIMIT"가 있으면 429, "QUOTA-OVER"면 하루 한도 초과,
+// "OVERLOAD-ONCE"면 처음 한 번만 503(다시 부르기 시험), "OVERLOAD-ALWAYS"면 계속 503, "BAD-REQUEST"면 400을 흉내 낸다.
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8899);
+const overloadedOnce = new Set(); // 'OVERLOAD-ONCE' 글은 처음 한 번만 503
 createServer((req, res) => {
   let raw = '';
   req.on('data', chunk => { raw += chunk; });
@@ -36,6 +38,9 @@ createServer((req, res) => {
     const parts = JSON.parse(raw || '{}').contents?.[0]?.parts ?? [];
     const prompt = parts.map(p => p.text ?? '').join('');
     const images = parts.filter(p => p.inline_data?.data).length;
+    if (prompt.includes('OVERLOAD-ALWAYS')) return send(503, { error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } });
+    if (prompt.includes('OVERLOAD-ONCE') && !overloadedOnce.has(prompt)) { overloadedOnce.add(prompt); return send(503, { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }); }
+    if (prompt.includes('BAD-REQUEST')) return send(400, { error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } });
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });

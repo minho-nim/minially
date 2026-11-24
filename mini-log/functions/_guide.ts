@@ -29,11 +29,26 @@ export function readGuideAnswer(text: string): GuideResult | null {
   };
 }
 
-/** 체험단 페이지 주소 → 본문 글(태그 지우고 2만 자까지). 막히면 null */
+/** 밖에서 열 수 있는 https 주소만(내부·사설 주소, IP 직접 입력, 포트 지정은 거절) */
+export const isPublicHttps = (u: URL) => u.protocol === 'https:' && !u.port && !u.username && !u.password && u.hostname.includes('.')
+  && !/^(localhost|.*\.local|.*\.internal|\d+\.\d+\.\d+\.\d+|\[.*\])$/i.test(u.hostname);
+
+/** 체험단 페이지 주소 → 본문 글(태그 지우고 2만 자까지). 막히면 null.
+ *  다른 주소로 넘기면(리디렉트) 한 번씩 다시 검사해 3번까지만 따라간다(내부 주소로 돌려보내는 것 막기). */
 export async function fetchGuidePage(url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (mini-log guide reader)', accept: 'text/html' }, redirect: 'follow', signal: AbortSignal.timeout(10000) });
-    if (!res.ok || !(res.headers.get('content-type') ?? '').includes('html')) return null;
+    let res: Response | null = null;
+    let next = new URL(url);
+    for (let hop = 0; hop < 4; hop++) {
+      if (!isPublicHttps(next)) return null;
+      res = await fetch(next.toString(), { headers: { 'user-agent': 'Mozilla/5.0 (mini-log guide reader)', accept: 'text/html' }, redirect: 'manual', signal: AbortSignal.timeout(10000) });
+      const location = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+      if (!location) break;
+      await res.body?.cancel();
+      next = new URL(location, next);
+      res = null;
+    }
+    if (!res || !res.ok || !(res.headers.get('content-type') ?? '').includes('html')) return null;
     const html = (await res.text()).slice(0, 2_000_000);
     const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ')
       .replace(/<br\s*\/?>|<\/(p|div|li|h\d|tr)>/gi, '\n').replace(/<[^>]+>/g, ' ')
