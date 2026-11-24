@@ -13,7 +13,7 @@ export interface CategoryActions {
 }
 const button = 'min-h-9 px-2 rounded-lg text-xs text-app-muted hover:bg-app-soft disabled:opacity-40';
 const input = 'min-w-0 w-full border border-app-line rounded-lg p-2 text-base bg-white';
-export function CategoryManager({ categories, schedules, onSaveCategory, onDeleteCategory, onReorderCategories, onCreated, onDirtyChange, onBusyChange }: CategoryActions & { onCreated?: (id: string) => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void }) {
+export function CategoryManager({ categories, schedules, onSaveCategory, onDeleteCategory, onReorderCategories, onCreated, onDirtyChange, onBusyChange, allowAdd = true }: CategoryActions & { allowAdd?: boolean; onCreated?: (id: string) => void; onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [customColor, setCustomColor] = useState('');
@@ -58,7 +58,7 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
         </div>}
       </li>)}
     </ul>
-    <form className="border-t border-app-line pt-3 space-y-2" onSubmit={e => {
+    {(allowAdd || editing) && <form className="border-t border-app-line pt-3 space-y-2" onSubmit={e => {
       e.preventDefault(); if (!name.trim()) return;
       if (!editing && categories.length >= CATEGORY_LIMIT) { setError('카테고리는 최대 12개까지 만들 수 있습니다.'); return; }
       void run(async () => {
@@ -81,6 +81,6 @@ export function CategoryManager({ categories, schedules, onSaveCategory, onDelet
       </div>
       <button type="submit" className={button + ' bg-app-soft'} disabled={!name.trim() || (!editing && categories.length >= CATEGORY_LIMIT)}>{editing ? '변경사항 저장' : '추가'}</button>
       {(editing || dirty) && <button type="button" className={button} onClick={() => guard.request(reset)}>취소</button>}
-    </form>
+    </form>}
   </fieldset>;
 }

@@ -4,7 +4,7 @@ import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { compareSchedules } from '../../utils/scheduleOrder';
 import { holidaysOn, longWeekends } from '../../utils/koreanHolidays';
 import { buildRuns, layoutWeek, type SpanSlot } from '../../utils/scheduleSpans';
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Schedule,
   ScheduleCategory,
@@ -52,8 +52,8 @@ type CalendarMode = 'month' | 'week';
 
 /** 이어진 일정 모양: 이어지는 쪽은 둥근 모서리를 없애고 칸 끝까지 늘린다 */
 const spanShape = (slot: SpanSlot) => [
-  slot.joinsPrev ? 'calendar-span-prev rounded-l-none' : 'rounded-l-md',
-  slot.joinsNext ? 'calendar-span-next rounded-r-none' : 'rounded-r-md',
+  slot.joinsPrev ? 'calendar-span-prev rounded-l-none' : 'rounded-l-[4px]',
+  slot.joinsNext ? 'calendar-span-next rounded-r-none' : 'rounded-r-[4px]',
 ].join(' ');
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
@@ -126,7 +126,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // 같은 일정이 며칠 이어지면 달력에서 한 줄로 이어 그린다
   const runOf = useMemo(() => buildRuns(visibleSchedules), [visibleSchedules]);
+  // 휴대폰 폭(640px 미만)인지: 휴대폰용·PC용 일정 줄 중 하나만 그린다
+  const [narrow, setNarrow] = useState(() => matchMedia('(max-width: 639px)').matches);
+  useEffect(() => { const m = matchMedia('(max-width: 639px)'); const on = () => setNarrow(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, []);
 
+  // 달력 한 장의 이름(달 보기는 'YYYY-MM', 주 보기는 그 주 첫날): 넘긴 뒤 같은 장은 새로 만들지 않고 옮겨 쓴다
+  const pageId = (d: string) => viewMode + (viewMode === 'month' ? d.slice(0, 7) : calendarPageDays(d, 'week', settings.startDayOfWeek, todayStr)[0].dateStr);
   const handlePrev = () => { setActiveDateMenu(null); onSelectDate(shiftCalendarPage(selectedDate, viewMode, -1)); };
   const handleNext = () => { setActiveDateMenu(null); onSelectDate(shiftCalendarPage(selectedDate, viewMode, 1)); };
 
@@ -214,7 +219,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
               const hidden = daySchedules.length - slots.filter(Boolean).length;
               const holidays = holidaysOn(cell.dateStr);
               const offRun = offRuns.get(cell.dateStr);
-              const isRedDay = holidays.length > 0 || new Date(cell.dateStr + 'T12:00:00').getDay() === 0;
+              const weekday = new Date(cell.dateStr + 'T12:00:00').getDay();
+              const isRedDay = holidays.length > 0 || weekday === 0;
+              const isBlueDay = !isRedDay && weekday === 6; // 토요일은 파랑(사진처럼)
 
               return (
                 <div
@@ -236,14 +243,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {/* Date Number Header */}
                   <div className="flex items-center justify-between leading-none mb-1">
                     <span data-date-number
-                      className={`inline-flex items-center justify-center text-xs font-semibold rounded-full w-6 h-6 transition-all ${
+                      className={`inline-flex items-center justify-center text-xs font-normal sm:font-semibold rounded-full w-6 h-6 transition-all ${
                         cell.isToday
                           ? 'bg-app-accent text-white shadow-2xs'
                           : isSelected
                           ? 'bg-app-accent/20 text-app-ink font-bold'
                           : cell.isCurrentMonth
-                          ? isRedDay ? 'text-[#D9534F]' : 'text-app-ink'
-                          : isRedDay ? 'text-[#D9534F]/50' : 'text-app-muted/60'
+                          ? isRedDay ? 'text-[#D9534F]' : isBlueDay ? 'text-[#3D7BD9]' : 'text-app-ink'
+                          : isRedDay ? 'text-[#D9534F]/50' : isBlueDay ? 'text-[#3D7BD9]/50' : 'text-app-muted/60'
                       }`}
                     >
                       {cell.dayNum}
@@ -308,7 +315,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                   {/* 공휴일·연휴 이름: 날짜 아래 줄에 */}
                   {(holidays.length > 0 || (offRun && offRun.start === cell.dateStr && cell.isCurrentMonth)) && (
-                    <p data-holiday-name className={`block min-w-0 truncate px-0.5 -mt-0.5 mb-0.5 text-[10px] sm:text-[11px] font-semibold leading-tight ${cell.isCurrentMonth ? 'text-[#D9534F]' : 'text-[#D9534F]/50'}`} title={[...holidays.map(h => h.name), offRun && offRun.start === cell.dateStr ? `${offRun.days}일 연휴` : ''].filter(Boolean).join(' · ')}>
+                    <p data-holiday-name className={`block min-w-0 overflow-hidden whitespace-nowrap text-clip -mx-0.5 px-0 sm:mx-0 sm:px-0.5 -mt-0.5 mb-0.5 text-[min(10px,2.6vw)] sm:text-[11px] tracking-[-0.05em] sm:tracking-normal font-semibold leading-tight ${cell.isCurrentMonth ? 'text-[#D9534F]' : 'text-[#D9534F]/50'}`} title={[...holidays.map(h => h.name), offRun && offRun.start === cell.dateStr ? `${offRun.days}일 연휴` : ''].filter(Boolean).join(' · ')}>
                       {holidays.length ? holidays[0].name.replace(/\(.*\)$/, '') : <><span className="sm:hidden">연휴</span><span className="hidden sm:inline">{offRun!.days}일 연휴</span></>}
                     </p>
                   )}
@@ -318,20 +325,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {/* Schedule title previews on mobile and desktop */}
                   <div className="calendar-span-area flex-1">
                     {/* Mobile: readable title previews; tapping opens the day sheet. */}
-                    <div data-mobile-calendar-titles className="sm:hidden space-y-1 mt-0.5 min-w-0">
+                    {narrow && <div data-mobile-calendar-titles className="sm:hidden space-y-1 mt-0.5 min-w-0">
                       {slots.map((slot,lane)=>{
                         if(!slot)return <div key={'empty'+lane} data-calendar-lane-empty aria-hidden="true" className="h-[18px]"/>;
                         const schedule=slot.schedule;
                         const color=categoryMap.get(schedule.category)?.color || '#DCA78F';
-                        const label=slot.showTitle?Array.from(schedule.title).slice(0,(slot.length>1?4:3)-(schedule.isImportant?1:0)-(schedule.recurrenceRuleId?1:0)).join(''):'';
-                        return <div key={schedule.id} data-calendar-title data-span={slot.length>1?slot.length:undefined} title={schedule.title} aria-label={schedule.title} className={'overflow-hidden whitespace-nowrap px-0.5 py-0.5 text-[10px] leading-[18px] '+spanShape(slot)+' '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold text-app-ink':'text-app-ink')} style={{borderLeft:slot.joinsPrev?undefined:'3px solid '+color,backgroundColor:color+'35'}}>{slot.showTitle&&schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{slot.showTitle&&schedule.recurrenceRuleId&&<Repeat aria-label="반복 일정" className="inline w-2 h-2 mr-px -mt-px opacity-70"/>}{label||'\u00a0'}</div>;
+                        const label=slot.showTitle?schedule.title:''; // 글자 수로 자르지 않고 칸 너비만큼 보인다(좁은 폰에서 5글자 안팎)
+                        return <div key={schedule.id} data-calendar-title data-span={slot.length>1?slot.length:undefined} title={schedule.title} aria-label={schedule.title} className={'calendar-chip overflow-hidden whitespace-nowrap text-clip px-[3px] py-0.5 text-[10px] tracking-[-0.04em] leading-[18px] '+spanShape(slot)+' '+(schedule.completed?'line-through text-app-muted':schedule.isImportant?'font-bold':'font-normal')} style={{borderLeft:slot.joinsPrev?undefined:'3px solid '+color,backgroundColor:color+'2E',color:schedule.completed?undefined:`color-mix(in srgb, ${color} 45%, #4A3A40)`}}>{slot.showTitle&&schedule.isImportant&&<span aria-label="중요 일정" className="mr-0.5">★</span>}{slot.showTitle&&schedule.recurrenceRuleId&&<Repeat aria-label="반복 일정" className="inline w-2 h-2 mr-px -mt-px opacity-70"/>}{preview?<span className="cal-pv" data-label={label||'\u00a0'}/>:(label||'\u00a0')}</div>;
                       })}
                       {daySchedules.length>1&&<span className="calendar-compact-count hidden absolute top-2 right-1 text-[9px] text-app-muted">+{daySchedules.length-1}</span>}
                       {hidden>0&&<p className="calendar-extra-count text-[9px] leading-3 text-app-muted text-right">+{hidden}개</p>}
-                    </div>
+                    </div>}
 
-                    {/* Desktop: Concise schedule bars */}
-                    <div className="hidden sm:block space-y-1 mt-0.5">
+                    {/* Desktop: Concise schedule bars(폭에 맞는 쪽만 그린다: 숨은 글자가 겹치지 않게) */}
+                    {!narrow && <div className="hidden sm:block space-y-1 mt-0.5">
                       {slots.map((slot, lane) => {
                         if (!slot) return <div key={'empty' + lane} data-calendar-lane-empty aria-hidden="true" className="h-[22px]" />;
                         const s = slot.schedule;
@@ -363,7 +370,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                   {s.startTime}
                                 </span>
                               )}
-                              <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-2.5 h-2.5 mr-0.5 opacity-70" />}{s.title}</span>
+                              <span className={`truncate ${s.isImportant ? 'font-bold' : 'font-medium'}`}>{s.isImportant && <Star aria-label="중요 일정" className="inline w-2.5 h-2.5 mr-0.5 fill-current" />}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-2.5 h-2.5 mr-0.5 opacity-70" />}{preview ? <span className="cal-pv" data-label={s.title} /> : s.title}</span>
                             </> : <span aria-hidden="true">{'\u00a0'}</span>}
                           </div>
                         );
@@ -373,7 +380,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                           +{hidden}
                         </div>
                       )}
-                    </div>
+                    </div>}
                   </div>
                 </div>
               );
@@ -431,18 +438,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             e.stopPropagation();
                             onEditSchedule(s);
                           }}
-                          className={`p-1.5 rounded-lg text-xs transition-all border ${
+                          data-week-color={cat?.color || '#DCA78F'}
+                          className={`p-1.5 rounded-lg text-xs transition-all ${
                             s.completed
-                              ? 'bg-stone-50 border-stone-200 text-app-muted/70 line-through'
-                              : 'bg-white border-app-line text-app-ink hover:border-app-accent'
+                              ? 'bg-stone-50 text-app-muted/70 line-through'
+                              : 'text-app-ink hover:shadow-2xs'
                           }`}
+                          style={{ backgroundColor: s.completed ? undefined : `${cat?.color || '#DCA78F'}22`, borderLeft: `3px solid ${cat?.color || '#DCA78F'}` }}
                         >
                           {s.startTime && (
-                            <span className="text-[10px] font-semibold text-app-accent block mb-0.5">
+                            <span className="text-[10px] font-semibold block mb-0.5" style={{ color: cat?.color || undefined }}>
                               {s.startTime}
                             </span>
                           )}
-                          <p className={s.isImportant ? 'font-bold truncate' : 'font-medium truncate'}>{s.isImportant && '★ '}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-3 h-3 mr-0.5 -mt-0.5 opacity-70" />}{s.title}</p>
+                          <p className={s.isImportant ? 'font-bold truncate' : 'font-medium truncate'}>{s.isImportant && '★ '}{s.recurrenceRuleId && <Repeat aria-label="반복 일정" className="inline w-3 h-3 mr-0.5 -mt-0.5 opacity-70" />}{preview ? <span className="cal-pv" data-label={s.title} /> : s.title}</p>
                         </div>
                       );
                     })}
@@ -526,7 +535,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <SwipePager preload gap={24} pageKey={viewMode + selectedDate} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+      <SwipePager preload gap={24} pageKey={viewMode + selectedDate} previousKey={pageId(shiftCalendarPage(selectedDate, viewMode, -1))} currentKey={pageId(selectedDate)} nextKey={pageId(shiftCalendarPage(selectedDate, viewMode, 1))} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
         {renderPage(selectedDate)}
       </SwipePager>
 

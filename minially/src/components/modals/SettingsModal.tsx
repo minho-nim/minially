@@ -201,7 +201,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 1: PHRASE PRESETS (프리셋 관리) */}
           {activeTab === 'presets' && <PhraseManager presetGroups={settings.presetGroups || []} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} presets={presets} onSavePreset={onSavePreset} onDeletePreset={onDeletePreset} onReorderPresets={onReorderPresets} />}
 
-          {activeTab === 'categories' && <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={onDeleteCategory} onReorderCategories={onReorderCategories} />}
+          {activeTab === 'categories' && <CategoryManager allowAdd={false} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={onDeleteCategory} onReorderCategories={onReorderCategories} />}
 
           {/* TAB 3: CALENDAR SETTINGS */}
           {activeTab === 'notes' && <NoteDefaultsForm value={settings.noteDefaults} onSave={async noteDefaults=>{await onUpdateSettings({...settings,noteDefaults});}} onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy}/>}
@@ -322,26 +322,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </label>
               {backupStatus && <p role="status" className="text-xs text-app-muted">{backupStatus}</p>}
               {backupDetail && <p className="text-[11px] text-app-muted">{backupDetail}</p>}
-              {/* Reset */}
-              <div className="pt-3 border-t border-app-line">
-                <div className="p-3 bg-red-50/70 border border-red-100 rounded-xl flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-red-800">기본 데이터로 초기화</p>
-                    <p className="text-[11px] text-red-600">모든 일정을 비우고 재설정합니다.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm('정말 모든 데이터를 초기화하시겠습니까?')) {
-                        setBackupBusy(true); setBackupStatus(''); Promise.resolve(onResetData()).then(() => setBackupStatus('데이터를 초기화했습니다.')).catch(() => setBackupStatus('초기화하지 못했습니다. 다시 시도해 주세요.')).finally(() => setBackupBusy(false));
-                      }
-                    }}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded-xl cursor-pointer"
-                  >
-                    초기화
-                  </button>
-                </div>
-              </div>
+              {/* 초기화 버튼은 없앴어요(실수로 모든 데이터를 지우는 일을 막으려고). 기능 코드(onResetData)는 남겨 두었어요. */}
             </div>
           )}
 
@@ -359,7 +340,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div className="p-4 bg-app-canvas border border-app-line rounded-2xl space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-app-accent text-white flex items-center justify-center font-bold text-lg shadow-2xs">M</div>
+                  <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" aria-hidden="true" className="w-10 h-10 rounded-xl shadow-2xs" />
                   <div>
                     <p className="text-sm font-bold text-app-ink">미니어리 (Minially)</p>
                     <p className="text-xs text-app-muted">

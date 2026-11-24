@@ -25,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
         {/* Brand */}
         <div className="flex items-center gap-2 select-none shrink-0">
-          <div className="w-6 h-6 rounded-lg bg-app-accent text-white flex items-center justify-center font-bold text-xs shadow-2xs">M</div>
+          <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" aria-hidden="true" className="w-6 h-6 rounded-lg shadow-2xs" />
           <span className="text-base font-bold tracking-tight text-app-ink">
             미니<span className="text-app-accent">어리</span>
           </span>
