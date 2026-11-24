@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { BarList, Columns, Donut } from './Charts';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
@@ -169,13 +170,14 @@ function OverviewPanel({ month }: { month: number }) {
 
       <section className="card" aria-labelledby="users-title">
         <h2 id="users-title" className="section-title">{month}월 사용자별</h2>
+        {total.tokens > 0 && <Donut label="사용자별 토큰" sub="토큰" size={96} slices={users.map((u, i) => ({ label: nameOf(u.user), value: u.tokens, color: USER_COLORS[i % USER_COLORS.length] }))} />}
         <div className="user-rows">
-          {users.map(u => (
+          {users.map((u, i) => (
             <div className="user-row" key={u.user}>
               <span className="avatar" aria-hidden="true">{u.user}</span>
               <div className="user-main">
                 <div className="row"><b>{nameOf(u.user)}</b><span className={`badge ${u.gemini_connected ? 'ok' : 'off'}`}>{u.gemini_connected ? 'Gemini 연결됨' : '연결 안 됨'}</span></div>
-                <div className="bar-track" role="img" aria-label={`토큰 ${formatNumber(u.tokens)}`}><span className="bar-in" style={{ width: `${(u.tokens / maxUser) * 100}%`, background: 'var(--sig)' }} /></div>
+                <div className="bar-track" role="img" aria-label={`토큰 ${formatNumber(u.tokens)}`}><span className="bar-in" style={{ width: `${(u.tokens / maxUser) * 100}%`, background: USER_COLORS[i % USER_COLORS.length] }} /></div>
               </div>
               <dl className="user-nums">
                 <div><dt>호출</dt><dd>{formatNumber(u.calls)}</dd></div>
@@ -197,19 +199,11 @@ function OverviewPanel({ month }: { month: number }) {
               <div><span className="muted small">받을 금액</span><strong>{won(sum(users, u => u.openTotal))}</strong></div>
               <div><span className="muted small">진행 중</span><strong>{formatNumber(sum(users, u => u.openCount))}건</strong></div>
             </div>
-            <table className="usage">
-              <thead><tr><th scope="col">사용자</th><th scope="col">{month}월 받은 금액</th><th scope="col">받을 금액</th><th scope="col">진행 중</th></tr></thead>
-              <tbody>{users.map(u => <tr key={u.user}><td>{u.user}</td><td>{won(u.revenue)}</td><td>{won(u.openTotal)}</td><td>{formatNumber(u.openCount)}건</td></tr>)}</tbody>
-            </table>
+            <Donut label="사용자별 이번 달 받은 금액" format={shortWon} slices={users.map((u, i) => ({ label: nameOf(u.user), value: u.revenue, color: USER_COLORS[i % USER_COLORS.length] }))} />
           </div>
           <div>
             {data.revenue.months.some(m => m.total > 0) ? (
-            <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
-              {data.revenue.months.map(m => {
-                const max = Math.max(1, ...data.revenue.months.map(x => x.total));
-                return <div key={m.month} className="rev-col"><span className="rev-bar" style={{ height: `${Math.max(m.total ? 6 : 2, (m.total / max) * 100)}%` }} /><span className="rev-label">{Number(m.month.slice(5))}월</span></div>;
-              })}
-            </div>
+            <Columns label="최근 6개월 받은 금액" items={data.revenue.months.map(m => ({ label: `${Number(m.month.slice(5))}월`, value: m.total }))} format={shortWon} />
             ) : <p className="muted small" style={{ margin: 0 }}>최근 6개월 받은 금액이 아직 없어요.</p>}
           </div>
         </div>
@@ -247,18 +241,33 @@ function OverviewPanel({ month }: { month: number }) {
         </section>
         <section className="card" aria-labelledby="model-title">
           <h2 id="model-title" className="section-title">모델·작업별</h2>
-          {byModelTask.size === 0 ? <p className="muted small" style={{ margin: 0 }}>기록이 없어요.</p> : (
-            <div className="table-wrap">
-              <table className="usage">
-                <thead><tr><th scope="col">모델</th><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
-                <tbody>{[...byModelTask.values()].map(r => <tr key={`${r.model}${r.task}`}><td>{r.model}</td><td>{AI_TASK_LABEL[r.task] ?? r.task}</td><td>{formatNumber(r.calls)}</td><td>{formatNumber(r.tokens)}</td></tr>)}</tbody>
-              </table>
-            </div>
-          )}
+          {byModelTask.size === 0 ? <p className="muted small" style={{ margin: 0 }}>기록이 없어요.</p> : (<>
+            <BarList label="작업별 토큰" items={byTask(byModelTask)} />
+            <details className="more-table">
+              <summary>모델별 표로 보기</summary>
+              <div className="table-wrap">
+                <table className="usage">
+                  <thead><tr><th scope="col">모델</th><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
+                  <tbody>{[...byModelTask.values()].map(r => <tr key={`${r.model}${r.task}`}><td>{r.model}</td><td>{AI_TASK_LABEL[r.task] ?? r.task}</td><td>{formatNumber(r.calls)}</td><td>{formatNumber(r.tokens)}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </details>
+          </>)}
         </section>
       </div>
     </>
   );
+}
+
+/** 사용자 색(C·D…): 서명 색과 보조 색 */
+const USER_COLORS = ['var(--sig)', '#7C8CE0', '#3FAE8B'];
+/** 그래프 위 짧은 금액: 12,000 → 1.2만원 */
+const shortWon = (n: number) => (n >= 10000 ? `${Math.round(n / 1000) / 10}만원` : `${formatNumber(n)}원`);
+/** 모델·작업 표 → 작업별 합계(토큰 많은 순) */
+function byTask(rows: Map<string, { task: string; calls: number; tokens: number }>) {
+  const map = new Map<string, { calls: number; tokens: number }>();
+  for (const r of rows.values()) { const cur = map.get(r.task) ?? { calls: 0, tokens: 0 }; cur.calls += r.calls; cur.tokens += r.tokens; map.set(r.task, cur); }
+  return [...map].sort((a, b) => b[1].tokens - a[1].tokens).map(([task, v]) => ({ label: AI_TASK_LABEL[task] ?? task, value: v.tokens, hint: `${formatNumber(v.calls)}회` }));
 }
 
 const APPS = [
@@ -320,11 +329,10 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
       <main className="main">
         <section id="overview" className="stack" aria-labelledby="hello-title">
           <div className="card hello">
-            <Tomong kind="hub" size={76} pose="wave" />
+            <Tomong kind="hub" size={52} pose="wave" />
             <div>
               <h1 id="hello-title">{me.name === `사용자 ${me.user}` ? me.user : me.name}님, 오늘도 반가워요</h1>
-              <p className="hand hello-line">{line}</p>
-              <p className="muted small" style={{ margin: 0 }}>{today}</p>
+              <p className="hello-line"><span className="hand">{line}</span><span className="muted small"> · {today}</span></p>
             </div>
           </div>
           <div className="scope" role="group" aria-label="대시보드 보기">
@@ -404,6 +412,7 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
                   </div>
                 ))}
               </div>
+              <details className="more-table"><summary>표로 보기</summary>
               <div className="table-wrap">
                 <table className="usage">
                   <thead><tr><th scope="col">앱</th><th scope="col">호출</th><th scope="col">입력 토큰</th><th scope="col">출력 토큰</th><th scope="col">오류</th></tr></thead>
@@ -420,6 +429,7 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
                   </tbody>
                 </table>
               </div>
+              </details>
             </>
           )}
         </section>}

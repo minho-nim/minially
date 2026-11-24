@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Help } from './Help';
 import { api } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { blogInfo } from './Blog';
@@ -66,7 +67,7 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
 
       <section className="card step" aria-labelledby="rec-title">
         <h2 id="rec-title" className="step-title">글감 추천받기{data?.last && <span className="step-sub">마지막 {new Date(data.last.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{data.last.used_search ? ' · 검색 포함' : ''}</span>}</h2>
-        <p className="muted small" style={{ margin: 0 }}>다가오는 시기(설·추석·크리스마스·휴가철 등), 아래 참고 블로그의 최근 글 제목, 내 블로그(조회수 높은 글·자주 쓰는 태그)와 협찬 마감·게시 예정을 보고 AI가 글감을 골라 줘요. 다른 블로그 글은 제목만 참고해요.</p>
+        <Help short={'시기·참고 블로그·내 블로그·협찬 일정을 보고 글감을 골라요.'}>다가오는 시기(설·추석·크리스마스·휴가철 등), 아래 참고 블로그의 최근 글 제목, 내 블로그(조회수 높은 글·자주 쓰는 태그)와 협찬 마감·게시 예정을 보고 AI가 글감을 골라 줘요. 다른 블로그 글은 제목만 참고해요.</Help>
         <div className="publish-row" style={{ alignItems: 'center' }}>
           <label className="check"><input type="checkbox" checked={search} onChange={e => setSearch(e.target.checked)} disabled={busy !== null} /> 최신 검색 포함<span className="muted small"> (Gemini가 구글 검색도 해요, 사용량이 더 들어요)</span></label>
           <button className="btn primary" onClick={() => { void recommend(); }} disabled={!data || busy !== null}>{busy === 'ideas' ? '고르는 중…' : ideas.length ? '다시 추천받기' : '글감 추천받기'}</button>

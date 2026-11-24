@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
+import { Help } from './Help';
+import { BarList, Columns, Donut } from './Charts';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
@@ -246,11 +248,13 @@ const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['ca
 interface Dashboard {
   since: string; gemini: { connected: boolean };
   ai: { calls: number; errors: number; input_tokens: number; output_tokens: number; tasks: { task: string; calls: number; tokens: number }[]; error_codes: { error_code: string; count: number }[] };
-  drafts: { draft: number; approved: number; published: number; published_this_month: number };
+  drafts: { draft: number; approved: number; published: number; published_this_month: number; months: { month: string; count: number }[] };
   photos: { count: number; bytes: number; expiring: { id: string; title: string; count: number; expires_at: number }[] };
   top_posts: { title: string; url: string; views: number; likes: number | null }[];
   revenue: { this_month: number; months: { month: string; total: number; count: number }[]; pending: { total: number; count: number }; upcoming: { id: string; brand: string; title: string; deadline: string; status: CampaignStatus }[] };
 }
+/** 그래프 위 짧은 금액: 12,000 → 1.2만 */
+const shortWon = (n: number) => (n >= 10000 ? `${Math.round(n / 1000) / 10}만` : formatNumber(n));
 const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}MB`;
 
 function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; onOpen: (id: string) => void; onCampaigns: () => void }) {
@@ -284,19 +288,19 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
             <section className="card step" aria-labelledby="d-drafts">
               <h2 id="d-drafts" className="step-title">원고 현황<span className="step-sub">전체 {formatNumber(totalDrafts)}개</span></h2>
               {totalDrafts === 0 ? <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요.</p> : (
-                <>
-                  <div className="stack-bar" role="img" aria-label={`작성 중 ${data.drafts.draft}, 승인됨 ${data.drafts.approved}, 게시됨 ${data.drafts.published}`}>
-                    <span className="s-draft" style={{ flexGrow: data.drafts.draft }} />
-                    <span className="s-approved" style={{ flexGrow: data.drafts.approved }} />
-                    <span className="s-published" style={{ flexGrow: data.drafts.published }} />
-                  </div>
-                  <ul className="legend-list">
-                    <li><i className="s-draft" />작성 중 <b>{data.drafts.draft}</b></li>
-                    <li><i className="s-approved" />승인됨 <b>{data.drafts.approved}</b></li>
-                    <li><i className="s-published" />게시됨 <b>{data.drafts.published}</b></li>
-                  </ul>
-                </>
+                <Donut label="원고 현황" sub="개" slices={[
+                  { label: '작성 중', value: data.drafts.draft, color: '#C9B8AE' },
+                  { label: '승인됨', value: data.drafts.approved, color: '#F2B66D' },
+                  { label: '게시됨', value: data.drafts.published, color: 'var(--app)' },
+                ]} />
               )}
+            </section>
+
+            <section className="card step" aria-labelledby="d-months">
+              <h2 id="d-months" className="step-title">월별 게시 글<span className="step-sub">최근 6개월</span></h2>
+              {(data.drafts.months ?? []).some(m => m.count > 0)
+                ? <Columns label="월별 게시 글" items={data.drafts.months.map(m => ({ label: `${Number(m.month.slice(5))}월`, value: m.count }))} format={n => `${n}개`} />
+                : <p className="muted small" style={{ margin: 0 }}>게시 완료한 글이 생기면 달마다 막대로 보여요.</p>}
             </section>
 
             <section className="card step" aria-labelledby="d-photos">
@@ -318,10 +322,10 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
             <section className="card step" aria-labelledby="d-ai">
               <h2 id="d-ai" className="step-title">AI 작업별</h2>
               {data.ai.tasks.length === 0 ? <p className="muted small" style={{ margin: 0 }}>이번 달에는 아직 AI를 쓰지 않았어요.</p> : (
-                <table className="mini-table">
-                  <thead><tr><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
-                  <tbody>{data.ai.tasks.map(t => <tr key={t.task}><td>{AI_TASK_LABEL[t.task] ?? t.task}</td><td>{formatNumber(t.calls)}</td><td>{formatNumber(t.tokens)}</td></tr>)}</tbody>
-                </table>
+                <BarList label="AI 작업별 호출" format={n => `${formatNumber(n)}회`} items={data.ai.tasks.slice(0, 5).map(t => ({ label: AI_TASK_LABEL[t.task] ?? t.task, value: t.calls, hint: `${formatNumber(t.tokens)} 토큰` }))} />
+              )}
+              {data.ai.tasks.length > 5 && (
+                <p className="muted small" style={{ margin: 0 }}>그 밖에 {data.ai.tasks.length - 5}가지 작업 {formatNumber(data.ai.tasks.slice(5).reduce((n, t) => n + t.calls, 0))}회</p>
               )}
               {data.ai.error_codes.length > 0 && (
                 <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{AI_ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
@@ -333,9 +337,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               {data.top_posts.length === 0 ? (
                 <p className="muted small" style={{ margin: 0 }}>블로그 탭에서 내 글을 가져오고 통계 캡처를 올리면 잘된 글이 여기에 보여요.</p>
               ) : (
-                <ol className="top-posts">
-                  {data.top_posts.map((p, i) => <li key={p.url}><span className="rank">{i + 1}</span><a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a><span className="muted small">조회 {formatNumber(p.views)}{p.likes !== null ? ` · 공감 ${formatNumber(p.likes)}` : ''}</span></li>)}
-                </ol>
+                <BarList label="조회수 TOP 3" format={n => `${formatNumber(n)}회`} items={data.top_posts.map((p, i) => ({ label: `${i + 1}. ${p.title}`, value: p.views, href: p.url.startsWith('https://') ? p.url : undefined }))} />
               )}
             </section>
 
@@ -343,17 +345,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               <h2 id="d-revenue" className="step-title">협찬·광고 수익<span className="step-sub">받을 금액 {won(data.revenue.pending.total)} · {data.revenue.pending.count}건</span></h2>
               <p style={{ margin: 0 }}><span className="muted small">{month}월 받은 금액</span><br /><strong className="revenue-now">{won(data.revenue.this_month)}</strong></p>
               {data.revenue.months.some(m => m.total > 0) ? (
-              <div className="rev-bars" role="img" aria-label={data.revenue.months.map(m => `${Number(m.month.slice(5))}월 ${won(m.total)}`).join(', ')}>
-                {data.revenue.months.map(m => {
-                  const max = Math.max(1, ...data.revenue.months.map(x => x.total));
-                  return (
-                    <div key={m.month} className="rev-col">
-                      <span className="rev-bar" style={{ height: `${Math.max(m.total ? 6 : 2, (m.total / max) * 100)}%` }} />
-                      <span className="rev-label">{Number(m.month.slice(5))}월</span>
-                    </div>
-                  );
-                })}
-              </div>
+              <Columns label="최근 6개월 받은 금액" items={data.revenue.months.map(m => ({ label: `${Number(m.month.slice(5))}월`, value: m.total }))} format={shortWon} />
               ) : <p className="muted small" style={{ margin: 0 }}>최근 6개월 받은 금액이 아직 없어요.</p>}
               {data.revenue.upcoming.length > 0 && (
                 <ul className="expiring">
@@ -430,7 +422,7 @@ function StylesView({ onBack }: { onBack: () => void }) {
       )}
       {adding && (
         <form className="card step" onSubmit={addReference} aria-label="참고 블로그 추가">
-          <p className="muted small" style={{ margin: 0 }}>따라 하고 싶은 블로거의 글을 붙여 넣으면 <b>쓰는 방식</b>(말투·문장 리듬·구성)만 정리해 참고해요. 그 사람의 문장이나 고유한 표현은 쓰지 않도록 AI에 안내해요.</p>
+          <Help short={'붙여 넣은 글에서 쓰는 방식만 정리해 참고해요.'}>따라 하고 싶은 블로거의 글을 붙여 넣으면 <b>쓰는 방식</b>(말투·문장 리듬·구성)만 정리해 참고해요. 그 사람의 문장이나 고유한 표현은 쓰지 않도록 AI에 안내해요.</Help>
           <div className="field"><label htmlFor="ref-name">이름</label><input id="ref-name" className="input" value={newName} maxLength={40} placeholder="예: 동네맛집 블로거" onChange={e => setNewName(e.target.value)} /></div>
           <div className="field"><label htmlFor="ref-source">출처 메모(선택)</label><input id="ref-source" className="input" value={newSource} maxLength={300} placeholder="올린 글 주소 https://blog.naver.com/… 또는 ○○.tistory.com/…" onChange={e => setNewSource(e.target.value)} /></div>
           <div className="ai-row"><button className="btn primary" type="submit">추가</button><button className="btn ghost" type="button" onClick={() => setAdding(false)}>취소</button></div>

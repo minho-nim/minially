@@ -62,13 +62,16 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   await expect(rowD.locator('dd').nth(0)).toHaveText('2');
   await expect(rowD.locator('dd').nth(2)).toHaveText('1');
   await expect(page.getByLabel('오류 종류')).toContainText('호출 제한 1');
-  await expect(page.getByRole('cell', { name: '문체 분석' })).toBeVisible();
+  await expect(page.getByRole('list', { name: '작업별 토큰' })).toContainText('문체 분석'); // 표는 접어 두고 그래프로
+  await expect(page.getByRole('img', { name: /^사용자별 토큰: .*1,200, .*3,500$/ })).toBeVisible();
+  await page.screenshot({ path: 'test-results/hub-overview.png', fullPage: true });
   // 협찬·수익: 통합 화면에서 C·D 모두 보임
   const revenue = page.locator('section', { has: page.getByRole('heading', { name: '협찬·광고 수익' }) });
   await expect(revenue.locator('.totals')).toContainText('100,000원');
   await expect(revenue.locator('.totals')).toContainText('50,000원');
   await expect(revenue.locator('.upcoming')).toContainText('○○카페');
   await expect(revenue.locator('.upcoming')).toContainText('D-3');
+  await expect(revenue.getByRole('img', { name: /^사용자별 이번 달 받은 금액: .*10만원/ })).toBeVisible();
   // 내 대시보드: C 것만, 새로고침해도 선택 유지
   await page.getByRole('button', { name: '내 대시보드' }).click();
   await expect(page.locator('.kpi').filter({ hasText: /AI 호출/ }).locator('.value')).toHaveText('1');

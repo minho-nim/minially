@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Help } from './Help';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
@@ -267,7 +268,7 @@ function AdImport({ onDone, onClose }: { onDone: () => void; onClose: () => void
   return (
     <section className="card step" aria-labelledby="ad-import-title">
       <div className="row-between"><h2 id="ad-import-title" className="step-title">광고 수익 가져오기(CSV)</h2><button className="btn ghost small" onClick={onClose}>닫기</button></div>
-      <p className="muted small" style={{ margin: 0 }}>애드센스는 <b>보고서 → 날짜별 보고서 → 내보내기(CSV)</b>, 애드포스트는 <b>수입 내역 → 엑셀(CSV) 받기</b>로 받은 파일을 올리세요. 달마다 더해서 '광고 수익'으로 적어요. 같은 달을 다시 올리면 금액을 바꿔요.</p>
+      <Help short={'애드센스·애드포스트에서 받은 CSV를 올리면 달마다 더해 적어요.'}>애드센스는 <b>보고서 → 날짜별 보고서 → 내보내기(CSV)</b>, 애드포스트는 <b>수입 내역 → 엑셀(CSV) 받기</b>로 받은 파일을 올리세요. 달마다 더해서 '광고 수익'으로 적어요. 같은 달을 다시 올리면 금액을 바꿔요.</Help>
       <div className="publish-row" style={{ alignItems: 'center' }}>
         <label className="sr-only" htmlFor="ad-source">광고 종류</label>
         <select id="ad-source" className="input" style={{ maxWidth: 160 }} value={source} onChange={e => setSource(e.target.value as AdSource)}>

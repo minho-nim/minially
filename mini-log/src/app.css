@@ -88,6 +88,7 @@
 .kpi .value.off { color: var(--danger); }
 .kpi .hint { font-size: 0.8rem; color: var(--muted); }
 .dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: var(--gap); }
+.dash-grid > .card { align-content: start; }
 .stack-bar { display: flex; height: 14px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
 .s-draft { background: color-mix(in srgb, var(--app) 35%, var(--surface-2)); }
 .s-approved { background: var(--app); }
@@ -348,3 +349,7 @@ select.input { appearance: auto; }
 .check-list li.no > span:first-child { color: #C0392B; }
 .check-list li.ok > span:first-child { color: #2E8B57; }
 .check-hint { margin-left: auto; overflow-wrap: anywhere; }
+.help-more > summary { cursor: pointer; list-style: none; }
+.help-more > summary::-webkit-details-marker { display: none; }
+.help-more .help-i { color: var(--app); font-weight: 700; }
+.help-more > p { margin: 4px 0 0; }

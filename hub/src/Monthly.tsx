@@ -17,9 +17,11 @@ const ROWS: Row[] = [
   { label: 'AI 토큰', pick: s => s.ai_tokens, ai: true },
 ];
 
-function Cell({ now, before, unit = '' }: { now: number; before: number; unit?: string }) {
-  return <td><b>{formatNumber(now)}{unit}</b><span className={`diff ${diffKind(now, before)}`}>{diffText(now, before)}</span></td>;
+/** 사람 칸에는 그 줄에서 가장 큰 값 대비 막대를 함께 그린다(누가 더 많은지 한눈에) */
+function Cell({ now, before, unit = '', max, color }: { now: number; before: number; unit?: string; max?: number; color?: string }) {
+  return <td><b>{formatNumber(now)}{unit}</b>{max !== undefined && <span className="cell-bar" aria-hidden="true"><span style={{ width: `${max ? (now / max) * 100 : 0}%`, background: color }} /></span>}<span className={`diff ${diffKind(now, before)}`}>{diffText(now, before)}</span></td>;
 }
+const PERSON_COLORS = ['var(--sig)', '#7C8CE0', '#3FAE8B'];
 
 export function Monthly() {
   const nameOf = useNameOf();
@@ -90,7 +92,7 @@ export function Monthly() {
                   {ROWS.map(row => (
                     <tr key={row.label} className={row.money ? 'pdf-revenue' : row.ai ? 'pdf-ai' : undefined}>
                       <th scope="row">{row.label}</th>
-                      {reports.map(r => <Cell key={r.user} now={row.pick(r.summary)} before={row.pick(r.prev)} unit={row.unit} />)}
+                      {reports.map((r, i) => <Cell key={r.user} now={row.pick(r.summary)} before={row.pick(r.prev)} unit={row.unit} max={Math.max(...reports.map(x => row.pick(x.summary)))} color={PERSON_COLORS[i % PERSON_COLORS.length]} />)}
                       <Cell now={row.pick(total)} before={row.pick(totalPrev)} unit={row.unit} />
                     </tr>
                   ))}
