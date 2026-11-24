@@ -47,6 +47,7 @@ import {
   saveAppSettings as dbSaveAppSettings,
   exportAllData,
   importAllData,
+  mergeAllData,
   resetDatabaseToDefault,
   DEFAULT_SETTINGS,
 } from './db/indexedDB';
@@ -509,7 +510,7 @@ export default function App() {
   };
 
   // Backup & Restore
-  const handleExportBackup = async () => {
+  const handleExportBackup = async (label = '') => {
     const data = await exportAllData();
     const jsonStr = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -517,17 +518,23 @@ export default function App() {
     const a = document.createElement('a');
     const dateStr = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = `Minially_Backup_${dateStr}.json`;
+    a.download = `Minially_Backup_${dateStr}${label ? `_${label}` : ''}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  const handleImportBackup = async (data: Partial<AppData>) => {
-    await importAllData(data);
+  // 복원: 먼저 지금 데이터를 자동으로 백업 파일로 내려받고, 기본은 합치기(최신 것만), '전부 바꾸기'를 고르면 예전처럼 교체
+  const handleImportBackup = async (data: Partial<AppData>, mode: 'merge' | 'replace' = 'merge') => {
+    await handleExportBackup('before-restore');
+    const result = mode === 'replace' ? null : await mergeAllData(data);
+    if (mode === 'replace') await importAllData(data);
+    window.miniallyDesktop?.notifySaved();
     setUndoNotice(null);
     await reloadData();
+    syncEngine.schedule();
+    return result;
   };
 
   const handleResetData = async () => {
@@ -905,7 +912,7 @@ export default function App() {
         schedules={schedules}
         onReorderCategories={handleReorderCategories}
         onUpdateSettings={handleUpdateSettings}
-        onExportBackup={handleExportBackup}
+        onExportBackup={() => handleExportBackup()}
         onImportBackup={handleImportBackup}
         onResetData={handleResetData}
       />

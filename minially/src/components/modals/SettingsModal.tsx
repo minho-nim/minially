@@ -43,7 +43,7 @@ interface SettingsModalProps extends CategoryActions {
   onDeletePreset: (presetId: string) => Promise<void> | void;
   onUpdateSettings: (settings: AppSettings) => Promise<void> | void;
   onExportBackup: () => Promise<void> | void;
-  onImportBackup: (data: Partial<AppData>) => Promise<void> | void;
+  onImportBackup: (data: Partial<AppData>, mode: 'merge' | 'replace') => Promise<{ added: number; updated: number; kept: number } | null | void> | void;
   onResetData: () => Promise<void> | void;
 }
 
@@ -71,6 +71,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const [backupStatus, setBackupStatus] = useState('');
   const [backupBusy, setBackupBusy] = useState(false);
+  const [replaceAll, setReplaceAll] = useState(false);
+  const [backupDetail, setBackupDetail] = useState('');
 
   const [panelDirty, setPanelDirty] = useState(false), [panelBusy, setPanelBusy] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false), [settingsError, setSettingsError] = useState('');
@@ -90,12 +92,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!window.confirm('백업 파일의 데이터로 복원할까요? 파일에 포함된 항목은 현재 데이터를 대체합니다.')) return;
+    if (!window.confirm(replaceAll
+      ? '백업 파일로 전부 바꿀까요? 지금 데이터는 지워지고 파일 내용으로 바뀝니다.\n(복원 전에 지금 데이터를 백업 파일로 자동으로 내려받습니다)'
+      : '백업 파일과 합칠까요? 지금 데이터는 지우지 않고, 없는 항목은 더하고 더 최신인 항목만 바꿉니다.\n(복원 전에 지금 데이터를 백업 파일로 자동으로 내려받습니다)')) return;
     setBackupBusy(true);
-    setBackupStatus('');
+    setBackupStatus(''); setBackupDetail('');
     try {
-      await onImportBackup(JSON.parse(await file.text()));
+      const result = await onImportBackup(JSON.parse(await file.text()), replaceAll ? 'replace' : 'merge');
       setBackupStatus('백업을 복원했습니다.');
+      setBackupDetail(result ? `새로 더함 ${result.added}개 · 더 최신으로 바꿈 ${result.updated}개 · 그대로 둠 ${result.kept}개. 복원 전 데이터는 이름 끝이 before-restore인 백업 파일로 받아 두었어요.` : "백업 파일 내용으로 전부 바꿨어요. 복원 전 데이터는 이름 끝이 before-restore인 백업 파일로 받아 두었어요.");
     } catch {
       setBackupStatus('백업을 복원하지 못했습니다. 파일 형식과 저장 공간을 확인해 주세요.');
     } finally { setBackupBusy(false); }
@@ -272,7 +277,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h4 className="text-sm font-bold text-app-ink">데이터 백업 및 복원</h4>
                 <p className="text-xs text-app-muted">
-                  이 브라우저에 저장된 데이터를 JSON 파일로 백업하거나 복원합니다.
+                  이 기기에 저장된 일정·할 일·메모를 JSON 파일로 백업하거나 복원합니다. 복원 전에는 지금 데이터를 자동으로 한 번 더 백업해요.
                 </p>
               </div>
 
@@ -311,7 +316,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
+              <label className="flex items-start gap-2 text-[11px] text-app-muted leading-5">
+                <input type="checkbox" className="mt-1 accent-app-accent" checked={replaceAll} disabled={backupBusy} onChange={event => setReplaceAll(event.target.checked)} />
+                <span>복원할 때 <b className="text-app-ink">전부 바꾸기</b>(지금 데이터를 지우고 백업 내용으로). 끄면 합치기: 없는 항목은 더하고 더 최신인 것만 바꿔요.</span>
+              </label>
               {backupStatus && <p role="status" className="text-xs text-app-muted">{backupStatus}</p>}
+              {backupDetail && <p className="text-[11px] text-app-muted">{backupDetail}</p>}
               {/* Reset */}
               <div className="pt-3 border-t border-app-line">
                 <div className="p-3 bg-red-50/70 border border-red-100 rounded-xl flex items-center justify-between">

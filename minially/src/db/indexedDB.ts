@@ -716,10 +716,12 @@ export async function exportAllData(): Promise<AppData> {
   };
 }
 
-export async function importAllData(data: Partial<AppData>): Promise<void> {
+const BACKUP_STORES = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'notes', 'noteFolders'] as const;
+/** 백업 파일 검사(쓰기 전에 모두 확인해, 틀리면 지금 데이터를 하나도 바꾸지 않는다) */
+function validateBackup(data: Partial<AppData>) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('잘못된 백업 파일입니다.');
   if(data.settings?.noteDefaults!==undefined)validateNoteDefaults(data.settings.noteDefaults);
-  const stores = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'notes', 'noteFolders'] as const;
+  const stores = BACKUP_STORES;
   if (!stores.some(key => Array.isArray(data[key]))) throw new Error('백업 데이터가 없습니다.');
   // Validate before opening a write transaction; keep all current data on failure.
   for (const store of stores) {
@@ -745,6 +747,11 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
       groupIds.add(group.id);
     }
   }
+}
+
+export async function importAllData(data: Partial<AppData>): Promise<void> {
+  validateBackup(data);
+  const stores = BACKUP_STORES;
   const db = await getDB();
   const tx = db.transaction([...stores, 'appSettings', 'changeHistory'] as const, 'readwrite');
   try {
@@ -761,6 +768,46 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
     await tx.done.catch(() => {});
     throw error;
   }
+}
+
+/** 백업 합치기(기본 복원): 지금 데이터는 지우지 않는다. 없는 항목은 더하고, 같은 항목은 백업 쪽 수정 시각이 더 최신일 때만 바꾼다.
+ *  (수정 시각이 없는 항목은 지금 것을 그대로 둔다.) 설정은 바꾸지 않는다. */
+export async function mergeAllData(data: Partial<AppData>): Promise<{ added: number; updated: number; kept: number }> {
+  validateBackup(data);
+  const db = await getDB();
+  const tx = db.transaction([...BACKUP_STORES, 'appSettings', 'changeHistory'] as const, 'readwrite');
+  const result = { added: 0, updated: 0, kept: 0 };
+  try {
+    for (const store of BACKUP_STORES) {
+      const items = data[store];
+      if (!items) continue;
+      const os = tx.objectStore(store);
+      for (const item of items as { id: string; updatedAt?: number }[]) {
+        const current = await os.get(item.id) as { updatedAt?: number } | undefined;
+        if (!current) { await os.put(item as never); result.added++; continue; }
+        if (typeof item.updatedAt === 'number' && (typeof current.updatedAt !== 'number' || item.updatedAt > current.updatedAt)) { await os.put(item as never); result.updated++; }
+        else result.kept++;
+      }
+    }
+    // 프리셋 그룹(설정 안에 있음): 없는 그룹만 더한다(다른 설정은 그대로)
+    const groups = data.settings?.presetGroups;
+    if (groups?.length) {
+      const settingsStore = tx.objectStore('appSettings');
+      const current = await settingsStore.get('global_settings') as (AppSettings & { id: string }) | undefined;
+      if (current) {
+        const have = new Set((current.presetGroups ?? []).map(g => g.id));
+        const extra = groups.filter(g => !have.has(g.id));
+        if (extra.length) await settingsStore.put({ ...current, presetGroups: [...(current.presetGroups ?? []), ...extra] });
+      }
+    }
+    await normalizeCategoryTransaction(tx);
+    await tx.done;
+  } catch (error) {
+    try { tx.abort(); } catch { /* 이미 끝났을 수 있다 */ }
+    await tx.done.catch(() => {});
+    throw error;
+  }
+  return result;
 }
 
 export async function resetDatabaseToDefault(): Promise<void> {
