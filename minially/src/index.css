@@ -414,3 +414,6 @@
 .calendar-span-next { margin-right: calc(-1 * var(--cell-pad)); }
 /* 연휴(쉬는 날 3일 이상): 은은한 붉은 바탕 */
 .calendar-long-weekend { background-color: rgb(217 83 79 / 0.06); }
+
+/* 미리 그려 둔 앞뒤 달(넘길 때만 보임): 글자는 그림으로만 그려 찾기·읽기에 걸리지 않게 */
+.cal-pv::before { content: attr(data-label); }

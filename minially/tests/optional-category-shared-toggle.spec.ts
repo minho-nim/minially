@@ -59,6 +59,10 @@ test('설정 창 바깥을 누르면 닫히고, 저장 안 한 변경이 있으�
   await page.mouse.click(5, 5); await expect(settings).toHaveCount(0);
   await page.getByRole('button', { name: '설정 및 프리셋' }).click();
   await settings.getByRole('button', { name: '카테고리', exact: true }).click();
+  await page.evaluate(async () => { const path = '/src/db/indexedDB.ts'; await (await import(path)).importAllData({ schedules: [], categories: [{ id: 'c1', name: '분류', color: '#CF8FA8' }] }); });
+  await page.reload(); await page.getByRole('button', { name: '설정 및 프리셋' }).click(); await settings.getByRole('button', { name: '카테고리', exact: true }).click();
+  await expect(settings.getByText('새 카테고리 추가')).toHaveCount(0); // 설정에서는 추가 칸을 뺐다(소유자 요청), 고치기만
+  await settings.getByRole('button', { name: '수정', exact: true }).first().click();
   await settings.getByPlaceholder('카테고리 이름').fill('저장 안 한 이름');
   await page.mouse.click(5, 5); await expect(settings).toBeVisible(); // 작성 중이면 바로 닫지 않음
   await expect(page.getByText(/버리|계속 작성/).first()).toBeVisible();
