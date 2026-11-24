@@ -48,6 +48,7 @@
 | 미니로그 글감 추천: 다가오는 시기(앱 안 1년 달력 + 설·추석 날짜 표 2026~2029, 앞으로 45일) + 참고 블로그(사용자당 10개, 공개 RSS 최근 글 **제목만**) + 내 블로그(조회수 높은 글·자주 쓰는 태그·최근 글)·내 문체 요약·협찬 마감·게시 예정 → Gemini가 글감 8개(글감·제목·이유·해시태그·출처). "최신 검색 포함"을 켰을 때만 Gemini 구글 검색(`tools: google_search`, 이때는 JSON 모드를 못 써서 답 글에서 JSON을 꺼냄). 마지막 추천은 사용자별 저장. "이걸로 원고 만들기"(예정일 선택) → 제목·해시태그만 채운 원고(경험 칸은 비움). 구글 트렌드 RSS는 뉴스·연예 위주라 블로그 글감에 안 맞아 뺌(소유자 결정) | `mini-log/functions/_ideas.ts`(`upcomingSeasons`), `api/ideas/index.ts`·`watch.ts`, `mini-log/src/Ideas.tsx`, 표 `minilog_watch`·`minilog_ideas`, `callGemini`의 `search` | 가짜 Gemini로 시험(시기·참고 블로그 제목이 프롬프트에 들어감, 검색 모드에 tools 전송·글 섞인 JSON 읽기, 없는 블로그 오류, 다시 열어도 유지, 원고 생성, 비로그인 401, 시기 계산·해 넘김·설/추석). **실제 Gemini 검색 연결은 미검증**. 설·추석 표는 2029년까지라 그 뒤는 더해야 함 |
 | 미니로그 올리기 보조(원고 ④ 올리기·게시): 한 번에 복사(제목·본문·해시태그, 본문의 [사진 n]은 '📷 사진 n'으로), 블로그처럼 보이는 미리보기에서 제목·문단·사진·해시태그를 눌러 바로 복사(사진은 PNG 이미지로 클립보드에 넣어 글쓰기에 바로 붙여 넣기, `PostPreview.tsx`), 사진을 글 순서대로 `minilog_날짜_01.jpg`로 받기(한글 파일 이름은 일부 브라우저에서 'download'로 바뀌어 영문), 네이버 글쓰기 열기, 올린 뒤 주소 넣어 게시 완료 | `mini-log/src/publishKit.ts`, `mini-log/src/PostPreview.tsx`, `mini-log/src/App.tsx` Editor | 시험(클립보드 글·이미지(PNG), 받은 파일 이름 2개, 게시 완료 뒤 숨김). 네이버 글쓰기 주소(`GoBlogWrite.naver`)와 네이버 에디터에 이미지 붙여 넣기는 실제로 확인하지 못함 |
 | 월간 보고(미니로그 '월간보고' 탭 + 미니허브 '월간 보고' 칸): 그달 게시 글(블로그 RSS 기준, 미니로그 게시 수 따로)·조회·공감·댓글 합계, 조회수 TOP 5, 글 목록, 자주 쓴 태그, 받은 금액(협찬·광고·기타, 받은 날 기준), 협찬 건수, AI 사용량, 지난달 대비(+n ▲%), **규칙 기반 한 줄 평**(AI 없이 숫자로만 문장, 다음 달 글감 안내). 미니허브는 C·D 합계 + 사람별 비교표 + 각자 요약·TOP 3. 'PDF로 저장' = 브라우저 인쇄(A4 서식, 메뉴·버튼 빠짐, 수익·AI 사용량은 체크할 때만) | `shared/server/report.ts`(`monthlyReport`, `reportComments`), `shared/client/report.ts`, `mini-log/functions/api/report.ts`, `hub/functions/api/report.ts`, `mini-log/src/Report.tsx`, `hub/src/Monthly.tsx`, 두 앱 `app.css`의 `@media print` | 시험(합계·지난달 비교·달 이동·한 줄 평 문장·인쇄 서식에서 숨김·PDF 생성·다른 사용자 숫자 안 섞임·잘못된 달 400·비로그인 401). 조회수는 누적 숫자를 적은 날 기준이라 '그달 조회수'가 아니라 '그달 올린 글의 조회수 합계' |
+| hub 설정 '내 설정': 이름 바꾸기(1~20자, 두 앱·통합 화면·월간 보고에 표시, 기본 '사용자 C'), 화면 테마(기기 설정 따라·밝게·어둡게, 서버 저장 → 두 앱 적용, 기기에도 기억해 첫 화면 깜빡임 없음), 처음 볼 대시보드(이 기기). 로그인 화면 문구 '코드를 입력해 주세요', 코드 칸은 비밀번호 칸(브라우저 비밀번호 저장으로 이 기기에 코드 기억), 로그인 유지는 쓰는 동안 자동 연장(남은 기간이 15일보다 짧으면 `/api/me`가 30일로 늘림). mini-log의 hub 링크·안내는 'hub'로 표기 | `shared/server/profile.ts`, 표 `hub_profiles`, `hub/functions/api/settings.ts`, `shared/server/auth.ts` `renewCookie`, `shared/client/theme.ts`, `hub/src/names.ts`, `hub/src/App.tsx` `SettingsCard` | 시험(이름 바꾸기·통합/월간 보고 반영·잘못된 이름·테마 400, 테마 유지, mini-log에 이름·테마 반영, 비밀번호 칸 속성, 세션 연장) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초, 창 닫기·다른 앱으로 갈 때는 바로 저장 keepalive, 저장 전 닫으면 확인)·승인·삭제·발행용 복사. 지금 탭·원고를 주소 해시(`#ideas`, `#draft/아이디`)에 남김(새로고침 유지, 뒤로 가기 = 이전 화면) | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
@@ -97,7 +98,7 @@
 | `MINILOG_PHOTOS` | R2 바인딩(버킷 `minilog-photos`, 공개 주소 끔) | minilog |
 | `MINIHUB_LAYOUT_READY` | GitHub 저장소 변수 | deploy-release.yml |
 
-D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`·`minilog_campaigns`·`minilog_blogs`·`minilog_posts`·`minilog_watch`·`minilog_ideas`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
+D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`·`minilog_campaigns`·`minilog_blogs`·`minilog_posts`·`minilog_watch`·`minilog_ideas`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
 
 ## 7. 실제 배포 상태 (2026-11-23)
 - minially.pages.dev: Windows 앱 0.1.9와 함께 운영 배포 완료(`3de87db`). 전용 배포판 `minially-latest` 생성 확인.
@@ -116,9 +117,9 @@ D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미�
 | `minially`: `npm run test:sync` | 13 passed (1.5m) |
 | `minially`: `npm test` | 223 passed (4.7m) |
 | `hub`: `npm run lint`, `npm run build` | 성공 |
-| `hub`: `npm test` | 10 passed (월간 보고, 통합 대시보드·PWA 포함) |
+| `hub`: `npm test` | 14 passed (설정·로그인 유지, 월간 보고, 통합 대시보드·PWA 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 34 passed (월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
+| `mini-log`: `npm test` | 35 passed (이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 

@@ -84,6 +84,18 @@ export async function sessionFor(request: Request, db: D1Database, app: AppName)
   return { user: row.user, app: row.app };
 }
 
+/** 로그인 유지: 남은 기간이 SESSION_DAYS의 절반보다 짧으면 다시 SESSION_DAYS로 늘린 쿠키를 돌려준다(쓰는 동안은 로그아웃되지 않게). */
+export async function renewCookie(request: Request, db: D1Database): Promise<string | null> {
+  const token = readCookie(request, COOKIE);
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
+  const hash = await sha256Hex(token);
+  const row = await db.prepare('SELECT expires_at FROM hub_sessions WHERE token_hash = ?').bind(hash).first<{ expires_at: number }>();
+  const now = Date.now();
+  if (!row || row.expires_at <= now || row.expires_at - now > (SESSION_DAYS / 2) * 86400000) return null;
+  await db.prepare('UPDATE hub_sessions SET expires_at = ? WHERE token_hash = ?').bind(now + SESSION_DAYS * 86400000, hash).run();
+  return cookieHeader(request, token, SESSION_DAYS * 86400);
+}
+
 /** 상태를 바꾸는 요청(POST·PUT·DELETE)은 같은 사이트에서 온 것만 받는다(다른 사이트가 몰래 보내는 요청 막기). */
 export function sameOrigin(request: Request) {
   if (request.method === 'GET' || request.method === 'HEAD') return true;

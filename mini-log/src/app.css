@@ -1,6 +1,7 @@
 /* 미니로그: 미니허브 공통 기준(shared/ui/base.css) + 미니로그 색 */
 :root { --app: #E37D12; --app-soft: #FFEBD6; --font-hand: "Nanum Pen Script", cursive; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --app: #FFAE5C; --app-soft: #3A2A1C; } }
+:root[data-theme="dark"] { --app: #FFAE5C; --app-soft: #3A2A1C; }
 
 .shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
 .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 16px; padding: 20px 14px; border-right: 1px solid var(--line); background: var(--surface); }
@@ -291,3 +292,4 @@ select.input { appearance: auto; }
 .report-summary ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; line-height: 1.6; }
 .report-table th, .report-table td { white-space: nowrap; }
 @media (max-width: 520px) { .report-table { font-size: 0.8rem; } .report-table th, .report-table td { padding: 6px 3px; } }
+.side-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

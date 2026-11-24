@@ -171,3 +171,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
   .table-wrap { overflow: visible; }
   .person-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* 내 설정 */
+.settings-card { display: grid; gap: 14px; }
+.setting { display: grid; gap: 6px; }
+.setting label, .setting-label { font-weight: 700; font-size: 0.9rem; }
+.seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--surface-2); justify-self: start; flex-wrap: wrap; }
+.seg button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font-weight: 700; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }

@@ -6,5 +6,8 @@ import '@fontsource/nanum-pen-script/400.css';
 import '../../shared/ui/base.css';
 import './app.css';
 import App from './App';
+import { applyTheme, cachedTheme } from '../../shared/client/theme';
+
+applyTheme(cachedTheme()); // 지난번 테마로 바로 시작(깜빡임 없이), 로그인 정보를 받으면 다시 맞춘다
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
