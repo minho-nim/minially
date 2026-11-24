@@ -2,9 +2,14 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { Monthly } from './Monthly';
+import { NamesContext, useNameOf } from './names';
+import { applyTheme, type Theme } from '../../shared/client/theme';
 
 interface Me {
   user: 'C' | 'D';
+  name: string;
+  theme: Theme;
+  names: Record<string, string>;
   gemini: { connected: boolean };
   usage: { since: string; apps: UsageRow[] };
 }
@@ -17,6 +22,7 @@ export default function App() {
   const load = useCallback(async () => {
     try {
       const me = await api<Me | { user: null }>('/api/me');
+      if (me.user) applyTheme((me as Me).theme);
       setState(me.user ? { kind: 'ready', me: me as Me } : { kind: 'login' });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) setState({ kind: 'login' });
@@ -38,11 +44,17 @@ export default function App() {
       </main>
     );
   }
-  return <Home me={state.me} onLogout={() => setState({ kind: 'login' })} />;
+  const me = state.me;
+  return (
+    <NamesContext.Provider value={me.names}>
+      <Home me={me} onLogout={() => setState({ kind: 'login' })} onMe={next => setState({ kind: 'ready', me: { ...me, ...next, names: { ...me.names, [me.user]: next.name ?? me.name } } })} />
+    </NamesContext.Provider>
+  );
 }
 
 function Login({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState('');
+  const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -69,21 +81,17 @@ function Login({ onDone }: { onDone: () => void }) {
           <Tomong kind="hub" size={88} pose="wave" bounce />
           <h1 className="sr-only">미니허브 로그인</h1>
           <Signature kind="hub" word="hub" size={22} tomong={0} />
-          <p className="hand login-line">미니어리 코드로 들어와요</p>
+          <p className="hand login-line">코드를 입력해 주세요</p>
         </div>
+        {/* 브라우저 비밀번호 저장(이 기기에 코드 기억)을 쓰도록: 숨은 사용자 칸 + 비밀번호 칸 */}
+        <input type="text" name="username" autoComplete="username" value="minihub" readOnly hidden />
         <div className="field">
           <label htmlFor="code">로그인 코드</label>
-          <input
-            id="code"
-            className="input"
-            value={code}
-            onChange={e => setCode(e.target.value)}
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            aria-invalid={!!error}
-            aria-describedby={error ? 'code-error' : undefined}
-          />
+          <div className="code-row">
+            <input id="code" name="password" className="input" type={showCode ? 'text' : 'password'} value={code} onChange={e => setCode(e.target.value)} autoComplete="current-password" autoCapitalize="characters" spellCheck={false} aria-invalid={!!error} aria-describedby={error ? 'code-error' : 'code-help'} />
+            <button type="button" className="btn ghost small" onClick={() => setShowCode(v => !v)} aria-pressed={showCode}>{showCode ? '숨기기' : '보기'}</button>
+          </div>
+          <p id="code-help" className="muted small" style={{ margin: 0 }}>브라우저가 "비밀번호 저장"을 물으면 저장하세요. 다음부터 이 기기에서 자동으로 채워져요. 한 번 로그인하면 쓰는 동안 계속 유지돼요.</p>
         </div>
         {error && <p id="code-error" className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy}>{busy ? '확인하는 중…' : '로그인'}</button>
@@ -123,6 +131,7 @@ const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key:
 function sum<T>(rows: T[], pick: (row: T) => number) { return rows.reduce((n, row) => n + pick(row), 0); }
 
 function OverviewPanel({ month }: { month: number }) {
+  const nameOf = useNameOf();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState('');
   useEffect(() => { api<Overview>('/api/overview').then(setData).catch(e => setError(e instanceof Error ? e.message : '불러오지 못했어요.')); }, []);
@@ -153,10 +162,10 @@ function OverviewPanel({ month }: { month: number }) {
   return (
     <>
       <div className="kpis">
-        <div className="card kpi"><span className="label">{month}월 전체 AI 호출</span><span className="value">{formatNumber(total.calls)}</span><span className="hint">사용자 {users.map(u => u.user).join('·')} 합계</span></div>
+        <div className="card kpi"><span className="label">{month}월 전체 AI 호출</span><span className="value">{formatNumber(total.calls)}</span><span className="hint">{users.map(u => nameOf(u.user)).join('·')} 합계</span></div>
         <div className="card kpi"><span className="label">{month}월 전체 토큰</span><span className="value">{formatNumber(total.tokens)}</span><span className="hint">모든 앱</span></div>
         <div className="card kpi"><span className="label">{month}월 전체 오류</span><span className={`value${total.errors ? ' off' : ''}`}>{formatNumber(total.errors)}</span><span className="hint">호출 제한·키 오류 포함</span></div>
-        <div className={`card kpi${connected === users.length ? ' sig' : ''}`}><span className="label">Gemini 연결</span><span className="value">{connected}/{users.length}</span><span className="hint">{users.filter(u => !u.gemini_connected).map(u => `${u.user} 연결 안 됨`).join(', ') || '모두 연결됨'}</span></div>
+        <div className={`card kpi${connected === users.length ? ' sig' : ''}`}><span className="label">Gemini 연결</span><span className="value">{connected}/{users.length}</span><span className="hint">{users.filter(u => !u.gemini_connected).map(u => `${nameOf(u.user)} 연결 안 됨`).join(', ') || '모두 연결됨'}</span></div>
       </div>
 
       <section className="card" aria-labelledby="users-title">
@@ -166,7 +175,7 @@ function OverviewPanel({ month }: { month: number }) {
             <div className="user-row" key={u.user}>
               <span className="avatar" aria-hidden="true">{u.user}</span>
               <div className="user-main">
-                <div className="row"><b>사용자 {u.user}</b><span className={`badge ${u.gemini_connected ? 'ok' : 'off'}`}>{u.gemini_connected ? 'Gemini 연결됨' : '연결 안 됨'}</span></div>
+                <div className="row"><b>{nameOf(u.user)}</b><span className={`badge ${u.gemini_connected ? 'ok' : 'off'}`}>{u.gemini_connected ? 'Gemini 연결됨' : '연결 안 됨'}</span></div>
                 <div className="bar-track" role="img" aria-label={`토큰 ${formatNumber(u.tokens)}`}><span className="bar-in" style={{ width: `${(u.tokens / maxUser) * 100}%`, background: 'var(--sig)' }} /></div>
               </div>
               <dl className="user-nums">
@@ -209,7 +218,7 @@ function OverviewPanel({ month }: { month: number }) {
           <ul className="upcoming">
             {data.revenue.upcoming.map((c, i) => (
               <li key={`${c.user}${c.deadline}${i}`}>
-                <span className="avatar small-avatar" aria-label={`사용자 ${c.user}`}>{c.user}</span>
+                <span className="avatar small-avatar" aria-label={nameOf(c.user)}>{c.user}</span>
                 <span className="up-main"><b>{c.brand}</b>{c.title && <span className="muted"> · {c.title}</span>}</span>
                 <span className="muted small">{CAMPAIGN_STATUS[c.status] ?? c.status} · {c.deadline.slice(5).replace('-', '/')} ({dDay(c.deadline)})</span>
                 <span className="up-amount">{c.amount ? won(c.amount) : ''}</span>
@@ -258,7 +267,7 @@ const APPS = [
   { id: 'minilog', kind: 'minilog', word: 'log', name: '미니로그', desc: '사진으로 블로그 원고 만들기', href: APP_LINKS.minilog },
 ] as const;
 
-function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
+function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (next: Partial<Pick<Me, 'name' | 'theme'>>) => void }) {
   const [busy, setBusy] = useState(false);
   const [scope, setScopeState] = useState<Scope>(savedScope);
   const setScope = (next: Scope) => { setScopeState(next); try { localStorage.setItem(SCOPE_KEY, next); } catch { /* 저장 못 해도 화면은 바뀜 */ } };
@@ -302,7 +311,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <div className="side-foot">
           <div className="who">
             <span className="avatar" aria-hidden="true">{me.user}</span>
-            <span className="who-text small">사용자 {me.user}</span>
+            <span className="who-text small">{me.name}</span>
           </div>
           <button className="btn ghost small" onClick={logout} disabled={busy}>로그아웃</button>
         </div>
@@ -313,7 +322,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           <div className="card hello">
             <Tomong kind="hub" size={76} pose="wave" />
             <div>
-              <h1 id="hello-title">{me.user}님, 오늘도 반가워요</h1>
+              <h1 id="hello-title">{me.name === `사용자 ${me.user}` ? me.user : me.name}님, 오늘도 반가워요</h1>
               <p className="hand hello-line">{line}</p>
               <p className="muted small" style={{ margin: 0 }}>{today}</p>
             </div>
@@ -342,7 +351,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
             <div className={`card kpi${me.gemini.connected ? ' sig' : ''}`}>
               <span className="label">Gemini</span>
               <span className={`value ${me.gemini.connected ? 'ok' : 'off'}`}>{me.gemini.connected ? '연결됨' : '연결 안 됨'}</span>
-              <span className="hint">{me.gemini.connected ? `사용자 ${me.user}의 키` : <a href="#settings">연결 방법 보기</a>}</span>
+              <span className="hint">{me.gemini.connected ? `${me.name}의 키` : <a href="#settings">연결 방법 보기</a>}</span>
             </div>
           </div>
           )}
@@ -418,18 +427,11 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <section id="settings" aria-labelledby="settings-title">
           <h2 id="settings-title" className="section-title">설정</h2>
           <div className="settings">
-            <div className="card">
-              <h3 className="section-title" style={{ fontSize: '0.95rem' }}>계정</h3>
-              <dl className="kv">
-                <dt>사용자</dt><dd>{me.user}</dd>
-                <dt>로그인</dt><dd>미니어리 로그인 코드</dd>
-                <dt>로그인 유지</dt><dd>30일(로그아웃하면 바로 끝남)</dd>
-              </dl>
-            </div>
+            <SettingsCard me={me} scope={scope} setScope={setScope} onMe={onMe} />
             <div className="card">
               <h3 className="section-title" style={{ fontSize: '0.95rem' }}>Gemini 키</h3>
               {me.gemini.connected ? (
-                <p className="muted small" style={{ margin: 0 }}>사용자 {me.user}의 키가 서버 비밀값으로 등록돼 있어요. 미니어리와 미니로그가 함께 써요. 키를 바꾸려면 Cloudflare에서 <code>GEMINI_KEY_{me.user}</code> 값을 바꾸세요.</p>
+                <p className="muted small" style={{ margin: 0 }}>{me.name}의 키가 서버 비밀값으로 등록돼 있어요. hub와 mini-log가 함께 써요. 키를 바꾸려면 Cloudflare에서 <code>GEMINI_KEY_{me.user}</code> 값을 바꾸세요.</p>
               ) : (
                 <>
                   <p className="muted small" style={{ margin: 0 }}>키는 보안을 위해 이 화면이 아니라 Cloudflare 비밀값으로 등록해요.</p>
@@ -444,6 +446,60 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
+
+// 설정: 이름 바꾸기(두 앱에 보임), 화면 테마(두 앱, 서버에 저장), 처음 볼 대시보드(이 기기)
+function SettingsCard({ me, scope, setScope, onMe }: { me: Me; scope: Scope; setScope: (s: Scope) => void; onMe: (next: Partial<Pick<Me, 'name' | 'theme'>>) => void }) {
+  const [name, setName] = useState(me.name);
+  const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function save(patch: { name?: string; theme?: Theme }) {
+    setBusy(true); setMessage(null);
+    try {
+      const { profile } = await api<{ profile: { name: string; theme: Theme } }>('/api/settings', { method: 'PUT', body: patch });
+      if (patch.theme) applyTheme(profile.theme);
+      onMe(profile);
+      setName(profile.name);
+      setMessage({ kind: 'info', text: patch.name ? '이름을 바꿨어요. mini-log에도 이 이름으로 보여요.' : '화면 테마를 바꿨어요. mini-log에도 적용돼요.' });
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '저장하지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card settings-card">
+      <h3 className="section-title" style={{ fontSize: '0.95rem' }}>내 설정</h3>
+      <form className="setting" onSubmit={e => { e.preventDefault(); void save({ name }); }}>
+        <label htmlFor="my-name">이름</label>
+        <div className="code-row">
+          <input id="my-name" className="input" value={name} maxLength={20} autoComplete="nickname" onChange={e => setName(e.target.value)} />
+          <button className="btn small" type="submit" disabled={busy || !name.trim() || name.trim() === me.name}>이름 바꾸기</button>
+        </div>
+        <span className="muted small">대시보드·월간 보고·mini-log에 보이는 이름이에요. 로그인 코드는 그대로예요.</span>
+      </form>
+      <div className="setting" role="group" aria-labelledby="theme-label">
+        <span id="theme-label" className="setting-label">화면 테마</span>
+        <div className="seg">
+          {([['auto', '기기 설정 따라'], ['light', '밝게'], ['dark', '어둡게']] as [Theme, string][]).map(([t, label]) => (
+            <button key={t} type="button" aria-pressed={me.theme === t} disabled={busy} onClick={() => { void save({ theme: t }); }}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="setting" role="group" aria-labelledby="scope-label">
+        <span id="scope-label" className="setting-label">처음 볼 대시보드<span className="muted small"> · 이 기기</span></span>
+        <div className="seg">
+          <button type="button" aria-pressed={scope === 'all'} onClick={() => setScope('all')}>통합</button>
+          <button type="button" aria-pressed={scope === 'me'} onClick={() => setScope('me')}>내 것만</button>
+        </div>
+      </div>
+      <dl className="kv">
+        <dt>사용자</dt><dd>{me.user}</dd>
+        <dt>로그인</dt><dd>공유 코드</dd>
+        <dt>로그인 유지</dt><dd>쓰는 동안 계속(30일 동안 안 쓰면 다시 로그인)</dd>
+      </dl>
+      {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
     </div>
   );
 }

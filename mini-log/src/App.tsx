@@ -7,6 +7,7 @@ import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
+import { applyTheme, type Theme } from '../../shared/client/theme';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 
@@ -53,7 +54,7 @@ async function uploadPhoto(draftId: string, file: File): Promise<Photo> {
   if (!response.ok) throw new ApiError((data as { error?: string }).error ?? '사진을 올리지 못했어요.', response.status);
   return (data as { photo: Photo }).photo;
 }
-interface Me { user: 'C' | 'D'; gemini: { connected: boolean } }
+interface Me { user: 'C' | 'D'; name: string; theme: Theme; gemini: { connected: boolean } }
 type State = { kind: 'loading' } | { kind: 'login' } | { kind: 'error'; message: string } | { kind: 'ready'; me: Me };
 
 export default function App() {
@@ -61,6 +62,7 @@ export default function App() {
   const load = useCallback(async () => {
     try {
       const me = await api<Me | { user: null }>('/api/me');
+      if (me.user) applyTheme((me as Me).theme); // hub 설정에서 고른 테마
       setState(me.user ? { kind: 'ready', me: me as Me } : { kind: 'login' });
     } catch (error) {
       setState({ kind: 'error', message: error instanceof Error ? error.message : '불러오지 못했어요.' });
@@ -85,6 +87,7 @@ export default function App() {
 
 function Login({ onDone }: { onDone: () => void }) {
   const [code, setCode] = useState('');
+  const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent) {
@@ -102,11 +105,17 @@ function Login({ onDone }: { onDone: () => void }) {
           <Tomong kind="minilog" size={88} pose="wave" bounce />
           <h1 className="sr-only">미니로그 로그인</h1>
           <Signature kind="minilog" word="log" size={22} tomong={0} />
-          <p className="hand login-line">미니어리 코드로 들어와요</p>
+          <p className="hand login-line">코드를 입력해 주세요</p>
         </div>
+        {/* 브라우저 비밀번호 저장(이 기기에 코드 기억)을 쓰도록: 숨은 사용자 칸 + 비밀번호 칸 */}
+        <input type="text" name="username" autoComplete="username" value="minihub" readOnly hidden />
         <div className="field">
           <label htmlFor="code">로그인 코드</label>
-          <input id="code" className="input" value={code} onChange={e => setCode(e.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} aria-invalid={!!error} aria-describedby={error ? 'code-error' : undefined} />
+          <div className="code-row">
+            <input id="code" name="password" className="input" type={showCode ? 'text' : 'password'} value={code} onChange={e => setCode(e.target.value)} autoComplete="current-password" autoCapitalize="characters" spellCheck={false} aria-invalid={!!error} aria-describedby={error ? 'code-error' : 'code-help'} />
+            <button type="button" className="btn ghost small" onClick={() => setShowCode(v => !v)} aria-pressed={showCode}>{showCode ? '숨기기' : '보기'}</button>
+          </div>
+          <p id="code-help" className="muted small" style={{ margin: 0 }}>브라우저가 "비밀번호 저장"을 물으면 저장하세요. 다음부터 이 기기에서 자동으로 채워져요. 한 번 로그인하면 쓰는 동안 계속 유지돼요.</p>
         </div>
         {error && <p id="code-error" className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy}>{busy ? '확인하는 중…' : '로그인'}</button>
@@ -207,13 +216,13 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </nav>
         )}
         <div className="side-foot">
-          <a className="btn ghost small" href={APP_LINKS.hub}>미니허브</a>
-          <span className="small muted">사용자 {me.user}</span>
+          <a className="btn ghost small" href={APP_LINKS.hub}>hub</a>
+          <span className="small muted side-name">{me.name}</span>
           <button className="btn ghost small" onClick={logout}>로그아웃</button>
         </div>
       </aside>
       <main className="main">
-        {view === 'report' ? <ReportView user={me.user} onBack={() => setView('drafts')} />
+        {view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
         : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
@@ -821,7 +830,7 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
           </button>
           {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
         </div>
-        {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(미니허브 설정 참고).</p>}
+        {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(hub 설정 참고).</p>}
       </section>
 
       <section className="card step" aria-labelledby="s3">

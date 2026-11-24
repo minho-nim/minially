@@ -70,7 +70,7 @@ export function ReportView({ user, onBack }: { user: string; onBack: () => void 
             <div className="report-brand"><Signature kind="minilog" word="log" size={15} tomong={28} /><span className="muted small">월간 블로그 보고</span></div>
             <h2 className="report-title">{monthLabel(month)} 블로그 보고</h2>
             <p className="muted small" style={{ margin: 0 }}>
-              {report.blogs.length ? report.blogs.map(b => { const i = blogInfo(b); return `${i.platform} ${i.name}`; }).join(' · ') : `사용자 ${user}`}
+              {report.blogs.length ? report.blogs.map(b => { const i = blogInfo(b); return `${i.platform} ${i.name}`; }).join(' · ') : user}
               {' · '}{isThisMonth ? `${new Date().toLocaleDateString('ko-KR')} 기준(진행 중인 달)` : '한 달 전체'}
             </p>
           </header>
@@ -120,7 +120,7 @@ export function ReportView({ user, onBack }: { user: string; onBack: () => void 
           </section>
 
           <section className="card step pdf-ai" aria-labelledby="r-ai">
-            <h3 id="r-ai" className="step-title">AI 사용량<span className="step-sub">미니허브 전체 앱</span></h3>
+            <h3 id="r-ai" className="step-title">AI 사용량<span className="step-sub">hub 전체 앱</span></h3>
             <p style={{ margin: 0 }} className="small">호출 {formatNumber(s.ai_calls)}번({diffText(s.ai_calls, p.ai_calls)}) · 토큰 {formatNumber(s.ai_tokens)} · 오류 {formatNumber(s.ai_errors)}</p>
           </section>
 

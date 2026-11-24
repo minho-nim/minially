@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, formatNumber } from '../../shared/client/api';
 import { diffKind, diffText, monthLabel, shiftMonth, sumSummaries, thisMonthKst, type MonthlyReport, type MonthSummary } from '../../shared/client/report';
 import { Signature } from './Tomong';
+import { useNameOf } from './names';
 
 // 미니허브 월간 보고: C·D 합계 + 사람별 나란히 비교 + 각자 요약·TOP 3. 'PDF로 저장'은 이 부분만 A4로.
 type Row = { label: string; pick: (s: MonthSummary) => number; unit?: string; money?: boolean; ai?: boolean };
@@ -21,6 +22,7 @@ function Cell({ now, before, unit = '' }: { now: number; before: number; unit?: 
 }
 
 export function Monthly() {
+  const nameOf = useNameOf();
   const [month, setMonth] = useState(thisMonthKst);
   const [reports, setReports] = useState<MonthlyReport[] | null>(null);
   const [error, setError] = useState('');
@@ -60,7 +62,7 @@ export function Monthly() {
         <>
           <div className="print-only report-print-head">
             <Signature kind="hub" word="hub" size={14} tomong={26} />
-            <h1>{monthLabel(month)} 블로그 월간 보고(사용자 {reports.map(r => r.user).join('·')})</h1>
+            <h1>{monthLabel(month)} 블로그 월간 보고({reports.map(r => nameOf(r.user)).join('·')})</h1>
             <p>{isThisMonth ? `${new Date().toLocaleDateString('ko-KR')} 기준(진행 중인 달)` : '한 달 전체'}</p>
           </div>
 
@@ -83,7 +85,7 @@ export function Monthly() {
             <h3 className="card-title">사람별 비교<span className="muted small"> · 지난달 대비</span></h3>
             <div className="table-wrap">
               <table className="compare">
-                <thead><tr><th scope="col">항목</th>{reports.map(r => <th key={r.user} scope="col">사용자 {r.user}</th>)}<th scope="col">합계</th></tr></thead>
+                <thead><tr><th scope="col">항목</th>{reports.map(r => <th key={r.user} scope="col">{nameOf(r.user)}</th>)}<th scope="col">합계</th></tr></thead>
                 <tbody>
                   {ROWS.map(row => (
                     <tr key={row.label} className={row.money ? 'pdf-revenue' : row.ai ? 'pdf-ai' : undefined}>
@@ -100,17 +102,17 @@ export function Monthly() {
           <div className="person-grid">
             {reports.map(r => (
               <div key={r.user} className="card person">
-                <h3 className="card-title">사용자 {r.user}<span className="muted small"> · {r.blogs.length ? `블로그 ${r.blogs.length}개` : '연결한 블로그 없음'}</span></h3>
+                <h3 className="card-title">{nameOf(r.user)}<span className="muted small"> · {r.blogs.length ? `블로그 ${r.blogs.length}개` : '연결한 블로그 없음'}</span></h3>
                 <ul className="summary-list">{r.comments.map(c => <li key={c} className={c.startsWith('받은 금액') ? 'pdf-revenue' : undefined}>{c}</li>)}</ul>
                 {r.top.length > 0 && (
-                  <ol className="top3" aria-label={`사용자 ${r.user} 조회수 TOP 3`}>
+                  <ol className="top3" aria-label={`${nameOf(r.user)} 조회수 TOP 3`}>
                     {r.top.slice(0, 3).map(p => <li key={p.url}><a href={p.url} target="_blank" rel="noopener noreferrer">{p.title}</a><span className="muted small">조회 {formatNumber(p.views ?? 0)}</span></li>)}
                   </ol>
                 )}
               </div>
             ))}
           </div>
-          <p className="muted small print-only" style={{ margin: 0 }}>조회·공감은 블로그 통계 캡처나 직접 적은 숫자 기준이에요. · 미니허브로 만든 보고서</p>
+          <p className="muted small print-only" style={{ margin: 0 }}>조회·공감은 블로그 통계 캡처나 직접 적은 숫자 기준이에요. · hub로 만든 보고서</p>
         </>
       )}
     </section>
