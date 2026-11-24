@@ -50,5 +50,6 @@ export async function ensureHubSchema(db: D1Database) {
   ]);
   // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
   await ensureColumn(db, 'minilog_drafts', 'planned_on', 'TEXT'); // 게시 예정일 YYYY-MM-DD
+  await ensureColumn(db, 'minilog_campaigns', 'guide', 'TEXT'); // 체험단 가이드 정리(JSON: 필수 키워드·사진 수·방문일 등)
   ready.add(db);
 }

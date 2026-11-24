@@ -1,8 +1,10 @@
 // 시험용 가짜 Gemini 서버(실제 Google API·크레딧을 쓰지 않음).
-// 사용: node mock-gemini.mjs <port>. 받은 글에 "RATE-LIMIT"가 있으면 429, "QUOTA-OVER"면 하루 한도 초과를 흉내 낸다.
+// 사용: node mock-gemini.mjs <port>. 받은 글에 "RATE-LIMIT"가 있으면 429, "QUOTA-OVER"면 하루 한도 초과,
+// "OVERLOAD-ONCE"면 처음 한 번만 503(다시 부르기 시험), "OVERLOAD-ALWAYS"면 계속 503, "BAD-REQUEST"면 400을 흉내 낸다.
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8899);
+const overloadedOnce = new Set(); // 'OVERLOAD-ONCE' 글은 처음 한 번만 503
 createServer((req, res) => {
   let raw = '';
   req.on('data', chunk => { raw += chunk; });
@@ -36,9 +38,16 @@ createServer((req, res) => {
     const parts = JSON.parse(raw || '{}').contents?.[0]?.parts ?? [];
     const prompt = parts.map(p => p.text ?? '').join('');
     const images = parts.filter(p => p.inline_data?.data).length;
+    if (prompt.includes('OVERLOAD-ALWAYS')) return send(503, { error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } });
+    if (prompt.includes('OVERLOAD-ONCE') && !overloadedOnce.has(prompt)) { overloadedOnce.add(prompt); return send(503, { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }); }
+    if (prompt.includes('BAD-REQUEST')) return send(400, { error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } });
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
+    if (prompt.includes('블로그 체험단 가이드를 정리하는')) {
+      const brand = images ? '캡처카페' : (prompt.match(/업체명:\s*(\S+)/)?.[1] ?? '가이드카페');
+      return ok({ brand, title: `${brand} 겨울 신메뉴 체험단`, provided: '2인 식사권(5만 원 상당)', amount: 30000, deadline: '2026-12-10', visit_on: '2026-12-01', keywords: ['성수 카페', '소금빵', '성수 카페'], hashtags: ['#성수카페', '체험단'], min_photos: 15, min_chars: 1500, links: ['https://map.naver.com/p/entry/place/1', 'http://not-https.example'], notes: '공정위 문구 필수' });
+    }
     if (prompt.includes('협찬 제안서(미디어킷) 문구')) {
       // 자료에 있는 숫자·업체만 쓰는지 시험에서 확인할 수 있게 자료 일부를 그대로 돌려준다
       const avg = prompt.match(/평균 조회수 (\S+?)\(/)?.[1] ?? '?';

@@ -19,3 +19,23 @@
 - 알고 일부러 줄인 곳에는 `shortcut: <한계>, <언제 고칠지>` 주석을 남긴다.
 - 결과 요약 끝에 남은 문제(안 한 것·확인 못 한 것·위험)를 한두 줄로, 스킬을 따랐으면 "쓴 스킬: 이름1, 이름2", MCP(Supabase·Playwright 등 외부 연결 도구)를 실제로 썼으면 "쓴 MCP: 이름1, 이름2" 한 줄을 적는다(안 썼으면 적지 않는다).
 <!-- /minoffia-rules -->
+
+## MINIHUB 보안 규칙(이 저장소 전용)
+
+비밀값
+- Gemini 키는 Cloudflare 비밀값 `GEMINI_KEY_C`·`GEMINI_KEY_D`에만 둔다. 브라우저 코드·빌드 결과·D1·로그·AI 프롬프트에 넣지 않는다. 키는 요청 머리(`x-goog-api-key`)로만 보내고 주소(`?key=`)에 붙이지 않는다.
+- 사용자 코드·공유 코드는 원문을 저장하지 않고 SHA-256 해시(`USER_CODE_HASHES`·`SYNC_CODE_HASHES`)로만 비교한다. 세션 토큰도 DB에는 해시만 둔다.
+- 외부 응답을 로그에 남길 때는 300자까지만, 키처럼 보이는 글자(`AIza…`)는 가린다.
+- 새 비밀값이 필요하면 코드에 넣지 말고 docs/SETUP_CLOUDFLARE.md에 이름과 넣는 곳만 적는다.
+
+서버
+- 모든 API는 `requireSession`(또는 동기화 코드 확인)으로 로그인과 주인을 확인하고, 모든 쿼리에 `user = ?` 조건을 건다. 화면에서 숨기는 것으로 끝내지 않는다.
+- 쓰기 요청은 같은 출처(`sameOrigin`)만 받는다. 쿠키는 `HttpOnly; Secure; SameSite=Lax`.
+- SQL은 `bind()`로만 값을 넣는다. 사용자 입력은 서버에서 길이·형식·허용 목록으로 다시 검사한다.
+- 사용자가 준 주소를 서버가 열 때는 공개 https 주소만, 리디렉트도 한 번씩 다시 검사한다(`isPublicHttps`). 크기·시간 제한을 둔다.
+- AI에 넘기는 사용자 글·외부 페이지는 `<가이드>`처럼 태그로 감싼 데이터로만 넣고, AI 답은 JSON으로 받아 칸마다 검사한 뒤 쓴다. AI 답을 HTML로 넣지 않는다.
+- 오류 응답에는 쉬운 한국어 안내만, 내부 정보(쿼리·스택·구글 원문)는 넣지 않는다.
+
+화면
+- 사용자·AI·외부 글을 `dangerouslySetInnerHTML`·`innerHTML`로 넣지 않고 `eval`을 쓰지 않는다(예외: 코드에 박힌 토몽이 SVG, 붙여넣은 HTML은 `template`에서 읽어 허용한 모양으로만 다시 그린다). 외부 링크는 `https://`만, `rel="noopener noreferrer"`.
+- 보안 헤더(`public/_headers`의 CSP·HSTS·X-Frame-Options)를 느슨하게 바꾸지 않는다. 새 외부 출처가 필요하면 그 출처만 더하고 이유를 적는다.

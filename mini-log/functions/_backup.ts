@@ -17,7 +17,7 @@ export async function exportBackup(db: D1Database, user: UserName) {
   const all = (sql: string) => db.prepare(sql).bind(user).all<Record<string, unknown>>().then(r => r.results);
   const [drafts, campaigns, styles, blogs, posts, watch, proposal] = await Promise.all([
     all('SELECT id, title, body, hashtags, experience, status, published_url, published_at, style_id, planned_on, created_at, updated_at FROM minilog_drafts WHERE user = ?'),
-    all('SELECT id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, created_at, updated_at FROM minilog_campaigns WHERE user = ?'),
+    all('SELECT id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, created_at, updated_at FROM minilog_campaigns WHERE user = ?'),
     all('SELECT id, kind, name, source, samples, profile, analyzed_at, created_at, updated_at FROM minilog_styles WHERE user = ?'),
     all('SELECT blog_id, synced_at, created_at FROM minilog_blogs WHERE user = ?'),
     all('SELECT post_key, blog_id, url, title, published_on, summary, tags, views, likes, comments, stats_on, draft_id, created_at FROM minilog_posts WHERE user = ?'),
@@ -27,7 +27,7 @@ export async function exportBackup(db: D1Database, user: UserName) {
   return {
     app: 'mini-log', version: BACKUP_VERSION, exported_at: Date.now(),
     drafts: drafts.map(d => ({ ...d, hashtags: String(d.hashtags || '').split('\n').filter(Boolean) })),
-    campaigns,
+    campaigns: campaigns.map(c => ({ ...c, guide: c.guide ? JSON.parse(String(c.guide)) : null })),
     styles: styles.map(s => ({ ...s, samples: JSON.parse(String(s.samples || '[]')), profile: s.profile ? JSON.parse(String(s.profile)) : null })),
     blogs, posts, watch: watch.map(w => ({ ...w, titles: JSON.parse(String(w.titles || '[]')) })),
     proposal: proposal ? { form: JSON.parse(proposal.form), updated_at: proposal.updated_at } : null,
@@ -58,16 +58,16 @@ export async function mergeBackup(db: D1Database, user: UserName, data: Record<s
 
   // 협찬·수익
   for (const c of list(data.campaigns)) {
-    const patch = readCampaign({ kind: c.kind, brand: c.brand, title: c.title, provided: c.provided, amount: c.amount, deadline: c.deadline ?? null, status: c.status, paid_on: c.paid_on ?? null, memo: c.memo });
+    const patch = readCampaign({ kind: c.kind, brand: c.brand, title: c.title, provided: c.provided, amount: c.amount, deadline: c.deadline ?? null, status: c.status, paid_on: c.paid_on ?? null, memo: c.memo, guide: c.guide ?? null });
     const created = time(c.created_at), updated = time(c.updated_at);
     if (!uuid(c.id) || typeof patch === 'string' || !created || !updated) { result.campaigns.skipped++; continue; }
     const cur = await db.prepare('SELECT user, updated_at FROM minilog_campaigns WHERE id = ?').bind(c.id).first<{ user: string; updated_at: number }>();
     if (cur && cur.user !== user) { result.campaigns.skipped++; continue; }
     if (cur && cur.updated_at >= updated) { result.campaigns.kept++; continue; }
     const draftId = uuid(c.draft_id) && (await db.prepare('SELECT 1 AS ok FROM minilog_drafts WHERE id = ? AND user = ?').bind(c.draft_id, user).first()) ? c.draft_id : null;
-    const row = [patch.kind ?? 'sponsor', patch.brand ?? '', patch.title ?? '', patch.provided ?? '', patch.amount ?? 0, patch.deadline ?? null, patch.status ?? 'proposed', patch.paid_on ?? null, draftId, patch.memo ?? ''];
-    if (cur) { await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, updated_at = ? WHERE id = ? AND user = ?').bind(...row, updated, c.id, user).run(); result.campaigns.updated++; }
-    else { await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(c.id, user, ...row, created, updated).run(); result.campaigns.added++; }
+    const row = [patch.kind ?? 'sponsor', patch.brand ?? '', patch.title ?? '', patch.provided ?? '', patch.amount ?? 0, patch.deadline ?? null, patch.status ?? 'proposed', patch.paid_on ?? null, draftId, patch.memo ?? '', patch.guide ? JSON.stringify(patch.guide) : null];
+    if (cur) { await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, guide = ?, updated_at = ? WHERE id = ? AND user = ?').bind(...row, updated, c.id, user).run(); result.campaigns.updated++; }
+    else { await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(c.id, user, ...row, created, updated).run(); result.campaigns.added++; }
   }
 
   // 문체: 내 문체는 사용자당 하나라 id가 달라도 내 문체끼리 합친다

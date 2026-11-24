@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
+import { shrinkPhoto } from './shrinkPhoto';
+import { DraftCheck } from './DraftCheck';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
@@ -22,26 +25,6 @@ interface Draft {
 interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null }
 const STATUS_LABEL: Record<Status, string> = { draft: '작성 중', approved: '승인됨', published: '게시됨' };
 const dayLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(ms);
-
-/** 올리기 전에 브라우저에서 긴 변을 1600px로 줄이고 JPG로 바꾼다(저장 공간·AI 토큰 절약, 위치 정보 등 메타데이터도 빠짐). */
-async function shrinkPhoto(file: File): Promise<Blob> {
-  let bitmap: ImageBitmap;
-  try { bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
-  catch { throw new Error(`${file.name}: 이 사진 형식은 열 수 없어요(HEIC는 JPG로 바꿔 올려 주세요).`); }
-  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('사진을 처리하지 못했어요.');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85));
-  if (!blob) throw new Error('사진을 처리하지 못했어요.');
-  return blob;
-}
 
 async function uploadPhoto(draftId: string, file: File): Promise<Photo> {
   const blob = await shrinkPhoto(file);
@@ -268,8 +251,6 @@ interface Dashboard {
   top_posts: { title: string; url: string; views: number; likes: number | null }[];
   revenue: { this_month: number; months: { month: string; total: number; count: number }[]; pending: { total: number; count: number }; upcoming: { id: string; brand: string; title: string; deadline: string; status: CampaignStatus }[] };
 }
-const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '내 문체 분석', style_reference: '참고 문체 분석' };
-const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
 const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}MB`;
 
 function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; onOpen: (id: string) => void; onCampaigns: () => void }) {
@@ -339,11 +320,11 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               {data.ai.tasks.length === 0 ? <p className="muted small" style={{ margin: 0 }}>이번 달에는 아직 AI를 쓰지 않았어요.</p> : (
                 <table className="mini-table">
                   <thead><tr><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
-                  <tbody>{data.ai.tasks.map(t => <tr key={t.task}><td>{TASK_LABEL[t.task] ?? t.task}</td><td>{formatNumber(t.calls)}</td><td>{formatNumber(t.tokens)}</td></tr>)}</tbody>
+                  <tbody>{data.ai.tasks.map(t => <tr key={t.task}><td>{AI_TASK_LABEL[t.task] ?? t.task}</td><td>{formatNumber(t.calls)}</td><td>{formatNumber(t.tokens)}</td></tr>)}</tbody>
                 </table>
               )}
               {data.ai.error_codes.length > 0 && (
-                <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
+                <p className="chips" aria-label="오류 종류">{data.ai.error_codes.map(e => <span key={e.error_code} className="chip warn">{AI_ERROR_LABEL[e.error_code] ?? e.error_code} {e.count}</span>)}</p>
               )}
             </section>
 
@@ -891,6 +872,8 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           />
         </div>
       </section>
+
+      <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} />
 
       <section className="card step" aria-labelledby="s4">
         <h2 id="s4" className="step-title"><span className="n">4</span>올리기·게시</h2>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { Monthly } from './Monthly';
@@ -125,8 +126,6 @@ const SCOPE_KEY = 'minihub.scope';
 function savedScope(): Scope {
   try { return localStorage.getItem(SCOPE_KEY) === 'me' ? 'me' : 'all'; } catch { return 'all'; }
 }
-const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '문체 분석', style_reference: '참고 문체 분석', blog_stats: '통계 캡처 읽기', ideas: '글감 추천', ideas_search: '글감 추천(검색)', proposal: '제안서 초안', proposal_mail: '제안 메일 다듬기', proposal_dm: '인스타 DM 다듬기', instagram: '인스타 글 쓰기', note: '메모' };
-const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
 
 function sum<T>(rows: T[], pick: (row: T) => number) { return rows.reduce((n, row) => n + pick(row), 0); }
 
@@ -244,7 +243,7 @@ function OverviewPanel({ month }: { month: number }) {
               ))}
             </div>
           )}
-          {errorCodes.size > 0 && <p className="chips" aria-label="오류 종류">{[...errorCodes].map(([code, n]) => <span key={code} className="chip warn">{ERROR_LABEL[code] ?? code} {n}</span>)}</p>}
+          {errorCodes.size > 0 && <p className="chips" aria-label="오류 종류">{[...errorCodes].map(([code, n]) => <span key={code} className="chip warn">{AI_ERROR_LABEL[code] ?? code} {n}</span>)}</p>}
         </section>
         <section className="card" aria-labelledby="model-title">
           <h2 id="model-title" className="section-title">모델·작업별</h2>
@@ -252,7 +251,7 @@ function OverviewPanel({ month }: { month: number }) {
             <div className="table-wrap">
               <table className="usage">
                 <thead><tr><th scope="col">모델</th><th scope="col">작업</th><th scope="col">호출</th><th scope="col">토큰</th></tr></thead>
-                <tbody>{[...byModelTask.values()].map(r => <tr key={`${r.model}${r.task}`}><td>{r.model}</td><td>{TASK_LABEL[r.task] ?? r.task}</td><td>{formatNumber(r.calls)}</td><td>{formatNumber(r.tokens)}</td></tr>)}</tbody>
+                <tbody>{[...byModelTask.values()].map(r => <tr key={`${r.model}${r.task}`}><td>{r.model}</td><td>{AI_TASK_LABEL[r.task] ?? r.task}</td><td>{formatNumber(r.calls)}</td><td>{formatNumber(r.tokens)}</td></tr>)}</tbody>
               </table>
             </div>
           )}

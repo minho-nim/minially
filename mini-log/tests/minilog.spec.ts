@@ -57,6 +57,17 @@ test('Gemini 호출 제한·한도 초과를 알기 쉽게 알린다', async ({ 
   await page.getByLabel(/직접 겪은 내용/).fill('QUOTA-OVER 시험용 경험 글입니다.');
   await page.getByRole('button', { name: 'AI로 초안 만들기' }).click();
   await expect(page.getByRole('alert')).toContainText('사용 한도를 넘었어요');
+  // 구글 서버가 잠깐 붐비면(503) 알아서 다시 불러 성공하고, 계속 붐비면 붐빈다고 알린다
+  await page.getByLabel(/직접 겪은 내용/).fill('OVERLOAD-ONCE 시험용 경험 글입니다.');
+  await page.getByRole('button', { name: 'AI로 초안 만들기' }).click();
+  await expect(page.getByLabel('제목')).toHaveValue(/가짜 Gemini가 쓴 제목/);
+  page.on('dialog', d => { void d.accept(); }); // 이미 쓴 원고를 덮어쓸지 묻는 창
+  await page.getByLabel(/직접 겪은 내용/).fill('OVERLOAD-ALWAYS 시험용 경험 글입니다.');
+  await page.getByRole('button', { name: 'AI로 초안 만들기' }).click();
+  await expect(page.getByRole('alert')).toContainText('붐벼요');
+  await page.getByLabel(/직접 겪은 내용/).fill('BAD-REQUEST 시험용 경험 글입니다.');
+  await page.getByRole('button', { name: 'AI로 초안 만들기' }).click();
+  await expect(page.getByRole('alert')).toContainText('요청을 받지 않았어요');
 });
 
 test('사용자별 데이터가 완전히 나뉜다(남의 원고는 못 보고 못 고침)', async ({ browser }) => {

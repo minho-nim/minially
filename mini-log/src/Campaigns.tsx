@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
+import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
 import { AD_SOURCE_LABEL, parseAdCsv, type AdSource } from './adsImport';
 
 // 협찬·광고 캠페인과 수익 기록(본인만 보는 계약 정보)
@@ -8,7 +9,7 @@ export type Kind = 'sponsor' | 'ad' | 'other';
 export type Status = 'proposed' | 'in_progress' | 'posted' | 'paid' | 'cancelled';
 export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
-  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string;
+  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null;
   created_at: number; updated_at: number;
 }
 export const KIND_LABEL: Record<Kind, string> = { sponsor: '협찬', ad: '광고 수익', other: '기타' };
@@ -26,7 +27,7 @@ export function dDay(deadline: string) {
 }
 
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
-const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '' };
+const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null };
 
 export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
@@ -64,6 +65,13 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
     setEditing({ id: c.id, form: { ...c, amount: String(c.amount) } });
   }
   const set = (patch: Partial<Form>) => setEditing(e => (e ? { ...e, form: { ...e.form, ...patch } } : e));
+  // 가이드 정리 결과는 빈 칸만 채우고(이미 적은 건 그대로), 가이드는 새로 바꾼다
+  const fillFromGuide = (r: GuideResult) => setEditing(e => {
+    if (!e) return e;
+    const f = e.form;
+    return { ...e, form: { ...f, brand: f.brand.trim() || r.brand, title: f.title.trim() || r.title, provided: f.provided.trim() || r.provided,
+      amount: f.amount.trim() || (r.amount ? String(r.amount) : ''), deadline: f.deadline || r.deadline, guide: r.guide } };
+  });
 
   async function save(event: FormEvent) {
     event.preventDefault();
@@ -122,7 +130,16 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
 
       {editing && (
         <form className="card step" onSubmit={save} aria-label={editing.id ? '캠페인 고치기' : '새 기록'}>
-          <h2 className="step-title">{editing.id ? '기록 고치기' : editing.form.kind === 'sponsor' ? '새 협찬' : '새 수익'}</h2>
+          <div className="row-between">
+            <h2 className="step-title">{editing.id ? '기록 고치기' : editing.form.kind === 'sponsor' ? '새 협찬' : '새 수익'}</h2>
+            {editing.form.kind === 'sponsor' && <GuideFill onFill={fillFromGuide} />}
+          </div>
+          {editing.form.kind === 'sponsor' && editing.form.guide && (
+            <div>
+              <GuideChips guide={editing.form.guide} />
+              <button type="button" className="btn ghost small" onClick={() => set({ guide: null })}>가이드 지우기</button>
+            </div>
+          )}
           <div className="form-grid">
             <div className="field">
               <label htmlFor="c-kind">종류</label>
