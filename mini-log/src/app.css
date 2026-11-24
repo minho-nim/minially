@@ -77,7 +77,7 @@
 .kv { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 6px 12px; margin: 0; font-size: 0.9rem; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .chip { padding: 3px 10px; border-radius: 999px; background: var(--app-soft); font-size: 0.85rem; font-weight: 600; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
@@ -293,8 +293,25 @@ select.input { appearance: auto; }
 .side-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 협찬 제안서 */
-.proposal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(440px, 100%), 1fr)); gap: var(--gap-lg); align-items: start; }
-.proposal-grid > section:last-child { grid-column: 1 / -1; }
+.pitch-layout { display: grid; gap: var(--gap-lg); align-items: start; min-width: 0; }
+@media (min-width: 1100px) {
+  .pitch-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 440px); }
+  .pitch-preview { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow: auto; }
+}
+.pitch-preview { min-width: 0; }
+.pitch-meter { display: grid; gap: 6px; }
+.pitch-meter-bar { height: 6px; border-radius: 999px; background: var(--app-soft); overflow: hidden; }
+.pitch-meter-bar span { display: block; height: 100%; border-radius: inherit; background: var(--app); transition: width .25s ease; }
+.chip.ok { background: #E3F2E8; color: #1F6B3A; }
+.pitch-tips summary { cursor: pointer; }
+.pitch-tips ul { margin: 6px 0; padding-left: 1.2em; line-height: 1.6; }
+.profile-toggle { all: unset; box-sizing: border-box; display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; cursor: pointer; }
+.profile-toggle:focus-visible { outline: 2px solid var(--app); outline-offset: 4px; border-radius: 8px; }
+.mail-preview { padding: 14px 16px; display: grid; gap: 10px; }
+.mail-preview .mp-meta { margin: 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: 0.85rem; overflow-wrap: anywhere; }
+.mail-preview .mp-body { margin: 0; white-space: pre-wrap; line-height: 1.7; font-size: 0.92rem; overflow-wrap: anywhere; }
+.mail-preview.dm .mp-body { justify-self: start; max-width: 85%; padding: 10px 14px; border-radius: 18px 18px 18px 4px; background: var(--app-soft); }
+.print-only { display: none; }
 .prop-fields { display: grid; gap: 10px; }
 .proposal-doc { display: grid; gap: 12px; padding: clamp(16px, 2vw, 28px); }
 .pd-head { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 2px solid var(--app); }
@@ -312,7 +329,8 @@ select.input { appearance: auto; }
 .pd-foot { padding-top: 10px; border-top: 1px solid var(--line); font-weight: 700; font-size: 0.9rem; overflow-wrap: anywhere; }
 .pd-note { margin: 0; font-size: 0.72rem; color: var(--muted); }
 @media print {
-  .proposal .proposal-grid { display: block; }
+  .proposal .pitch-layout { display: block; }
+  .proposal .print-only { display: grid; }
   .proposal .proposal-doc { border: 0; padding: 0; box-shadow: none; }
   .proposal .pd-nums div { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .proposal .pd-head { -webkit-print-color-adjust: exact; print-color-adjust: exact; }

@@ -29,31 +29,56 @@ export const bullets = lines;
 /** 단가 문장: 켜져 있고 적은 값이 있을 때만. '협의 가능'을 붙인다. */
 export const priceLine = (f: ProposalForm) => (f.show_price && f.price.trim() ? `${f.price.trim()}${/협의/.test(f.price) ? '' : ' (협의 가능)'}` : '');
 
-/** 기본 메일(규칙): 업체·제안 대상만 넣으면 바로 쓸 수 있는 초안 */
-export function defaultMail(f: ProposalForm, s: ProposalStats, name: string, brand: string, product: string) {
+/** 이번에 제안할 업체 정보(저장 안 함) */
+export interface Pitch { brand: string; product: string; reason: string; schedule: string }
+export const EMPTY_PITCH: Pitch = { brand: '', product: '', reason: '', schedule: '' };
+
+const target = (p: Pitch) => (p.product ? `${p.product}${eulReul(p.product)}` : p.brand ? `${p.brand}${eulReul(p.brand)}` : '제품·서비스를');
+const numbersLine = (s: ProposalStats) => [
+  s.avg_views ? `글 평균 조회수 ${s.avg_views.toLocaleString('ko-KR')}회` : '',
+  s.posts_per_month ? `한 달에 글 ${s.posts_per_month}개 정도` : '',
+  s.sponsor_done ? `협찬 진행 ${s.sponsor_done}건` : '',
+].filter(Boolean).join(' · ');
+
+/**
+ * 기본 메일(규칙, AI 없이). 먼저 제안하는 글에서 답이 잘 오는 순서를 따른다:
+ * 짧은 자기소개 → 왜 이 업체인지 → 업체가 얻는 것(독자·숫자·대표 글) → 제안 조건(방식·일정·비용) → 답장 방법.
+ * '협업 요청드립니다' 같은 막연한 말 대신 구체적으로 쓴다.
+ */
+export function defaultMail(f: ProposalForm, s: ProposalStats, name: string, p: Pitch) {
   const blog = f.blog_name || '제 블로그';
-  const subject = `[협찬 제안] ${f.blog_name ? `${f.blog_name} 블로그` : name} × ${brand || '귀사'}`;
-  const numbers = [
-    s.posts_per_month ? `최근 3개월 동안 한 달에 ${s.posts_per_month}개 정도 글을 올리고 있어요` : '',
-    s.avg_views ? `글 평균 조회수는 ${s.avg_views.toLocaleString('ko-KR')}회예요` : '',
-  ].filter(Boolean).join(', ');
+  const brand = p.brand || '귀사';
+  const subject = `[블로그 리뷰 제안] ${p.brand ? `${p.brand} ` : ''}${p.product ? `${p.product} ` : ''}- ${f.topic ? `${f.topic} 블로거 ` : '블로거 '}${name}`.replace(/\s+/g, ' ');
   const offers = lines(f.offers);
   const price = priceLine(f);
-  const body = [
-    `안녕하세요, ${brand || '귀사'} 담당자님.`,
-    '',
+  const nums = numbersLine(s);
+  const top = s.top[0];
+  // '' = 빈 줄, null = 이번엔 넣지 않는 줄
+  const BR = '';
+  const body = ([
+    `안녕하세요, ${brand} 담당자님.`,
     `${f.topic ? `${f.topic} 블로그 ` : '블로그 '}「${blog}」${eulReul(blog) === '를' ? '를' : '을'} 운영하는 ${name}입니다.${f.intro ? ` ${sentence(f.intro)}` : ''}`,
-    numbers ? `${numbers}.` : '',
-    '',
-    `${product ? `${product}${eulReul(product)}` : `${brand || '귀사'}의 제품·서비스를`} 직접 경험하고, 제 블로그 독자분들께 솔직한 후기로 소개하고 싶어 연락드렸습니다.`,
-    offers.length ? `\n가능한 진행 방식\n${offers.map(o => `- ${o}`).join('\n')}` : '',
-    price ? `\n진행 비용: ${price}` : '',
-    '',
-    '블로그 소개서(PDF)를 첨부했어요. 검토해 보시고 편하게 회신 부탁드립니다.',
-    '',
+    BR,
+    p.reason ? sentence(p.reason) : null,
+    `${target(p)} 직접 경험하고 제 블로그 독자분들께 솔직한 후기로 소개하고 싶어 연락드렸습니다.`,
+    BR,
+    f.audience || nums || top ? '업체에 도움이 되는 점' : null,
+    f.audience ? `- 주요 독자: ${f.audience.replace(/[.。]$/, '')}` : null,
+    nums ? `- ${nums}` : null,
+    top ? `- 대표 글: ${top.title}(조회 ${top.views.toLocaleString('ko-KR')}회)` : null,
+    ...lines(f.strengths).slice(0, 2).map(l => `- ${l}`),
+    BR,
+    offers.length || p.schedule || price ? '제안 내용' : null,
+    offers.length ? `- 방식: ${offers.join(', ')}` : null,
+    p.schedule ? `- 일정: ${p.schedule}` : null,
+    price ? `- 비용: ${price}` : null,
+    offers.length || p.schedule || price ? '- 게시 후 조회수 등 결과를 정리해 공유드려요.' : null,
+    BR,
+    '블로그 소개서(PDF)를 첨부했어요. 괜찮으시면 이 메일로 편하게 회신 주세요. 일정에 맞춰 진행할게요.',
+    BR,
     `${name} 드림`,
     [f.contact_email, f.contact_extra].filter(Boolean).join(' · '),
-  ].filter((l, i, arr) => !(l === '' && arr[i - 1] === '')).join('\n').trim();
+  ] as (string | null)[]).filter((l): l is string => l !== null).filter((l, i, arr) => !(l === '' && (i === 0 || arr[i - 1] === ''))).join('\n').trim().replace(/\n{3,}/g, '\n\n');
   return { subject, body };
 }
 
@@ -62,19 +87,19 @@ export function mailtoHref(to: string, subject: string, body: string) {
   return `mailto:${encodeURIComponent(to.trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body.slice(0, 1800))}`;
 }
 
-/** 인스타 DM용 짧은 제안(규칙, 300자 안팎) */
-export function defaultDm(f: ProposalForm, s: ProposalStats, name: string, brand: string, product: string) {
+/** 인스타 DM용 짧은 제안(규칙, 300자 안팎): 누구인지 → 왜 이 업체 → 숫자 한 줄 → 답장 방법 */
+export function defaultDm(f: ProposalForm, s: ProposalStats, name: string, p: Pitch) {
   const blog = f.blog_name || '제 블로그';
-  const target = product ? `${product}${eulReul(product)}` : `${brand || '제품·서비스'}${brand ? '의 제품·서비스를' : ''}`.replace('제품·서비스을', '제품·서비스를');
+  const nums = numbersLine(s);
   return [
-    `안녕하세요, ${brand ? `${brand} ` : ''}담당자님!`,
+    `안녕하세요, ${p.brand ? `${p.brand} ` : ''}담당자님!`,
     `${f.topic ? `${f.topic} 블로그 ` : '블로그 '}「${blog}」${eulReul(blog) === '를' ? '를' : '을'} 운영하는 ${name}입니다.`,
-    `${target} 직접 경험하고 솔직한 후기로 소개하고 싶어 연락드렸어요.`,
-    s.posts_per_month && s.avg_views ? `한 달에 ${s.posts_per_month}개 정도 글을 올리고, 글 평균 조회수는 ${s.avg_views.toLocaleString('ko-KR')}회예요.`
-      : s.posts_per_month ? `한 달에 ${s.posts_per_month}개 정도 글을 올리고 있어요.` : s.avg_views ? `글 평균 조회수는 ${s.avg_views.toLocaleString('ko-KR')}회예요.` : '',
-    priceLine(f) ? `진행 비용: ${priceLine(f)}` : '',
-    f.contact_email ? `자세한 제안서는 메일로 보내 드릴게요(${f.contact_email}).` : '자세한 제안서도 보내 드릴 수 있어요.',
-    '편하게 답장 주세요. 감사합니다!',
+    p.reason ? sentence(p.reason) : '',
+    `${target(p)} 직접 경험하고 블로그 후기로 소개하고 싶어 연락드렸어요.`,
+    nums ? `(${nums})` : '',
+    priceLine(f) ? `비용: ${priceLine(f)}` : '',
+    f.contact_email ? `괜찮으시면 메일 주소를 알려 주시거나 ${f.contact_email}로 연락 주세요. 소개서를 보내 드릴게요.` : '괜찮으시면 답장 주세요. 소개서를 보내 드릴게요.',
+    '감사합니다!',
   ].filter(Boolean).join('\n');
 }
 
