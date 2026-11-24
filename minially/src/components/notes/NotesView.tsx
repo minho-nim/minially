@@ -8,7 +8,13 @@ import {EmptyNoteTrashDialog} from './EmptyNoteTrashDialog';
 import {NoteFolderModal} from './NoteFolderModal';
 import {RichNoteBody} from './RichNoteBody';
 import {useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
-import {ArrowLeft, CheckSquare, CalendarPlus, FileText, Folder, Plus, Search, Pin, Trash2, Maximize2, Minimize2, RotateCcw, Settings, X} from 'lucide-react';
+import {ArrowLeft, CheckSquare, CalendarPlus, FileText, Folder, Plus, Search, Pin, Trash2, Maximize2, Minimize2, RotateCcw, Settings, X, History} from 'lucide-react';
+import {NoteHistoryDialog} from './NoteHistoryDialog';
+import {snapshotNoteBeforeRestore,saveNotePhoto,getNotePhoto} from '../../db/indexedDB';
+import {setNotePhotoLoader} from './noteRichDom';
+import {resizeNotePhoto} from '../../utils/imageResize';
+
+setNotePhotoLoader(async id=>(await getNotePhoto(id))?.dataUrl);
 import type {Note, NoteFolder, Task, CategoryItem, Schedule, NoteDefaults} from '../../types';
 import {noteTitle, recommendNoteFolders} from '../../utils/notes';
 import {getTodayDateString} from '../../utils/dateHelpers';
@@ -82,6 +88,7 @@ export function NotesView({noteDefaults,onSaveDefaults,active=true,schedules,onO
 }
 
 function NoteEditor({noteDefaults,onSaveDefaults,onRegisterEntries,notes,note,onOriginal,originalExists,beforeLeave,schedules,onOpenTask,onOpenSchedule,categories,folders,tasks,onSave,onTask,onSchedule,onCreate,focus,onFocus,onBack}:Pick<Props,'noteDefaults'|'onSaveDefaults'|'onRegisterEntries'|'notes'|'schedules'|'onOpenTask'|'onOpenSchedule'|'categories'|'folders'|'tasks'|'onSave'|'onTask'|'onSchedule'>&{note:Note;originalExists:boolean;onOriginal:(id:string)=>Promise<void>;beforeLeave:{current:()=>Promise<boolean>};onCreate:()=>Promise<void>;focus:boolean;onFocus:()=>void;onBack:()=>void}){
+ const [historyOpen,setHistoryOpen]=useState(false),[bodyKey,setBodyKey]=useState(0);
  const [draft,setDraft]=useState(note),[status,setStatus]=useState('저장됨'),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[date,setDate]=useState(getTodayDateString);
  const [registrationSource,setRegistrationSource]=useState<Note|null>(null);
  const [settingsOpen,setSettingsOpen]=useState(false);
@@ -122,6 +129,7 @@ function NoteEditor({noteDefaults,onSaveDefaults,onRegisterEntries,notes,note,on
    <button type="button" aria-label="새 메모 작성" title="새 메모 작성" className={button+' !min-h-7 !px-1.5'} onClick={()=>void navigate(onCreate)}><Plus className="w-4 h-4"/></button>
    <button type="button" aria-label={draft.pinned?'메모 고정 해제':'메모 고정'} aria-pressed={draft.pinned} className={button+' !min-h-7 !px-1.5'} onClick={()=>void update({pinned:!draft.pinned})}><Pin className={'w-4 h-4 '+(draft.pinned?'fill-app-peach text-app-accent':'')}/></button>
    <button type="button" aria-label={focus?'집중 모드 종료':'집중 모드'} className={button+' !min-h-7 !px-1.5 hidden md:inline-flex note-focus-toggle'} onClick={onFocus}>{focus?<Minimize2 className="w-4 h-4"/>:<Maximize2 className="w-4 h-4"/>}</button>
+   <button type="button" aria-label="메모 수정 기록" title="수정 기록" className={button+' !min-h-7 !px-1.5'} onClick={async()=>{try{await pending.current;}catch{/* 저장 실패는 화면에 이미 보임 */}setHistoryOpen(true);}}><History className="w-4 h-4"/></button>
    <button type="button" aria-label={draft.deletedAt?'메모 복원':'메모 휴지통으로'} className={button+' !min-h-7 !px-1.5'} onClick={()=>void update({deletedAt:draft.deletedAt?undefined:Date.now()})}>{draft.deletedAt?<RotateCcw className="w-4 h-4"/>:<Trash2 className="w-4 h-4"/>}</button>
   </header>
   {draft.conflictOf&&<div role="status" className="px-3 py-2 text-xs bg-app-soft text-app-ink"><p>다른 기기에서 먼저 수정한 내용을 보존한 사본이에요. 원본과 비교해 필요한 내용을 옮겨 주세요.</p>{originalExists&&<button type="button" className={button+' text-app-accent-hover'} onClick={()=>void navigate(()=>onOriginal(draft.conflictOf!))}>원본 메모 보기</button>}</div>}
@@ -131,7 +139,8 @@ function NoteEditor({noteDefaults,onSaveDefaults,onRegisterEntries,notes,note,on
   </div>}
   <input autoFocus={!note.title&&!note.body&&!note.deletedAt} aria-label="메모 제목" placeholder="제목 없는 메모" maxLength={500} readOnly={!!draft.deletedAt} value={draft.title} onChange={e=>void update({title:e.target.value})} className="min-w-0 w-full px-3 pt-1.5 pb-2 text-xl font-bold outline-none bg-transparent"/>
   {settingsOpen&&<NoteSettingsModal value={noteDefaults} onSave={onSaveDefaults} onClose={()=>setSettingsOpen(false)}/>}
-  <RichNoteBody defaults={draft.defaultStyle} body={draft.body} runs={draft.richBody} blocks={draft.richDocument} readOnly={!!draft.deletedAt} onChange={(body,richBody,richDocument)=>void update({body,richBody,richDocument})}/>
+  <NoteHistoryDialog noteId={historyOpen?draft.id:null} currentBody={draft.body} onClose={()=>setHistoryOpen(false)} onRestore={async version=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');await snapshotNoteBeforeRestore(draft.id);await update({title:version.note.title,body:version.note.body,richBody:version.note.richBody,richDocument:version.note.richDocument});setBodyKey(k=>k+1);setNotice('선택한 버전으로 되돌렸어요. 되돌리기 전 내용은 수정 기록에 있어요.');}}/>
+  <RichNoteBody key={bodyKey} onAddPhoto={async file=>{setError('');try{const {dataUrl,width,height}=await resizeNotePhoto(file),now=Date.now(),id=crypto.randomUUID();await saveNotePhoto({id,noteId:draft.id,dataUrl,width,height,createdAt:now,updatedAt:now});return {id,dataUrl};}catch(e){setError(e instanceof Error?e.message:'사진을 넣지 못했습니다.');return null;}}} defaults={draft.defaultStyle} body={draft.body} runs={draft.richBody} blocks={draft.richDocument} readOnly={!!draft.deletedAt} onChange={(body,richBody,richDocument)=>void update({body,richBody,richDocument})}/>
   <div className="px-4 sm:px-6 py-2 flex gap-2 items-center"><label htmlFor="note-tags" className="text-xs text-app-muted shrink-0">태그</label><input id="note-tags" aria-label="메모 태그" placeholder="쉼표로 구분" readOnly={!!draft.deletedAt} value={draft.tags.join(', ')} onChange={e=>void update({tags:e.target.value.split(',').map(tag=>tag.trimStart())})} className="min-w-0 flex-1 py-1 text-xs outline-none"/></div>
   <NoteTaskModal source={taskSource} categories={categories} onClose={()=>setTaskSource(null)} onSave={async(source,options)=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');await onTask(source.note,source.date,source.categoryId,source.excerpt,options);setDate(source.date);setCategoryOverride(source.categoryId);setLinkExcerpt(source.excerpt);setLinkTitle(source.note.title);setNotice('기존 할 일 목록에 등록했습니다.');}}/>
   <NoteRegistrationModal note={registrationSource} preferredCategory={categoryId||folders.find(folder=>folder.id===recommendations[0]?.id)?.defaultCategoryId||''} categories={categories} tasks={tasks} schedules={schedules} onClose={()=>setRegistrationSource(null)} onRegister={async(source,entries)=>{await pending.current;if(dirty.current)throw new Error('메모를 먼저 다시 저장해 주세요.');const result=await onRegisterEntries(source,entries);setNotice(`할 일 ${result.tasks}개 · 일정 ${result.schedules}개 등록${result.skipped?` · 중복 ${result.skipped}개 제외`:''}`);return result;}}/>

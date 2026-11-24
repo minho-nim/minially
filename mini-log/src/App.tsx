@@ -232,7 +232,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : selected
-          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
+          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
@@ -563,9 +563,12 @@ function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (
 type SaveState = 'saved' | 'dirty' | 'saving' | 'failed';
 type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status' | 'style_id' | 'planned_on'>;
 
-function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
-  draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
+function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack }: {
+  draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
 }) {
+  // 동시 수정 보호: 이 화면이 마지막으로 본 원고 수정 시각. 서버가 더 새것이면 덮어쓰지 않고 사본으로 남긴다.
+  const baseUpdatedAt = useRef(draft.updated_at);
+  useEffect(() => { baseUpdatedAt.current = Math.max(baseUpdatedAt.current, draft.updated_at); }, [draft.updated_at]);
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [storage, setStorage] = useState(true);
   const [uploading, setUploading] = useState(0);
@@ -671,14 +674,29 @@ function Editor({ draft, gemini, onSaved, onPhotoCount, onDeleted, onBack }: {
     setSave('saving');
     try {
       const keepalive = leaving && new Blob([JSON.stringify(next)]).size < 60000;
-      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: next, keepalive });
+      const { draft: saved } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}`, { method: 'PUT', body: { ...next, base_updated_at: baseUpdatedAt.current }, keepalive });
+      baseUpdatedAt.current = saved.updated_at;
       onSaved(saved);
       setSave(pending.current ? 'dirty' : 'saved');
-    } catch {
+    } catch (error) {
+      const conflict = error instanceof ApiError && error.code === 'conflict' ? error.data as { draft: Draft; copy: Draft } : null;
+      if (conflict) {
+        // 다른 기기에서 먼저 고친 원고: 최신 내용을 보여 주고, 이 기기에서 고친 내용은 사본 원고로
+        pending.current = null;
+        baseUpdatedAt.current = conflict.draft.updated_at;
+        const latest = conflict.draft;
+        setFields({ title: latest.title, body: latest.body, experience: latest.experience, hashtags: latest.hashtags, status: latest.status, style_id: latest.style_id, planned_on: latest.planned_on });
+        setTagText(latest.hashtags.map(t => `#${t}`).join(' '));
+        onSaved(latest);
+        onCopied(conflict.copy);
+        setSave('saved');
+        setMessage({ kind: 'error', text: `${error instanceof Error ? error.message : ''} 목록의 '${conflict.copy.title}'에서 확인해 주세요.` });
+        return;
+      }
       pending.current = pending.current ?? next;
       setSave('failed');
     }
-  }, [draft.id, onSaved]);
+  }, [draft.id, onSaved, onCopied]);
 
   // 자동 저장: 입력을 멈추고 0.8초 뒤. 화면을 떠날 때도 남은 것을 저장한다.
   function change(patch: Partial<Fields>) {

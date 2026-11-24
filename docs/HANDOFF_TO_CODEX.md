@@ -53,6 +53,11 @@
 | 제안서 추가: '이번 제안용으로 고치기'(기본 양식은 그대로, 미리보기·PDF·메일에만 반영), 제안 보내기 탭 '메일 / 인스타 DM'(DM 기본 글 300자 안팎, `ig.me/m/아이디`로 DM 열기, 복사, AI 다듬기 kind=dm). AI 글 프롬프트에 `shared/server/koreanStyle.ts`(humanize-korean 요약 규칙) 적용 | `mini-log/src/Proposal.tsx`, `src/proposalKit.ts`, `functions/_proposal.ts` | 시험(업체용 수정 후 기본 양식 유지, DM 기본 글·주소·다듬기·규칙 포함) |
 | 원고 ④ 인스타 게시물 글: 규칙으로 만든 글(사진 표시 빼기·해시태그 30개·2,200자) → 'AI로 인스타 글 쓰기'(`POST /api/drafts/:id/instagram`) → 고치기 → 복사. 자동 게시는 Meta 앱 심사가 필요해 안 함 | `src/publishKit.ts` `instagramText`, `functions/api/drafts/[id]/instagram.ts` | 시험 |
 | 미니어리 0.1.10: 설치형 앱에서 화면 안 스크롤 탭(캘린더·메모)의 머리줄이 제목 표시줄 높이만큼 두 번 내려가 내용(메모 위쪽·휴지통 버튼)을 가리던 문제 수정. 체험 데이터 '친구 생일'을 반복 일정 없는 날로 | `minially/src/index.css`, `minially/src/sync/demoMode.ts`, `minially/tests/desktop-header-align.spec.ts` | 시험(미니어리 224) |
+| 미니어리 0.1.11 백업 복원: 기본 '합치기'(지금 데이터 유지, 없는 항목 더함, 같은 항목은 백업 updatedAt이 더 클 때만 바꿈, 설정은 유지·프리셋 그룹은 없는 것만 더함), 복원 직전 `Minially_Backup_날짜_before-restore.json` 자동 내려받기, '전부 바꾸기' 체크 시 예전처럼 교체. 백업에 메모 사진 포함 | `minially/src/db/indexedDB.ts` `mergeAllData`·`validateBackup`, `SettingsModal.tsx`, `App.tsx` | 시험(합치기 결과·자동 백업 파일 이름·잘못된 파일·전부 바꾸기) |
+| 미니어리 0.1.11 메모 수정 기록: IndexedDB v3 `noteVersions`(이 기기만, 동기화 안 함). 직접 고칠 때(10분 안 연속 수정은 한 번)·다른 기기에서 받을 때·되돌리기 전에 바뀌기 전 내용 저장, 같은 내용 중복 안 함, 메모당 30개. 편집기 '수정 기록' 버튼 → 목록·미리보기·되돌리기. 영구 삭제 시 함께 삭제 | `indexedDB.ts` `recordNoteVersion`·`getNoteVersions`·`snapshotNoteBeforeRestore`, `syncEngine.ts` applyRemote, `notes/NoteHistoryDialog.tsx` | 시험(묶음·30개·영구 삭제·되돌리기·동기화로 받은 변경 기록) |
+| 미니어리 0.1.11 메모 사진: 문서 블록 `{type:'image', photoId}`(본문 글에는 `[사진]`), 사진은 `notePhotos` 저장소(동기화됨, 긴 변 1280px JPEG·240KB 이하, data URL). 편집기 '사진 넣기'·붙여넣기·끌어다 놓기. 서버 sync가 notePhotos 검사. 영구 삭제 시 사진도 삭제. **0.1.10 이하 앱은 사진 블록을 모르는 형식으로 보고 동기화가 멈춤 → 모든 기기 0.1.11로** | `src/types.ts` NoteImage·NotePhoto, `utils/noteRichDocument.ts`, `utils/notePhotos.ts`, `utils/imageResize.ts`, `notes/noteRichDom.ts`, `notes/RichNoteBody.tsx`, `functions/api/sync.ts` | 시험(형식 검사, 넣기·다시 열기·백업 포함·삭제, 실제 서버 동기화). 붙여넣기 시험은 없음(클립보드 파일 흉내가 어려움). shortcut: 원고에서 지운 사진의 고아 기록은 메모 영구 삭제 때까지 남음 |
+| mini-log 원고 동시 수정 보호: 편집 화면이 PUT에 `base_updated_at`(마지막으로 본 수정 시각)을 보냄. 서버 원고가 더 새것이고 제목·본문·경험·해시태그가 다르면 덮어쓰지 않고 '… · 다른 기기 수정 사본' 원고로 남기고 409(code conflict, 최신 원고·사본) → 화면은 최신 내용으로 바꾸고 사본을 목록에 더함 | `functions/api/drafts/[id]/index.ts`, `_drafts.ts` `saveConflictCopy`, `src/App.tsx` Editor, `shared/client/api.ts`(ApiError.data) | 시험(두 기기) |
+| mini-log 광고 수익 가져오기(CSV, 애드센스 준비): 협찬 화면 '광고 수익 가져오기' → CSV(애드센스·애드포스트 날짜별/월별 보고서, 한글·영어 머리글·탭·설명 줄·합계 줄) 읽어 달마다 합계 → `POST /api/campaigns/import-ads` → 달마다 '광고' 수익 1개(받은 날 = 말일, memo `import:출처:YYYY-MM`로 같은 달 다시 올리면 금액만 바꿈). 월간 보고·대시보드 수익에 들어감. 구글 자동 연결은 준비 중(앱 승인 필요) | `src/adsImport.ts`, `src/Campaigns.tsx` `AdImport`, `functions/api/campaigns/import-ads.ts` | 시험(CSV 읽기·기록·다시 올리기·월간 보고 반영·400) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초, 창 닫기·다른 앱으로 갈 때는 바로 저장 keepalive, 저장 전 닫으면 확인)·승인·삭제·발행용 복사. 지금 탭·원고를 주소 해시(`#ideas`, `#draft/아이디`)에 남김(새로고침 유지, 뒤로 가기 = 이전 화면) | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
@@ -119,11 +124,11 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 | `minially`: `node --import tsx --test tests/*.unit.mjs` | 32 passed |
 | `minially`: `npm run desktop:prepare && npm run test:desktop:unit` | 20 passed |
 | `minially`: `npm run test:sync` | 13 passed (1.5m) |
-| `minially`: `npm test` | 224 passed (11.4m) |
+| `minially`: `npm test` | 230 passed (11.0m), `npm run test:sync` 14 passed |
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 14 passed (설정·로그인 유지, 월간 보고, 통합 대시보드·PWA 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 40 passed (인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
+| `mini-log`: `npm test` | 43 passed (동시 수정·광고 수익 가져오기, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 

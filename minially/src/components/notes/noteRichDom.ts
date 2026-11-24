@@ -2,7 +2,19 @@ import type {NoteAlignment,NoteBlock,NoteParagraph,NoteTextRun} from '../../type
 import {NOTE_FONTS,NOTE_LINE_HEIGHTS,flattenNoteBlocks} from '../../utils/noteRichDocument';
 const dropped=new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','SVG','MATH','IMG','VIDEO','AUDIO','TEMPLATE','NOSCRIPT']);
 const blockTags=new Set(['DIV','P','LI','BLOCKQUOTE','H1','H2','H3','H4','PRE']);
-const structural=(node:Node)=>node instanceof HTMLElement&&(blockTags.has(node.tagName)||['TABLE','UL','OL'].includes(node.tagName));
+const photoOf=(node:Node)=>node instanceof HTMLElement&&node.tagName==='FIGURE'&&/^[0-9a-f-]{36}$/.test(node.dataset.photoId||'')?node.dataset.photoId!:null;
+const structural=(node:Node)=>node instanceof HTMLElement&&(blockTags.has(node.tagName)||['TABLE','UL','OL'].includes(node.tagName)||!!photoOf(node));
+/** 메모 사진 불러오기(사진 번호 → data URL). 메모 화면이 등록한다. 없으면 빈 칸으로 보인다. */
+let photoLoader:((id:string)=>Promise<string|undefined>)|null=null;
+export function setNotePhotoLoader(loader:typeof photoLoader){photoLoader=loader;}
+export function notePhotoFigure(photoId:string,src?:string){
+ const figure=document.createElement('figure');figure.className='note-photo';figure.contentEditable='false';figure.dataset.photoId=photoId;
+ const img=document.createElement('img');img.alt='메모 사진';img.draggable=false;
+ // 다른 기기에서 메모가 사진보다 먼저 도착할 수 있어 잠깐씩 다시 찾는다. shortcut: 최대 5번(10초), 그 뒤엔 메모를 다시 열면 보인다.
+ const load=(tries:number)=>{void photoLoader?.(photoId).then(url=>{if(url)img.src=url;else if(tries>0&&img.isConnected!==false)setTimeout(()=>load(tries-1),2000);});};
+ if(src)img.src=src;else load(5);
+ figure.appendChild(img);return figure;
+}
 type Marks=Omit<NoteTextRun,'text'>;
 function hex(value:string):string|undefined{
  if(/^#[0-9a-f]{6}$/i.test(value))return value.toLowerCase();const rgb=value.match(/^rgba?\(\s*(\d+)[, ]+\s*(\d+)[, ]+\s*(\d+)(?:\s*[,/]\s*1)?\s*\)$/);return rgb?'#'+rgb.slice(1,4).map(n=>Math.min(255,Number(n)).toString(16).padStart(2,'0')).join(''):undefined;
@@ -51,6 +63,7 @@ export function readNoteDocument(root:HTMLElement|DocumentFragment,inherited:Par
   if(node instanceof HTMLElement&&dropped.has(node.tagName))continue;
   if(!structural(node)){buffer.push(node);continue;}
   flush();const element=node as HTMLElement;
+  const photoId=photoOf(element);if(photoId){result.push({type:'image',photoId});continue;}
   if(element.tagName==='TABLE'){
    const rows=Array.from((element as HTMLTableElement).rows).slice(0,20).map(row=>Array.from(row.cells).slice(0,20).map(cell=>({runs:readInline(cell.childNodes,marksOf(cell,{})),...((paragraphStyle(cell).align)?{align:paragraphStyle(cell).align}:{})})));
    const columns=Math.max(0,...rows.map(row=>row.length));if(columns){for(const row of rows)while(row.length<columns)row.push({runs:[]});result.push({type:'table',rows});}continue;
@@ -74,6 +87,7 @@ function appendRuns(root:HTMLElement,runs:NoteTextRun[]){
 export function renderNoteDocument(root:HTMLElement,blocks:NoteBlock[]){
  root.replaceChildren();let list:HTMLElement|null=null,lastList='';
  for(const block of blocks){
+  if(block.type==='image'){list=null;lastList='';root.appendChild(notePhotoFigure(block.photoId));continue;}
   if(block.type==='table'){
    list=null;lastList='';const table=document.createElement('table'),body=document.createElement('tbody');table.appendChild(body);
    for(const row of block.rows){const tr=document.createElement('tr');for(const cell of row){const td=document.createElement('td');if(cell.align)td.style.textAlign=cell.align;appendRuns(td,cell.runs);if(!td.childNodes.length)td.appendChild(document.createElement('br'));tr.appendChild(td);}body.appendChild(tr);}root.appendChild(table);continue;

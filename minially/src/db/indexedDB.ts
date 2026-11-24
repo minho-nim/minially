@@ -18,7 +18,9 @@ import {
   AppData,
   Note,
   NoteFolder,
+  NotePhoto,
 } from '../types';
+import { validateNotePhoto } from '../utils/notePhotos';
 
 interface DayFlowDBSchema extends DBSchema {
   notes: { key: string; value: Note };
@@ -55,6 +57,18 @@ interface DayFlowDBSchema extends DBSchema {
     key: string;
     value: Task;
   };
+  // 메모 사진(동기화됨)
+  notePhotos: {
+    key: string;
+    value: NotePhoto;
+    indexes: { 'by-note': string };
+  };
+  // 메모 수정 이력(이 기기에만 보관, 동기화하지 않음)
+  noteVersions: {
+    key: string;
+    value: NoteVersion;
+    indexes: { 'by-note': string };
+  };
   appSettings: {
     key: string;
     value: AppSettings & { id: string };
@@ -62,7 +76,7 @@ interface DayFlowDBSchema extends DBSchema {
 }
 
 const DB_NAME = 'DayFlowDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3; // 3: 메모 수정 이력(noteVersions)·메모 사진(notePhotos)
 
 // 예전 버전이 새 사용자에게 자동으로 넣던 기본 카테고리(지금은 넣지 않음). 남아 있는 것을 알아보는 데만 쓴다.
 export const DEFAULT_CATEGORIES: CategoryItem[] = [
@@ -89,6 +103,8 @@ export function getDB(): Promise<IDBPDatabase<DayFlowDBSchema>> {
     dbPromise = openDB<DayFlowDBSchema>(DB_NAME, DB_VERSION, {
       upgrade(db) {
         if (!db.objectStoreNames.contains('notes')) db.createObjectStore('notes', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('noteVersions')) db.createObjectStore('noteVersions', { keyPath: 'id' }).createIndex('by-note', 'noteId');
+        if (!db.objectStoreNames.contains('notePhotos')) db.createObjectStore('notePhotos', { keyPath: 'id' }).createIndex('by-note', 'noteId');
         if (!db.objectStoreNames.contains('noteFolders')) {
           db.createObjectStore('noteFolders', { keyPath: 'id' });
         }
@@ -690,7 +706,7 @@ export async function deleteHistory(id: string): Promise<void> {
 // Full Export / Import
 export async function exportAllData(): Promise<AppData> {
   const db = await getDB();
-  const [schedules, presets, categories, recurrenceRules, recurrenceExceptions, tasks, settings, notes, noteFolders] =
+  const [schedules, presets, categories, recurrenceRules, recurrenceExceptions, tasks, settings, notes, noteFolders, notePhotos] =
     await Promise.all([
       db.getAll('schedules'),
       db.getAll('presets'),
@@ -701,6 +717,7 @@ export async function exportAllData(): Promise<AppData> {
       getAppSettings(),
       db.getAll('notes'),
       db.getAll('noteFolders'),
+      db.getAll('notePhotos'),
     ]);
 
   return {
@@ -713,13 +730,16 @@ export async function exportAllData(): Promise<AppData> {
     settings,
     notes,
     noteFolders,
+    notePhotos,
   };
 }
 
-export async function importAllData(data: Partial<AppData>): Promise<void> {
+const BACKUP_STORES = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'notes', 'noteFolders', 'notePhotos'] as const;
+/** 백업 파일 검사(쓰기 전에 모두 확인해, 틀리면 지금 데이터를 하나도 바꾸지 않는다) */
+function validateBackup(data: Partial<AppData>) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('잘못된 백업 파일입니다.');
   if(data.settings?.noteDefaults!==undefined)validateNoteDefaults(data.settings.noteDefaults);
-  const stores = ['categories', 'presets', 'schedules', 'tasks', 'recurrenceRules', 'recurrenceExceptions', 'notes', 'noteFolders'] as const;
+  const stores = BACKUP_STORES;
   if (!stores.some(key => Array.isArray(data[key]))) throw new Error('백업 데이터가 없습니다.');
   // Validate before opening a write transaction; keep all current data on failure.
   for (const store of stores) {
@@ -731,6 +751,7 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
       ids.add(item.id);
       if (store === 'notes') validateNote(item as Note);
       if (store === 'noteFolders') validateNoteFolder(item as NoteFolder);
+      if (store === 'notePhotos') validateNotePhoto(item as NotePhoto);
       if (store === 'presets') {
         const phrase = item as Preset;
         if (!(phrase.text || phrase.defaultTitle || phrase.name)?.trim()) throw new Error('문구 내용이 없습니다.');
@@ -745,6 +766,11 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
       groupIds.add(group.id);
     }
   }
+}
+
+export async function importAllData(data: Partial<AppData>): Promise<void> {
+  validateBackup(data);
+  const stores = BACKUP_STORES;
   const db = await getDB();
   const tx = db.transaction([...stores, 'appSettings', 'changeHistory'] as const, 'readwrite');
   try {
@@ -763,10 +789,50 @@ export async function importAllData(data: Partial<AppData>): Promise<void> {
   }
 }
 
+/** 백업 합치기(기본 복원): 지금 데이터는 지우지 않는다. 없는 항목은 더하고, 같은 항목은 백업 쪽 수정 시각이 더 최신일 때만 바꾼다.
+ *  (수정 시각이 없는 항목은 지금 것을 그대로 둔다.) 설정은 바꾸지 않는다. */
+export async function mergeAllData(data: Partial<AppData>): Promise<{ added: number; updated: number; kept: number }> {
+  validateBackup(data);
+  const db = await getDB();
+  const tx = db.transaction([...BACKUP_STORES, 'appSettings', 'changeHistory'] as const, 'readwrite');
+  const result = { added: 0, updated: 0, kept: 0 };
+  try {
+    for (const store of BACKUP_STORES) {
+      const items = data[store];
+      if (!items) continue;
+      const os = tx.objectStore(store);
+      for (const item of items as { id: string; updatedAt?: number }[]) {
+        const current = await os.get(item.id) as { updatedAt?: number } | undefined;
+        if (!current) { await os.put(item as never); result.added++; continue; }
+        if (typeof item.updatedAt === 'number' && (typeof current.updatedAt !== 'number' || item.updatedAt > current.updatedAt)) { await os.put(item as never); result.updated++; }
+        else result.kept++;
+      }
+    }
+    // 프리셋 그룹(설정 안에 있음): 없는 그룹만 더한다(다른 설정은 그대로)
+    const groups = data.settings?.presetGroups;
+    if (groups?.length) {
+      const settingsStore = tx.objectStore('appSettings');
+      const current = await settingsStore.get('global_settings') as (AppSettings & { id: string }) | undefined;
+      if (current) {
+        const have = new Set((current.presetGroups ?? []).map(g => g.id));
+        const extra = groups.filter(g => !have.has(g.id));
+        if (extra.length) await settingsStore.put({ ...current, presetGroups: [...(current.presetGroups ?? []), ...extra] });
+      }
+    }
+    await normalizeCategoryTransaction(tx);
+    await tx.done;
+  } catch (error) {
+    try { tx.abort(); } catch { /* 이미 끝났을 수 있다 */ }
+    await tx.done.catch(() => {});
+    throw error;
+  }
+  return result;
+}
+
 export async function resetDatabaseToDefault(): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(
-    ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory', 'tasks', 'appSettings', 'notes', 'noteFolders'],
+    ['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'changeHistory', 'tasks', 'appSettings', 'notes', 'noteFolders', 'noteVersions', 'notePhotos'],
     'readwrite'
   );
   await tx.objectStore('schedules').clear();
@@ -778,6 +844,8 @@ export async function resetDatabaseToDefault(): Promise<void> {
   await tx.objectStore('tasks').clear();
   await tx.objectStore('notes').clear();
   await tx.objectStore('noteFolders').clear();
+  await tx.objectStore('noteVersions').clear();
+  await tx.objectStore('notePhotos').clear();
   await tx.objectStore('appSettings').clear();
   await tx.done;
 
@@ -824,25 +892,58 @@ export async function applyScheduleHistory(entry: ChangeHistoryEntry, undo = fal
 // 메모는 일정의 부가 메모와 분리해 저장하며, 로그인 공간과 백업에 함께 포함한다.
 export async function getAllNotes(): Promise<Note[]> { return (await getDB()).getAll('notes'); }
 export async function getNoteFolders(): Promise<NoteFolder[]> { const db=await getDB(),tx=db.transaction(['notes','noteFolders']); const [folders,notes]=await Promise.all([tx.objectStore('noteFolders').getAll(),tx.objectStore('notes').getAll()]); await tx.done; return visibleNoteFolders(folders,notes); }
+export async function saveNotePhoto(photo: NotePhoto): Promise<void> { validateNotePhoto(photo); await (await getDB()).put('notePhotos', photo); }
+export async function getNotePhoto(id: string): Promise<NotePhoto | undefined> { return (await getDB()).get('notePhotos', id); }
+
+/** 메모 한 버전(바뀌기 전 내용). reason: 직접 고침·다른 기기에서 받음·되돌리기 전 */
+export interface NoteVersion { id: string; noteId: string; savedAt: number; reason: 'edit' | 'sync' | 'restore'; note: Note }
+export const NOTE_VERSION_LIMITS = { perNote: 30, editGapMs: 10 * 60 * 1000 };
+const noteContent = (n: Note) => JSON.stringify([n.title, n.body, n.richDocument ?? null, n.richBody ?? null]);
+
+/** 바뀌기 전 내용을 이력에 남긴다. 직접 고칠 때는 같은 메모를 10분 안에 또 고치면 새로 남기지 않는다(자동 저장마다 쌓이지 않게). 메모당 최근 30개. */
+export async function recordNoteVersion(store: { index(name: 'by-note'): { getAll(key: string): Promise<NoteVersion[]> }; put(v: NoteVersion): Promise<unknown>; delete(id: string): Promise<unknown> }, before: Note | undefined, after: Note, reason: NoteVersion['reason']) {
+  if (!before || noteContent(before) === noteContent(after)) return;
+  const versions = (await store.index('by-note').getAll(before.id)).sort((a, b) => b.savedAt - a.savedAt);
+  if (versions[0] && noteContent(versions[0].note) === noteContent(before)) return; // 바로 앞 기록과 같은 내용이면 또 남기지 않는다
+  if (reason === 'edit' && versions[0] && Date.now() - versions[0].savedAt < NOTE_VERSION_LIMITS.editGapMs && versions[0].reason === 'edit') return;
+  await store.put({ id: crypto.randomUUID(), noteId: before.id, savedAt: Date.now(), reason, note: before });
+  for (const old of versions.slice(NOTE_VERSION_LIMITS.perNote - 1)) await store.delete(old.id);
+}
+
+export async function getNoteVersions(noteId: string): Promise<NoteVersion[]> {
+  return (await (await getDB()).getAllFromIndex('noteVersions', 'by-note', noteId)).sort((a, b) => b.savedAt - a.savedAt);
+}
+
+/** 되돌리기 직전: 지금 저장된 내용을 이력에 꼭 남긴다(10분 묶음과 상관없이). 되돌린 뒤에도 다시 돌아올 수 있게. */
+export async function snapshotNoteBeforeRestore(noteId: string): Promise<void> {
+  const db = await getDB(), tx = db.transaction(['notes', 'noteVersions'], 'readwrite');
+  const current = await tx.objectStore('notes').get(noteId);
+  if (current) await recordNoteVersion(tx.objectStore('noteVersions'), current, { ...current, title: `${current.title}\u0000` }, 'restore');
+  await tx.done;
+}
+
 export async function saveNote(note: Note, baseUpdatedAt?:number): Promise<Note|undefined> {
  validateNote(note);
  if(baseUpdatedAt!==undefined&&!Number.isFinite(baseUpdatedAt))throw new Error('메모 버전이 올바르지 않습니다.');
- const db=await getDB(),tx=db.transaction('notes','readwrite'),current=await tx.store.get(note.id);
+ const db=await getDB(),tx=db.transaction(['notes','noteVersions'],'readwrite'),notes=tx.objectStore('notes'),current=await notes.get(note.id);
  let copy:Note|undefined;
  if(current&&baseUpdatedAt!==undefined&&current.updatedAt!==baseUpdatedAt&&JSON.stringify({...current,updatedAt:0})!==JSON.stringify({...note,updatedAt:0})){
-  const now=Date.now();copy={...current,id:crypto.randomUUID(),title:(current.title||'제목 없는 메모').slice(0,460)+' · 다른 창 수정 사본',conflictOf:current.conflictOf||current.id,conflictAt:now,createdAt:now,updatedAt:now};delete copy.deletedAt;validateNote(copy);await tx.store.put(copy);
+  const now=Date.now();copy={...current,id:crypto.randomUUID(),title:(current.title||'제목 없는 메모').slice(0,460)+' · 다른 창 수정 사본',conflictOf:current.conflictOf||current.id,conflictAt:now,createdAt:now,updatedAt:now};delete copy.deletedAt;validateNote(copy);await notes.put(copy);
  }
- await tx.store.put(note);await tx.done;return copy;
+ await recordNoteVersion(tx.objectStore('noteVersions'),current,note,'edit');
+ await notes.put(note);await tx.done;return copy;
 }
 /** 확인창을 열 때의 휴지통만 비운다. 그 뒤 수정·복원한 메모는 건드리지 않는다. */
 export async function emptyNoteTrash(targets:Pick<Note,'id'|'updatedAt'>[]):Promise<string[]> {
  if(!Array.isArray(targets)||targets.some(target=>!target||typeof target.id!=='string'||!target.id||!Number.isFinite(target.updatedAt)))throw new Error('삭제할 메모를 확인해 주세요.');
- const db=await getDB(),tx=db.transaction('notes','readwrite'),removed:string[]=[];
+ const db=await getDB(),tx=db.transaction(['notes','noteVersions','notePhotos'],'readwrite'),notes=tx.objectStore('notes'),versions=tx.objectStore('noteVersions'),photos=tx.objectStore('notePhotos'),removed:string[]=[];
  try{
   for(const target of targets){
-   const current=await tx.store.get(target.id);
+   const current=await notes.get(target.id);
    if(!current?.deletedAt||current.updatedAt!==target.updatedAt)continue;
-   await tx.store.delete(target.id);removed.push(target.id);
+   await notes.delete(target.id);removed.push(target.id);
+   for(const key of await versions.index('by-note').getAllKeys(target.id))await versions.delete(key); // 영구 삭제하면 수정 이력도 지운다
+   for(const key of await photos.index('by-note').getAllKeys(target.id))await photos.delete(key); // 사진도 지운다(동기화로 다른 기기에서도)
   }
   await tx.done;return removed;
  }catch(error){try{tx.abort();}catch{/* 이미 중단된 트랜잭션 */}await tx.done.catch(()=>{});throw error;}

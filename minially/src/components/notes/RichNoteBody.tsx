@@ -1,10 +1,10 @@
 import {NoteColorPicker} from './NoteColorPicker';
 import {resolveNoteDefaults} from '../../utils/noteFormatting';
 import {useEffect,useLayoutEffect,useRef,useState,type CSSProperties} from 'react';
-import {Bold,Italic,Underline,Strikethrough,RemoveFormatting,Superscript,Subscript,Undo2,Redo2,AlignLeft,AlignCenter,AlignRight,AlignJustify,List,ListOrdered,Ellipsis,Table2,Highlighter,Baseline,type LucideIcon} from 'lucide-react';
+import {Bold,Italic,Underline,Strikethrough,RemoveFormatting,Superscript,Subscript,Undo2,Redo2,AlignLeft,AlignCenter,AlignRight,AlignJustify,List,ListOrdered,Ellipsis,Table2,Highlighter,Baseline,ImagePlus,type LucideIcon} from 'lucide-react';
 import type {NoteBlock,NoteTextRun,NoteDefaults} from '../../types';
 import {NOTE_FONTS,NOTE_SIZES,NOTE_LINE_HEIGHTS,flattenNoteBlocks} from '../../utils/noteRichDocument';
-import {readNoteDocument,renderNoteDocument,renderNoteRuns} from './noteRichDom';
+import {notePhotoFigure,readNoteDocument,renderNoteDocument,renderNoteRuns} from './noteRichDom';
 export {readNoteRuns} from './noteRichDom';
 const formats=[['bold','굵게',Bold],['italic','기울임',Italic],['underline','밑줄',Underline],['strikeThrough','취소선',Strikethrough],['superscript','위첨자',Superscript],['subscript','아래첨자',Subscript]] as const;
 const alignments=[['justifyLeft','왼쪽 정렬',AlignLeft],['justifyCenter','가운데 정렬',AlignCenter],['justifyRight','오른쪽 정렬',AlignRight],['justifyFull','양쪽 정렬',AlignJustify]] as const;
@@ -13,7 +13,8 @@ const tool='w-8 h-8 shrink-0 flex items-center justify-center rounded-md cursor-
 function Tool({label,icon:Icon,onClick,pressed,disabled}:{label:string;icon:LucideIcon;onClick:()=>void;pressed?:boolean;disabled?:boolean}){
  return <button type="button" aria-label={label} title={label} aria-pressed={pressed} disabled={disabled} onPointerDown={event=>event.preventDefault()} onTouchEnd={event=>{event.preventDefault();onClick();}} onClick={onClick} className={tool+' '+(pressed?'bg-app-soft text-app-accent-hover':'text-app-muted hover:bg-app-canvas')}><Icon aria-hidden="true" className="w-4 h-4"/></button>;
 }
-export function RichNoteBody({defaults,body,runs,blocks,readOnly,onChange}:{defaults?:NoteDefaults;body:string;runs?:NoteTextRun[];blocks?:NoteBlock[];readOnly:boolean;onChange:(body:string,runs:NoteTextRun[],blocks:NoteBlock[])=>void}){
+/** onAddPhoto: 사진 파일을 줄여 저장하고 {id,dataUrl}을 돌려준다(실패하면 null, 오류 안내는 부르는 쪽에서). 없으면 사진 넣기를 숨긴다. */
+export function RichNoteBody({defaults,body,runs,blocks,readOnly,onChange,onAddPhoto}:{defaults?:NoteDefaults;body:string;runs?:NoteTextRun[];blocks?:NoteBlock[];readOnly:boolean;onChange:(body:string,runs:NoteTextRun[],blocks:NoteBlock[])=>void;onAddPhoto?:(file:File)=>Promise<{id:string;dataUrl:string}|null>}){
  const base=resolveNoteDefaults(defaults);
  const [color,setColor]=useState(base.color),[highlight,setHighlight]=useState(base.highlight);
  const ref=useRef<HTMLDivElement>(null),range=useRef<Range|null>(null),cell=useRef<HTMLTableCellElement|null>(null),lastValue=useRef('');
@@ -46,6 +47,21 @@ export function RichNoteBody({defaults,body,runs,blocks,readOnly,onChange}:{defa
   const runs=flattenNoteBlocks(snapshot.document),text=runs.map(run=>run.text).join('');lastValue.current=JSON.stringify([text,runs,snapshot.document]);onChange(text,runs,snapshot.document);remember();
  }
 
+ const photoInput=useRef<HTMLInputElement>(null);
+ /** 사진을 지금 줄(맨 위 블록) 아래에 넣고, 그 아래 빈 줄로 커서를 옮긴다 */
+ async function insertPhotos(files:File[]){
+  if(!onAddPhoto||readOnly)return;const images=files.filter(file=>file.type.startsWith('image/')).slice(0,10);if(!images.length)return;
+  for(const file of images){
+   const saved=await onAddPhoto(file);const root=restore();if(!saved||!root)continue;
+   let anchor:Node|null=window.getSelection()?.rangeCount?window.getSelection()!.getRangeAt(0).startContainer:null;
+   while(anchor&&anchor.parentNode&&anchor.parentNode!==root)anchor=anchor.parentNode;
+   const figure=notePhotoFigure(saved.id,saved.dataUrl),after=document.createElement('p');after.appendChild(document.createElement('br'));
+   if(anchor&&anchor.parentNode===root){root.insertBefore(figure,anchor.nextSibling);}else root.appendChild(figure);
+   root.insertBefore(after,figure.nextSibling);
+   const caret=document.createRange();caret.setStart(after,0);caret.collapse(true);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(caret);range.current=caret.cloneRange();
+   emit();
+  }
+ }
  function restore(){const root=ref.current;if(!root||readOnly)return null;root.focus({preventScroll:true});const selection=window.getSelection();if(range.current&&root.contains(range.current.commonAncestorContainer)){selection?.removeAllRanges();selection?.addRange(range.current);}else{const end=document.createRange();end.selectNodeContents(root);end.collapse(false);selection?.removeAllRanges();selection?.addRange(end);}return root;}
  function command(name:string,value?:string,after?:()=>void){if(name==='undo'){travel(-1);return;}if(name==='redo'){travel(1);return;}if(!restore())return;executing.current=true;try{document.execCommand(name,false,value);after?.();}finally{executing.current=false;}emit();}
  function fontSize(value:number){if(!Number.isFinite(value)||value<8||value>72)return;command('fontSize','7',()=>{for(const element of ref.current!.querySelectorAll<HTMLElement>('font[size="7"]')){element.removeAttribute('size');element.style.fontSize=value+'pt';}});setSize(value);}
@@ -85,6 +101,7 @@ export function RichNoteBody({defaults,body,runs,blocks,readOnly,onChange}:{defa
     <select aria-label="글꼴" value={font} onChange={e=>{setFont(e.target.value);command('fontName',e.target.value);}} className="note-format-select w-28">{NOTE_FONTS.map(name=><option key={name}>{name}</option>)}</select>
     <select aria-label="글자 크기" value={size} onChange={e=>fontSize(Number(e.target.value))} className="note-format-select w-[68px]">{!NOTE_SIZES.includes(size)&&<option value={size}>{size}pt</option>}{NOTE_SIZES.map(value=><option key={value} value={value}>{value}pt</option>)}</select>
     <select aria-label="줄간격" value={lineHeight} onChange={e=>spacing(Number(e.target.value))} className="note-format-select w-24">{NOTE_LINE_HEIGHTS.map(value=><option key={value} value={value}>줄간격 {Math.round(value*100)}%</option>)}</select>
+    {onAddPhoto&&!readOnly&&<><button type="button" aria-label="사진 넣기" title="사진 넣기" onPointerDown={e=>e.preventDefault()} onClick={()=>photoInput.current?.click()} className={tool+' text-app-muted hover:bg-app-soft'}><ImagePlus aria-hidden="true" className="w-4 h-4"/></button><input ref={photoInput} type="file" accept="image/*" multiple hidden aria-hidden="true" tabIndex={-1} onChange={event=>{const files=Array.from(event.target.files??[]);event.target.value='';void insertPhotos(files);}}/></>}
     <button type="button" aria-label="표" aria-expanded={tableOpen} onPointerDown={e=>e.preventDefault()} onTouchEnd={e=>{e.preventDefault();setTableOpen(!tableOpen);}} onClick={()=>setTableOpen(!tableOpen)} className={tool+' text-app-muted hover:bg-app-soft'} title="표"><Table2 aria-hidden="true" className="w-4 h-4"/></button>
    </div></div>
    <div className="note-format-row"><div className="note-format-controls flex items-center gap-0.5 flex-wrap !min-w-0">
@@ -99,7 +116,7 @@ export function RichNoteBody({defaults,body,runs,blocks,readOnly,onChange}:{defa
    </div>
   </div>}
   <div style={{'--note-font-size':base.fontSize+'pt',fontFamily:`"${base.fontFamily}", "Malgun Gothic", sans-serif`,fontSize:base.fontSize+'pt',lineHeight:base.lineHeight,color:base.color} as CSSProperties} ref={ref} role="textbox" aria-label="메모 본문" aria-multiline="true" aria-readonly={readOnly} contentEditable={!readOnly} suppressContentEditableWarning spellCheck data-placeholder="자유롭게 적으세요. 짧은 생각도, 긴 기록도 좋아요." className="note-rich-body flex-1 min-h-48 w-full min-w-0 px-3 py-2 text-sm leading-7 outline-none bg-transparent overflow-auto" onInput={emit} onCompositionStart={event=>{composing.current=true;event.currentTarget.dataset.noteComposing='true';}} onCompositionEnd={event=>{composing.current=false;event.currentTarget.dataset.noteComposing='false';emit();}} onKeyDown={event=>{if((event.ctrlKey||event.metaKey)&&!event.nativeEvent.isComposing){const key=event.key.toLowerCase();if(['b','i','u'].includes(key)){event.preventDefault();event.stopPropagation();command(({b:'bold',i:'italic',u:'underline'} as const)[key as 'b'|'i'|'u']);return;}if(key==='z'||key==='y'){event.preventDefault();event.stopPropagation();travel(key==='y'||event.shiftKey?1:-1);}}}} onKeyUp={remember} onMouseUp={remember} onTouchEnd={remember} onPaste={event=>{
-   if(readOnly)return;event.preventDefault();const html=event.clipboardData.getData('text/html');if(html){const parsed=document.createElement('template');parsed.innerHTML=html;const safe=document.createElement('div');const pasted=readNoteDocument(parsed.content);if(pasted.length===1&&pasted[0].type==='paragraph'&&!pasted[0].align&&!pasted[0].list&&!pasted[0].indent&&!pasted[0].lineHeight)renderNoteRuns(safe,pasted[0].runs);else renderNoteDocument(safe,pasted);document.execCommand('insertHTML',false,safe.innerHTML);}else document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));emit();
-  }} onDrop={event=>event.preventDefault()}/>
+   if(readOnly)return;event.preventDefault();const pastedFiles=Array.from(event.clipboardData.files).filter(file=>file.type.startsWith('image/'));if(pastedFiles.length&&onAddPhoto){void insertPhotos(pastedFiles);return;}const html=event.clipboardData.getData('text/html');if(html){const parsed=document.createElement('template');parsed.innerHTML=html;const safe=document.createElement('div');const pasted=readNoteDocument(parsed.content);if(pasted.length===1&&pasted[0].type==='paragraph'&&!pasted[0].align&&!pasted[0].list&&!pasted[0].indent&&!pasted[0].lineHeight)renderNoteRuns(safe,pasted[0].runs);else renderNoteDocument(safe,pasted);document.execCommand('insertHTML',false,safe.innerHTML);}else document.execCommand('insertText',false,event.clipboardData.getData('text/plain'));emit();
+  }} onDragOver={event=>{if(onAddPhoto&&event.dataTransfer.types.includes('Files'))event.preventDefault();}} onDrop={event=>{event.preventDefault();const dropped=Array.from(event.dataTransfer.files).filter(file=>file.type.startsWith('image/'));if(dropped.length&&onAddPhoto)void insertPhotos(dropped);}}/>
  </div>;
 }
