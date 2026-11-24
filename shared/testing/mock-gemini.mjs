@@ -44,6 +44,12 @@ createServer((req, res) => {
       const avg = prompt.match(/평균 조회수 (\S+?)\(/)?.[1] ?? '?';
       return ok({ blog_name: '토몽이의 동네 기록', topic: '동네 카페·빵집', intro: '직접 가 보고 솔직하게 쓰는 동네 기록', about: `평균 조회수 ${avg} 기준으로 소개해요.`, audience: '주말 나들이를 찾는 20~30대로 보여요.', strengths: '- 사진이 많아요\n- 솔직한 후기\n- 꾸준한 업로드', offers: '- 체험단(방문 후기)\n- 제품 리뷰', cases: prompt.includes('보고시험카페') ? '- 보고시험카페 체험단' : '' });
     }
+    if (prompt.includes('인스타그램 게시물 글로 바꾸는')) {
+      return ok({ caption: `오늘의 기록 한 줄 [사진 1]\n\n가짜 AI 인스타 글이에요.${prompt.includes('[자연스러운 한국어 규칙]') ? ' (규칙 적용)' : ''}`, hashtags: ['#카페', '시험 태그', '카페'] });
+    }
+    if (prompt.includes('협찬 제안 인스타그램 DM을 다듬는')) {
+      return ok({ subject: '', body: `안녕하세요! 다듬은 DM이에요.${prompt.includes('[자연스러운 한국어 규칙]') ? ' (규칙 적용)' : ''}` });
+    }
     if (prompt.includes('협찬 제안 메일을 다듬는')) {
       const brand = prompt.match(/\[업체\] (.+)/)?.[1] ?? '';
       return ok({ subject: `[협찬 제안] ${brand}님께 (다듬음)`, body: `안녕하세요, ${brand} 담당자님. 다듬은 본문이에요. 블로그 소개서(PDF)를 첨부했어요.` });

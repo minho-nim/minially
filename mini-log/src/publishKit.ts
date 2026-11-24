@@ -11,3 +11,13 @@ export function photoFileName(index: number, now = Date.now()) {
   const day = new Date(now + 9 * 3600000).toISOString().slice(0, 10).replace(/-/g, '');
   return `minilog_${day}_${String(index + 1).padStart(2, '0')}.jpg`;
 }
+
+/** 인스타그램 글(규칙): 제목 한 줄 + 본문(사진 표시 빼고, 문단 사이 빈 줄) + 해시태그 30개까지. 인스타 글자 한도 2,200자 안으로. */
+export function instagramText(title: string, body: string, tags: string[], caption?: string) {
+  const strip = (t: string) => t.replace(/[ \t]*\[사진\s*\d*\][ \t]*/g, '').split('\n').map(l => l.trimEnd()).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  const text = strip(caption ?? [title.trim(), body].filter(Boolean).join('\n\n'));
+  const line = [...new Set(tags.map(t => t.replace(/^#+/, '').replace(/\s+/g, '')).filter(Boolean))].slice(0, 30).map(t => `#${t}`).join(' ');
+  const room = 2200 - (line ? line.length + 2 : 0);
+  const cut = text.length > room ? `${text.slice(0, Math.max(0, room - 1)).trimEnd()}…` : text;
+  return [cut, line].filter(Boolean).join('\n\n');
+}

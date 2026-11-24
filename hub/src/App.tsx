@@ -125,7 +125,7 @@ const SCOPE_KEY = 'minihub.scope';
 function savedScope(): Scope {
   try { return localStorage.getItem(SCOPE_KEY) === 'me' ? 'me' : 'all'; } catch { return 'all'; }
 }
-const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '문체 분석', style_reference: '참고 문체 분석', blog_stats: '통계 캡처 읽기', ideas: '글감 추천', ideas_search: '글감 추천(검색)', proposal: '제안서 초안', proposal_mail: '제안 메일 다듬기', note: '메모' };
+const TASK_LABEL: Record<string, string> = { draft: '원고 초안', draft_with_photos: '사진 보고 초안', style: '문체 분석', style_reference: '참고 문체 분석', blog_stats: '통계 캡처 읽기', ideas: '글감 추천', ideas_search: '글감 추천(검색)', proposal: '제안서 초안', proposal_mail: '제안 메일 다듬기', proposal_dm: '인스타 DM 다듬기', instagram: '인스타 글 쓰기', note: '메모' };
 const ERROR_LABEL: Record<string, string> = { no_key: '키 없음', invalid_key: '키 오류', rate_limited: '호출 제한', quota_exceeded: '한도 초과', blocked: '안전 차단', bad_response: '응답 오류', upstream_error: 'Gemini 서버 오류', timeout: '시간 초과' };
 
 function sum<T>(rows: T[], pick: (row: T) => number) { return rows.reduce((n, row) => n + pick(row), 0); }
