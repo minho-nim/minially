@@ -16,7 +16,7 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max
 export async function exportBackup(db: D1Database, user: UserName) {
   const all = (sql: string) => db.prepare(sql).bind(user).all<Record<string, unknown>>().then(r => r.results);
   const [drafts, campaigns, styles, blogs, posts, watch, proposal] = await Promise.all([
-    all('SELECT id, title, body, hashtags, experience, status, published_url, published_at, style_id, planned_on, created_at, updated_at FROM minilog_drafts WHERE user = ?'),
+    all('SELECT id, title, body, hashtags, experience, status, published_url, published_at, style_id, COALESCE(post_type, \'none\') AS post_type, planned_on, created_at, updated_at FROM minilog_drafts WHERE user = ?'),
     all('SELECT id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, created_at, updated_at FROM minilog_campaigns WHERE user = ?'),
     all('SELECT id, kind, name, source, samples, profile, analyzed_at, created_at, updated_at FROM minilog_styles WHERE user = ?'),
     all('SELECT blog_id, synced_at, created_at FROM minilog_blogs WHERE user = ?'),
@@ -45,15 +45,15 @@ export async function mergeBackup(db: D1Database, user: UserName, data: Record<s
 
   // 원고
   for (const d of list(data.drafts)) {
-    const patch = readPatch({ title: d.title, body: d.body, experience: d.experience, hashtags: d.hashtags, status: d.status, published_url: d.published_url || undefined, planned_on: d.planned_on ?? null, style_id: d.style_id });
+    const patch = readPatch({ title: d.title, body: d.body, experience: d.experience, hashtags: d.hashtags, status: d.status, published_url: d.published_url || undefined, planned_on: d.planned_on ?? null, style_id: d.style_id, ...(d.post_type ? { post_type: d.post_type } : {}) });
     const created = time(d.created_at), updated = time(d.updated_at);
     if (!uuid(d.id) || typeof patch === 'string' || !created || !updated) { result.drafts.skipped++; continue; }
     const cur = await db.prepare('SELECT user, updated_at FROM minilog_drafts WHERE id = ?').bind(d.id).first<{ user: string; updated_at: number }>();
     if (cur && cur.user !== user) { result.drafts.skipped++; continue; }
     if (cur && cur.updated_at >= updated) { result.drafts.kept++; continue; }
-    const row = [patch.title ?? '', patch.body ?? '', (patch.hashtags ?? []).join('\n'), patch.experience ?? '', patch.status ?? 'draft', patch.published_url ?? '', time(d.published_at), patch.style_id ?? 'mine', patch.planned_on ?? null];
-    if (cur) { await db.prepare('UPDATE minilog_drafts SET title = ?, body = ?, hashtags = ?, experience = ?, status = ?, published_url = ?, published_at = ?, style_id = ?, planned_on = ?, updated_at = ? WHERE id = ? AND user = ?').bind(...row, updated, d.id, user).run(); result.drafts.updated++; }
-    else { await db.prepare('INSERT INTO minilog_drafts (id, user, title, body, hashtags, experience, status, published_url, published_at, style_id, planned_on, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(d.id, user, ...row, created, updated).run(); result.drafts.added++; }
+    const row = [patch.title ?? '', patch.body ?? '', (patch.hashtags ?? []).join('\n'), patch.experience ?? '', patch.status ?? 'draft', patch.published_url ?? '', time(d.published_at), patch.style_id ?? 'mine', patch.post_type ?? 'none', patch.planned_on ?? null];
+    if (cur) { await db.prepare('UPDATE minilog_drafts SET title = ?, body = ?, hashtags = ?, experience = ?, status = ?, published_url = ?, published_at = ?, style_id = ?, post_type = ?, planned_on = ?, updated_at = ? WHERE id = ? AND user = ?').bind(...row, updated, d.id, user).run(); result.drafts.updated++; }
+    else { await db.prepare('INSERT INTO minilog_drafts (id, user, title, body, hashtags, experience, status, published_url, published_at, style_id, post_type, planned_on, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').bind(d.id, user, ...row, created, updated).run(); result.drafts.added++; }
   }
 
   // 협찬·수익

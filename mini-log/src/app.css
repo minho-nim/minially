@@ -362,3 +362,6 @@ select.input { appearance: auto; }
 .goal-paid { background: var(--app); }
 .goal-pending { background: var(--app); opacity: 0.3; }
 .goal-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.type-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; min-height: 32px; }
+.chip-btn[aria-pressed="true"] { background: var(--app); border-color: var(--app); color: #fff; font-weight: 700; }
