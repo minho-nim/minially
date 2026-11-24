@@ -108,7 +108,7 @@
 
 .style-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
 .style-tabs button { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-weight: 700; color: var(--muted); cursor: pointer; }
-.style-tabs button[aria-selected="true"] { background: var(--app-soft); border-color: var(--app); color: var(--text); }
+.style-tabs button[aria-selected="true"], .style-tabs button[aria-pressed="true"] { background: var(--app-soft); border-color: var(--app); color: var(--text); }
 .style-tabs button.add { border-style: dashed; }
 .style-tabs .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
 .style-tabs .dot.on { background: var(--ok); }
@@ -230,6 +230,7 @@ select.input { appearance: auto; }
 @media (max-width: 520px) { .post-kit li { grid-template-columns: 1fr; gap: 6px; } }
 .post-kit li.kit-wide { grid-template-columns: 92px minmax(0, 1fr); }
 .post-kit li.kit-wide .post-preview { grid-column: 1 / -1; }
+.post-kit li.kit-wide .thumb-maker { grid-column: 1 / -1; }
 .post-preview { display: grid; gap: 4px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); max-width: 720px; width: 100%; justify-self: center; }
 .pv-help { margin: 0 0 6px; }
 .pv-block { position: relative; display: block; width: 100%; text-align: left; font: inherit; color: var(--text); background: none; border: 1px dashed transparent; border-radius: 10px; padding: 6px 34px 6px 8px; cursor: copy; transition: background-color .15s ease, border-color .15s ease; }
@@ -365,3 +366,17 @@ select.input { appearance: auto; }
 .type-pick { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip-btn { border: 1px solid var(--line); background: var(--surface); color: var(--text); border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 0.85rem; cursor: pointer; min-height: 32px; }
 .chip-btn[aria-pressed="true"] { background: var(--app); border-color: var(--app); color: #fff; font-weight: 700; }
+.thumb-maker { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); margin-top: 8px; }
+@media (min-width: 900px) { .thumb-maker { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); align-items: start; } }
+.thumb-stage canvas { display: block; width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--line); cursor: grab; background: var(--surface-2); }
+.thumb-tools { display: grid; gap: 10px; min-width: 0; }
+.thumb-photos { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.thumb-photos button { flex: 0 0 52px; height: 52px; padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: none; cursor: pointer; }
+.thumb-photos button[aria-pressed="true"] { border-color: var(--app); }
+.thumb-photos img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb-layer { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: var(--surface-2); }
+.thumb-range { display: flex; align-items: center; gap: 8px; }
+.thumb-range input { flex: 1; min-width: 80px; }
+.thumb-colors { display: flex; gap: 6px; }
+.thumb-colors button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; }
+.thumb-colors button[aria-pressed="true"] { outline: 3px solid var(--app); outline-offset: 1px; }

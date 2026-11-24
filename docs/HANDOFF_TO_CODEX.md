@@ -79,6 +79,7 @@
 | mini-log 휴대폰 달력 구독(ICS): 캘린더 화면 '휴대폰 달력에 알림 받기' → 사람마다 비밀 구독 주소(`/ics/<48자>.ics`, DB엔 해시만, 새로 만들면 옛 주소 끊김·끄기 가능). 진행 중 협찬 마감·가이드 방문일·게시 예정 원고·답장 없는 제안 7일 뒤 '다시 연락'을 하루 종일 일정 + 전날 오전 9시 알림으로. 금액·메모는 넣지 않음 | `mini-log/functions/_ics.ts`, `api/calendar/feed.ts`, `functions/ics/[token].ts`, `src/CalendarFeed.tsx`, 표 `minilog_ics` | 시험(로그인 없이 받기, 옛 주소 404, 끄기, 금액 없음, 줄 접기). 실제 아이폰·구글 캘린더 등록은 미확인 |
 | mini-log 협찬 CSV 받기(지금 보는 목록, 엑셀용 BOM, 수식 막기) · 대시보드 이번 달 수익 목표(받은 금액·받을 금액 막대, `minilog_goals`, `PUT /api/goal`, 백업에는 아직 안 들어감) | `src/csvExport.ts`, `src/GoalBar.tsx`, `functions/api/goal.ts` | 시험 |
 | mini-log 원고 글 종류 9가지(맛집·카페·제품 리뷰·여행·나들이·체험단·협찬·뷰티·패션·정보·일상): 고르면 경험 칸에 뼈대(비었거나 이전 뼈대일 때만), AI 초안에 종류별 구성 안내. `minilog_drafts.post_type`(비면 none), 백업 포함 | `mini-log/functions/_postTypes.ts`, `src/App.tsx` | 시험 |
+| mini-log 썸네일 만들기(올리기 칸): 원고 사진 위에 글자를 얹어 1:1·4:3 JPG(1080 폭)로. 시작 틀 2개(아래 띠·가운데 큰 글씨) + 자유 편집(글자 여러 개, 끌어 옮기기, 크기·색·바탕·손글씨 글꼴, 사진 어둡게). 브라우저에서만 그림(서버 저장·AI 없음) | `mini-log/src/Thumbnail.tsx` | 시험(틀·글자·끌기·비율·JPG 크기) |
 
 ## 3. 미완료(계획만)
 - Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
