@@ -42,6 +42,8 @@ export async function ensureHubSchema(db: D1Database) {
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_posts (user TEXT NOT NULL, post_key TEXT NOT NULL, blog_id TEXT NOT NULL DEFAULT '', url TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', published_on TEXT, summary TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '', views INTEGER, likes INTEGER, comments INTEGER, stats_on TEXT, draft_id TEXT, created_at INTEGER NOT NULL, PRIMARY KEY (user, post_key))"),
     // 사용자 설정(보여 줄 이름·화면 테마). 두 앱이 함께 쓴다.
     db.prepare('CREATE TABLE IF NOT EXISTS hub_profiles (user TEXT PRIMARY KEY, name TEXT NOT NULL, theme TEXT NOT NULL DEFAULT \'auto\', updated_at INTEGER NOT NULL)'),
+    // 협찬 제안서 기본 양식(사용자당 1개)
+    db.prepare('CREATE TABLE IF NOT EXISTS minilog_proposals (user TEXT PRIMARY KEY, form TEXT NOT NULL, updated_at INTEGER NOT NULL)'),
     // 글감: 참고 블로그(사용자별, 최근 글 제목만), 마지막 추천 결과
     db.prepare("CREATE TABLE IF NOT EXISTS minilog_watch (user TEXT NOT NULL, blog_id TEXT NOT NULL, titles TEXT NOT NULL DEFAULT '[]', synced_at INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, blog_id))"),
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_ideas (user TEXT PRIMARY KEY, ideas TEXT NOT NULL, used_search INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)'),

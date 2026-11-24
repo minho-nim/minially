@@ -39,6 +39,15 @@ createServer((req, res) => {
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
+    if (prompt.includes('협찬 제안서(미디어킷) 문구')) {
+      // 자료에 있는 숫자·업체만 쓰는지 시험에서 확인할 수 있게 자료 일부를 그대로 돌려준다
+      const avg = prompt.match(/평균 조회수 (\S+?)\(/)?.[1] ?? '?';
+      return ok({ blog_name: '토몽이의 동네 기록', topic: '동네 카페·빵집', intro: '직접 가 보고 솔직하게 쓰는 동네 기록', about: `평균 조회수 ${avg} 기준으로 소개해요.`, audience: '주말 나들이를 찾는 20~30대로 보여요.', strengths: '- 사진이 많아요\n- 솔직한 후기\n- 꾸준한 업로드', offers: '- 체험단(방문 후기)\n- 제품 리뷰', cases: prompt.includes('보고시험카페') ? '- 보고시험카페 체험단' : '' });
+    }
+    if (prompt.includes('협찬 제안 메일을 다듬는')) {
+      const brand = prompt.match(/\[업체\] (.+)/)?.[1] ?? '';
+      return ok({ subject: `[협찬 제안] ${brand}님께 (다듬음)`, body: `안녕하세요, ${brand} 담당자님. 다듬은 본문이에요. 블로그 소개서(PDF)를 첨부했어요.` });
+    }
     if (prompt.includes('블로그 글감을 추천')) {
       // 검색 모드(tools)면 JSON 앞뒤에 설명 글이 섞여 오는 것까지 흉내 낸다
       const search = Array.isArray(JSON.parse(raw || '{}').tools);

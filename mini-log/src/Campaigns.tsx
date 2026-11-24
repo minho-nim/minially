@@ -27,8 +27,8 @@ export function dDay(deadline: string) {
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
 const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '' };
 
-export function CampaignsView({ drafts, onBack, onOpenDraft }: {
-  drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void;
+export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
+  drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
 }) {
   const [items, setItems] = useState<Campaign[] | null>(null);
   const [filter, setFilter] = useState<Filter>('open');
@@ -102,6 +102,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft }: {
           <h1 id="camp-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>협찬·수익</h1>
         </div>
         <div className="actions">
+          <button className="btn" onClick={onProposal}>제안서·메일 만들기</button>
           <button className="btn" onClick={() => startNew('ad')}>광고 수익 적기</button>
           <button className="btn primary" onClick={() => startNew('sponsor')}>새 협찬</button>
         </div>
