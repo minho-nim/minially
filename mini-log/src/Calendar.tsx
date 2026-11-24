@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../shared/client/api';
 import { Tomong } from './Tomong';
+import { CalendarFeed } from './CalendarFeed';
 import { STATUS_LABEL as CAMPAIGN_STATUS, todayKst, type Campaign } from './Campaigns';
 
 // 콘텐츠 캘린더: 게시 예정 원고·게시 완료 원고·협찬 마감을 한 달 달력에(모두 본인 것, 날짜는 한국 시간)
@@ -117,6 +118,7 @@ export function CalendarView({ drafts, onBack, onOpenDraft, onCreate }: {
           </ul>
         )}
       </section>
+      <CalendarFeed />
     </article>
   );
 }
