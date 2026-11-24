@@ -53,7 +53,6 @@
 | 제안서 추가: '이번 제안용으로 고치기'(기본 양식은 그대로, 미리보기·PDF·메일에만 반영), 제안 보내기 탭 '메일 / 인스타 DM'(DM 기본 글 300자 안팎, `ig.me/m/아이디`로 DM 열기, 복사, AI 다듬기 kind=dm). AI 글 프롬프트에 `shared/server/koreanStyle.ts`(humanize-korean 요약 규칙) 적용 | `mini-log/src/Proposal.tsx`, `src/proposalKit.ts`, `functions/_proposal.ts` | 시험(업체용 수정 후 기본 양식 유지, DM 기본 글·주소·다듬기·규칙 포함) |
 | 원고 ④ 인스타 게시물 글: 규칙으로 만든 글(사진 표시 빼기·해시태그 30개·2,200자) → 'AI로 인스타 글 쓰기'(`POST /api/drafts/:id/instagram`) → 고치기 → 복사. 자동 게시는 Meta 앱 심사가 필요해 안 함 | `src/publishKit.ts` `instagramText`, `functions/api/drafts/[id]/instagram.ts` | 시험 |
 | 미니어리 0.1.10: 설치형 앱에서 화면 안 스크롤 탭(캘린더·메모)의 머리줄이 제목 표시줄 높이만큼 두 번 내려가 내용(메모 위쪽·휴지통 버튼)을 가리던 문제 수정. 체험 데이터 '친구 생일'을 반복 일정 없는 날로 | `minially/src/index.css`, `minially/src/sync/demoMode.ts`, `minially/tests/desktop-header-align.spec.ts` | 시험(미니어리 224) |
-| mini-log AI 채팅 '토몽이에게 묻기': 오른쪽 아래 버튼 → 옆 패널(휴대폰 전체 화면). 내 블로그 숫자·태그·다가오는 시기·협찬 마감·내 문체 + 열어 둔 원고(본문 6,000자까지) + 최근 대화 12개를 넣어 답함. 질문 버튼(원고 열었을 때·평소 다름), Enter 보내기, 복사, '원고 끝에 넣기'(이벤트 `minilog:insert`로 편집 화면이 받아 자동 저장), 지우기. 사용자당 최근 200개만 저장 | `mini-log/functions/_chat.ts`, `api/chat/index.ts`, 표 `minilog_chats`, `mini-log/src/Chat.tsx` | 시험(질문 버튼·대화 기억·원고 참고·원고에 넣기·새로고침 유지·다른 사용자 안 보임·길이 400·지우기·비로그인 401) |
 | Minoffia 통계 API `GET /api/stats` (Bearer `STATS_API_TOKEN`, 숫자만) | `hub/functions/api/stats.ts` | 시험(토큰 없음·틀림 401, 맞음 200, 키 원문 없음) |
 | 미니로그: 원고 목록·새 원고·편집·자동 저장(0.8초, 창 닫기·다른 앱으로 갈 때는 바로 저장 keepalive, 저장 전 닫으면 확인)·승인·삭제·발행용 복사. 지금 탭·원고를 주소 해시(`#ideas`, `#draft/아이디`)에 남김(새로고침 유지, 뒤로 가기 = 이전 화면) | `mini-log/src/App.tsx`, `mini-log/functions/` | 시험 |
 | 미니로그: 경험 글 → AI 초안(제목·본문·[사진] 위치·해시태그) | `functions/api/drafts/[id]/generate.ts` | 가짜 Gemini로 시험 |
@@ -124,7 +123,7 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 | `hub`: `npm run lint`, `npm run build` | 성공 |
 | `hub`: `npm test` | 14 passed (설정·로그인 유지, 월간 보고, 통합 대시보드·PWA 포함) |
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
-| `mini-log`: `npm test` | 42 passed (토몽이 채팅, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
+| `mini-log`: `npm test` | 40 passed (인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
 | `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
@@ -147,7 +146,7 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 ## 10. 다음 개발 우선순위(권장)
 1. 소유자 설정 후 실제 배포 확인 + 실제 Gemini 1회 호출 확인(모델 이름)
 2. 실제 Gemini로 사진 분석 품질 확인(사진 8장 기준 토큰·속도)
-3. 미니로그 남은 것(소유자가 정한 순서): 미니어리 메모 개선 후보(수정 이력·백업 복원·빠른 알림·사진, 소유자 선택 대기) → 애드센스 연결(준비만). 그 밖에 원고 수정 이력 기반 문체 개선 
+3. 미니로그 남은 것(소유자가 정한 순서): AI 채팅(mini-log, 토몽이에게 묻기, 질문 버튼) → 애드센스 연결(준비만). 그 밖에 원고 수정 이력 기반 문체 개선 
 4. 원고 동시 수정 버전 검사
 
 ## 11. Codex가 바꾸면 안 되는 것(호환 조건)
