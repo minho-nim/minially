@@ -380,3 +380,50 @@ select.input { appearance: auto; }
 .thumb-colors { display: flex; gap: 6px; }
 .thumb-colors button { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; }
 .thumb-colors button[aria-pressed="true"] { outline: 3px solid var(--app); outline-offset: 1px; }
+/* 블로그 구조 */
+.st-layout { display: grid; gap: var(--gap-lg); grid-template-columns: minmax(0, 320px) minmax(0, 1fr); align-items: start; }
+@media (max-width: 860px) { .st-layout { grid-template-columns: minmax(0, 1fr); } }
+.st-tree { display: grid; gap: 10px; min-width: 0; overflow: hidden; }
+.st-balance { display: grid; gap: 6px; }
+.st-bal-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--chart-empty); }
+.st-bal-bar span { display: block; height: 100%; }
+.st-nodes { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.st-nodes.sub { margin: 2px 0 2px 12px; padding-left: 8px; border-left: 1px dashed var(--line); }
+.st-node { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 10px; border: 1px dashed transparent; }
+.st-node.on { background: var(--app-soft); box-shadow: inset 3px 0 0 var(--app); }
+.st-node.over { border-color: var(--app); background: var(--app-soft); }
+.st-node.unsorted .st-name { color: var(--muted); }
+.st-name { all: unset; box-sizing: border-box; cursor: pointer; padding: 6px 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.92rem; }
+.st-name:focus-visible { outline: 2px solid var(--app); border-radius: 6px; }
+.st-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+.st-count { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.st-acts { display: flex; gap: 0; opacity: 0.35; }
+.st-node:hover .st-acts, .st-node.on .st-acts, .st-acts:focus-within { opacity: 1; }
+.st-acts button { border: 0; background: none; color: var(--muted); cursor: pointer; width: 24px; height: 28px; border-radius: 6px; font-size: 0.85rem; }
+.st-acts button:hover { background: var(--surface-2); color: var(--text); }
+.st-flag { font-size: 0.68rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.st-flag.warn { background: #FDE2DF; color: #9B2C22; }
+.st-flag.ok { background: #E3F2E8; color: #1F6B3A; }
+.st-flag.info { background: var(--app-soft); color: var(--text); }
+.st-add { display: flex; gap: 6px; }
+.st-add .input { flex: 1; min-width: 0; width: 100%; }
+.st-rename { min-width: 0; }
+.st-detail { min-width: 0; }
+.st-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 520px) { .st-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.st-stats .card { display: grid; gap: 2px; padding: 10px 12px; }
+.st-stats b { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.st-stats span { font-size: 0.75rem; color: var(--muted); }
+.st-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.st-items li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 10px; background: var(--surface-2); cursor: grab; }
+.st-items li.on { outline: 2px solid var(--app); }
+.st-items.plain li { grid-template-columns: auto minmax(0, 1fr); cursor: default; }
+.st-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; text-align: left; }
+.st-meta { white-space: nowrap; }
+@media (max-width: 520px) { .st-meta, .st-grip { display: none; } .st-items li { grid-template-columns: auto auto minmax(0, 1fr); } }
+.st-grip { color: var(--muted); }
+.st-kind, .st-role { font-size: 0.68rem; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: var(--text); color: var(--surface); white-space: nowrap; }
+.st-kind.draft { background: transparent; color: var(--muted); border: 1px dashed var(--muted); }
+.st-role.sub { background: var(--app-soft); color: var(--text); }
+.st-tip { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--app-soft); }
+.st-ok { color: var(--ok); }

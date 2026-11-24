@@ -3,8 +3,8 @@ import { api } from '../../shared/client/api';
 
 // mini-log 데이터 백업: 받기(JSON 파일) · 불러오기(합치기, 불러오기 전에 지금 데이터를 자동으로 한 번 더 받아 둠)
 type Count = { added: number; updated: number; kept: number; skipped: number };
-type Result = Record<'drafts' | 'campaigns' | 'styles' | 'blogs' | 'posts' | 'proposal', Count>;
-const LABEL: Record<keyof Result, string> = { drafts: '원고', campaigns: '협찬·수익', styles: '문체', blogs: '블로그', posts: '글 숫자', proposal: '제안서' };
+type Result = Record<'drafts' | 'campaigns' | 'styles' | 'blogs' | 'posts' | 'proposal' | 'structure', Count>;
+const LABEL: Record<keyof Result, string> = { drafts: '원고', campaigns: '협찬·수익', styles: '문체', blogs: '블로그', posts: '글 숫자', proposal: '제안서', structure: '블로그 구조' };
 
 async function download(label = '') {
   const data = await api<Record<string, unknown>>('/api/backup');
@@ -45,7 +45,7 @@ export function BackupCard() {
   return (
     <section className="card step" aria-labelledby="backup-title">
       <h2 id="backup-title" className="step-title">데이터 백업</h2>
-      <p className="muted small" style={{ margin: 0 }}>원고·협찬·문체·블로그 숫자를 파일 하나로(사진 제외). 불러오기는 <b>합치기</b>(없는 것만 더하고, 더 최신인 것만 바꿈).</p>
+      <p className="muted small" style={{ margin: 0 }}>원고·협찬·문체·블로그 숫자·구조를 파일 하나로(사진 제외). 불러오기는 <b>합치기</b>(없는 것만 더하고, 더 최신인 것만 바꿈).</p>
       <div className="publish-row" style={{ alignItems: 'center' }}>
         <button className="btn" onClick={() => { void save(); }} disabled={busy}>{busy ? '처리 중…' : '백업 받기'}</button>
         <button className="btn" onClick={() => input.current?.click()} disabled={busy}>백업 불러오기</button>

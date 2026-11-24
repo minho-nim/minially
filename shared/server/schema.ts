@@ -49,6 +49,10 @@ export async function ensureHubSchema(db: D1Database) {
     // 달력 구독 주소: 주소에 든 비밀값은 해시만 저장(사람마다 하나, 다시 만들면 이전 주소는 끊김)
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_ics (user TEXT PRIMARY KEY, token_hash TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_goals (user TEXT PRIMARY KEY, monthly INTEGER NOT NULL, updated_at INTEGER NOT NULL)'), // 한 달 수익 목표(원)
+    // 블로그 구조: 카테고리(2단까지), 글 배치(item = 'post:<글키>' 또는 'draft:<원고id>'), 주제 묶음(대표 글 + 세부 글)
+    db.prepare('CREATE TABLE IF NOT EXISTS minilog_categories (id TEXT PRIMARY KEY, user TEXT NOT NULL, name TEXT NOT NULL, parent_id TEXT, sort INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS minilog_placements (user TEXT NOT NULL, item TEXT NOT NULL, category_id TEXT NOT NULL, PRIMARY KEY (user, item))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS minilog_bundles (id TEXT PRIMARY KEY, user TEXT NOT NULL, name TEXT NOT NULL, hub TEXT NOT NULL, members TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS minilog_ideas (user TEXT PRIMARY KEY, ideas TEXT NOT NULL, used_search INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)'),
   ]);
   // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
