@@ -356,3 +356,4 @@ select.input { appearance: auto; }
 .pitch-chip { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; background: var(--app-soft); color: var(--text); }
 .pitch-chip.late { background: #FDE2DF; color: #9B2C22; }
 .brand-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.feed-url { display: grid; gap: 6px; }
