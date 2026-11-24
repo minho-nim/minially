@@ -9,14 +9,23 @@ export type Status = (typeof STATUSES)[number];
 
 /** 체험단 가이드 정리(업체 가이드에서 뽑은 조건). 원고 점검과 캘린더(방문일)에 쓴다. */
 export interface Guide { keywords: string[]; hashtags: string[]; min_photos: number | null; min_chars: number | null; links: string[]; visit_on: string | null; notes: string }
+/** 먼저 제안한 기록: 보낸 날, 보낸 곳, 답장(기다림·좋다고 함·거절) */
+export interface Pitch { on: string; via: 'mail' | 'dm'; reply: 'waiting' | 'yes' | 'no' }
 export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
   deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string;
-  guide: Guide | null; created_at: number; updated_at: number;
+  guide: Guide | null; pitch: Pitch | null; created_at: number; updated_at: number;
 }
-const COLUMNS = 'id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, created_at, updated_at';
-type Row = Omit<Campaign, 'guide'> & { guide: string | null };
-const toCampaign = (r: Row): Campaign => ({ ...r, guide: r.guide ? cleanGuide(JSON.parse(r.guide)) : null });
+const COLUMNS = 'id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, created_at, updated_at';
+type Row = Omit<Campaign, 'guide' | 'pitch'> & { guide: string | null; pitch: string | null };
+const toCampaign = (r: Row): Campaign => ({ ...r, guide: r.guide ? cleanGuide(JSON.parse(r.guide)) : null, pitch: r.pitch ? cleanPitch(JSON.parse(r.pitch)) : null });
+/** 제안 기록 값 검사. 틀리면 null */
+export function cleanPitch(v: unknown): Pitch | null {
+  if (!v || typeof v !== 'object') return null;
+  const p = v as Record<string, unknown>;
+  if (typeof p.on !== 'string' || !validDate(p.on) || (p.via !== 'mail' && p.via !== 'dm')) return null;
+  return { on: p.on, via: p.via, reply: p.reply === 'yes' || p.reply === 'no' ? p.reply : 'waiting' };
+}
 
 const words = (v: unknown, n: number, max: number) => (Array.isArray(v) ? [...new Set(v.filter((x): x is string => typeof x === 'string').map(x => x.replace(/^#+/, '').trim().slice(0, max)).filter(Boolean))].slice(0, n) : []);
 const count = (v: unknown, max: number) => { const n = Number(v); return Number.isInteger(n) && n > 0 && n <= max ? n : null; };
@@ -73,6 +82,10 @@ export function readCampaign(body: Record<string, unknown>): Patch | string {
     patch[key] = body[key] as string;
   }
   if (body.guide !== undefined) patch.guide = body.guide === null ? null : cleanGuide(body.guide);
+  if (body.pitch !== undefined) {
+    if (body.pitch === null) patch.pitch = null;
+    else { const pitch = cleanPitch(body.pitch); if (!pitch) return '제안 기록이 올바르지 않아요.'; patch.pitch = pitch; }
+  }
   if (body.draft_id !== undefined) {
     if (body.draft_id === null || body.draft_id === '') patch.draft_id = null;
     else if (typeof body.draft_id === 'string' && /^[0-9a-f-]{36}$/.test(body.draft_id)) patch.draft_id = body.draft_id;
@@ -104,13 +117,13 @@ function normalize(next: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) {
 }
 
 export async function createCampaign(db: D1Database, user: UserName, patch: Patch): Promise<Campaign | string> {
-  const base = normalize({ kind: 'sponsor', brand: '', title: '', provided: '', amount: 0, deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, ...patch });
+  const base = normalize({ kind: 'sponsor', brand: '', title: '', provided: '', amount: 0, deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, ...patch });
   if (!base.brand) return '업체 이름을 적어 주세요.';
   if (!(await ownsDraft(db, user, base.draft_id))) return '연결할 원고를 찾을 수 없어요.';
   const id = crypto.randomUUID();
   const now = Date.now();
-  await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, user, base.kind, base.brand, base.title, base.provided, base.amount, base.deadline, base.status, base.paid_on, base.draft_id, base.memo, base.guide ? JSON.stringify(base.guide) : null, now, now).run();
+  await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(id, user, base.kind, base.brand, base.title, base.provided, base.amount, base.deadline, base.status, base.paid_on, base.draft_id, base.memo, base.guide ? JSON.stringify(base.guide) : null, base.pitch ? JSON.stringify(base.pitch) : null, now, now).run();
   return (await getCampaign(db, user, id))!;
 }
 
@@ -120,8 +133,8 @@ export async function updateCampaign(db: D1Database, user: UserName, id: string,
   const next = normalize({ ...current, ...patch });
   if (!next.brand) return '업체 이름을 적어 주세요.';
   if (!(await ownsDraft(db, user, next.draft_id))) return '연결할 원고를 찾을 수 없어요.';
-  await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, guide = ?, updated_at = ? WHERE user = ? AND id = ?')
-    .bind(next.kind, next.brand, next.title, next.provided, next.amount, next.deadline, next.status, next.paid_on, next.draft_id, next.memo, next.guide ? JSON.stringify(next.guide) : null, Date.now(), user, id).run();
+  await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, guide = ?, pitch = ?, updated_at = ? WHERE user = ? AND id = ?')
+    .bind(next.kind, next.brand, next.title, next.provided, next.amount, next.deadline, next.status, next.paid_on, next.draft_id, next.memo, next.guide ? JSON.stringify(next.guide) : null, next.pitch ? JSON.stringify(next.pitch) : null, Date.now(), user, id).run();
   return getCampaign(db, user, id);
 }
 

@@ -353,3 +353,6 @@ select.input { appearance: auto; }
 .help-more > summary::-webkit-details-marker { display: none; }
 .help-more .help-i { color: var(--app); font-weight: 700; }
 .help-more > p { margin: 4px 0 0; }
+.pitch-chip { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; background: var(--app-soft); color: var(--text); }
+.pitch-chip.late { background: #FDE2DF; color: #9B2C22; }
+.brand-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
