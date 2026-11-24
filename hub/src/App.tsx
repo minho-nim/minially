@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
+import { Monthly } from './Monthly';
 
 interface Me {
   user: 'C' | 'D';
@@ -286,6 +287,7 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <nav className="nav-wrap" aria-label="미니허브 메뉴">
           <div className="nav">
             <a href="#overview">대시보드</a>
+            <a href="#monthly">월간 보고</a>
             <a href="#apps">앱</a>
             <a href="#overview">AI 사용량</a>
             <a href="#settings">설정</a>
@@ -345,6 +347,8 @@ function Home({ me, onLogout }: { me: Me; onLogout: () => void }) {
           </div>
           )}
         </section>
+
+        <Monthly />
 
         <section id="apps" aria-labelledby="apps-title">
           <h2 id="apps-title" className="section-title">앱</h2>

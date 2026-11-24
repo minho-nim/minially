@@ -6,6 +6,7 @@ import { fullText, photoFileName } from './publishKit';
 import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
+import { ReportView } from './Report';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 
@@ -212,7 +213,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
-        {view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
+        {view === 'report' ? <ReportView user={me.user} onBack={() => setView('drafts')} />
+        : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
@@ -243,8 +245,8 @@ function readRoute(): { view: View; draftId: string | null } {
 }
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
-type View = 'drafts' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
+type View = 'drafts' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'style';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['blog', '블로그'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };

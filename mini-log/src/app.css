@@ -251,3 +251,43 @@ select.input { appearance: auto; }
   .post-kit li.kit-wide { grid-template-columns: 1fr; }
   .post-preview { padding: 12px 10px; }
 }
+
+/* 월간 보고 */
+.month-nav { display: flex; align-items: center; gap: 6px; }
+.month-nav .cal-month { min-width: 104px; }
+.pdf-options { display: flex; gap: 16px; flex-wrap: wrap; }
+.report-head { display: grid; gap: 6px; padding: 18px 20px; }
+.report-brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.report-title { margin: 0; font-size: 1.45rem; letter-spacing: -0.02em; text-wrap: balance; }
+.report-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.report-kpis > .pdf-revenue { display: grid; }
+.diff.up { color: var(--ok); font-weight: 700; }
+.diff.down { color: var(--danger); font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+.report-table td.t { text-align: left; max-width: 0; width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.report-table td.t a { color: var(--text); }
+.report-table th:nth-child(2) { text-align: left; }
+.report-foot { margin: 0; text-align: center; }
+@media (max-width: 760px) { .report-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* PDF(인쇄): 보고서 부분만 A4로. 메뉴·버튼·선택 안 한 칸은 뺀다 */
+@media print {
+  @page { size: A4; margin: 14mm; }
+  .report .kpi .value { font-size: 1.45rem; white-space: nowrap; }
+  :root { color-scheme: light; --bg: #fff; --surface: #fff; --surface-2: #F8EFE8; --line: #E6DAD1; --text: #2B2233; --muted: #6F6473; --ok: #2F8A55; --danger: #C8322A; --app: #E37D12; --app-soft: #FFEBD6; }
+  body { background: #fff; }
+  .side, .no-print, .back { display: none !important; }
+  .shell { display: block; }
+  .main { padding: 0; max-width: none; display: block !important; }
+  .report { gap: 10px; }
+  .report .card { box-shadow: none; break-inside: avoid; border-color: var(--line); margin-bottom: 10px; }
+  .report-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .report.pdf-no-revenue .pdf-revenue, .report.pdf-no-ai .pdf-ai { display: none !important; }
+  .report.pdf-no-revenue .report-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  .report a { text-decoration: none; color: var(--text); }
+  .table-wrap { overflow: visible; }
+  .report-table td.t { white-space: normal; max-width: none; }
+}
+.report-summary ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; line-height: 1.6; }
+.report-table th, .report-table td { white-space: nowrap; }
+@media (max-width: 520px) { .report-table { font-size: 0.8rem; } .report-table th, .report-table td { padding: 6px 3px; } }
