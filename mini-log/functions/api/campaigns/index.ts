@@ -6,7 +6,7 @@ import { createCampaign, listCampaigns, readCampaign } from '../../_campaigns';
 export const onRequestGet = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');
   if (auth instanceof Response) return auth;
-  return json({ campaigns: await listCampaigns(auth.db, auth.session.user) });
+  return json(await listCampaigns(auth.db, auth.session.user));
 };
 
 export const onRequestPost = async (ctx: HubContext) => {

@@ -8,11 +8,14 @@ export const onRequestGet = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');
   if (auth instanceof Response) return auth;
   const { db, session } = auth;
-  await cleanupExpired(db, ctx.env.MINILOG_PHOTOS, session.user);
-  const drafts = await listDrafts(db, session.user);
+  const beforeParam = new URL(ctx.request.url).searchParams.get('before');
+  const cursor = beforeParam === null ? null : beforeParam.match(/^(\d{1,15})_([0-9a-f-]{36})$/);
+  if (beforeParam !== null && !cursor) return json({ error: '목록 위치 값이 올바르지 않아요.' }, 400);
+  if (!cursor) await cleanupExpired(db, ctx.env.MINILOG_PHOTOS, session.user);
+  const { drafts, more, next_before } = await listDrafts(db, session.user, cursor ? { at: Number(cursor[1]), id: cursor[2] } : null);
   const counts = (await db.prepare('SELECT draft_id, COUNT(*) AS n FROM minilog_photos WHERE user = ? GROUP BY draft_id').bind(session.user).all<{ draft_id: string; n: number }>()).results;
   const byDraft = new Map(counts.map(c => [c.draft_id, c.n]));
-  return json({ drafts: drafts.map(d => ({ ...d, photo_count: byDraft.get(d.id) ?? 0 })) });
+  return json({ drafts: drafts.map(d => ({ ...d, photo_count: byDraft.get(d.id) ?? 0 })), more, next_before });
 };
 
 export const onRequestPost = async (ctx: HubContext) => {

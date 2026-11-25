@@ -101,8 +101,11 @@ export function readCampaign(body: Record<string, unknown>): Patch | string {
   return patch;
 }
 
+export const CAMPAIGN_LIMIT = 500;
+/** 진행 중인 것부터 500개까지. more = 그보다 많아 끝난 협찬 일부가 목록에서 빠졌는지(합계·보고서는 SQL로 전체를 센다) */
 export async function listCampaigns(db: D1Database, user: UserName) {
-  return (await db.prepare(`SELECT ${COLUMNS} FROM minilog_campaigns WHERE user = ? ORDER BY status IN ('paid', 'cancelled'), COALESCE(deadline, apply_by) IS NULL, COALESCE(deadline, apply_by), updated_at DESC LIMIT 500`).bind(user).all<Row>()).results.map(toCampaign);
+  const rows = (await db.prepare(`SELECT ${COLUMNS} FROM minilog_campaigns WHERE user = ? ORDER BY status IN ('paid', 'cancelled'), COALESCE(deadline, apply_by) IS NULL, COALESCE(deadline, apply_by), updated_at DESC LIMIT ?`).bind(user, CAMPAIGN_LIMIT + 1).all<Row>()).results.map(toCampaign);
+  return { campaigns: rows.slice(0, CAMPAIGN_LIMIT), more: rows.length > CAMPAIGN_LIMIT };
 }
 
 export async function getCampaign(db: D1Database, user: UserName, id: string) {

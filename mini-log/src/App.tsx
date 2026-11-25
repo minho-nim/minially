@@ -123,6 +123,9 @@ const dateLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'num
 function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [listError, setListError] = useState('');
+  // 원고는 최근 200개씩: 더 오래된 원고가 남았으면 목록 끝에 '이전 원고 더 보기'
+  const [olderCursor, setOlderCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(() => readRoute().draftId);
   // 휴대폰 공유로 열렸으면(/?url=…) 협찬 화면에서 '관심'으로 담는다. 주소의 ?…는 한 번 읽고 지운다.
   const [shared] = useState(() => readShare(window.location.search));
@@ -143,7 +146,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [creating, setCreating] = useState(false);
 
   const refresh = useCallback(async () => {
-    try { setDrafts((await api<{ drafts: Draft[] }>('/api/drafts')).drafts); setListError(''); }
+    try { const data = await api<{ drafts: Draft[]; more?: boolean; next_before?: string | null }>('/api/drafts'); setDrafts(data.drafts); setOlderCursor(data.more ? data.next_before ?? null : null); setListError(''); }
     catch (error) {
       if (error instanceof ApiError && error.status === 401) onLogout();
       else setListError(error instanceof Error ? error.message : '원고 목록을 불러오지 못했어요.');
@@ -211,6 +214,17 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
               </button>
             ))}
           </nav>
+        )}
+        {olderCursor && (
+          <button className="btn ghost small" disabled={loadingOlder} onClick={async () => {
+            setLoadingOlder(true);
+            try {
+              const data = await api<{ drafts: Draft[]; more?: boolean; next_before?: string | null }>(`/api/drafts?before=${encodeURIComponent(olderCursor)}`);
+              setDrafts(list => { const seen = new Set((list ?? []).map(d => d.id)); return [...(list ?? []), ...data.drafts.filter(d => !seen.has(d.id))]; });
+              setOlderCursor(data.more ? data.next_before ?? null : null);
+            } catch (error) { setListError(error instanceof Error ? error.message : '이전 원고를 불러오지 못했어요.'); }
+            finally { setLoadingOlder(false); }
+          }}>{loadingOlder ? '불러오는 중…' : '이전 원고 더 보기'}</button>
         )}
         <div className="side-foot">
           <a className="btn ghost small" href={APP_LINKS.hub}>hub</a>
