@@ -437,3 +437,8 @@ select.input { appearance: auto; }
 .st-role.sub { background: var(--app-soft); color: var(--text); }
 .st-tip { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--app-soft); }
 .st-ok { color: var(--ok); }
+/* 체험단 찾기 */
+.finder { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--app-soft); margin-bottom: 10px; }
+.finder > summary { cursor: pointer; font-weight: 700; }
+.finder-links { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 560px) { .finder-links .btn { min-height: 44px; display: inline-flex; align-items: center; } }

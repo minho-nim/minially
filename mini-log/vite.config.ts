@@ -34,6 +34,8 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         scope: '/',
+        // 휴대폰에서 체험단 공고를 보다가 '공유 → 미니로그'를 누르면 /?title=&text=&url= 로 열려 '관심' 협찬으로 담는다(설치한 앱에서만)
+        share_target: { action: '/', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
         icons: [
           { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

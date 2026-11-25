@@ -5,6 +5,7 @@ import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
 import { campaignsCsv, downloadCsv } from './csvExport';
 import { AD_SOURCE_LABEL, parseAdCsv, type AdSource } from './adsImport';
+import { loadPrefs, PLATFORMS, savePrefs, searchUrl, type Shared } from './campaignFinder';
 
 // 협찬·광고 캠페인과 수익 기록(본인만 보는 계약 정보)
 export type Kind = 'sponsor' | 'ad' | 'other';
@@ -40,8 +41,10 @@ export function dDay(deadline: string) {
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
 const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null };
 
-export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
+export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared = null }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
+  /** 휴대폰 공유로 받은 공고(있으면 '관심' 새 협찬으로 연다) */
+  shared?: Shared | null;
 }) {
   const [items, setItems] = useState<Campaign[] | null>(null);
   const [importing, setImporting] = useState(false);
@@ -50,6 +53,13 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
 
+  const [shareUrl] = useState(shared?.url ?? '');
+  useEffect(() => {
+    if (!shared) return;
+    setFilter('wish');
+    setEditing({ id: null, form: { ...EMPTY, status: 'interested', source_url: shared.url, title: shared.title } });
+    setMessage({ kind: 'info', text: '공유한 공고를 관심으로 담을게요. \'정리하기\'를 누르면 공고 내용으로 칸을 채워요.' });
+  }, [shared]);
   useEffect(() => {
     api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setItems(d.campaigns))
       .catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
@@ -93,11 +103,12 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   }
   const set = (patch: Partial<Form>) => setEditing(e => (e ? { ...e, form: { ...e.form, ...patch } } : e));
   // 가이드 정리 결과는 빈 칸만 채우고(이미 적은 건 그대로), 가이드는 새로 바꾼다
-  const fillFromGuide = (r: GuideResult) => setEditing(e => {
+  const fillFromGuide = (r: GuideResult, sourceUrl?: string) => setEditing(e => {
     if (!e) return e;
     const f = e.form;
     return { ...e, form: { ...f, brand: f.brand.trim() || r.brand, title: f.title.trim() || r.title, provided: f.provided.trim() || r.provided,
-      amount: f.amount.trim() || (r.amount ? String(r.amount) : ''), deadline: f.deadline || r.deadline, guide: r.guide } };
+      amount: f.amount.trim() || (r.amount ? String(r.amount) : ''), deadline: f.deadline || r.deadline, guide: r.guide,
+      apply_by: f.apply_by || r.apply_by || null, source_url: f.source_url.trim() || sourceUrl || '' } };
   });
 
   async function save(event: FormEvent) {
@@ -175,7 +186,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
         <form className="card step" onSubmit={save} aria-label={editing.id ? '캠페인 고치기' : '새 기록'}>
           <div className="row-between">
             <h2 className="step-title">{editing.id ? '기록 고치기' : editing.form.kind === 'sponsor' ? '새 협찬' : '새 수익'}</h2>
-            {editing.form.kind === 'sponsor' && <GuideFill onFill={fillFromGuide} />}
+            {editing.form.kind === 'sponsor' && <GuideFill onFill={fillFromGuide} initialUrl={!editing.id && editing.form.source_url === shareUrl ? shareUrl : ''} />}
           </div>
           {editing.form.kind === 'sponsor' && editing.form.guide && (
             <div>
@@ -275,6 +286,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
             {FILTERS.map(([key, label]) => <button key={key} role="tab" aria-selected={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
           </div>
         </div>
+        {filter === 'wish' && <Finder />}
         {items === null && !message && <p className="muted small" role="status">불러오는 중…</p>}
         {items && filter === 'brand' && (brands.length === 0
           ? <p className="muted small" style={{ margin: 0 }}>협찬 기록이 생기면 업체별로 모아 보여요.</p>
@@ -380,5 +392,33 @@ function AdImport({ onDone, onClose }: { onDone: () => void; onClose: () => void
       )}
       <p className="muted small" style={{ margin: 0 }}>애드센스 자동 연결(매일 자동으로 가져오기)은 구글 앱 승인이 필요해서 준비 중이에요.</p>
     </section>
+  );
+}
+
+/** 체험단 찾기: 내 지역·분야로 검색 화면을 연다(미니로그는 공고 사이트를 긁지 않음). 고른 공고는 주소를 붙여 넣거나 휴대폰 공유로 담는다. */
+function Finder() {
+  const [prefs, setPrefs] = useState(loadPrefs);
+  // 처음 열 때만 정한다(지역을 치는 순간 접히지 않게): 아직 정한 게 없으면 펼쳐 둔다
+  const [startOpen] = useState(() => !prefs.region && !prefs.topic);
+  const set = (patch: Partial<typeof prefs>) => setPrefs(p => { const next = { ...p, ...patch }; savePrefs(next); return next; });
+  return (
+    <details className="finder" open={startOpen}>
+      <summary>체험단 찾기 <span className="muted small">{[prefs.region, prefs.topic].filter(Boolean).join(' · ') || '지역·분야를 정해 두세요'}</span></summary>
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="f-region">지역</label>
+          <input id="f-region" className="input" maxLength={30} placeholder="예) 성수, 마포" value={prefs.region} onChange={e => set({ region: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="f-topic">분야</label>
+          <input id="f-topic" className="input" maxLength={30} placeholder="예) 맛집, 뷰티, 배송형" value={prefs.topic} onChange={e => set({ topic: e.target.value })} />
+        </div>
+      </div>
+      <div className="finder-links">
+        <a className="btn primary small" href={searchUrl(prefs)} target="_blank" rel="noopener noreferrer">네이버에서 찾기</a>
+        {PLATFORMS.map(([name, url]) => <a key={url} className="btn small" href={url} target="_blank" rel="noopener noreferrer">{name}</a>)}
+      </div>
+      <p className="muted small" style={{ margin: 0 }}>마음에 드는 공고는 주소를 복사해 '새 협찬 → ✨ 가이드로 채우기 → 링크'에 붙여 넣거나, 휴대폰에 설치한 미니로그로 공유하면 관심으로 담겨요. 신청은 그 사이트에서 직접 해요.</p>
+    </details>
   );
 }

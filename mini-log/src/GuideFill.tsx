@@ -7,7 +7,7 @@ export interface Guide {
   keywords: string[]; hashtags: string[]; min_photos: number | null; min_chars: number | null;
   links: string[]; visit_on: string | null; notes: string;
 }
-export interface GuideResult { brand: string; title: string; provided: string; amount: number; deadline: string | null; guide: Guide | null }
+export interface GuideResult { brand: string; title: string; provided: string; amount: number; deadline: string | null; apply_by?: string | null; guide: Guide | null }
 
 type Source = 'text' | 'url' | 'image';
 const SOURCES: [Source, string][] = [['text', '글 붙여넣기'], ['url', '링크'], ['image', '캡처']];
@@ -19,11 +19,12 @@ const toDataUrl = (blob: Blob) => new Promise<string>((resolve, reject) => {
   reader.readAsDataURL(blob);
 });
 
-export function GuideFill({ onFill }: { onFill: (r: GuideResult) => void }) {
-  const [open, setOpen] = useState(false);
-  const [source, setSource] = useState<Source>('text');
+/** initialUrl: 휴대폰 공유로 받은 공고 주소(있으면 '링크'로 열어 둔다). onFill의 두 번째 값은 링크로 정리했을 때 그 주소. */
+export function GuideFill({ onFill, initialUrl = '' }: { onFill: (r: GuideResult, sourceUrl?: string) => void; initialUrl?: string }) {
+  const [open, setOpen] = useState(!!initialUrl);
+  const [source, setSource] = useState<Source>(initialUrl ? 'url' : 'text');
   const [text, setText] = useState('');
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(initialUrl);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function GuideFill({ onFill }: { onFill: (r: GuideResult) => void }) {
     try {
       const body = source === 'text' ? { text } : source === 'url' ? { url } : { image: file ? await toDataUrl(await shrinkPhoto(file)) : '' };
       const result = await api<GuideResult>('/api/campaigns/guide', { body });
-      onFill(result);
+      onFill(result, source === 'url' ? url.trim() : undefined);
       setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : '정리하지 못했어요.');
