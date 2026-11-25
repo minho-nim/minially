@@ -27,13 +27,17 @@ export async function shrinkForReading(file: Blob): Promise<string> {
 
 export class PhotoReadError extends Error { constructor(message: string, public code: string) { super(message); } }
 
-export async function readPhotoSchedule(dataUrl: string, today: string): Promise<PhotoEvent[]> {
+export function readPhotoSchedule(dataUrl: string, today: string) { return askServer({ image: dataUrl, today }); }
+/** 글로 넣기에서 규칙이 못 찾아 사람이 'AI로 다시 읽기'를 누를 때만(글이 구글 무료 AI로 간다) */
+export function readTextScheduleWithAi(text: string, today: string) { return askServer({ text, today }); }
+
+async function askServer(payload: { image: string; today: string } | { text: string; today: string }): Promise<PhotoEvent[]> {
   const code = syncEngine.code;
   if (!code) throw new PhotoReadError('동기화 코드로 로그인하면 쓸 수 있어요.', 'no_login');
   if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new PhotoReadError('인터넷에 연결되면 쓸 수 있어요.', 'offline');
   let res: Response;
   try {
-    res = await fetch(`${import.meta.env.BASE_URL}api/photo-schedule`, { method: 'POST', cache: 'no-store', headers: { authorization: `Bearer ${code}`, 'content-type': 'application/json' }, body: JSON.stringify({ image: dataUrl, today }) });
+    res = await fetch(`${import.meta.env.BASE_URL}api/photo-schedule`, { method: 'POST', cache: 'no-store', headers: { authorization: `Bearer ${code}`, 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   } catch { throw new PhotoReadError('인터넷에 연결되면 쓸 수 있어요.', 'offline'); }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new PhotoReadError(body?.error ?? `서버 오류(${res.status})`, body?.code ?? String(res.status));

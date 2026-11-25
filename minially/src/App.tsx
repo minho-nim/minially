@@ -121,16 +121,24 @@ export default function App() {
   const [daySheetOpen, setDaySheetOpen] = useState(false);
   const dayDetailSaved = useRef<(() => void) | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
-  // 사진으로 일정 넣기: 열린 동안 { file: 공유로 받은 사진(없으면 고르기부터) }
-  const [photoSheet, setPhotoSheet] = useState<{ file: Blob | null } | null>(null);
+  // 사진·글로 일정 넣기: 열린 동안 { file: 공유로 받은 사진, text: 공유로 받은 글(둘 다 없으면 고르기부터) }
+  const [photoSheet, setPhotoSheet] = useState<{ file: Blob | null; text?: string } | null>(null);
   useEffect(() => {
-    // 안드로이드 공유로 받은 사진(서비스 워커가 이 기기 캐시에 잠깐 둔 것)을 꺼내 바로 읽는다
+    // 안드로이드 공유로 받은 사진·글(서비스 워커가 이 기기 캐시에 잠깐 둔 것)을 꺼내 바로 읽는다
     const params = new URLSearchParams(window.location.search);
     const shared = params.get('share-photo');
     if (!shared) return;
     params.delete('share-photo');
     window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`);
-    if (shared !== '1' || !('caches' in window)) { setPhotoSheet({ file: null }); return; }
+    if ((shared !== '1' && shared !== 'text') || !('caches' in window)) { setPhotoSheet({ file: null }); return; }
+    if (shared === 'text') {
+      void caches.open('minially-share').then(async cache => {
+        const res = await cache.match('shared-text');
+        await cache.delete('shared-text');
+        setPhotoSheet({ file: null, text: res ? (await res.text()).slice(0, 4000) : '' });
+      }).catch(() => setPhotoSheet({ file: null }));
+      return;
+    }
     void caches.open('minially-share').then(async cache => {
       const res = await cache.match('shared-photo');
       await cache.delete('shared-photo');
@@ -857,7 +865,7 @@ export default function App() {
         onSettings={handleUpdateSettings} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} onUsePreset={handleUsePreset}
         onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
       />
-      <PhotoScheduleSheet open={!!photoSheet} file={photoSheet?.file} categories={categories} schedules={expandedSchedules} onClose={() => setPhotoSheet(null)} onAdd={handleAddPhotoSchedules} />
+      <PhotoScheduleSheet open={!!photoSheet} file={photoSheet?.file} text={photoSheet?.text} categories={categories} schedules={expandedSchedules} onClose={() => setPhotoSheet(null)} onAdd={handleAddPhotoSchedules} />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
         onOpenNote={openConnectedNote}

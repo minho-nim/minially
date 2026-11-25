@@ -78,6 +78,11 @@ createServer((req, res) => {
     if (prompt.includes('통계 화면')) {
       return ok({ posts: [{ title: '동네 빵집 소금빵 후기', views: 1520, likes: 48, comments: 12 }, { title: '겨울 카페 투어', views: 830, likes: 21, comments: null }, { title: '없는 글 제목', views: 5, likes: 0, comments: 0 }] });
     }
+    if (prompt.includes('글(예약 문자·메일·공지) 속 일정을 찾는 도우미')) {
+      // 글로 넣기 'AI로 다시 읽기': 붙여넣은 글이 <글> 안에 들어갔는지 근거 칸에 그대로 돌려준다
+      const body = prompt.match(/<글>\n([\s\S]*?)\n<\/글>/)?.[1] ?? '';
+      return ok({ events: [{ title: '돌잔치', date: '2026-12-20', start: '12:00', end: null, location: '', memo: '', source: body.slice(0, 40), uncertain: false }] });
+    }
     if (prompt.includes('사진 속 일정을 찾는 도우미')) {
       // 사진으로 일정 넣기: 오늘 날짜가 프롬프트에 들어갔는지 제목에 적고, 형식이 틀린 후보(날짜 없음·13월)는 서버가 걸러야 한다
       const today = prompt.match(/오늘은 (\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
