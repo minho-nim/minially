@@ -18,12 +18,14 @@ interface Props {
   currentKey?: string;
   nextKey?: string;
   className?: string;
+  /** 브라우저에 맡길 손 움직임. 기본은 위아래 스크롤 허용, 달력처럼 화면이 고정된 곳은 'pinch-zoom'으로 위아래 흔들림을 막는다 */
+  touchAction?: string;
   'data-calendar-swipe'?: boolean;
   'data-task-swipe'?: boolean;
   'data-import-swipe'?: boolean;
 }
 
-export function SwipePager({ pageKey, children, previous, next, onPrevious, onNext, disabled = false, gap = 0, autoHeight = false, minimumHeight = 160, preload = false, previousKey, currentKey, nextKey, className = '', ...attributes }: Props) {
+export function SwipePager({ pageKey, children, previous, next, onPrevious, onNext, disabled = false, gap = 0, autoHeight = false, minimumHeight = 160, preload = false, previousKey, currentKey, nextKey, className = '', touchAction = 'pan-y pinch-zoom', ...attributes }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const panes = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
@@ -160,7 +162,7 @@ export function SwipePager({ pageKey, children, previous, next, onPrevious, onNe
   };
   const paneClass = 'swipe-pane flex min-h-0 w-full shrink-0 flex-col' + (autoHeight ? '' : ' h-full');
   const showSides = preloaded || phase !== 'idle';
-  return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction: 'pan-y pinch-zoom', height: autoHeight ? height : undefined, transition: autoHeight && phase !== 'dragging' ? 'height 220ms cubic-bezier(.22,.68,0,1)' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
+  return <div {...attributes} ref={root} data-swipe-phase={phase} className={'relative min-w-0 overflow-hidden ' + className} style={{ touchAction, height: autoHeight ? height : undefined, transition: autoHeight && phase !== 'dragging' ? 'height 220ms cubic-bezier(.22,.68,0,1)' : undefined }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={cancel} onClickCapture={event => { if (Date.now() < ignoreClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
     <div ref={track} data-swipe-track className={autoHeight ? 'absolute top-0 left-0 flex w-full items-start' : 'flex h-full min-h-0 w-full'} style={{ columnGap: gap, transform: `translate3d(calc(-100% - ${gap}px), 0, 0)`, willChange: phase === 'idle' ? undefined : 'transform' } as CSSProperties}>
       <div key={previousKey ?? 'prev'} ref={panes[0]} aria-hidden="true" inert className={paneClass}>{showSides && previous}</div>
       <div key={currentKey ?? 'current'} ref={panes[1]} data-swipe-current className={paneClass}>{children}</div>
