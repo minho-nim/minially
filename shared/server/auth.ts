@@ -15,6 +15,14 @@ export async function sha256Hex(text: string) {
   return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** 두 비밀값이 같은지, 어디서 달라지든 같은 시간이 걸리게 비교한다(먼저 해시로 길이를 맞춘다) */
+export async function secretEquals(given: string, expected: string) {
+  const [a, b] = await Promise.all([sha256Hex(given), sha256Hex(expected)]);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 /** 미니어리와 같은 규칙: 대소문자·'-' 무시, 헷갈리는 글자 O→0, I·L→1 */
 export function normalizeCode(code: string) {
   return code.toUpperCase().replace(/[^0-9A-Z]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
