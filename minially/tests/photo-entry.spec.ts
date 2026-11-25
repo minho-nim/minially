@@ -40,3 +40,60 @@ test('공유로 받은 사진이 있으면 앱을 열 때 꺼내 바로 읽고, 
   expect(page.url()).not.toContain('share-photo');
   expect(await page.evaluate(async () => !!(await (await caches.open('minially-share')).match('shared-photo')))).toBe(false);
 });
+
+test('글로 넣기: 붙여넣은 문자를 이 기기 안에서 읽어 후보로 보여 주고(서버로 보내지 않음), 고른 것만 등록한다', async ({ page }) => {
+  const sent: string[] = [];
+  page.on('request', r => { if (r.url().includes('/api/photo-schedule')) sent.push(r.url()); });
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await expect(sheet).toContainText('구글 무료 AI(Gemini)로 읽어요');
+  await expect(sheet.getByRole('button', { name: '글에서 찾기' })).toBeDisabled();
+  await sheet.getByLabel('문자·메일 붙여넣기').fill('[밝은미소치과] 홍길동님 12월 2일 오후 2시 30분 진료 예약되었습니다.\n12월 9일 오후 4시 재방문');
+  await sheet.getByRole('button', { name: '글에서 찾기' }).click();
+  await expect(sheet.getByRole('heading', { name: '찾은 일정 2개' })).toBeVisible();
+  const rows = sheet.locator('[data-photo-event]');
+  await expect(rows.nth(0).getByLabel('일정 제목')).toHaveValue('밝은미소치과 진료');
+  await expect(rows.nth(0).getByLabel('시작 시간')).toHaveValue('14:30');
+  await rows.nth(1).getByRole('checkbox').uncheck();
+  await sheet.getByRole('button', { name: '1개 등록' }).click();
+  await expect(sheet).toHaveCount(0);
+  const saved = await page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>(r => { const q = indexedDB.open('DayFlowDB'); q.onsuccess = () => r(q.result); });
+    const all = await new Promise<{ title: string; date: string; startTime?: string }[]>(r => { const q = db.transaction('schedules').objectStore('schedules').getAll(); q.onsuccess = () => r(q.result); });
+    db.close(); return all.filter(s => s.title.includes('치과')).map(s => [s.title, s.date.slice(5), s.startTime]);
+  });
+  expect(saved).toEqual([['밝은미소치과 진료', '12-02', '14:30']]);
+  expect(sent).toEqual([]);
+});
+
+test('글로 넣기: 못 찾으면 글 고치기·AI로 다시 읽기를 주고, AI는 누를 때만 쓴다(로그인 전이면 안내)', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await sheet.getByLabel('문자·메일 붙여넣기').fill('다들 고마워요');
+  await sheet.getByRole('button', { name: '글에서 찾기' }).click();
+  await expect(sheet).toContainText('글에서 일정을 못 찾았어요');
+  await expect(sheet).toContainText('구글 서비스 개선에 쓰일 수 있어요');
+  await sheet.getByRole('button', { name: '글 고치기' }).click();
+  await expect(sheet.getByLabel('문자·메일 붙여넣기')).toHaveValue('다들 고마워요');
+  await sheet.getByRole('button', { name: '글에서 찾기' }).click();
+  await sheet.getByRole('button', { name: 'AI로 다시 읽기' }).click();
+  await expect(sheet.getByRole('alert')).toContainText('동기화 코드로 로그인하면 쓸 수 있어요');
+  await expect(sheet.getByRole('button', { name: '글 고치기' })).toBeVisible();
+});
+
+test('공유로 받은 글(문자·메일)이 있으면 앱을 열 때 꺼내 기기 안에서 읽고, 캐시와 주소의 표시는 지운다', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.evaluate(async () => {
+    await (await caches.open('minially-share')).put('shared-text', new Response('모레 오전 11시 은행 상담', { headers: { 'content-type': 'text/plain' } }));
+  });
+  await page.goto('/?share-photo=text');
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await expect(sheet.getByRole('heading', { name: '찾은 일정 1개' })).toBeVisible();
+  await expect(sheet.locator('[data-photo-event]').getByLabel('일정 제목')).toHaveValue('은행 상담');
+  expect(page.url()).not.toContain('share-photo');
+  expect(await page.evaluate(async () => !!(await (await caches.open('minially-share')).match('shared-text')))).toBe(false);
+});

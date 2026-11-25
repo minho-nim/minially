@@ -56,3 +56,15 @@ test('새 일정 → 사진으로: 찾은 일정을 고치고 고른 것만 한 
   expect(saved.find(s => s.title === '치과 정기 검진')).toMatchObject({ startTime: '15:00', endTime: '16:00', category: 'rose' });
   await pc.context().close();
 });
+
+test('글로 넣기 AI 다시 읽기 API: 글 길이를 서버에서 검사하고, 글은 <글> 안의 자료로 보낸다', async ({ request }) => {
+  const auth = { authorization: `Bearer ${CODE_A}` };
+  expect((await request.post('/api/photo-schedule', { data: { text: '12월 20일 돌잔치' } })).status()).toBe(401);
+  expect((await request.post('/api/photo-schedule', { headers: auth, data: { text: '   ' } })).status()).toBe(400);
+  expect((await request.post('/api/photo-schedule', { headers: auth, data: { text: '가'.repeat(4001) } })).status()).toBe(400);
+  expect((await request.post('/api/photo-schedule', { headers: auth, data: { text: 123 } })).status()).toBe(400);
+  const ok = await request.post('/api/photo-schedule', { headers: auth, data: { text: '토요일 낮 12시 조카 돌잔치', today: '2026-11-26' } });
+  expect(ok.status()).toBe(200);
+  const { events } = await ok.json();
+  expect(events).toEqual([expect.objectContaining({ title: '돌잔치', date: '2026-12-20', start: '12:00', source: '토요일 낮 12시 조카 돌잔치' })]);
+});

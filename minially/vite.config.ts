@@ -52,7 +52,7 @@ export default defineConfig(({ mode }) => {
           ],
           start_url: base,
           // 안드로이드 '공유'에서 사진을 미니어리로 보내면 '사진으로 일정 넣기'가 열린다(public/share-target-sw.js가 받음)
-          share_target: { action: `${base}share-photo`, method: 'POST', enctype: 'multipart/form-data', params: { files: [{ name: 'photo', accept: ['image/*'] }] } },
+          share_target: { action: `${base}share-photo`, method: 'POST', enctype: 'multipart/form-data', params: { title: 'title', text: 'text', url: 'url', files: [{ name: 'photo', accept: ['image/*'] }] } },
           scope: base,
           icons: [
             {
