@@ -140,7 +140,7 @@ select.input { appearance: auto; }
 .rev-bar { width: 100%; max-width: 32px; align-self: end; border-radius: 6px 6px 2px 2px; background: var(--app); }
 .rev-label { font-size: 0.75rem; color: var(--muted); }
 
-@media (max-width: 560px) { .form-grid { grid-template-columns: minmax(0, 1fr); } .campaigns li { flex-wrap: wrap; } .campaigns li > .campaign { flex: 1 1 100%; } }
+@media (max-width: 560px) { .form-grid { grid-template-columns: minmax(0, 1fr); } .campaigns li { flex-wrap: wrap; } .campaigns li > .campaign { flex: 1 1 100%; } .campaigns li > .btn { min-height: 44px; display: inline-flex; align-items: center; } }
 .views button { white-space: nowrap; padding: 0 4px; font-size: 0.84rem; }
 .row-between { flex-wrap: wrap; }
 .row-between > .step-title { white-space: nowrap; }
@@ -359,7 +359,7 @@ select.input { appearance: auto; }
 .note-list .input { min-width: 0; }
 /* 사실 확인 */
 .fact-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
-.fact-list li { padding: 3px 10px; border-radius: 999px; background: #FDECEA; color: #8E2B20; font-size: 0.88rem; font-weight: 600; }
+.fact-list li { padding: 3px 10px; border-radius: 999px; background: color-mix(in srgb, var(--danger, #C8322A) 16%, transparent); color: var(--danger, #C8322A); font-size: 0.88rem; font-weight: 600; }
 .help-more > summary { cursor: pointer; list-style: none; }
 .help-more > summary::-webkit-details-marker { display: none; }
 .help-more .help-i { color: var(--app); font-weight: 700; }
