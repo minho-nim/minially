@@ -72,3 +72,38 @@ test('월간 보고 API: 로그인 필요, 잘못된 달 400', async ({ request,
   const data = await page.evaluate(async () => (await fetch('/api/report?month=2026-11')).json());
   expect(data.reports.map((r: { user: string }) => r.user)).toEqual(['C', 'D']);
 });
+
+test('월별 비교: 사람별 12개월·누적 합계가 각자 월간 보고와 같고, 숫자를 바꿔 볼 수 있다', async ({ page }) => {
+  await page.goto('/');
+  await page.getByLabel('로그인 코드').fill(CODE_C);
+  await page.getByRole('button', { name: '로그인' }).click();
+  await expect(page.locator('.scope')).toBeVisible();
+  const { histories, reports, bad } = await page.evaluate(async () => {
+    const h = await (await fetch('/api/history')).json();
+    const r = await (await fetch(`/api/report?month=${h.month}`)).json();
+    return { histories: h.histories, reports: r.reports, bad: (await fetch('/api/history?month=x')).status };
+  });
+  expect(bad).toBe(400);
+  expect(histories.map((h: { user: string }) => h.user)).toEqual(['C', 'D']);
+  for (const [i, h] of histories.entries()) {
+    expect(h.months).toHaveLength(12);
+    const { month: _m, ...last } = h.months.at(-1);
+    expect(last).toEqual(reports[i].summary);
+  }
+  const box = page.getByRole('region', { name: /월별 비교/ });
+  await box.scrollIntoViewIfNeeded();
+  await expect(box.getByRole('img', { name: /사람별 월별 게시 글/ })).toBeVisible();
+  await expect(box.locator('tbody tr')).toHaveCount(2);
+  await expect(box.locator('tbody tr').first()).toContainText(`${histories[0].total.posts.toLocaleString('ko-KR')}`);
+  await box.getByRole('button', { name: '받은 금액' }).click();
+  await expect(box.getByRole('button', { name: '받은 금액' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(box.getByRole('img', { name: /사람별 월별 받은 금액/ })).toBeVisible();
+  // 사람별 비교는 통합 대시보드에서만(내 대시보드에는 없음)
+  await page.getByRole('button', { name: '내 대시보드' }).click();
+  await expect(page.getByRole('region', { name: /월별 비교/ })).toHaveCount(0);
+  await page.getByRole('button', { name: '통합 대시보드' }).click();
+});
+
+test('월별 비교 API: 로그인 필요', async ({ request }) => {
+  expect((await request.get('/api/history')).status()).toBe(401);
+});

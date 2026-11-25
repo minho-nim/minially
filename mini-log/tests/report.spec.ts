@@ -119,4 +119,34 @@ test('월간 보고: 그달 글·조회·공감·수익·지난달 비교, 달 �
 
 test('월간 보고 API는 로그인 없이 쓸 수 없다', async ({ request }) => {
   expect((await request.get('/api/report')).status()).toBe(401);
+  expect((await request.get('/api/history')).status()).toBe(401);
+});
+
+test('누적 합계·월별 내역: 12개월, 이번 달 줄은 월간 보고 숫자와 같고, 달을 누르면 그달 보고를 연다', async ({ page }) => {
+  await login(page, CODE_C);
+  const { history, report, bad } = await page.evaluate(async () => {
+    const h = (await (await fetch('/api/history')).json()).history;
+    const r = (await (await fetch(`/api/report?month=${h.months.at(-1).month}`)).json()).report;
+    return { history: h, report: r, bad: (await fetch('/api/history?month=2026-13')).status };
+  });
+  expect(bad).toBe(400);
+  expect(history.months).toHaveLength(12);
+  const { month: _m, ...last } = history.months.at(-1);
+  expect(last).toEqual(report.summary);
+  expect(history.total.posts).toBeGreaterThanOrEqual(report.summary.posts);
+  expect(history.total.revenue).toBeGreaterThanOrEqual(report.summary.revenue);
+
+  await page.getByRole('button', { name: '월간보고' }).click();
+  const section = page.getByRole('region', { name: '누적 합계·월별 내역' });
+  await expect(section.getByLabel('누적 합계')).toContainText(`${history.total.posts.toLocaleString('ko-KR')}개`);
+  await expect(section.locator('tbody tr')).toHaveCount(12);
+  const prev = history.months.at(-2).month as string;
+  const label = `${prev.slice(0, 4)}년 ${Number(prev.slice(5))}월`;
+  await section.getByRole('button', { name: `${label} 보고 보기` }).click();
+  await expect(page.locator('.report-title')).toHaveText(`${label} 블로그 보고`);
+  await expect(section.locator('tr[aria-current="true"]')).toContainText(prev.slice(2).replace('-', '.'));
+  // PDF(인쇄)에는 넣지 않는다
+  await page.emulateMedia({ media: 'print' });
+  await expect(section).toBeHidden();
+  await page.emulateMedia({ media: 'screen' });
 });

@@ -365,7 +365,7 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
           )}
         </section>
 
-        <Monthly />
+        <Monthly compare={scope === 'all'} />
 
         <section id="apps" aria-labelledby="apps-title">
           <h2 id="apps-title" className="section-title">앱</h2>

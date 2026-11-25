@@ -63,3 +63,21 @@ export function BarList({ items, format = formatNumber, label, color = 'var(--ch
     </ul>
   );
 }
+
+/** 묶음 세로 막대(달마다 사람별 막대를 나란히). 정확한 숫자는 aria-label과 아래 표로 본다 */
+export function GroupedColumns({ items, series, format = formatNumber, label }: { items: { label: string; values: number[] }[]; series: { name: string; color: string }[]; format?: (n: number) => string; label: string }) {
+  const max = Math.max(1, ...items.flatMap(i => i.values));
+  return (
+    <div className="stack" style={{ gap: 6 }}>
+      <p className="series-legend" aria-hidden="true">{series.map(s => <span key={s.name}><i style={{ background: s.color }} />{s.name}</span>)}</p>
+      <div className="gcols" role="img" aria-label={`${label}: ${items.map(i => `${i.label} ${i.values.map((v, n) => `${series[n]?.name} ${format(v)}`).join(' ')}`).join(', ')}`}>
+        {items.map(i => (
+          <div key={i.label} className="gcol">
+            <div className="gcol-bars">{i.values.map((v, n) => <span key={n} className="gcol-bar" title={`${series[n]?.name} ${format(v)}`} style={{ height: `${Math.max(v ? 4 : 1, (v / max) * 100)}%`, background: series[n]?.color }} />)}</div>
+            <span className="gcol-label">{i.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

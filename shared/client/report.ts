@@ -35,3 +35,9 @@ export function sumSummaries(list: MonthSummary[]): MonthSummary {
 }
 
 export const KIND_LABEL: Record<string, string> = { sponsor: '협찬', ad: '광고', other: '기타' };
+
+/** 월별 내역·누적 합계(서버 shared/server/report.ts monthlyHistory와 같은 모양) */
+export type MonthRow = MonthSummary & { month: string };
+export interface Totals { posts: number; minilog_published: number; views: number; likes: number; comments: number; revenue: number; sponsor_count: number; ai_calls: number; ai_tokens: number; first_month: string | null }
+export interface History { user: string; months: MonthRow[]; total: Totals }
+export const shortMonth = (month: string) => `${Number(month.slice(5, 7))}월`;

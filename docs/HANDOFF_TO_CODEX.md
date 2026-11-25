@@ -4,6 +4,7 @@
 이 문서는 **실제로 구현·검증한 것**과 **계획만 세운 것**을 나눠 적었습니다. 검증 표시가 없는 항목은 검증하지 않은 것입니다.
 
 ## 0. 제품 개념(소유자가 정함, 2026-11-24)
+- (2026-11-25 소유자 확인) 미니로그에서 각자 자기 숫자(합계·월별 내역)를 보고, 같은 숫자가 미니허브로 가서 사람별로 비교·분석된다. 그래서 두 앱은 같은 계산(`shared/server/report.ts`)을 쓴다.
 - 미니로그: 개인별 블로그 관리 반자동화. 미니허브: 개인별 활동을 받아 모아 보고·개별로 보고·비교(나중에 다른 앱도 붙음). 미니어리: 허브에 붙는 일정 앱.
 - 미노피아(별도 저장소): 개발·대화·지식을 쌓고 허브 내용도 모아 모든 프로젝트를 총괄. 민랩(별도 저장소): 공개 포트폴리오 웹.
 
@@ -91,6 +92,7 @@
 | 표 확인 줄이기: 표 정의 지문 `SCHEMA_VERSION`(FNV-1a, CREATE 문·추가 칸 목록에서 자동 계산)을 `hub_schema_meta`에 저장, 같으면 읽기 1번으로 끝 (PR #61) | `shared/server/schema.ts` | node:sqlite 시험(지문 같으면 쿼리 1번, 다르면 다시 만들고 지문 고침) |
 | mini-log AI 초안 되돌리기: AI 초안을 넣은 뒤 '되돌리기'로 직전 제목·본문·해시태그를 다시 불러와 저장(화면을 떠나기 전까지 한 번, AI 초안을 고친 뒤면 한 번 더 물음) | `mini-log/src/App.tsx` Editor `undoAi` | 시험(되돌리기·재확인·새로고침 뒤 유지·동시 수정 보호에 안 걸림) |
 | mini-log '더 내 스타일로': AI 초안 원문을 `minilog_drafts.ai_body`에 따로 남기고(화면·API·백업에는 안 나감), 승인·게시한 원고 중 AI 초안을 고친 것(글자 두 개 묶음 비슷함 0.25 이상, 통째로 새로 쓴 글은 뺌) 최근 5쌍을 Gemini에 자료로 보내 내 문체 요약을 다듬은 안 + 바꾼 이유를 받음 → 바뀔 곳만 '지금 → 바뀜'으로 보여 주고 **적용을 눌러야 저장**. 새 칸 `avoid`(피하는 표현)는 다음 AI 초안에 '쓰지 않는다'로 들어가고, 문체를 다시 분석해도 남음 | `mini-log/functions/_style.ts`(`editedPairs`·`similarity`·`refinePrompt`), `api/styles/refine.ts`, `api/styles/[id]/index.ts` PUT `profile`(내 문체만), `api/drafts/[id]/generate.ts`(`saveAiBody`), `src/App.tsx` `RefineStyle` | 가짜 Gemini로 시험(고친 원고만 셈·새로 쓴 원고 제외, 그대로 두기면 안 바뀜·적용하면 저장, 다음 초안에 피하는 표현, 다시 분석해도 유지, 다른 사람 400·0개, 참고 문체에 profile 400, ai_body 응답에 없음), 화면 1400·400 |
+| 누적 합계·월별 내역(미니로그) → 사람별 월별 비교(미니허브): `monthlyHistory`가 최근 12개월을 달별로 묶어 한 번에 셈(쿼리 10개, 정의는 월간 보고 `summary`와 같음)·전체 누적 합계. 미니로그 '월간보고' 아래에 누적 타일·12개월 막대·월별 표(달을 누르면 그달 보고, PDF에는 안 넣음), 미니허브 '월간 보고' 아래에 사람별 묶음 막대(게시 글·조회수·받은 금액·AI 호출 바꿔 보기)·누적 합계 표 | `shared/server/report.ts`(`monthlyHistory`·`monthList`), `shared/client/report.ts`(`History`), `mini-log/functions/api/history.ts`, `hub/functions/api/history.ts`, `mini-log/src/Report.tsx` `HistorySection`, `hub/src/History.tsx`, `hub/src/Charts.tsx` `GroupedColumns` | node:sqlite 시험(12개월 모두 월간 보고와 같음, 한국 시간 달 경계, 12개월 밖까지 누적, 다른 사용자 안 섞임), 화면 시험(이번 달 줄 = 월간 보고, 달 누르면 그달 보고, 인쇄에서 숨김, 허브 사람별 = 각자 월간 보고, 숫자 바꾸기, 401·400), 화면 1400·1280·400 |
 
 ## 3. 미완료(계획만)
 - Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. 두 주소 모두 운영 중(2026-11-25 확인).

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, formatNumber } from '../../shared/client/api';
-import { diffKind, diffText, KIND_LABEL, monthLabel, shiftMonth, thisMonthKst, type MonthlyReport, type MonthSummary } from '../../shared/client/report';
+import { diffKind, diffText, KIND_LABEL, monthLabel, shiftMonth, shortMonth, thisMonthKst, type History, type MonthlyReport, type MonthSummary } from '../../shared/client/report';
+import { Columns } from './Charts';
 import { Signature, Tomong } from './Tomong';
 import { blogInfo } from './Blog';
 import { won } from './Campaigns';
@@ -128,6 +129,53 @@ export function ReportView({ user, onBack }: { user: string; onBack: () => void 
           {report.posts.length === 0 && s.revenue === 0 && <div className="profile no-print"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>이 달 기록이 아직 없어요. 지난달(‹)도 볼 수 있어요.</p></div>}
         </>
       )}
+      <HistorySection current={month} onPick={m => { setMonth(m); window.scrollTo({ top: 0, behavior: 'smooth' }); }} />
     </article>
+  );
+}
+
+/** 누적 합계와 최근 12개월 내역(내 숫자). 미니허브는 같은 계산으로 사람별로 견준다. PDF에는 넣지 않는다. */
+function HistorySection({ current, onPick }: { current: string; onPick: (month: string) => void }) {
+  const [history, setHistory] = useState<History | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let alive = true;
+    api<{ history: History }>('/api/history').then(d => { if (alive) setHistory(d.history); }).catch(e => { if (alive) setError(e instanceof Error ? e.message : '불러오지 못했어요.'); });
+    return () => { alive = false; };
+  }, []);
+  const t = history?.total;
+  const rows = history ? [...history.months].reverse() : [];
+  return (
+    <section className="card step no-print history" aria-labelledby="h-title">
+      <h2 id="h-title" className="step-title">누적 합계·월별 내역<span className="step-sub">{t?.first_month ? `${monthLabel(t.first_month)} 글부터` : '내 숫자'}</span></h2>
+      {error && <p className="error" role="alert" style={{ margin: 0 }}>{error}</p>}
+      {!history && !error && <p className="muted small" role="status" style={{ margin: 0 }}>불러오는 중…</p>}
+      {history && t && (
+        <>
+          <div className="kpis" aria-label="누적 합계">
+            <div className="card kpi"><span className="label">지금까지 올린 글</span><span className="value">{formatNumber(t.posts)}개</span><span className="hint">미니로그로 쓴 글 {formatNumber(t.minilog_published)}개</span></div>
+            <div className="card kpi"><span className="label">지금까지 조회수</span><span className="value">{formatNumber(t.views)}</span><span className="hint">공감 {formatNumber(t.likes)} · 댓글 {formatNumber(t.comments)}</span></div>
+            <div className="card kpi"><span className="label">지금까지 받은 돈</span><span className="value">{won(t.revenue)}</span><span className="hint">협찬 {formatNumber(t.sponsor_count)}건</span></div>
+            <div className="card kpi"><span className="label">지금까지 AI 사용</span><span className="value">{formatNumber(t.ai_calls)}번</span><span className="hint">토큰 {formatNumber(t.ai_tokens)}</span></div>
+          </div>
+          <Columns label="최근 12개월 올린 글" items={history.months.map(m => ({ label: shortMonth(m.month), value: m.posts }))} />
+          <div className="table-wrap">
+            <table className="mini-table history-table">
+              <caption className="sr-only">최근 12개월 월별 내역(최근 달부터)</caption>
+              <thead><tr><th scope="col">달</th><th scope="col">글</th><th scope="col">조회</th><th scope="col">공감</th><th scope="col">댓글</th><th scope="col">받은 금액</th><th scope="col">협찬</th><th scope="col">AI</th></tr></thead>
+              <tbody>
+                {rows.map(m => (
+                  <tr key={m.month} aria-current={m.month === current ? 'true' : undefined}>
+                    <th scope="row"><button type="button" className="link-btn" onClick={() => onPick(m.month)} aria-label={`${monthLabel(m.month)} 보고 보기`}>{m.month.slice(2).replace('-', '.')}</button></th>
+                    <td>{formatNumber(m.posts)}</td><td>{formatNumber(m.views)}</td><td>{formatNumber(m.likes)}</td><td>{formatNumber(m.comments)}</td><td>{formatNumber(m.revenue)}</td><td>{formatNumber(m.sponsor_count)}</td><td>{formatNumber(m.ai_calls)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="muted small" style={{ margin: 0 }}>달을 누르면 그달 보고를 봐요. 받은 금액은 원, 조회·공감은 적어 둔 숫자 기준이에요.</p>
+        </>
+      )}
+    </section>
   );
 }

@@ -136,9 +136,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; min-height: 32px; }
 .card-title { margin: 0 0 10px; font-size: 1rem; }
 .table-wrap { overflow-x: auto; }
-.compare { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 460px; }
-.compare th, .compare td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; vertical-align: top; }
-.compare th[scope="row"], .compare thead th:first-child { text-align: left; font-weight: 600; color: var(--muted); }
+.compare, .compare-like { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 460px; }
+.compare th, .compare td, .compare-like th, .compare-like td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; vertical-align: top; }
+.compare th[scope="row"], .compare thead th:first-child, .compare-like th[scope="row"], .compare-like thead th:first-child { text-align: left; font-weight: 600; color: var(--muted); }
 .compare td b { display: block; }
 .compare .diff { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 600; }
 .diff.up { color: var(--ok); } .diff.down { color: var(--danger); }
@@ -181,3 +181,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .cell-bar { display: block; height: 5px; margin: 3px 0 2px auto; width: min(100%, 120px); border-radius: 999px; background: var(--chart-empty); overflow: hidden; }
 .cell-bar span { display: block; height: 100%; border-radius: inherit; margin-left: auto; }
+/* 묶음 세로 막대(사람별 월별 비교) */
+.series-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; font-size: 0.8rem; color: var(--muted); }
+.series-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.gcols { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; height: 140px; align-items: end; }
+.gcol { display: grid; grid-template-rows: 1fr auto; height: 100%; min-width: 0; gap: 3px; }
+.gcol-bars { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; }
+.gcol-bar { width: min(45%, 12px); border-radius: 4px 4px 1px 1px; }
+.gcol-label { font-size: 0.68rem; color: var(--muted); text-align: center; white-space: nowrap; }
