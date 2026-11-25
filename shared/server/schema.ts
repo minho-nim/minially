@@ -60,5 +60,8 @@ export async function ensureHubSchema(db: D1Database) {
   await ensureColumn(db, 'minilog_drafts', 'post_type', 'TEXT'); // 글 종류(맛집·제품 등, mini-log/functions/_postTypes.ts)
   await ensureColumn(db, 'minilog_campaigns', 'guide', 'TEXT'); // 체험단 가이드 정리(JSON: 필수 키워드·사진 수·방문일 등)
   await ensureColumn(db, 'minilog_campaigns', 'pitch', 'TEXT'); // 먼저 제안한 기록(JSON: 보낸 날·메일/DM·답장)
+  await ensureColumn(db, 'minilog_photos', 'note', 'TEXT'); // 사진마다 적는 실제 경험 메모(AI 초안 재료)
+  await ensureColumn(db, 'minilog_campaigns', 'source_url', 'TEXT'); // 체험단 모집 공고 주소(직접 붙여 넣음, https만)
+  await ensureColumn(db, 'minilog_campaigns', 'apply_by', 'TEXT'); // 신청 마감일 YYYY-MM-DD
   ready.add(db);
 }

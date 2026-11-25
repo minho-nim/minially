@@ -8,11 +8,11 @@ import { AD_SOURCE_LABEL, parseAdCsv, type AdSource } from './adsImport';
 
 // 협찬·광고 캠페인과 수익 기록(본인만 보는 계약 정보)
 export type Kind = 'sponsor' | 'ad' | 'other';
-export type Status = 'proposed' | 'in_progress' | 'posted' | 'paid' | 'cancelled';
+export type Status = 'interested' | 'applied' | 'proposed' | 'in_progress' | 'posted' | 'paid' | 'cancelled';
 export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
   deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null; pitch: PitchLog | null;
-  created_at: number; updated_at: number;
+  source_url: string; apply_by: string | null; created_at: number; updated_at: number;
 }
 /** 먼저 제안한 기록(제안 화면의 '보낸 걸로 기록') */
 export interface PitchLog { on: string; via: 'mail' | 'dm'; reply: 'waiting' | 'yes' | 'no' }
@@ -20,10 +20,14 @@ const REPLY_LABEL: Record<PitchLog['reply'], string> = { waiting: '답장 기다
 /** 제안 뒤 지난 날 수(한국 날짜) */
 export const daysSince = (date: string) => Math.round((Date.parse(`${todayKst()}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86400000);
 export const KIND_LABEL: Record<Kind, string> = { sponsor: '협찬', ad: '광고 수익', other: '기타' };
-export const STATUS_LABEL: Record<Status, string> = { proposed: '제안 받음', in_progress: '진행 중', posted: '게시 완료', paid: '정산 완료', cancelled: '취소' };
+export const STATUS_LABEL: Record<Status, string> = { interested: '관심', applied: '신청함', proposed: '제안 받음', in_progress: '진행 중', posted: '게시 완료', paid: '정산 완료', cancelled: '취소' };
 const OPEN: Status[] = ['proposed', 'in_progress', 'posted'];
-type Filter = 'open' | 'paid' | 'cancelled' | 'all' | 'brand';
-const FILTERS: [Filter, string][] = [['open', '진행 중'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체'], ['brand', '업체별']];
+/** 체험단 공고를 담아 둔 단계(선정 전). 받을 금액에 넣지 않는다. */
+const WISH: Status[] = ['interested', 'applied'];
+/** 다음 단계로 한 번에: 관심 → 신청함 → 선정(진행 중) */
+const NEXT: Partial<Record<Status, [Status, string]>> = { interested: ['applied', '신청했어요'], applied: ['in_progress', '선정됐어요'] };
+type Filter = 'open' | 'wish' | 'paid' | 'cancelled' | 'all' | 'brand';
+const FILTERS: [Filter, string][] = [['open', '진행 중'], ['wish', '관심·신청'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체'], ['brand', '업체별']];
 
 export const won = (n: number) => `${formatNumber(n)}원`;
 /** 한국 날짜(YYYY-MM-DD) */
@@ -34,7 +38,7 @@ export function dDay(deadline: string) {
 }
 
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
-const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null };
+const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null };
 
 export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
@@ -51,7 +55,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
       .catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
   }, []);
 
-  const shown = useMemo(() => (items ?? []).filter(c => filter === 'all' || (filter === 'open' ? OPEN.includes(c.status) : c.status === filter)), [items, filter]);
+  const shown = useMemo(() => (items ?? []).filter(c => filter === 'all' || (filter === 'open' ? OPEN.includes(c.status) : filter === 'wish' ? WISH.includes(c.status) : c.status === filter)), [items, filter]);
   // 업체별: 같은 업체와 한 일을 모아 건수·받은 금액·마지막 날
   const brands = useMemo(() => {
     const map = new Map<string, { brand: string; count: number; paid: number; open: number; last: string }>();
@@ -114,6 +118,17 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
       setMessage({ kind: 'info', text: '저장했어요.' });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '저장하지 못했어요.' }); }
     finally { setBusy(false); }
+  }
+
+  /** 목록에서 바로 다음 단계로(관심 → 신청함 → 선정). 선정되면 진행 중 목록으로 옮겨 간다. */
+  async function advance(c: Campaign) {
+    const next = NEXT[c.status];
+    if (!next) return;
+    try {
+      const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status: next[0] } });
+      setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
+      setMessage({ kind: 'info', text: next[0] === 'in_progress' ? `${c.brand}: 선정! 진행 중으로 옮겼어요. 리뷰 마감일을 적어 두세요.` : `${c.brand}: 신청함으로 바꿨어요.` });
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
   async function remove() {
@@ -212,6 +227,18 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
             </div>
           </div>
           {editing.form.kind === 'sponsor' && (
+            <div className="form-grid">
+              <div className="field">
+                <label htmlFor="c-source">모집 공고 주소(선택)</label>
+                <input id="c-source" className="input" type="url" inputMode="url" maxLength={500} placeholder="https://… 체험단 공고 페이지" value={editing.form.source_url} onChange={e => set({ source_url: e.target.value })} />
+              </div>
+              <div className="field">
+                <label htmlFor="c-apply">신청 기한(선택)</label>
+                <input id="c-apply" className="input" type="date" value={editing.form.apply_by ?? ''} onChange={e => set({ apply_by: e.target.value || null })} />
+              </div>
+            </div>
+          )}
+          {editing.form.kind === 'sponsor' && (
             <div className="field">
               <label htmlFor="c-provided">제공 내용(선택)</label>
               <textarea id="c-provided" className="textarea" style={{ minHeight: 80 }} value={editing.form.provided} maxLength={500} placeholder="예: 2인 식사권, 원고료 10만 원, 사진 5장 이상" onChange={e => set({ provided: e.target.value })} />
@@ -267,7 +294,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
             </ul>
           ))}
         {items && filter !== 'brand' && shown.length === 0 && (
-          <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>{filter === 'open' ? '진행 중인 협찬이 없어요. 새 협찬을 적어 보세요.' : '기록이 없어요.'}</p></div>
+          <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>{filter === 'open' ? '진행 중인 협찬이 없어요. 새 협찬을 적어 보세요.' : filter === 'wish' ? '관심 있는 체험단 공고를 새 협찬으로 담고 상태를 관심으로 두세요. 공고 주소와 신청 마감일을 적으면 달력에도 떠요.' : '기록이 없어요.'}</p></div>
         )}
         {filter !== 'brand' && shown.length > 0 && (
           <ul className="campaigns">
@@ -279,6 +306,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
                     <span className="c-meta">
                       <span className={`badge s-${c.status}`}>{STATUS_LABEL[c.status]}</span>
                       {c.kind !== 'sponsor' && <span className="badge">{KIND_LABEL[c.kind]}</span>}
+                      {c.apply_by && c.status === 'interested' && <span className={`dday${dDay(c.apply_by).includes('지남') ? ' late' : ''}`}>신청 {c.apply_by.slice(5).replace('-', '/')} · {dDay(c.apply_by)}</span>}
                       {c.deadline && OPEN.includes(c.status) && <span className={`dday${dDay(c.deadline).includes('지남') ? ' late' : ''}`}>{c.deadline.slice(5).replace('-', '/')} · {dDay(c.deadline)}</span>}
                       {c.status === 'paid' && c.paid_on && <span className="muted small">{c.paid_on.slice(5).replace('-', '/')} 받음</span>}
                       {c.draft_id && <span className="muted small">원고: {draftTitle(c.draft_id)}</span>}
@@ -291,6 +319,8 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal }: {
                   </span>
                   <span className="c-amount">{c.amount ? won(c.amount) : '—'}</span>
                 </button>
+                {NEXT[c.status] && <button className="btn small" onClick={() => { void advance(c); }}>{NEXT[c.status]![1]}</button>}
+                {c.source_url && /^https:\/\//.test(c.source_url) && <a className="btn ghost small" href={c.source_url} target="_blank" rel="noopener noreferrer">공고 열기</a>}
                 {c.draft_id && <button className="btn ghost small" onClick={() => onOpenDraft(c.draft_id!)}>원고 열기</button>}
               </li>
             ))}

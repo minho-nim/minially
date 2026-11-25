@@ -34,14 +34,17 @@ const addDays = (date: string, n: number) => { const d = new Date(`${date}T00:00
 export async function collectEvents(db: D1Database, user: UserName, today: string): Promise<IcsEvent[]> {
   const from = addDays(today, -30), to = addDays(today, 365);
   const [camps, drafts] = await Promise.all([
-    db.prepare("SELECT id, brand, title, deadline, status, guide, pitch FROM minilog_campaigns WHERE user = ? AND kind = 'sponsor' AND status IN ('proposed', 'in_progress', 'posted')").bind(user)
-      .all<{ id: string; brand: string; title: string; deadline: string | null; status: string; guide: string | null; pitch: string | null }>(),
+    db.prepare("SELECT id, brand, title, deadline, status, guide, pitch, apply_by FROM minilog_campaigns WHERE user = ? AND kind = 'sponsor' AND status IN ('interested', 'applied', 'proposed', 'in_progress', 'posted')").bind(user)
+      .all<{ id: string; brand: string; title: string; deadline: string | null; status: string; guide: string | null; pitch: string | null; apply_by: string | null }>(),
     db.prepare("SELECT id, title, planned_on FROM minilog_drafts WHERE user = ? AND status != 'published' AND planned_on IS NOT NULL").bind(user)
       .all<{ id: string; title: string; planned_on: string }>(),
   ]);
   const events: IcsEvent[] = [];
   for (const c of camps.results) {
     const name = `${c.brand}${c.title ? ` · ${c.title}` : ''}`;
+    // 관심 담아 둔 공고는 신청 마감만(선정 전이라 리뷰 마감·방문일은 아직 없다)
+    if (c.status === 'interested') { if (c.apply_by) events.push({ uid: `apply-${c.id}`, date: c.apply_by, title: `[신청 마감] ${name}` }); continue; }
+    if (c.status === 'applied') continue;
     if (c.deadline) events.push({ uid: `deadline-${c.id}`, date: c.deadline, title: `[마감] ${name}` });
     try {
       const visit = c.guide ? (JSON.parse(c.guide) as { visit_on?: string }).visit_on : null;

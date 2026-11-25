@@ -30,6 +30,75 @@ export function checkDraft(d: { title: string; body: string; hashtags: string[];
   return items;
 }
 
+// AI 글에 흔한 상투 표현(내 말투가 아닌 티가 나는 곳). 두 개 넘게 나오면 알려 준다.
+const CLICHES = ['결론적으로', '다양한', '소중한 시간', '특별한 경험', '완벽한', '에 대해 알아보', '마무리하며', '도움이 되셨', '많은 분들', '한마디로', '그야말로', '매력적인', '잊지 못할', '꼭 한번', '강력 추천'];
+const AD_WORDS = /제공받|협찬|광고|원고료|소정의|지원받/;
+const MONEY_PROMISE = /수익\s*보장|원금\s*보장|무조건\s*(수익|돈)|100%\s*수익|확정\s*수익|손실\s*없/;
+const count = (text: string, word: string) => (word ? text.split(word).length - 1 : 0);
+
+/**
+ * 작성 품질 점검(앱 기준). 네이버 공식 점수나 노출 보장이 아니라, 읽기 쉽고 빠뜨린 게 없는지 보는 체크리스트다.
+ * keyword는 가이드 첫 키워드 → 첫 해시태그 순으로 쓴다.
+ */
+export function qualityCheck(d: { title: string; body: string; hashtags: string[]; photos: number; postType?: string }, guide: Guide | null): CheckItem[] {
+  const items: CheckItem[] = [];
+  const keyword = guide?.keywords[0] ?? d.hashtags[0] ?? '';
+  const flat = norm(d.body);
+  if (keyword && d.body.trim()) {
+    const n = count(flat, norm(keyword));
+    items.push({ label: `핵심어 '${keyword}' 본문 2~8번`, ok: n >= 2 && n <= 8, hint: n > 8 ? `${n}번: 너무 많이 반복해요` : `지금 ${n}번` });
+  }
+  const paragraphs = d.body.split(/\n\s*\n|\n/).map(p => p.trim()).filter(p => p && !/^\[사진/.test(p));
+  const long = paragraphs.filter(p => p.replace(/\s/g, '').length > 300).length;
+  if (paragraphs.length) items.push({ label: '긴 문단 없음(300자 넘는 문단)', ok: long === 0, hint: `${long}개: 휴대폰에서 읽기 힘들어요. 두세 줄로 나눠 주세요` });
+  if (bodyChars(d.body) >= 1500) {
+    const heads = d.body.split('\n').map(l => l.trim()).filter(l => l.length >= 2 && l.length <= 25 && !/[.!?~요다]$/.test(l) && !/^\[사진/.test(l) && !/^#/.test(l)).length;
+    items.push({ label: '소제목 2개 이상(긴 글)', ok: heads >= 2, hint: '■ 메뉴, ■ 분위기처럼 짧은 줄로 나눠 주세요' });
+  }
+  if (d.photos > 0 && /\[사진\s*\d+\]/.test(d.body)) {
+    const used = [...d.body.matchAll(/\[사진\s*(\d+)\]/g)].map(m => Number(m[1]));
+    const missing = Array.from({ length: d.photos }, (_, i) => i + 1).filter(n => !used.includes(n));
+    const twice = [...new Set(used.filter((n, i) => used.indexOf(n) !== i))];
+    const over = [...new Set(used.filter(n => n > d.photos))];
+    items.push({ label: '사진 자리 빠짐·겹침 없음', ok: !missing.length && !twice.length && !over.length,
+      hint: [missing.length && `빠짐: 사진 ${missing.join(', ')}`, twice.length && `두 번: 사진 ${twice.join(', ')}`, over.length && `없는 사진: ${over.join(', ')}`].filter(Boolean).join(' · ') });
+  }
+  const sentences = d.body.split(/(?<=[.!?~])\s+|\n/).map(s => s.trim().replace(/[.!?~\s]+$/, '')).filter(s => s.length > 5);
+  let run = 1, worst = 1, ending = '';
+  for (let i = 1; i < sentences.length; i++) {
+    const a = sentences[i - 1].slice(-3), b = sentences[i].slice(-3);
+    run = a === b ? run + 1 : 1;
+    if (run > worst) { worst = run; ending = b; }
+  }
+  if (sentences.length >= 5) items.push({ label: '같은 끝맺음 4번 연속 없음', ok: worst < 4, hint: `'~${ending}'로 ${worst}번 연속: 말끝을 섞어 주세요` });
+  const cliches = CLICHES.filter(w => d.body.includes(w));
+  if (d.body.trim()) items.push({ label: 'AI 티 나는 상투 표현 2개 이하', ok: cliches.length <= 2, hint: cliches.join(', ') });
+  // 후기 글은 칭찬만 있으면 광고처럼 읽힌다: 아쉬운 점 한 줄
+  if (['food', 'cafe', 'product', 'beauty', 'fashion', 'sponsored'].includes(d.postType ?? '') && bodyChars(d.body) >= 200)
+    items.push({ label: '아쉬운 점 한 줄(후기 글)', ok: /아쉬|단점|불편|별로|흠이라면/.test(d.body), hint: '예) 웨이팅이 길었어요, 주차가 불편했어요' });
+  if (d.postType === 'sponsored' || guide) items.push({ label: '광고·협찬 표시 문구', ok: AD_WORDS.test(d.body), hint: '예) 업체로부터 제품을 제공받아 솔직하게 작성했어요' });
+  if (MONEY_PROMISE.test(d.body)) items.push({ label: '수익·원금 보장 표현 없음', ok: false, hint: '금융 글에 보장 표현은 쓰면 안 돼요' });
+  const unsure = count(d.body, '[작성자 확인 필요]');
+  if (unsure) items.push({ label: "'[작성자 확인 필요]' 모두 고치기", ok: false, hint: `${unsure}곳 남음` });
+  return items;
+}
+
+/**
+ * 사실 확인: 본문에 나온 가격·날짜·시간·대기 시간 중 경험 칸과 사진 메모에 없는 것을 찾는다.
+ * AI가 지어냈을 수 있는 숫자라 사람이 맞는지 봐야 한다(틀렸다는 뜻은 아님).
+ */
+export function factCheck(body: string, sources: string): string[] {
+  const src = sources.replace(/[\s,]/g, '');
+  const patterns = [/\d[\d,]*\s*(?:만\s*)?원/g, /\d{1,2}\s*월\s*\d{1,2}\s*일/g, /\d{1,2}\s*시(?:\s*\d{1,2}\s*분)?/g, /\d+\s*분\s*(?:대기|기다|웨이팅|걸)/g, /\d{4}\s*년/g];
+  const found = new Set<string>();
+  for (const re of patterns) for (const m of body.matchAll(re)) {
+    const raw = m[0].trim();
+    const key = raw.replace(/[\s,]/g, '').replace(/(대기|기다|웨이팅|걸)$/, '');
+    if (!src.includes(key)) found.add(raw.replace(/\s*(대기|기다|웨이팅|걸)$/, ''));
+  }
+  return [...found].slice(0, 12);
+}
+
 /** 통과 비율을 도넛으로 */
 function Ring({ done, total }: { done: number; total: number }) {
   const r = 22, c = 2 * Math.PI * r, pct = total ? done / total : 0;
@@ -44,7 +113,7 @@ function Ring({ done, total }: { done: number; total: number }) {
   );
 }
 
-export function DraftCheck({ draftId, title, body, hashtags, photos }: { draftId: string; title: string; body: string; hashtags: string[]; photos: number }) {
+export function DraftCheck({ draftId, title, body, hashtags, photos, postType, sources }: { draftId: string; title: string; body: string; hashtags: string[]; photos: number; postType?: string; sources?: string }) {
   const [guide, setGuide] = useState<{ brand: string; guide: Guide } | null>(null);
   const [showAll, setShowAll] = useState(false);
   useEffect(() => {
@@ -54,7 +123,10 @@ export function DraftCheck({ draftId, title, body, hashtags, photos }: { draftId
       .catch(() => { /* 점검은 가이드 없이도 된다 */ });
     return () => { alive = false; };
   }, [draftId]);
-  const items = checkDraft({ title, body, hashtags, photos }, guide?.guide ?? null);
+  const basic = checkDraft({ title, body, hashtags, photos }, guide?.guide ?? null);
+  const quality = qualityCheck({ title, body, hashtags, photos, postType }, guide?.guide ?? null);
+  const items = [...basic, ...quality];
+  const facts = sources !== undefined && body.trim() ? factCheck(body, sources) : [];
   const done = items.filter(i => i.ok).length;
   const shown = showAll ? items : items.filter(i => !i.ok);
   return (
@@ -80,6 +152,14 @@ export function DraftCheck({ draftId, title, body, hashtags, photos }: { draftId
             ))}
           </ul>
         )}
+      {facts.length > 0 && (
+        <div className="fact-check" aria-label="사실 확인">
+          <p className="small" style={{ margin: '8px 0 4px', fontWeight: 700 }}>사실 확인 {facts.length}곳</p>
+          <p className="muted small" style={{ margin: '0 0 6px' }}>경험 칸·사진 메모에 없는 숫자예요. AI가 지어냈을 수 있으니 맞는지 봐 주세요.</p>
+          <ul className="fact-list">{facts.map(f => <li key={f}>{f}</li>)}</ul>
+        </div>
+      )}
+      <p className="muted small" style={{ margin: '6px 0 0' }}>미니로그가 정한 작성 품질 기준이에요. 네이버 검색 점수나 상위 노출을 뜻하지 않아요.</p>
     </section>
   );
 }
