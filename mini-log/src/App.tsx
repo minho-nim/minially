@@ -652,6 +652,8 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   const [tagText, setTagText] = useState(draft.hashtags.map(t => `#${t}`).join(' '));
   const [save, setSave] = useState<SaveState>('saved');
   const [aiBusy, setAiBusy] = useState(false);
+  // AI 초안 되돌리기: 초안을 넣기 직전의 제목·본문·해시태그(이 화면을 떠나기 전까지 한 번)와 AI가 넣은 본문
+  const [beforeAi, setBeforeAi] = useState<{ title: string; body: string; hashtags: string[]; aiBody: string } | null>(null);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const pending = useRef<Fields | null>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -718,11 +720,13 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
 
   async function generate() {
     if (fields.experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
-    if (fields.body.trim() && !window.confirm('지금 본문을 AI 초안으로 바꿀까요? 지금 내용은 사라져요.')) return;
+    if (fields.body.trim() && !window.confirm('지금 본문을 AI 초안으로 바꿀까요? 바꾼 뒤 이 화면에서 \'AI 초안 되돌리기\'로 지금 내용을 다시 불러올 수 있어요.')) return;
     await flush();
+    const before = { title: fields.title, body: fields.body, hashtags: fields.hashtags };
     setAiBusy(true); setMessage(null);
     try {
       const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience, post_type: fields.post_type } });
+      setBeforeAi(before.title.trim() || before.body.trim() || before.hashtags.length ? { ...before, aiBody: made.body } : null);
       setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, post_type: made.post_type ?? 'none', planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
       onSaved(made);
@@ -730,6 +734,15 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
     } catch (error) {
       setMessage({ kind: 'error', text: error instanceof Error ? error.message : 'AI 초안을 만들지 못했어요.' });
     } finally { setAiBusy(false); }
+  }
+
+  function undoAi() {
+    if (!beforeAi) return;
+    if (fields.body !== beforeAi.aiBody && !window.confirm('AI 초안을 넣은 뒤 고친 내용도 함께 사라져요. 되돌릴까요?')) return;
+    change({ title: beforeAi.title, body: beforeAi.body, hashtags: beforeAi.hashtags });
+    setTagText(beforeAi.hashtags.map(t => `#${t}`).join(' '));
+    setBeforeAi(null);
+    setMessage({ kind: 'info', text: 'AI 초안을 넣기 전 내용으로 되돌렸어요.' });
   }
 
   // 올리기 보조: 한 번에 복사(따로 복사는 미리보기에서 눌러서)
@@ -874,6 +887,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
+          {beforeAi && !aiBusy && <button type="button" className="btn ghost" onClick={undoAi}>AI 초안 되돌리기</button>}
           {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
         </div>
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(hub 설정 참고).</p>}
