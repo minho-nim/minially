@@ -48,6 +48,17 @@ Settings → Bindings → Add → D1 database
 
 비밀값을 넣거나 바꾼 뒤에는 Deployments에서 **Retry deployment**를 한 번 해야 반영됩니다.
 
+## 4-1. 미니어리 '사진으로 일정 넣기' (minially 프로젝트, 2026-11-26)
+minially 프로젝트에도 아래 비밀값을 **minihub·mini-log와 같은 값**으로 넣어야 사진 읽기가 켜집니다(없으면 앱이 "아직 연결되지 않았어요"라고 안내).
+
+| 이름 | 값 | 넣는 곳 |
+|---|---|---|
+| `USER_CODE_HASHES` | minihub와 같은 값(`C:<해시>,D:<해시>`) | minially 프로젝트 Secret |
+| `GEMINI_KEY_C`, `GEMINI_KEY_D` | minihub와 같은 키 | minially 프로젝트 Secret |
+| `GEMINI_PHOTO_MODEL` | (선택) 기본 `gemini-2.5-flash-lite`가 안 될 때만 | minially 프로젝트 변수 |
+
+미니어리 코드가 미니허브 사용자 코드와 같아야 그 사람의 키로 읽습니다. 넣은 뒤 **Retry deployment**. 사진은 서버에 저장되지 않고, 사용량은 미니허브 AI 사용량에 '미니어리'로 잡힙니다.
+
 ## 5. USER_CODE_HASHES 만들기
 minihub가 배포되면 `https://minihub.pages.dev/code-hash.html`을 엽니다.
 사용자를 고르고 미니어리 로그인 코드를 넣으면 `C:abc…` 한 줄이 나옵니다(코드는 브라우저 안에서만 계산하고 어디에도 보내지 않음).

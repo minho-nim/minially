@@ -51,6 +51,8 @@ export default defineConfig(({ mode }) => {
             { name: '검색', short_name: '검색', url: `${base}?action=search`, icons: [{ src: `${base}pwa-192x192.png`, sizes: '192x192', type: 'image/png' }] },
           ],
           start_url: base,
+          // 안드로이드 '공유'에서 사진을 미니어리로 보내면 '사진으로 일정 넣기'가 열린다(public/share-target-sw.js가 받음)
+          share_target: { action: `${base}share-photo`, method: 'POST', enctype: 'multipart/form-data', params: { files: [{ name: 'photo', accept: ['image/*'] }] } },
           scope: base,
           icons: [
             {
@@ -75,6 +77,7 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          importScripts: ['share-target-sw.js'],
           globIgnores: ['**/portfolio/index.html'],
           // 포트폴리오 페이지(/portfolio)는 앱 화면으로 가로채지 않는다. 체험 주소 /demo 는 앱이 연다.
           // 쉼표로 붙은 주소(/portfolio,...)는 저장된 앱 화면을 내지 않고 서버로 보내 MinLab으로 바로 넘어가게 한다.

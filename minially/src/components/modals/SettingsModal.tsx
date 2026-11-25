@@ -44,7 +44,6 @@ interface SettingsModalProps extends CategoryActions {
   onUpdateSettings: (settings: AppSettings) => Promise<void> | void;
   onExportBackup: () => Promise<void> | void;
   onImportBackup: (data: Partial<AppData>, mode: 'merge' | 'replace') => Promise<{ added: number; updated: number; kept: number } | null | void> | void;
-  onResetData: () => Promise<void> | void;
 }
 
 type SettingsTab = 'notes' | 'presets' | 'categories' | 'calendar' | 'share' | 'backup' | 'pwa';
@@ -65,7 +64,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateSettings,
   onExportBackup,
   onImportBackup,
-  onResetData,
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('presets');
 
@@ -322,7 +320,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </label>
               {backupStatus && <p role="status" className="text-xs text-app-muted">{backupStatus}</p>}
               {backupDetail && <p className="text-[11px] text-app-muted">{backupDetail}</p>}
-              {/* 초기화 버튼은 없앴어요(실수로 모든 데이터를 지우는 일을 막으려고). 기능 코드(onResetData)는 남겨 두었어요. */}
             </div>
           )}
 

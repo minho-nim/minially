@@ -48,7 +48,6 @@ import {
   exportAllData,
   importAllData,
   mergeAllData,
-  resetDatabaseToDefault,
   DEFAULT_SETTINGS,
 } from './db/indexedDB';
 import { expandRecurringSchedules } from './utils/recurrenceEngine';
@@ -80,6 +79,7 @@ import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
 import { CategoryLibraryModal } from './components/modals/CategoryLibraryModal';
 import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
 import { DayScheduleSheet } from './components/modals/DayScheduleSheet';
+import { PhotoScheduleSheet } from './components/modals/PhotoScheduleSheet';
 import { TodaySchedulesModal } from './components/modals/TodaySchedulesModal';
 import { getTodayDateString } from './utils/dateHelpers';
 import { syncEngine } from './sync/syncEngine';
@@ -121,6 +121,22 @@ export default function App() {
   const [daySheetOpen, setDaySheetOpen] = useState(false);
   const dayDetailSaved = useRef<(() => void) | null>(null);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  // 사진으로 일정 넣기: 열린 동안 { file: 공유로 받은 사진(없으면 고르기부터) }
+  const [photoSheet, setPhotoSheet] = useState<{ file: Blob | null } | null>(null);
+  useEffect(() => {
+    // 안드로이드 공유로 받은 사진(서비스 워커가 이 기기 캐시에 잠깐 둔 것)을 꺼내 바로 읽는다
+    const params = new URLSearchParams(window.location.search);
+    const shared = params.get('share-photo');
+    if (!shared) return;
+    params.delete('share-photo');
+    window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}${window.location.hash}`);
+    if (shared !== '1' || !('caches' in window)) { setPhotoSheet({ file: null }); return; }
+    void caches.open('minially-share').then(async cache => {
+      const res = await cache.match('shared-photo');
+      await cache.delete('shared-photo');
+      setPhotoSheet({ file: res ? await res.blob() : null });
+    }).catch(() => setPhotoSheet({ file: null }));
+  }, []);
   const [editingSchedule, setEditingSchedule] = useState<Partial<Schedule> | null>(null);
   const [scheduleSelectedDate, setScheduleSelectedDate] = useState<string | undefined>(undefined);
 
@@ -266,6 +282,18 @@ export default function App() {
     setUndoNotice(notice);
     await reloadData();
     return notice;
+  };
+
+  /** 사진에서 고른 일정을 한 번에 등록(되돌리기도 한 번에) */
+  const handleAddPhotoSchedules = async (list: Schedule[]) => {
+    if (!list.length) return;
+    setRegistrationNotice(null);
+    const notice = await recordOccurrenceHistory('CREATE', `사진에서 일정 ${list.length}개 추가됨`, [], list, recurrenceExceptions);
+    setUndoNotice(notice);
+    await reloadData();
+    setSelectedDate(list[0].date);
+    setRegistrationUndoId(notice.id);
+    setRegistrationNotice({ undoId: notice.id, id: crypto.randomUUID(), message: `일정 ${list.length}개를 넣었어요`, title: list.map(s => s.title).join(', '), dates: list.map(s => s.date) });
   };
 
   const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false, rule?: RecurrenceRule | null, scope: SeriesScope = 'this') => {
@@ -535,12 +563,6 @@ export default function App() {
     await reloadData();
     syncEngine.schedule();
     return result;
-  };
-
-  const handleResetData = async () => {
-    await resetDatabaseToDefault();
-    setUndoNotice(null);
-    await reloadData();
   };
 
   // Tasks Handlers
@@ -823,11 +845,11 @@ export default function App() {
       <PresetLibraryModal open={presetLibraryOpen} onClose={() => setPresetLibraryOpen(false)} presets={presets} groups={settings.presetGroups || []} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} />
       <DayScheduleSheet
         registrationNotice={registrationNotice} onDismissRegistration={()=>setRegistrationNotice(null)} onUndoRegistration={registrationNotice?.undoId&&undoNotice?.id===registrationNotice.undoId?()=>handleUndo(undoNotice):undefined}
-        open={daySheetOpen && activeTab === 'calendar' && !categoryLibraryOpen && !presetLibraryOpen && !scheduleModalOpen && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
+        open={daySheetOpen && activeTab === 'calendar' && !categoryLibraryOpen && !presetLibraryOpen && !scheduleModalOpen && !photoSheet && !dateCopyModalOpen && !moveModalOpen && !searchModalOpen && !settingsModalOpen && !deleteTarget && !taskDeleteTarget}
         date={selectedDate} onSelectDate={setSelectedDate} onClose={() => setDaySheetOpen(false)}
         schedules={viewSchedules} categorySchedules={schedules} categories={categories} extraCategories={shared.categories} presets={presets} settings={settings}
         undoLabel={undoNotice?.message} onUndo={async () => { if (undoNotice) await handleUndo(undoNotice); }}
-        onSave={(schedule, rule) => handleSaveSchedule(schedule, true, rule)} onEdit={handleEditSchedule}
+        onSave={(schedule, rule) => handleSaveSchedule(schedule, true, rule)} onEdit={handleEditSchedule} onPhoto={() => setPhotoSheet({ file: null })}
         onToggle={handleToggleSchedule} onMove={schedule => { if (readOnly(schedule.id)) return; setMovingSchedule(schedule); setMoveModalOpen(true); }}
         onCopyDate={() => handleOpenDateCopyModal(selectedDate)}
         onDetails={(draft, saved, batch=false) => { handleOpenNewScheduleModal(selectedDate); setInitialBatch(batch); setEditingSchedule(draft); dayDetailSaved.current = saved; }}
@@ -835,6 +857,7 @@ export default function App() {
         onSettings={handleUpdateSettings} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} onUsePreset={handleUsePreset}
         onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
       />
+      <PhotoScheduleSheet open={!!photoSheet} file={photoSheet?.file} categories={categories} schedules={expandedSchedules} onClose={() => setPhotoSheet(null)} onAdd={handleAddPhotoSchedules} />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
         onOpenNote={openConnectedNote}
@@ -843,6 +866,7 @@ export default function App() {
         isOpen={scheduleModalOpen}
         onClose={handleCloseSchedule}
         onSave={handleSaveSchedule}
+        onPhoto={() => { setScheduleModalOpen(false); setPhotoSheet({ file: null }); }}
         onDelete={handleDeleteSchedule}
         onUsePreset={handleUsePreset}
         onSavePreset={handleSavePreset}
@@ -914,7 +938,6 @@ export default function App() {
         onUpdateSettings={handleUpdateSettings}
         onExportBackup={() => handleExportBackup()}
         onImportBackup={handleImportBackup}
-        onResetData={handleResetData}
       />
 
       {/* Undo Toast Notification */}
