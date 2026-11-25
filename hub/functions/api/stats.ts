@@ -1,5 +1,5 @@
 import { json, type HubContext } from '../../../shared/server/d1';
-import { sha256Hex } from '../../../shared/server/auth';
+import { secretEquals } from '../../../shared/server/auth';
 import { ensureHubSchema } from '../../../shared/server/schema';
 import { monthStart, operationStats } from '../../../shared/server/usage';
 
@@ -8,8 +8,8 @@ import { monthStart, operationStats } from '../../../shared/server/usage';
 export const onRequestGet = async ({ request, env }: HubContext) => {
   if (!env.DB || !env.STATS_API_TOKEN) return json({ error: '통계 API가 아직 설정되지 않았습니다.' }, 503);
   const given = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  // 길이가 달라도 같은 시간이 걸리도록 해시끼리 비교한다.
-  if (!given || (await sha256Hex(given)) !== (await sha256Hex(env.STATS_API_TOKEN))) return json({ error: '권한이 없습니다.' }, 401);
+  // 길이·내용이 달라도 같은 시간이 걸리도록 해시끼리 한 글자씩 모두 비교한다.
+  if (!given || !(await secretEquals(given, env.STATS_API_TOKEN))) return json({ error: '권한이 없습니다.' }, 401);
   const sinceParam = new URL(request.url).searchParams.get('since');
   const since = sinceParam ? Date.parse(sinceParam) : monthStart();
   if (!Number.isFinite(since)) return json({ error: 'since 날짜 형식이 올바르지 않습니다.' }, 400);

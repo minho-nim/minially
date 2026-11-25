@@ -28,6 +28,11 @@
     --divider: #F0E7EB;
   }
 
+  /* 휴대폰에서 화면 끝을 당길 때 전체가 위아래로 출렁이지 않게(iOS는 html에 걸어야 적용됨) */
+  html {
+    overscroll-behavior: none;
+  }
+
   body {
     font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Apple SD Gothic Neo', sans-serif;
     background-color: var(--bg-main);

@@ -535,7 +535,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
       </div>
 
       {/* Main Container: Unified Calendar Surface */}
-      <SwipePager preload gap={24} pageKey={viewMode + selectedDate} previousKey={pageId(shiftCalendarPage(selectedDate, viewMode, -1))} currentKey={pageId(selectedDate)} nextKey={pageId(shiftCalendarPage(selectedDate, viewMode, 1))} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
+      <SwipePager preload gap={24} touchAction="pinch-zoom" pageKey={viewMode + selectedDate} previousKey={pageId(shiftCalendarPage(selectedDate, viewMode, -1))} currentKey={pageId(selectedDate)} nextKey={pageId(shiftCalendarPage(selectedDate, viewMode, 1))} previous={renderPage(shiftCalendarPage(selectedDate, viewMode, -1), true)} next={renderPage(shiftCalendarPage(selectedDate, viewMode, 1), true)} onPrevious={handlePrev} onNext={handleNext} data-calendar-swipe className="calendar-surface flex min-h-0 flex-1 flex-col overflow-hidden">
         {renderPage(selectedDate)}
       </SwipePager>
 

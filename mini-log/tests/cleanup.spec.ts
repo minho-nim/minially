@@ -2,12 +2,12 @@
 import { expect, test } from '@playwright/test';
 import { DatabaseSync } from 'node:sqlite';
 import type { D1Database, R2Bucket } from '../../shared/server/d1';
-import { ensureHubSchema } from '../../shared/server/schema';
+import { ensureHubSchema, SCHEMA_VERSION } from '../../shared/server/schema';
+import { secretEquals } from '../../shared/server/auth';
 import { createDraft, updateDraft } from '../functions/_drafts';
 import { addPhoto, cleanupExpired, listPhotos } from '../functions/_photos';
 
-function fakeD1(): D1Database {
-  const sqlite = new DatabaseSync(':memory:');
+function fakeD1(sqlite = new DatabaseSync(':memory:'), seen: string[] = []): D1Database {
   const statement = (sql: string, values: unknown[] = []) => ({
     bind: (...next: unknown[]) => statement(sql, next),
     all: async <T>() => ({ results: sqlite.prepare(sql).all(...(values as never[])) as T[] }),
@@ -16,7 +16,7 @@ function fakeD1(): D1Database {
     _run: () => sqlite.prepare(sql).run(...(values as never[])),
   });
   return {
-    prepare: (sql: string) => statement(sql),
+    prepare: (sql: string) => { seen.push(sql); return statement(sql); },
     batch: async statements => statements.map(s => (s as unknown as { _run: () => unknown })._run()),
   };
 }
@@ -66,4 +66,26 @@ test('운영 DB처럼 원고 표가 이미 있으면 게시 예정일 칸만 더
   expect(row).toEqual({ title: '예전 원고', planned_on: null });
   const made = await createDraft(db, 'C', '2026-12-24');
   expect(made.planned_on).toBe('2026-12-24');
+});
+
+test('표 구조가 이미 최신이면 바인딩 객체가 새로 와도 읽기 한 번으로 끝낸다', async () => {
+  const sqlite = new DatabaseSync(':memory:');
+  await ensureHubSchema(fakeD1(sqlite));
+  expect(sqlite.prepare('SELECT version FROM hub_schema_meta').get()).toEqual({ version: SCHEMA_VERSION });
+  const seen: string[] = [];
+  await ensureHubSchema(fakeD1(sqlite, seen)); // 요청마다 새 바인딩 객체가 오는 경우
+  expect(seen).toEqual(['SELECT version FROM hub_schema_meta WHERE id = 1']);
+  // 지문이 다르면(구조가 바뀐 새 배포) 다시 만들고 지문을 고친다
+  sqlite.prepare("UPDATE hub_schema_meta SET version = 'old'").run();
+  const again: string[] = [];
+  await ensureHubSchema(fakeD1(sqlite, again));
+  expect(again.some(sql => sql.startsWith('CREATE TABLE IF NOT EXISTS minilog_drafts'))).toBe(true);
+  expect(sqlite.prepare('SELECT version FROM hub_schema_meta').get()).toEqual({ version: SCHEMA_VERSION });
+});
+
+test('비밀값 비교는 같을 때만 참이다', async () => {
+  expect(await secretEquals('test-stats-token', 'test-stats-token')).toBe(true);
+  expect(await secretEquals('test-stats-tokeN', 'test-stats-token')).toBe(false);
+  expect(await secretEquals('', 'test-stats-token')).toBe(false);
+  expect(await secretEquals('test-stats-token-longer', 'test-stats-token')).toBe(false);
 });
