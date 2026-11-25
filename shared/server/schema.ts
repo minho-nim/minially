@@ -65,6 +65,7 @@ const COLUMNS: [table: string, column: string, type: string][] = [
   ['minilog_photos', 'note', 'TEXT'], // 사진마다 적는 실제 경험 메모(AI 초안 재료)
   ['minilog_campaigns', 'source_url', 'TEXT'], // 체험단 모집 공고 주소(직접 붙여 넣음, https만)
   ['minilog_campaigns', 'apply_by', 'TEXT'], // 신청 마감일 YYYY-MM-DD
+  ['minilog_drafts', 'ai_body', 'TEXT'], // AI가 마지막으로 쓴 본문 원문('더 내 스타일로'에서 사람이 고친 최종본과 비교)
 ];
 
 /** 표 정의 전체의 지문(FNV-1a). 두 앱(hub·mini-log)이 같은 코드를 쓰므로 같은 값이 나온다 */

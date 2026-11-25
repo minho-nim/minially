@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
@@ -377,7 +377,8 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
   );
 }
 
-interface StyleProfile { summary: string; tone: string; sentence: string; structure: string; expressions: string[]; emoji: string; hashtags: string }
+interface StyleProfile { summary: string; tone: string; sentence: string; structure: string; expressions: string[]; emoji: string; hashtags: string; avoid?: string[] }
+interface RefineProposal { style_id: string; current: StyleProfile; proposed: StyleProfile; changes: string[]; used: number }
 interface Style { id: string; kind: 'mine' | 'reference'; name: string; source: string; samples: string[]; profile: StyleProfile | null; analyzed_at: number | null; updated_at: number }
 
 /** 문체 목록: 내 문체 1개 + 참고 문체 여러 개. 하나를 골라 글을 넣고 분석한다. */
@@ -388,10 +389,11 @@ function StylesView({ onBack }: { onBack: () => void }) {
   const [newName, setNewName] = useState('');
   const [newSource, setNewSource] = useState('');
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const [refineReady, setRefineReady] = useState(0);
 
   useEffect(() => {
-    api<{ styles: Style[] }>('/api/styles')
-      .then(data => { setStyles(data.styles); setSelectedId(data.styles[0]?.id ?? null); })
+    api<{ styles: Style[]; refine_ready?: number }>('/api/styles')
+      .then(data => { setStyles(data.styles); setSelectedId(data.styles[0]?.id ?? null); setRefineReady(data.refine_ready ?? 0); })
       .catch(error => setMessage({ kind: 'error', text: error instanceof Error ? error.message : '불러오지 못했어요.' }));
   }, []);
 
@@ -441,12 +443,61 @@ function StylesView({ onBack }: { onBack: () => void }) {
           <div className="ai-row"><button className="btn primary" type="submit">추가</button><button className="btn ghost" type="button" onClick={() => setAdding(false)}>취소</button></div>
         </form>
       )}
-      {selected && <StyleEditor key={selected.id} style={selected} onChange={replace} onDeleted={remove} />}
+      {selected && <StyleEditor key={selected.id} style={selected} refineReady={refineReady} onChange={replace} onDeleted={remove} />}
     </article>
   );
 }
 
-function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (s: Style) => void; onDeleted: (id: string) => void }) {
+const PROFILE_FIELDS: [keyof StyleProfile, string][] = [['summary', '요약'], ['tone', '말투'], ['sentence', '문장'], ['structure', '구성'], ['emoji', '이모티콘'], ['hashtags', '해시태그'], ['expressions', '자주 쓰는 표현'], ['avoid', '피하는 표현']];
+const profileText = (p: StyleProfile, key: keyof StyleProfile) => { const v = p[key]; return Array.isArray(v) ? v.join(', ') : (v ?? ''); };
+
+/** '더 내 스타일로': 승인·게시한 원고에서 AI 초안을 어떻게 고쳤는지 보고 내 문체를 다듬은 안을 받아, 바뀔 내용을 보여 준 뒤 사람이 적용한다. */
+function RefineStyle({ ready, onApplied }: { ready: number; onApplied: (s: Style) => void }) {
+  const [busy, setBusy] = useState<'propose' | 'apply' | null>(null);
+  const [proposal, setProposal] = useState<RefineProposal | null>(null);
+  const [error, setError] = useState('');
+  async function propose() {
+    setBusy('propose'); setError('');
+    try { setProposal(await api<RefineProposal>('/api/styles/refine', { body: {} })); }
+    catch (e) { setError(e instanceof Error ? e.message : '다듬지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+  async function apply() {
+    if (!proposal) return;
+    setBusy('apply'); setError('');
+    try { const { style } = await api<{ style: Style }>(`/api/styles/${proposal.style_id}`, { method: 'PUT', body: { profile: proposal.proposed } }); setProposal(null); onApplied(style); }
+    catch (e) { setError(e instanceof Error ? e.message : '적용하지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+  const changed = proposal ? PROFILE_FIELDS.filter(([k]) => profileText(proposal.current, k) !== profileText(proposal.proposed, k)) : [];
+  return (
+    <div className="refine stack" style={{ gap: 8 }}>
+      <div className="ai-row">
+        <button className="btn" onClick={propose} disabled={!ready || busy !== null}>{busy === 'propose' ? '고친 원고를 읽는 중…' : '더 내 스타일로'}</button>
+        <span className="muted small">{ready ? `AI 초안을 고쳐 승인·게시한 원고 ${ready}개로 내 문체를 다시 맞춰요.` : 'AI 초안을 고쳐서 승인하거나 게시한 원고가 생기면 쓸 수 있어요.'}</span>
+        {busy === 'propose' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">토몽이가 고친 곳을 보고 있어요</span></span>}
+      </div>
+      {error && <p className="error" role="alert" style={{ margin: 0 }}>{error}</p>}
+      {proposal && (
+        <section className="refine-proposal stack" aria-label="바뀔 내 문체" style={{ gap: 8 }}>
+          <p className="small" style={{ margin: 0 }}><b>원고 {proposal.used}개</b>를 보고 이렇게 바꾸자고 해요. 적용해야 저장돼요.</p>
+          {proposal.changes.length > 0 && <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{proposal.changes.map(c => <li key={c}>{c}</li>)}</ul>}
+          {changed.length ? (
+            <dl className="kv refine-diff">
+              {changed.map(([k, label]) => <Fragment key={k}><dt>{label}</dt><dd><span className="muted refine-old">{profileText(proposal.current, k) || '(없음)'}</span><span aria-hidden="true"> → </span><b>{profileText(proposal.proposed, k) || '(없음)'}</b></dd></Fragment>)}
+            </dl>
+          ) : <p className="muted small" style={{ margin: 0 }}>지금 문체와 달라진 곳이 없어요.</p>}
+          <div className="ai-row">
+            <button className="btn primary" onClick={apply} disabled={busy !== null || !changed.length}>{busy === 'apply' ? '적용하는 중…' : '적용'}</button>
+            <button className="btn ghost" onClick={() => setProposal(null)} disabled={busy !== null}>그대로 두기</button>
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function StyleEditor({ style, refineReady, onChange, onDeleted }: { style: Style; refineReady: number; onChange: (s: Style) => void; onDeleted: (id: string) => void }) {
   const [samples, setSamples] = useState<string[]>(style.samples.length ? style.samples : ['']);
   const [name, setName] = useState(style.name);
   const [source, setSource] = useState(style.source);
@@ -503,6 +554,7 @@ function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (
                 {profile.hashtags && <><dt>해시태그</dt><dd>{profile.hashtags}</dd></>}
               </dl>
               {mine && profile.expressions.length > 0 && <p className="chips" aria-label="자주 쓰는 표현">{profile.expressions.map(x => <span key={x} className="chip">{x}</span>)}</p>}
+              {mine && !!profile.avoid?.length && <p className="chips" aria-label="피하는 표현">{profile.avoid.map(x => <span key={x} className="chip warn">{x}</span>)}</p>}
               <p className="muted small" style={{ margin: 0 }}>{mine ? 'AI 초안을 만들 때 기본으로 이 문체를 따라 써요.' : '원고의 "어떤 문체로 쓸까요?"에서 고르면 쓰는 방식만 참고해요(문장·표현은 베끼지 않음).'}</p>
             </div>
           </div>
@@ -512,6 +564,7 @@ function StyleEditor({ style, onChange, onDeleted }: { style: Style; onChange: (
             <p className="muted small" style={{ margin: 0 }}>아직 정리하지 않았어요. 아래에 글을 붙여 넣고 <b>문체 분석하기</b>를 눌러 주세요.</p>
           </div>
         )}
+        {mine && profile && <RefineStyle ready={refineReady} onApplied={saved => { onChange(saved); setMessage({ kind: 'info', text: '내 문체를 고친 원고에 맞춰 다듬었어요. 다음 AI 초안부터 반영돼요.' }); }} />}
       </section>
 
       <section className="card step" aria-labelledby="samples-title">

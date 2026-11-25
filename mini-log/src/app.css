@@ -442,3 +442,8 @@ select.input { appearance: auto; }
 .finder > summary { cursor: pointer; font-weight: 700; }
 .finder-links { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 560px) { .finder-links .btn { min-height: 44px; display: inline-flex; align-items: center; } }
+/* '더 내 스타일로' 제안: 바뀌기 전은 흐리게 지우고, 바뀐 뒤는 굵게 */
+.refine { border-top: 1px dashed var(--line); padding-top: 10px; }
+.refine-proposal { padding: 10px 12px; border-radius: 12px; background: var(--app-soft); }
+.refine-old { text-decoration: line-through; }
+.refine-diff dd { overflow-wrap: anywhere; }

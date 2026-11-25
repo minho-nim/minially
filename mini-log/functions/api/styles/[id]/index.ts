@@ -1,8 +1,8 @@
 import { json, readJson, type HubContext } from '../../../../../shared/server/d1';
 import { requireSession } from '../../../../../shared/server/auth';
-import { cleanText, deleteReference, getStyle, readSamples, STYLE_LIMITS, updateStyle } from '../../../_style';
+import { cleanProfile, cleanText, deleteReference, getStyle, readSamples, saveProfile, STYLE_LIMITS, updateStyle } from '../../../_style';
 
-// PUT: 글·이름·출처 저장 · DELETE: 참고 문체 지우기(내 문체는 못 지움)
+// PUT: 글·이름·출처 저장, 내 문체는 profile(‘더 내 스타일로’에서 사람이 적용을 누른 안)도 저장 · DELETE: 참고 문체 지우기(내 문체는 못 지움)
 const idOf = (ctx: HubContext) => (typeof ctx.params?.id === 'string' && /^[0-9a-f-]{36}$/.test(ctx.params.id) ? ctx.params.id : null);
 const notFound = () => json({ error: '문체를 찾을 수 없어요.' }, 404);
 
@@ -13,6 +13,15 @@ export const onRequestPut = async (ctx: HubContext) => {
   if (!id) return notFound();
   const body = await readJson(ctx.request);
   if (!body) return json({ error: 'JSON 형식이 아닙니다.' }, 400);
+  if (body.profile !== undefined) {
+    const current = await getStyle(auth.db, auth.session.user, id);
+    if (!current) return notFound();
+    if (current.kind !== 'mine') return json({ error: '내 문체만 이렇게 바꿀 수 있어요.' }, 400);
+    const profile = cleanProfile(body.profile);
+    if (!profile) return json({ error: '문체 요약 형식이 올바르지 않아요.' }, 400);
+    await saveProfile(auth.db, auth.session.user, id, profile);
+    return json({ style: await getStyle(auth.db, auth.session.user, id) });
+  }
   const patch: { samples?: string[]; name?: string; source?: string } = {};
   if (body.samples !== undefined) {
     const samples = readSamples(body.samples);

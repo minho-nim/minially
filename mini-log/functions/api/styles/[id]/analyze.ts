@@ -22,6 +22,7 @@ export const onRequestPost = async (ctx: HubContext) => {
   let profile;
   try { profile = cleanProfile(JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, ''))); } catch { profile = null; }
   if (!profile) return json({ error: 'AI 답을 읽지 못했어요. 다시 시도해 주세요.', code: 'bad_response' }, 502);
+  if (style.kind === 'mine' && style.profile?.avoid?.length && !profile.avoid) profile.avoid = style.profile.avoid; // 다시 분석해도 '더 내 스타일로'에서 생긴 피하는 표현은 남긴다
   await saveProfile(auth.db, auth.session.user, style.id, profile);
   return json({ style: await getStyle(auth.db, auth.session.user, style.id) });
 };

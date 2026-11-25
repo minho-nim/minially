@@ -135,6 +135,11 @@ export async function updateDraft(db: D1Database, user: UserName, id: string, pa
   return getDraft(db, user, id);
 }
 
+/** AI 초안 원문을 따로 남긴다(화면·백업에는 보내지 않고, '더 내 스타일로'에서 고친 글과 비교하는 데만 쓴다) */
+export async function saveAiBody(db: D1Database, user: UserName, id: string, body: string) {
+  await db.prepare('UPDATE minilog_drafts SET ai_body = ? WHERE user = ? AND id = ?').bind(body, user, id).run();
+}
+
 export async function deleteDraft(db: D1Database, user: UserName, id: string) {
   await db.prepare('DELETE FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, id).run();
 }

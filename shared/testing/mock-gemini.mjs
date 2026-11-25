@@ -78,6 +78,11 @@ createServer((req, res) => {
     if (prompt.includes('통계 화면')) {
       return ok({ posts: [{ title: '동네 빵집 소금빵 후기', views: 1520, likes: 48, comments: 12 }, { title: '겨울 카페 투어', views: 830, likes: 21, comments: null }, { title: '없는 글 제목', views: 5, likes: 0, comments: 0 }] });
     }
+    if (prompt.includes('문체 요약을 다듬는')) {
+      // '더 내 스타일로': 보낸 원고 쌍 수를 요약에 적어 시험에서 확인한다
+      const pairs = (prompt.match(/<고친 글>\n/g) ?? []).length; // 안내 문장 속 '<고친 글>은'은 빼고 자료 칸만 센다
+      return ok({ summary: `더 짧고 담백하게 다듬은 문체예요(고친 원고 ${pairs}개 반영).`, tone: '담백한 존댓말', sentence: '더 짧은 문장', structure: '방문 계기 → 메뉴 → 총평', expressions: ['진짜'], emoji: '거의 안 씀', hashtags: '지역+가게 이름', avoid: ['정말 강력 추천'], changes: ['감탄 표현을 줄였어요', '이모티콘을 거의 지웠어요'] });
+    }
     if (prompt.includes('문체를 분석') && prompt.includes('다른 블로거의 글이다')) {
       return ok({ summary: '참고 블로거는 정보를 표로 정리하고 담백하게 써요.', tone: '담백한 존댓말', sentence: '중간 길이', structure: '요약 → 상세 → 팁', expressions: ['남의표현'], emoji: '거의 안 씀', hashtags: '5개 안팎' });
     }
@@ -86,9 +91,10 @@ createServer((req, res) => {
     }
     const postType = prompt.match(/\[글 종류: ([^\]]+)\]/)?.[1]; // 글 종류 안내가 들어갔는지 시험에서 볼 수 있게
     const photoLines = images ? Array.from({ length: images }, (_, i) => `[사진 ${i + 1}]`).join('\n') : '[사진]';
+    const avoided = prompt.includes('피하는 표현(') ? ' · 피하는 표현' : ''; // '더 내 스타일로'로 생긴 피하는 표현이 초안 프롬프트에 들어갔는지
     const styled = !prompt.includes('<문체>') ? '' : prompt.includes('다른 블로거의 쓰는 방식') ? (prompt.includes('남의표현') ? ' · 표현 샘' : ' · 참고 문체') : ' · 내 문체';
     const memo = prompt.match(/<사진 메모>\n([\s\S]*?)\n<\/사진 메모>/)?.[1]; // 사진 메모가 자료로 들어갔는지 시험에서 볼 수 있게
-    const draft = { title: (images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목') + styled, body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]${postType ? `\n(글 종류: ${postType})` : ''}${memo ? `\n(메모 반영: ${memo.split('\n')[0]})\n가격은 9,900원이었어요.` : ''}`, hashtags: ['#시험', '미니로그', '시험'] };
+    const draft = { title: (images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목') + styled + avoided, body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]${postType ? `\n(글 종류: ${postType})` : ''}${memo ? `\n(메모 반영: ${memo.split('\n')[0]})\n가격은 9,900원이었어요.` : ''}`, hashtags: ['#시험', '미니로그', '시험'] };
     send(200, {
       candidates: [{ content: { parts: [{ text: JSON.stringify(draft) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 },
