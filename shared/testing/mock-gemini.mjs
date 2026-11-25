@@ -78,6 +78,16 @@ createServer((req, res) => {
     if (prompt.includes('통계 화면')) {
       return ok({ posts: [{ title: '동네 빵집 소금빵 후기', views: 1520, likes: 48, comments: 12 }, { title: '겨울 카페 투어', views: 830, likes: 21, comments: null }, { title: '없는 글 제목', views: 5, likes: 0, comments: 0 }] });
     }
+    if (prompt.includes('사진 속 일정을 찾는 도우미')) {
+      // 사진으로 일정 넣기: 오늘 날짜가 프롬프트에 들어갔는지 제목에 적고, 형식이 틀린 후보(날짜 없음·13월)는 서버가 걸러야 한다
+      const today = prompt.match(/오늘은 (\d{4}-\d{2}-\d{2})/)?.[1] ?? '';
+      return ok({ events: [
+        { title: '치과 진료', date: '2026-12-02', start: '15:00', end: '16:00', location: '', memo: '', source: '12월 2일(수) 오후 3시 진료 예약', uncertain: false },
+        { title: `송년회(오늘 ${today})`, date: '2026-12-18', start: '19:00', end: '18:00', location: '강남역 3번 출구', memo: '', source: '12/18(금) 저녁 7시', uncertain: true },
+        { title: '날짜 없는 일정', date: '', start: null, end: null },
+        { title: '틀린 날짜', date: '2026-13-01', start: '25:00' },
+      ] });
+    }
     if (prompt.includes('문체 요약을 다듬는')) {
       // '더 내 스타일로': 보낸 원고 쌍 수를 요약에 적어 시험에서 확인한다
       const pairs = (prompt.match(/<고친 글>\n/g) ?? []).length; // 안내 문장 속 '<고친 글>은'은 빼고 자료 칸만 센다

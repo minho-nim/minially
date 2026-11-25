@@ -1,0 +1,127 @@
+// 사진으로 일정 넣기: 사진 고르기 → 읽는 중 → 찾은 일정 고르기(고치기·겹침·확인 필요) → 고른 것만 등록.
+// 사진은 저장하지 않고, 서버는 후보만 돌려준다. 등록은 App이 한 번에 하고 되돌리기도 한 번에 된다.
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, CalendarDays, Clock, ImagePlus, X } from 'lucide-react';
+import type { CategoryItem, Schedule } from '../../types';
+import { useScheduleDialog } from '../../hooks/useScheduleDialog';
+import { getTodayDateString } from '../../utils/dateHelpers';
+import { overlapping, PhotoReadError, readPhotoSchedule, shrinkForReading, type PhotoEvent } from '../../utils/photoSchedule';
+
+interface Row extends PhotoEvent { key: string; picked: boolean; category: string }
+interface Props {
+  open: boolean; file?: Blob | null; categories: CategoryItem[]; schedules: Schedule[];
+  onClose: () => void; onAdd: (list: Schedule[]) => Promise<void>;
+}
+
+const field = 'min-w-0 rounded-lg border border-app-line bg-white px-2 text-sm text-app-ink';
+
+export function PhotoScheduleSheet({ open, file, categories, schedules, onClose, onAdd }: Props) {
+  const root = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const [phase, setPhase] = useState<'pick' | 'reading' | 'list' | 'error'>('pick');
+  const [rows, setRows] = useState<Row[]>([]);
+  const [error, setError] = useState<{ text: string; code: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const run = useRef(0);
+  const close = () => { if (saving) return false; run.current += 1; onClose(); };
+  useScheduleDialog(open, false, root, close, close);
+
+  async function read(blob: Blob) {
+    const id = ++run.current;
+    setPhase('reading'); setError(null); setRows([]);
+    try {
+      const events = await readPhotoSchedule(await shrinkForReading(blob), getTodayDateString());
+      if (id !== run.current) return;
+      setRows(events.map((e, i) => ({ ...e, key: `${i}-${e.date}-${e.title}`, picked: !e.uncertain, category: '' })));
+      setPhase('list');
+    } catch (e) {
+      if (id !== run.current) return;
+      setError({ text: e instanceof Error ? e.message : '사진을 읽지 못했어요.', code: e instanceof PhotoReadError ? e.code : 'error' });
+      setPhase('error');
+    }
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    setRows([]); setError(null); setSaving(false);
+    if (file) void read(file); else setPhase('pick');
+    return () => { run.current += 1; };
+  }, [open, file]);
+
+  if (!open) return null;
+  const set = (key: string, patch: Partial<Row>) => setRows(list => list.map(r => (r.key === key ? { ...r, ...patch } : r)));
+  const picked = rows.filter(r => r.picked && r.title.trim() && r.date);
+
+  async function register() {
+    if (!picked.length) return;
+    setSaving(true);
+    try {
+      await onAdd(picked.map(r => ({
+        id: crypto.randomUUID(), title: r.title.trim(), date: r.date, ...(r.start ? { startTime: r.start } : {}), ...(r.start && r.end ? { endTime: r.end } : {}),
+        category: r.category, completed: false, ...(r.location || r.memo ? { memo: [r.location && `장소: ${r.location}`, r.memo].filter(Boolean).join('\n') } : {}),
+      } as Schedule)));
+      setSaving(false);
+      onClose();
+    } catch (e) { setSaving(false); setError({ text: e instanceof Error ? e.message : '등록하지 못했어요.', code: 'save' }); }
+  }
+
+  const pickButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-hover" onClick={() => input.current?.click()}><ImagePlus className="mr-1 inline h-4 w-4" aria-hidden="true" />{phase === 'pick' ? '사진 고르기' : '다른 사진'}</button>;
+
+  return <div ref={root} role="dialog" aria-modal="true" aria-label="사진으로 일정 넣기" data-photo-schedule className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(52,40,35,0.30)]" onClick={e => { if (e.target === e.currentTarget) close(); }}>
+    <div className="flex max-h-[92%] w-full max-w-lg flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+      <header className="flex shrink-0 items-center gap-2 border-b border-app-line px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-bold text-app-ink">{phase === 'list' ? `찾은 일정 ${rows.length}개` : '사진으로 일정 넣기'}</h3>
+          {phase === 'list' && rows.length > 0 && <p className="text-xs text-app-muted">고친 뒤 체크한 것만 등록돼요</p>}
+        </div>
+        <button type="button" aria-label="사진으로 일정 넣기 닫기" onClick={close} className="flex h-11 w-11 items-center justify-center rounded-lg text-app-muted hover:bg-app-soft"><X className="h-5 w-5" /></button>
+      </header>
+      <input ref={input} type="file" accept="image/*" className="hidden" aria-label="일정이 적힌 사진" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(f); }} />
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+        {phase === 'pick' && <div className="space-y-3">
+          <p className="rounded-xl bg-app-soft p-3 text-sm text-app-ink">예약 문자·공지·포스터 사진을 고르면 날짜와 시간을 찾아 일정 후보로 보여 줘요. 고른 것만 등록돼요.</p>
+          {pickButton}
+        </div>}
+        {phase === 'reading' && <div className="space-y-3" role="status">
+          <p className="flex items-center gap-2 font-semibold text-app-ink"><span className="h-5 w-5 animate-spin rounded-full border-2 border-app-line border-t-app-accent-hover motion-reduce:animate-none" aria-hidden="true" />사진에서 날짜와 시간을 찾고 있어요</p>
+          <ul className="list-disc space-y-1 rounded-xl bg-app-soft py-2 pl-7 pr-3 text-xs text-app-ink"><li>사진은 저장하지 않고, 읽은 뒤 바로 지워요</li><li>위치·촬영 정보는 보내기 전에 지웠어요</li><li>찾은 일정은 바로 들어가지 않아요. 다음 화면에서 골라 주세요</li></ul>
+        </div>}
+        {phase === 'error' && error && <div className="space-y-3" role="alert">
+          <p className="text-sm font-semibold text-app-ink">{error.code === 'no_key' ? '사진 읽기가 아직 연결되지 않았어요' : error.code === 'offline' || error.code === 'no_login' ? '지금은 쓸 수 없어요' : error.code === 'quota_exceeded' ? '오늘 사진 읽기 한도를 다 썼어요' : '사진을 읽지 못했어요'}</p>
+          <p className="text-sm text-app-muted">{error.text}</p>
+          {pickButton}
+        </div>}
+        {phase === 'list' && rows.length === 0 && <div className="space-y-3">
+          <p className="text-sm font-semibold text-app-ink">사진에서 일정을 못 찾았어요</p>
+          <p className="text-sm text-app-muted">날짜와 시간이 잘 보이게 다시 찍거나, 글자가 있는 부분만 잘라서 올려 주세요.</p>
+          {pickButton}
+        </div>}
+        {phase === 'list' && rows.map(r => {
+          const clash = overlapping(r, schedules);
+          return <article key={r.key} data-photo-event className={`flex gap-2 rounded-xl border p-3 ${r.picked ? 'border-app-accent bg-app-canvas' : 'border-app-line bg-white'}`}>
+            <label className="-ml-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center"><input type="checkbox" className="h-5 w-5 accent-[#9E5873]" checked={r.picked} onChange={e => set(r.key, { picked: e.target.checked })} aria-label={`${r.title} 등록하기`} /></label>
+            <div className="min-w-0 flex-1 space-y-2">
+              <input className={field + ' h-10 w-full font-semibold'} value={r.title} maxLength={60} aria-label="일정 제목" onChange={e => set(r.key, { title: e.target.value })} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <label className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4 text-app-accent-hover" aria-hidden="true" /><span className="sr-only">날짜</span><input type="date" className={field + ' h-9'} value={r.date} onChange={e => set(r.key, { date: e.target.value })} /></label>
+                <label className="inline-flex items-center gap-1"><Clock className="h-4 w-4 text-app-accent-hover" aria-hidden="true" /><span className="sr-only">시작 시간</span><input type="time" className={field + ' h-9'} value={r.start ?? ''} onChange={e => set(r.key, { start: e.target.value || null })} /></label>
+                {r.start && <label className="inline-flex items-center gap-1"><span className="text-xs text-app-muted">~</span><span className="sr-only">끝 시간</span><input type="time" className={field + ' h-9'} value={r.end ?? ''} onChange={e => set(r.key, { end: e.target.value || null })} /></label>}
+                <label className="inline-flex items-center"><span className="sr-only">카테고리</span><select className={field + ' h-9'} value={r.category} onChange={e => set(r.key, { category: e.target.value })}><option value="">미분류</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+              </div>
+              {r.location && <p className="text-xs text-app-ink">장소: {r.location}</p>}
+              {clash && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 시간에 ‘{clash.title}{clash.startTime ? ` ${clash.startTime}` : ''}’이 있어요</p>}
+              {r.uncertain && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 날짜를 짐작했어요(연도·요일을 확인해 주세요)</p>}
+              {r.source && <p className="break-words text-xs text-app-muted">사진 속 글: “{r.source}”</p>}
+            </div>
+          </article>;
+        })}
+        {phase === 'list' && error && <p role="alert" className="text-sm text-red-700">{error.text}</p>}
+      </div>
+      {phase === 'list' && rows.length > 0 && <footer className="flex shrink-0 items-center gap-2 border-t border-app-line px-4 py-3">
+        {pickButton}
+        <span className="flex-1" />
+        <button type="button" className="min-h-11 rounded-xl bg-[#9E5873] px-5 text-sm font-bold text-white disabled:bg-[#C9B8BF]" disabled={!picked.length || saving} onClick={() => { void register(); }}>{saving ? '등록하는 중…' : picked.length ? `${picked.length}개 등록` : '고른 일정 없음'}</button>
+      </footer>}
+    </div>
+  </div>;
+}

@@ -35,8 +35,7 @@ import {
   ChevronDown,
   ChevronUp,
   Bookmark,
-  Star,
-} from 'lucide-react';
+  Star, ImagePlus } from 'lucide-react';
 import { PhraseManager } from './PhraseManageModal';
 import { CategoryActions, CategoryManager } from './CategoryManager';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
@@ -45,6 +44,8 @@ interface ScheduleModalProps extends CategoryActions {
   registrationNotice?:RegistrationNoticeData|null;
   onDismissRegistration?:()=>void;
   onUndoRegistration?:()=>Promise<void>;
+  /** 사진으로 일정 넣기(새 일정일 때만 머리줄에 버튼) */
+  onPhoto?: () => void;
   isOpen: boolean;
   onClose: () => void;
   onOpenTask?: (id: string) => void;
@@ -73,6 +74,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
   onOpenNote,
   onOpenTask,
   onSave,
+  onPhoto,
   onDelete,
   onUsePreset,
   onSavePreset,
@@ -348,9 +350,10 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
         <div inert={saving} aria-busy={saving} className={panelOpen ? 'hidden' : 'flex flex-col min-h-0 min-w-0'}>
         {/* Header */}
         <div className="px-3 py-2 border-b border-app-line flex items-center justify-between bg-white shrink-0">
-          <h3 className="text-base font-bold text-app-ink">
+          <h3 className="text-base font-bold text-app-ink flex-1">
             {isEditing ? '일정 수정' : '새 일정'}
           </h3>
+          {!isEditing && onPhoto && <button type="button" data-photo-entry onClick={onPhoto} aria-label="사진으로 일정 넣기" className="mr-1 inline-flex min-h-11 items-center gap-1.5 rounded-full border-[1.5px] border-app-accent bg-app-soft px-3.5 text-sm font-bold text-[#7E4560] cursor-pointer"><ImagePlus className="h-4 w-4" aria-hidden="true" />사진으로</button>}
           <button
             type="button"
             onClick={requestClose}

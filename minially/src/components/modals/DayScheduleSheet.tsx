@@ -4,7 +4,7 @@ import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { CategoryGrid } from '../common/CategoryGrid';
 import React, { useEffect, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Copy, GripVertical, Plus, RotateCcw, Star, X, MoreHorizontal, CalendarRange, Calendar, SlidersHorizontal, Repeat } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Copy, GripVertical, Plus, RotateCcw, Star, X, MoreHorizontal, CalendarRange, Calendar, SlidersHorizontal, Repeat, ImagePlus } from 'lucide-react';
 import { AppSettings, CategoryItem, Preset, RecurrenceRule, Schedule, TitleBlock } from '../../types';
 import { RepeatPicker } from '../common/RepeatPicker';
 import { describeRepeat, NO_REPEAT, repeatError, repeatToRule, type RepeatSettings } from '../../utils/repeat';
@@ -28,6 +28,8 @@ interface Props extends CategoryActions {
   registrationNotice?:RegistrationNoticeData|null;
   onDismissRegistration?:()=>void;
   onUndoRegistration?:()=>Promise<void>;
+  /** 사진으로 일정 넣기(이 날짜가 기본) */
+  onPhoto?: () => void;
   open: boolean;
   date: string;
   presets: Preset[];
@@ -242,7 +244,7 @@ export function DayScheduleSheet(props: Props) {
         {panel === 'presets' && <div data-composer-presets data-schedule-panel="presets" className="min-h-0 max-h-48 overflow-y-auto overscroll-contain px-4 pb-2" onPointerDownCapture={event=>{if(document.activeElement===input.current && (event.target as Element).closest('button, summary'))event.preventDefault();}}><InlinePresetPicker selectedBlocks={draft.blocks || []} options={<label className="text-xs flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" className="min-h-9 border rounded-lg bg-white px-2" value={presetApplyMode} onChange={e=>setPresetApplyMode(e.target.value as 'replace'|'append')}><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={settings.presetGroups || []} dragProps={presetDrag} onAdd={(_,preset)=>apply(preset)} onManage={()=>changePanel('presetManage')} onClose={()=>{changePanel(null);focusTitle();}}/></div>}
         <div ref={dropArea} data-preset-drop className={'shrink-0 px-4 pb-3 min-w-0 ' + (dropOver ? 'bg-app-soft' : '')} onDragOver={event => { if (event.dataTransfer.types.includes('application/x-minially-preset')) { event.preventDefault(); setDropOver(true); } }} onDragLeave={() => setDropOver(false)} onDrop={event => { const preset = presets.find(item => item.id === event.dataTransfer.getData('application/x-minially-preset')); if (preset) { event.preventDefault(); apply(preset); } setDropOver(false); }}>
           <form data-composer-input aria-label="빠른 일정 등록" className="min-w-0 space-y-2" onSubmit={event => { event.preventDefault(); void save(); }}>
-            <input data-quick-title ref={input} aria-label="빠른 일정 제목" placeholder="할 일을 입력하세요" enterKeyHint="send" autoComplete="off" readOnly={saving} value={draft.title} onChange={event => update({title:event.target.value,blocks:undefined})} onCompositionStart={() => {composing.current=true;}} onCompositionEnd={() => {composing.current=false;}} onKeyDown={event => {if(event.key==='Enter'&&(event.nativeEvent.isComposing||event.keyCode===229||composing.current))event.preventDefault();}} className="w-full min-w-0 min-h-11 px-1 text-base bg-transparent text-app-ink placeholder:text-app-muted focus:outline-none"/>
+            <div className="flex items-center gap-1.5"><input data-quick-title ref={input} aria-label="빠른 일정 제목" placeholder="할 일을 입력하세요" enterKeyHint="send" autoComplete="off" readOnly={saving} value={draft.title} onChange={event => update({title:event.target.value,blocks:undefined})} onCompositionStart={() => {composing.current=true;}} onCompositionEnd={() => {composing.current=false;}} onKeyDown={event => {if(event.key==='Enter'&&(event.nativeEvent.isComposing||event.keyCode===229||composing.current))event.preventDefault();}} className="w-full min-w-0 min-h-11 px-1 text-base bg-transparent text-app-ink placeholder:text-app-muted focus:outline-none"/>{props.onPhoto && <button type="button" data-photo-entry aria-label="사진으로 일정 넣기" disabled={saving} onClick={props.onPhoto} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-[1.5px] border-app-accent bg-app-soft text-[#7E4560]"><ImagePlus className="h-5 w-5" aria-hidden="true" /></button>}</div>
             {draft.blocks && <div className="max-h-24 overflow-y-auto overscroll-contain"><TitleBlockEditor compact editable hideWordInput blocks={draft.blocks} word="" onWordChange={()=>{}} onChange={blocks=>update({blocks,title:blocks.map(block=>block.text).join(' ')})}/></div>}
             <div className="flex flex-wrap items-center gap-1">
               <span className="inline-flex min-h-9 items-center gap-1 rounded-full bg-white px-2 text-xs text-app-accent"><Calendar className="h-4 w-4"/>{formatShortDate(date)}</span>
