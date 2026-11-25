@@ -160,7 +160,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       {blog && (
         <section className="card step" aria-labelledby="posts-title">
           <div className="row-between">
-            <h2 id="posts-title" className="step-title">가져온 글<span className="step-sub">{posts.length}개</span></h2>
+            <h2 id="posts-title" className="step-title">가져온 글<span className="step-sub">{posts.length}개{blog.blogs.reduce((n, b) => n + b.post_count, 0) > blog.posts.length ? ` · 최근 ${blog.posts.length}개만 보여요(보고서·합계는 전체 기준)` : ''}</span></h2>
             {blog.blogs.length > 1 && (
               <div className="style-tabs" role="tablist" aria-label="블로그">
                 <button role="tab" aria-selected={only === 'all'} onClick={() => setOnly('all')}>전체</button>

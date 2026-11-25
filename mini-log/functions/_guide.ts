@@ -30,9 +30,37 @@ export function readGuideAnswer(text: string): GuideResult | null {
   };
 }
 
-/** 밖에서 열 수 있는 https 주소만(내부·사설 주소, IP 직접 입력, 포트 지정은 거절) */
-export const isPublicHttps = (u: URL) => u.protocol === 'https:' && !u.port && !u.username && !u.password && u.hostname.includes('.')
-  && !/^(localhost|.*\.local|.*\.internal|\d+\.\d+\.\d+\.\d+|\[.*\])$/i.test(u.hostname);
+/** 밖에서 열 수 있는 https 주소만(내부·사설 주소, IP 직접 입력, 포트 지정은 거절).
+ *  끝에 점이 붙은 이름('localhost.')은 점을 떼고 검사한다. '127.1'·'0x7f.1' 같은 IP 표기는 URL이 '127.0.0.1'로 바꿔 줘서 IP로 걸린다. */
+export const isPublicHttps = (u: URL) => {
+  const host = u.hostname.replace(/\.+$/, '');
+  return u.protocol === 'https:' && !u.port && !u.username && !u.password && host.includes('.')
+    && !/^(localhost|.*\.localhost|.*\.local|.*\.internal|\d+\.\d+\.\d+\.\d+|\[.*\])$/i.test(host);
+};
+
+/** 응답 본문을 max바이트까지만 읽는다(아주 큰 페이지를 끝까지 받아 메모리를 다 쓰지 않게) */
+export async function readCapped(res: Response, max: number) {
+  const reader = res.body?.getReader();
+  if (!reader) return '';
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  while (size < max) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.byteLength;
+  }
+  await reader.cancel().catch(() => {});
+  const all = new Uint8Array(Math.min(size, max));
+  let offset = 0;
+  for (const chunk of chunks) {
+    const part = chunk.subarray(0, all.length - offset);
+    all.set(part, offset);
+    offset += part.byteLength;
+    if (offset >= all.length) break;
+  }
+  return new TextDecoder().decode(all);
+}
 
 /** 체험단 페이지 주소 → 본문 글(태그 지우고 2만 자까지). 막히면 null.
  *  다른 주소로 넘기면(리디렉트) 한 번씩 다시 검사해 3번까지만 따라간다(내부 주소로 돌려보내는 것 막기). */
@@ -50,7 +78,7 @@ export async function fetchGuidePage(url: string): Promise<string | null> {
       res = null;
     }
     if (!res || !res.ok || !(res.headers.get('content-type') ?? '').includes('html')) return null;
-    const html = (await res.text()).slice(0, 2_000_000);
+    const html = await readCapped(res, 2_000_000);
     const text = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>/gi, ' ')
       .replace(/<br\s*\/?>|<\/(p|div|li|h\d|tr)>/gi, '\n').replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")

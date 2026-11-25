@@ -85,9 +85,24 @@ export function readPatch(body: Record<string, unknown>): Patch | string {
   return patch;
 }
 
-export async function listDrafts(db: D1Database, user: UserName) {
-  const rows = await db.prepare(`SELECT ${COLUMNS} FROM minilog_drafts WHERE user = ? ORDER BY updated_at DESC LIMIT 200`).bind(user).all<Row>();
-  return rows.results.map(toDraft);
+export const DRAFT_PAGE = 200;
+
+/** 최근 수정순으로 200개씩. 첫 쪽에는 그보다 오래됐어도 게시 예정일이 있는(아직 게시 안 한) 원고를 더해 캘린더에서 빠지지 않게 한다.
+ *  before = 이전 쪽 마지막 원고의 '수정 시각_id'(같은 시각이 여러 개여도 빠지지 않게 id로 한 번 더 나눈다). more = 더 오래된 원고가 남았는지. */
+export async function listDrafts(db: D1Database, user: UserName, before: { at: number; id: string } | null = null) {
+  const rows = (before === null
+    ? await db.prepare(`SELECT ${COLUMNS} FROM minilog_drafts WHERE user = ? ORDER BY updated_at DESC, id DESC LIMIT ?`).bind(user, DRAFT_PAGE + 1).all<Row>()
+    : await db.prepare(`SELECT ${COLUMNS} FROM minilog_drafts WHERE user = ? AND (updated_at < ? OR (updated_at = ? AND id < ?)) ORDER BY updated_at DESC, id DESC LIMIT ?`)
+      .bind(user, before.at, before.at, before.id, DRAFT_PAGE + 1).all<Row>()).results;
+  const more = rows.length > DRAFT_PAGE;
+  const page = rows.slice(0, DRAFT_PAGE).map(toDraft);
+  const last = more ? page[page.length - 1] : null;
+  if (before === null && last) {
+    const planned = (await db.prepare(`SELECT ${COLUMNS} FROM minilog_drafts WHERE user = ? AND (updated_at < ? OR (updated_at = ? AND id < ?)) AND planned_on IS NOT NULL AND status != 'published' ORDER BY planned_on LIMIT ?`)
+      .bind(user, last.updated_at, last.updated_at, last.id, DRAFT_PAGE).all<Row>()).results.map(toDraft);
+    page.push(...planned);
+  }
+  return { drafts: page, more, next_before: last ? `${last.updated_at}_${last.id}` : null };
 }
 
 export async function getDraft(db: D1Database, user: UserName, id: string) {

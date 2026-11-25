@@ -47,6 +47,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
   shared?: Shared | null;
 }) {
   const [items, setItems] = useState<Campaign[] | null>(null);
+  const [moreHidden, setMoreHidden] = useState(false);
   const [importing, setImporting] = useState(false);
   const [filter, setFilter] = useState<Filter>('open');
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
@@ -61,7 +62,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
     setMessage({ kind: 'info', text: '공유한 공고를 관심으로 담을게요. \'정리하기\'를 누르면 공고 내용으로 칸을 채워요.' });
   }, [shared]);
   useEffect(() => {
-    api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setItems(d.campaigns))
+    api<{ campaigns: Campaign[]; more?: boolean }>('/api/campaigns').then(d => { setItems(d.campaigns); setMoreHidden(!!d.more); })
       .catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
   }, []);
 
@@ -308,6 +309,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
         {items && filter !== 'brand' && shown.length === 0 && (
           <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>{filter === 'open' ? '진행 중인 협찬이 없어요. 새 협찬을 적어 보세요.' : filter === 'wish' ? '관심 있는 체험단 공고를 새 협찬으로 담고 상태를 관심으로 두세요. 공고 주소와 신청 마감일을 적으면 달력에도 떠요.' : '기록이 없어요.'}</p></div>
         )}
+        {moreHidden && <p className="muted small" style={{ margin: 0 }}>협찬이 많아 끝난 것 중 오래된 일부는 목록과 CSV에서 빠졌어요(대시보드 합계·월간 보고는 전체 기준).</p>}
         {filter !== 'brand' && shown.length > 0 && (
           <ul className="campaigns">
             {shown.map(c => (
