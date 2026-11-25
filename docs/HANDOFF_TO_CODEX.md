@@ -1,6 +1,6 @@
 # Codex 인계 문서 — MINIHUB 1차 개발 (Claude)
 
-작성일: 2026-11-23 · 작업 브랜치: `claude/eager-gauss-nzn2jd` · PR: minho-nim/minihub #29~#31 (저장소 이름은 2026-11-23에 minially → minihub로 바뀜)
+작성일: 2026-11-23 · **마지막 갱신: 2026-11-25 23:50 KST**(PR #61 병합·운영 반영 확인 뒤) · 작업 브랜치: `claude/elegant-bohr-dlpqjt` · 처음 PR: minho-nim/minihub #29~#31 (저장소 이름은 2026-11-23에 minially → minihub로 바뀜)
 이 문서는 **실제로 구현·검증한 것**과 **계획만 세운 것**을 나눠 적었습니다. 검증 표시가 없는 항목은 검증하지 않은 것입니다.
 
 ## 0. 제품 개념(소유자가 정함, 2026-11-24)
@@ -85,16 +85,21 @@
 | mini-log 원고 글 종류 9가지(맛집·카페·제품 리뷰·여행·나들이·체험단·협찬·뷰티·패션·정보·일상): 고르면 경험 칸에 뼈대(비었거나 이전 뼈대일 때만), AI 초안에 종류별 구성 안내. `minilog_drafts.post_type`(비면 none), 백업 포함 | `mini-log/functions/_postTypes.ts`, `src/App.tsx` | 시험 |
 | mini-log 썸네일 만들기(올리기 칸): 원고 사진 위에 글자를 얹어 1:1·4:3 JPG(1080 폭)로. 시작 틀 2개(아래 띠·가운데 큰 글씨) + 자유 편집(글자 여러 개, 끌어 옮기기, 크기·색·바탕·손글씨 글꼴, 사진 어둡게). 브라우저에서만 그림(서버 저장·AI 없음) | `mini-log/src/Thumbnail.tsx` | 시험(틀·글자·끌기·비율·JPG 크기) |
 | mini-log 블로그 구조(왼쪽 메뉴 '구조'): 카테고리 나무 2단(목록 붙여 넣기·이름 바꾸기·순서·지우기), 글 배치(PC 끌어다 놓기·휴대폰 골라서 옮기기, 태그가 카테고리 이름과 같으면 자동 배치), 카테고리별 글 비율·월별 게시·평균 조회수·잠잠함(90일)·쏠림(40%) 표시, 주제 묶음(대표+세부)과 빠진 내부 링크 점검(미니로그 원고 본문 기준)·링크 문구 복사. 원고 편집에 '블로그 카테고리' 고르기, 글감 추천이 잠잠한 카테고리를 꼭 넣음, 백업에 구조·수익 목표 포함(다른 계정 백업은 새 아이디로, 같은 이름이면 다시 안 만듦) | `mini-log/functions/_structure.ts`, `api/structure/*`, `src/Structure.tsx`, `src/CategoryPick.tsx`, 표 `minilog_categories`·`minilog_placements`·`minilog_bundles` | 시험 |
+| mini-log 체험단 찾기(협찬 > 관심·신청: 네이버 검색·체험단 사이트를 새 창으로, 미니로그는 공고 사이트를 긁지 않음)·휴대폰 공유로 담기(manifest `share_target`, 공유한 공고 → '관심' 협찬)·가이드로 채우기가 신청 기한·공고 주소 채움 (PR #60) | `src/Campaigns.tsx`, `src/campaignFinder.ts`, `vite.config.ts`(PWA manifest `share_target`) | 시험. 운영 manifest의 공유 대상 등록 확인. **실제 안드로이드 공유는 미확인**(이미 설치했다면 지웠다가 다시 설치해야 공유 목록에 뜰 수 있음) |
+| 미니어리 0.1.16: 휴대폰에서 달력을 위아래로 끌어도 출렁이지 않음(달력 영역 `touch-action: pinch-zoom`, `html { overscroll-behavior: none }`). 옆으로 밀어 달 넘기기·주간 하루 목록 스크롤은 그대로 (PR #61) | `minially/src/components/common/SwipePager.tsx`(`touchAction` 속성), `views/CalendarView.tsx`, `src/index.css`, `tests/calendar-touch-lock.spec.ts` | 시험 237·동기화 14·단위 32·데스크톱 20 통과, Windows 앱 0.1.16 빌드·운영 배포 성공, 운영 version.json 0.1.16 확인(23:34). 실제 휴대폰 손 확인은 소유자 몫 |
+| hub 통계 토큰 같은 시간 비교 `secretEquals`(해시끼리 끝까지 비교) (PR #61) | `shared/server/auth.ts`, `hub/functions/api/stats.ts` | 단위 시험 + hub 통계 API 시험 |
+| 표 확인 줄이기: 표 정의 지문 `SCHEMA_VERSION`(FNV-1a, CREATE 문·추가 칸 목록에서 자동 계산)을 `hub_schema_meta`에 저장, 같으면 읽기 1번으로 끝 (PR #61) | `shared/server/schema.ts` | node:sqlite 시험(지문 같으면 쿼리 1번, 다르면 다시 만들고 지문 고침) |
+| mini-log AI 초안 되돌리기: AI 초안을 넣은 뒤 '되돌리기'로 직전 제목·본문·해시태그를 다시 불러와 저장(화면을 떠나기 전까지 한 번, AI 초안을 고친 뒤면 한 번 더 물음) | `mini-log/src/App.tsx` Editor `undoAi` | 시험(되돌리기·재확인·새로고침 뒤 유지·동시 수정 보호에 안 걸림). **브랜치에만 있음, PR은 소유자 승인 뒤** |
 
 ## 3. 미완료(계획만)
-- Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. minihub.pages.dev·mini-log.pages.dev 주소를 쓸 수 있는지도 확인하지 못했습니다.
+- Cloudflare 프로젝트 minihub(Root `hub`)·mini-log(Root `mini-log`) 생성됨(2026-11-23). 앱 폴더 이름은 프로젝트 이름에 맞춰 minilog → mini-log로 바꿈. 앱 안의 이름(세션 app 'minilog', D1 표 minilog_*, R2 minilog-photos)은 데이터 호환 때문에 그대로. 두 주소 모두 운영 중(2026-11-25 확인).
 - **실제 Gemini 호출 검증 안 됨.** 가짜 서버로만 시험했습니다. 기본 모델 `gemini-2.5-flash`가 지금도 있는지 확인이 필요합니다(`GEMINI_MODEL`로 바꿀 수 있음).
 - 미니로그 1단계는 모두 1차 구현. 참고 블로그는 붙여 넣기만(네이버 자동 수집 안 함). 참고 문체 원문(남의 글)은 사용자 계정에만 저장되며, 저작권 안내 문구를 화면에 표시
 - 통합 대시보드는 로그인한 C·D 누구나 두 사람의 **숫자**를 봅니다(원고·사진·문체 글은 안 보임). 사용자가 늘면 권한을 나눠야 합니다.
 - 사진 30일 정리는 원고 목록을 열 때만 돕니다(정해진 시각 작업 없음). 오래 접속하지 않으면 늦게 지워집니다.
 - HEIC(아이폰 기본 형식) 사진은 브라우저가 못 열면 올릴 수 없습니다(안내 문구만 있음).
-- 미니로그 개인 대시보드(호출량·원고 현황·사진 용량·수익)
-- 미니로그 2·3단계 전체
+- 백로그(소유자가 고르면 진행): 수요 예측(내 글 데이터로 먼저, 네이버 데이터랩 무료 키가 있으면 보강), 제안할 업체 찾기(직접 입력 또는 후보 추천), 크롬 확장(네이버 글쓰기 화면에 원고 넣기), AI 채팅(토몽이에게 묻기·질문 버튼), '더 내 스타일로'(고친 원고로 문체 다시 익히기), 내 글 검색 순위·키워드 검색량(네이버 API 키 필요), 미니어리 진짜 기간 일정(끝나는 날, 동기화 구조 변경 필요)
+- 벤치마크 제안(zerocal·Trace·narani): `docs/BENCHMARK_CALENDAR_AI.md`. 구현은 승인 뒤
 - **미니어리 Gemini 연결 안 함.** 미니어리는 아직 AI 기능이 없고, `callGemini`가 `app: 'minially'`를 받을 수 있게만 해 둠
 - 추정 비용은 만들지 않기로 함(소유자 결정, 사용량·토큰·오류만 표시)
 - 미니어리 로그인과 미니허브 세션은 따로입니다(같은 코드지만 미니어리는 기존 방식 그대로, 각 사이트에서 따로 로그인). `*.pages.dev`끼리는 쿠키를 나눌 수 없어서입니다. 하나로 묶으려면 개인 도메인이 필요합니다.
@@ -128,14 +133,31 @@
 
 D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`sync_shares`·`sync_attempts`(미니어리), 신규 `hub_sessions`·`hub_attempts`·`ai_usage`·`minilog_drafts`·`minilog_photos`·`minilog_styles`·`minilog_campaigns`·`minilog_blogs`·`minilog_posts`·`minilog_watch`·`minilog_ideas`(`shared/server/schema.ts`, `CREATE TABLE IF NOT EXISTS`만).
 
-## 7. 실제 배포 상태 (2026-11-23)
+## 7. 실제 배포 상태 (2026-11-25 23:50 KST, 운영 version.json을 직접 읽어 확인)
+- 세 사이트 모두 main `53a8a45`(PR #61): minially.pages.dev 0.1.16(23:34 빌드), minihub.pages.dev·mini-log.pages.dev(23:23 빌드). Windows 앱 0.1.16 `desktop-release.yml`·`deploy-release.yml` 성공.
+- 보안 헤더 확인: 세 사이트 첫 화면(로그인 화면) 응답에 CSP 있음, 390·1400px에서 콘솔 오류 0·가로 넘침 0. 로그인 뒤 화면은 운영에서 직접 보지 못함(로그인 코드 필요), 시험 환경(wrangler pages dev, `_headers` 적용)에서는 hub 15·mini-log 67 통과.
+- 아래는 예전 기록(2026-11-23):
 - minially.pages.dev: Windows 앱 0.1.9와 함께 운영 배포 완료(`3de87db`). 전용 배포판 `minially-latest` 생성 확인.
 - minihub.pages.dev·mini-log.pages.dev: 운영 배포 완료(`0e09807`), DB·로그인 코드 설정 적용 확인(틀린 코드 거절). 실제 로그인·Gemini 호출은 소유자 확인 필요.
 - **주의:** 운영 DB에 표가 이미 생겼으므로, 기존 표에 칸을 더할 때는 `ALTER TABLE`이 필요합니다(새 표는 CREATE로 충분).
 - minially.pages.dev: Cloudflare Root directory `minially`.
-- minihub.pages.dev, mini-log.pages.dev: 프로젝트 없음(배포 안 됨)
 
-## 8. 시험 실행 결과 (이 세션에서 실제로 돌림)
+## 8. 시험 실행 결과
+**2026-11-25 (실제로 돌림, CSP 포함 main 기준 + PR #61 변경)**
+
+| 명령 | 결과 |
+|---|---|
+| `minially`: lint·build | 성공 |
+| `minially`: `npm test` 전체 | 237 passed (9.9m) |
+| `minially`: `npm run test:sync` | 14 passed |
+| `minially`: 단위 `tests/*.unit.mjs` | 32 pass |
+| `minially`: `desktop:prepare` + `test:desktop:unit` | 20 pass |
+| `hub`: lint·build·`npm test` | 15 passed |
+| `mini-log`: lint·build·`npm test` | 66 passed(PR #61) → 67 passed(AI 초안 되돌리기 포함) |
+| GitHub CI(PR #61) | hub·mini-log 검사, ui-check, Cloudflare 미리보기 2곳 모두 통과. main의 `hub-minilog-check.yml`도 통과 |
+
+**예전 기록(2026-11-23)**
+
 | 명령 | 결과 |
 |---|---|
 | `minially`: `npm run lint` | 오류 없음 |
@@ -149,9 +171,8 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 | `mini-log`: `npm run lint`, `npm run build` | 성공 |
 | `mini-log`: `npm test` | 48 passed(가이드 정리·원고 점검·Gemini 붐빔 다시 부르기 포함), 제안 화면 개편 뒤 제안 시험 4 passed (데이터 백업, 동시 수정·광고 수익 가져오기, 인스타 DM·인스타 글, 제안서·메일, 이름·테마, 월간 보고, 주소·뒤로 가기, 바로 닫기 저장, 올리기 보조, 사진·순서·게시·30일 정리·내 문체·참고 문체·대시보드·협찬·캘린더·칸 추가·블로그·글감 포함) |
 | Windows 설치 파일·패키지 실행 시험 | **안 돌림**(Windows 실행기 필요) |
-| `hub-minilog-check.yml` 워크플로 | **GitHub에서 아직 안 돌려 봄** |
 
-로컬 시험 브라우저는 `PLAYWRIGHT_CHANNEL` 기본값 `chrome`, CI는 `chromium`. `@playwright/test`는 미니어리와 같은 1.64.1로 고정했습니다(실행 환경의 브라우저 버전과 맞추려고).
+로컬 시험 브라우저는 `PLAYWRIGHT_CHANNEL` 기본값 `chrome`, CI는 `chromium`. 클라우드 세션은 개인 환경 'minihub'(세션 시작 때 세 앱 `npm ci`, 미리 깔린 Chromium을 Playwright가 찾는 폴더 이름으로 연결, `PLAYWRIGHT_CHANNEL=chromium`)를 쓰면 바로 시험할 수 있습니다. 이 환경은 운영 세 주소와 벤치마크 세 곳만 추가로 열어 두었습니다. `@playwright/test`는 미니어리와 같은 1.64.1로 고정했습니다(실행 환경의 브라우저 버전과 맞추려고).
 
 ## 9. 알려진 오류·보안 위험
 - 보안 규칙은 저장소 루트 `CLAUDE.md`·`AGENTS.md`의 'MINIHUB 보안 규칙'에 있습니다.
@@ -160,21 +181,22 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 - `.env.example`(minially)은 지금 구조에 맞게 고쳤습니다(브라우저 쪽 비밀값 없음). `@google/genai`도 미니어리에서 안 쓰는데 의존성에 남아 있습니다. 브라우저 번들에 들어가는지 확인 후 정리 권장.
 - 세션 쿠키는 SameSite=Lax이고, 상태를 바꾸는 요청(POST·PUT·DELETE)은 `Origin`이 같은 사이트일 때만 받습니다(`sameOrigin`). Origin이 없는 요청은 통과시키므로(서버 간 호출) 세션 쿠키 검사가 마지막 방어선입니다.
 - 로그인 시도 제한은 IP 기준이라 IP를 바꾸며 시도하면 막지 못합니다(코드가 80비트라 실질 위험은 낮음).
-- `STATS_API_TOKEN` 비교는 해시끼리 문자열 비교입니다(타이밍 차이는 거의 없지만 상수 시간 비교는 아님).
-- 자동 저장은 마지막에 저장한 것이 이깁니다. 같은 원고를 두 기기에서 동시에 고치면 한쪽 수정이 사라질 수 있습니다(버전 검사 없음).
 - 원고 목록은 최근 200개까지만 불러옵니다(캘린더도 이 목록을 씀).
 - 글감 검색 모드(구글 검색 연결)는 Gemini 무료 등급 하루 한도가 따로 있고 사용량이 더 듭니다. 버튼을 켰을 때만 씁니다.
 - 운영 DB에 `minilog_trends` 표가 남아 있을 수 있습니다(글감 첫 배포 때 생김, 지금은 안 씀). 지워도 됩니다.
 - 네이버는 블로그 글쓰기 API를 종료했고(개발자센터 공지), 조회수·공감·애드포스트 수익 API도 없음. 자동 게시·자동 통계는 하지 않음(약관). 검색·데이터랩 API는 NAVER API HUB(네이버 클라우드)로 이관 중이라 무료 여부 확인 전에는 쓰지 않음.
-- 표 만들기 확인(`ensureHubSchema`)은 DB 바인딩 객체마다 한 번(WeakSet). 요청마다 바인딩 객체가 새로 오면 매 요청 CREATE IF NOT EXISTS·PRAGMA를 돌게 되니, D1 읽기 사용량이 늘면 확인할 것.
+- 표 확인은 지문(`hub_schema_meta`)이 같으면 읽기 1번. hub와 mini-log를 서로 다른 커밋으로 배포하면 두 앱이 지문을 번갈아 고쳐 그동안은 예전처럼 표 확인을 다시 돕니다(같은 main에서 배포하면 문제없음).
 - `minilog_drafts`·`minilog_photos` 표는 아직 운영 DB에 없어서 CREATE 문에 칸을 바로 넣었습니다. 운영에 한 번 생긴 뒤 칸을 늘리려면 `ALTER TABLE`이 필요합니다(`schema.ts` 주석).
-- AI 초안은 지금 본문을 덮어씁니다(확인 창이 있음, 되돌리기는 없음).
+- AI 초안 되돌리기는 이 화면 안에서만(새로고침·다른 원고로 가면 사라짐). 서버에 이전 판을 남기지는 않음.
+- 키 보관: Gemini 키는 Cloudflare 비밀값(`GEMINI_KEY_C/D`)에만 있습니다. 서버 D1에 AES-GCM 등으로 암호화해 저장하는 구조는 **없습니다**(이전 인계 메모의 'AES-GCM'은 실제 코드와 다름).
 
-## 10. 다음 개발 우선순위(권장)
-1. 소유자 설정 후 실제 배포 확인 + 실제 Gemini 1회 호출 확인(모델 이름)
-2. 실제 Gemini로 사진 분석 품질 확인(사진 8장 기준 토큰·속도)
-3. 미니로그 남은 것(소유자가 정한 순서): AI 채팅(mini-log, 토몽이에게 묻기, 질문 버튼) → 애드센스 연결(준비만). 그 밖에 원고 수정 이력 기반 문체 개선 
-4. 원고 동시 수정 버전 검사
+## 10. 다음 개발 우선순위(권장, 2026-11-25)
+1. AI 초안 되돌리기 PR 열기·병합(브랜치에 있음, 소유자 승인 뒤)
+2. 실제 Gemini 1회 호출 확인(모델 이름 `gemini-2.5-flash`, C 계정 오류 원인은 Cloudflare 로그). 개발·시험은 가짜 Gemini만
+3. 벤치마크 제안 중 소유자가 고른 것(`docs/BENCHMARK_CALENDAR_AI.md`)
+4. 백로그(3장) 중 소유자가 고른 것
+5. 원고 목록 200개 제한, 사진 30일 정리를 정해진 시각 작업으로, 미니어리 `@google/genai` 정리
+- 끝난 것: 원고 동시 수정 보호(409 + 사본), AI 초안 되돌리기(브랜치). **AI 채팅(토몽이에게 묻기)은 아직 없음**(`Tomong.tsx`는 캐릭터 그림만)
 
 ## 11. Codex가 바꾸면 안 되는 것(호환 조건)
 - `minially/desktop/policy.cjs`의 `API_ORIGIN = 'https://minially.pages.dev'`, `minially/electron-builder.yml`·`minially/desktop/policy.cjs`의 업데이트 주소 `github.com/minho-nim/minihub/releases/download/minially-latest/`(미니어리 전용 고정 배포판, desktop-release.yml이 배포 때마다 갱신. 0.1.9부터. 0.1.8 이하 설치본은 예전 주소를 보며 GitHub 이름 변경 연결에 기대므로 끊기면 새로 설치): 이미 깔린 Windows 앱이 이 주소로 동기화·업데이트합니다.
