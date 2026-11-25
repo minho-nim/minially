@@ -14,6 +14,7 @@ import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
 import { fullText, instagramText, photoFileName } from './publishKit';
 import { emptyOutline, PhotoNotes } from './PhotoNotes';
+import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
@@ -123,7 +124,10 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [listError, setListError] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(() => readRoute().draftId);
-  const [view, setView] = useState<View>(() => readRoute().view);
+  // 휴대폰 공유로 열렸으면(/?url=…) 협찬 화면에서 '관심'으로 담는다. 주소의 ?…는 한 번 읽고 지운다.
+  const [shared] = useState(() => readShare(window.location.search));
+  const [view, setView] = useState<View>(() => (shared ? 'campaigns' : readRoute().view));
+  useEffect(() => { if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash); }, []);
   // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
   const firstRoute = useRef(true);
   useEffect(() => {
@@ -223,7 +227,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
-        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
+        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (

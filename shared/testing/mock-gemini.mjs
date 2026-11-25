@@ -46,7 +46,7 @@ createServer((req, res) => {
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
     if (prompt.includes('블로그 체험단 가이드를 정리하는')) {
       const brand = images ? '캡처카페' : (prompt.match(/업체명:\s*(\S+)/)?.[1] ?? '가이드카페');
-      return ok({ brand, title: `${brand} 겨울 신메뉴 체험단`, provided: '2인 식사권(5만 원 상당)', amount: 30000, deadline: '2026-12-10', visit_on: '2026-12-01', keywords: ['성수 카페', '소금빵', '성수 카페'], hashtags: ['#성수카페', '체험단'], min_photos: 15, min_chars: 1500, links: ['https://map.naver.com/p/entry/place/1', 'http://not-https.example'], notes: '공정위 문구 필수' });
+      return ok({ brand, title: `${brand} 겨울 신메뉴 체험단`, provided: '2인 식사권(5만 원 상당)', amount: 30000, deadline: '2026-12-10', apply_by: '2026-11-28', visit_on: '2026-12-01', keywords: ['성수 카페', '소금빵', '성수 카페'], hashtags: ['#성수카페', '체험단'], min_photos: 15, min_chars: 1500, links: ['https://map.naver.com/p/entry/place/1', 'http://not-https.example'], notes: '공정위 문구 필수' });
     }
     if (prompt.includes('협찬 제안서(미디어킷) 문구')) {
       // 자료에 있는 숫자·업체만 쓰는지 시험에서 확인할 수 있게 자료 일부를 그대로 돌려준다
