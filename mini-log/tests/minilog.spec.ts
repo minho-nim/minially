@@ -48,6 +48,35 @@ test('원고를 만들고 AI 초안·자동 저장·승인·삭제를 한다', a
   await expect(page.getByText('아직 원고가 없어요')).toBeVisible();
 });
 
+test('AI 초안으로 바꾼 뒤 되돌리기로 이전 제목·본문·해시태그를 다시 불러오고 저장한다', async ({ page }) => {
+  await login(page, CODE_C);
+  await page.getByRole('button', { name: '새 원고' }).click();
+  await page.getByLabel('제목').fill('내가 먼저 쓴 제목');
+  await page.getByLabel('본문').fill('내가 먼저 쓴 본문');
+  await page.getByLabel('해시태그').fill('#내태그');
+  await page.getByLabel(/직접 겪은 내용/).fill('토요일 오후에 동네 빵집에 다녀왔어요. 소금빵이 맛있었어요.');
+  await expect(page.getByText('저장됨')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'AI 초안 되돌리기' })).toHaveCount(0);
+  const asked: string[] = [];
+  page.on('dialog', d => { asked.push(d.message()); void d.accept(); });
+  await page.getByRole('button', { name: 'AI로 초안 만들기' }).click();
+  await expect(page.getByLabel('제목')).toHaveValue('가짜 Gemini가 쓴 제목');
+  expect(asked[0]).toContain('되돌리기');
+  // AI 초안을 고친 뒤 되돌리면 한 번 더 묻는다
+  await page.getByLabel('본문').fill('AI 초안을 조금 고침');
+  await page.getByRole('button', { name: 'AI 초안 되돌리기' }).click();
+  expect(asked[1]).toContain('고친 내용도 함께 사라져요');
+  await expect(page.getByLabel('제목')).toHaveValue('내가 먼저 쓴 제목');
+  await expect(page.getByLabel('본문')).toHaveValue('내가 먼저 쓴 본문');
+  await expect(page.getByLabel('해시태그')).toHaveValue('#내태그');
+  await expect(page.getByRole('button', { name: 'AI 초안 되돌리기' })).toHaveCount(0);
+  await expect(page.getByText('저장됨')).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: /내가 먼저 쓴 제목/ }).first().click();
+  await expect(page.getByLabel('본문')).toHaveValue('내가 먼저 쓴 본문');
+  await expect(page.getByRole('alert')).toHaveCount(0); // 되돌린 저장이 '다른 기기 수정'으로 잘못 막히지 않음
+});
+
 test('Gemini 호출 제한·한도 초과를 알기 쉽게 알린다', async ({ page }) => {
   await login(page, CODE_C);
   await page.getByRole('button', { name: '새 원고' }).click();
