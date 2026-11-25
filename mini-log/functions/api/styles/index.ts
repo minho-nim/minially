@@ -1,12 +1,13 @@
 import { json, readJson, type HubContext } from '../../../../shared/server/d1';
 import { requireSession } from '../../../../shared/server/auth';
-import { cleanText, createReference, listStyles, STYLE_LIMITS } from '../../_style';
+import { cleanText, createReference, editedPairs, listStyles, STYLE_LIMITS } from '../../_style';
 
 // GET: 내 문체 + 참고 문체 목록 · POST: 참고 문체 추가 { name, source }
 export const onRequestGet = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');
   if (auth instanceof Response) return auth;
-  return json({ styles: await listStyles(auth.db, auth.session.user) });
+  // refine_ready: '더 내 스타일로'에 쓸 수 있는 고친 원고 수(최대 5)
+  return json({ styles: await listStyles(auth.db, auth.session.user), refine_ready: (await editedPairs(auth.db, auth.session.user)).length });
 };
 
 export const onRequestPost = async (ctx: HubContext) => {

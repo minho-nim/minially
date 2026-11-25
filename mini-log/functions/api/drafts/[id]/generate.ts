@@ -1,7 +1,7 @@
 import { json, readJson, type HubContext } from '../../../../../shared/server/d1';
 import { requireSession } from '../../../../../shared/server/auth';
 import { AiError, callGemini } from '../../../../../shared/server/ai';
-import { cleanHashtags, getDraft, LIMITS, updateDraft } from '../../../_drafts';
+import { cleanHashtags, getDraft, LIMITS, saveAiBody, updateDraft } from '../../../_drafts';
 import { listPhotos, photoNotesBlock, PHOTO_LIMITS, toBase64 } from '../../../_photos';
 import { styleBlock, styleForDraft } from '../../../_style';
 import { isPostType, POST_TYPES } from '../../../_postTypes';
@@ -69,5 +69,6 @@ export const onRequestPost = async (ctx: HubContext) => {
     hashtags: cleanHashtags(parsed.hashtags) ?? [],
   });
   if (typeof updated === 'string' || !updated) return json({ error: '원고를 저장하지 못했어요.' }, 500);
+  await saveAiBody(auth.db, auth.session.user, id, updated.body);
   return json({ draft: updated, photos_used: images.length });
 };
