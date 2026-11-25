@@ -27,7 +27,7 @@ export function RepeatPicker({ value, onChange, date, idPrefix }: { value: Repea
     </select>
     {value.frequency === 'weekly' && <div role="group" aria-label="반복 요일" className="flex gap-1">
       {WEEKDAY_NAMES.map((name, i) => <button key={name} type="button" aria-pressed={value.weekdays.includes(i)} aria-label={name + '요일'} onClick={() => toggleDay(i)}
-        className={'flex-1 min-h-9 rounded-lg text-xs border ' + (value.weekdays.includes(i) ? 'bg-app-accent text-white border-app-accent font-semibold' : 'bg-white border-app-line text-app-muted')}>{name}</button>)}
+        className={'flex-1 min-h-9 rounded-lg text-xs border ' + (value.weekdays.includes(i) ? 'bg-app-accent-ink text-white border-app-accent font-semibold' : 'bg-white border-app-line text-app-muted')}>{name}</button>)}
     </div>}
     {hasMissingDays(value, date) && <label className="flex flex-wrap items-center gap-1 text-xs text-app-muted">
       {value.frequency === 'yearly' ? '2월 29일이 없는 해는' : `${day}일이 없는 달은`}
@@ -40,7 +40,7 @@ export function RepeatPicker({ value, onChange, date, idPrefix }: { value: Repea
         <span className="text-xs font-semibold shrink-0">끝</span>
         <div role="radiogroup" aria-label="반복 끝" className="flex flex-1 gap-1">
           {END_MODES.map(([mode, label]) => <button key={mode} type="button" role="radio" aria-checked={endMode === mode} onClick={() => chooseEnd(mode)}
-            className={'flex-1 min-h-9 rounded-lg text-xs border ' + (endMode === mode ? 'bg-app-accent text-white border-app-accent font-semibold' : 'bg-white border-app-line text-app-muted')}>{label}</button>)}
+            className={'flex-1 min-h-9 rounded-lg text-xs border ' + (endMode === mode ? 'bg-app-accent-ink text-white border-app-accent font-semibold' : 'bg-white border-app-line text-app-muted')}>{label}</button>)}
         </div>
       </div>
       {endMode === 'date' && <DatePicker label="반복 종료일" value={value.endDate} onChange={endDate => set({ endDate })} />}

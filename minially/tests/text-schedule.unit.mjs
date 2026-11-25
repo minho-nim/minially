@@ -23,8 +23,18 @@ test('한 줄에 날짜가 여럿이면 시간·제목을 서로 빌려 오지 �
  assert.deepEqual(pick(parseScheduleText('1월 5일 오전 10시~11시 면접, 1월 12일 2차 면접',T)),[['면접','2027-01-05','10:00','11:00',false],['2차 면접','2027-01-12',null,null,false]]);
  assert.equal(parseScheduleText('8월 1일 행사',T)[0].uncertain,true); // 내년으로 넘긴 먼 날은 확인 필요
 });
+test('업무 메일: 두 자리 연도(\'26.11.30)를 읽고, 이름표만 있는 날짜 줄 대신 계약건명을 제목으로',()=>{
+ const msg="안녕하십니까 OOO 매니저입니다.\n\n계약건명 : 26년 ATDT센터 케이블공사(투자) 단가계약\n\n위 계약관련 작업절차서 송부드립니다.\n\n작업일자 : '26.11.30 (주간)\n\n첨부파일 참고부탁드립니다.";
+ assert.deepEqual(pick(parseScheduleText(msg,T)),[['26년 ATDT센터 케이블공사(투자) 단가계약','2026-11-30',null,null,false]]);
+ assert.deepEqual(pick(parseScheduleText('26-12-04 오후 2시 회의',T)),[['회의','2026-12-04','14:00',null,false]]);
+});
+test('업무 메일: 인사말·안내 말투는 제목에서 빼고, 11.26(목)~11.27(금)은 일정 하나(끝 날짜는 메모)',()=>{
+ const msg="안녕하십니까 OOO 매니저입니다.\n\n계약건명 : 26년 ATDT센터 케이블공사(투자) 단가계약\n작업 예정일 : '26.11.30(월) (주간)\n\n상기 일정으로 작업을 진행할 예정이며, 작업 절차서와 견적서는 작성 후 송부드리겠습니다.\n[판교 과금DR 자동화 서버 NW 케이블 Sheet 스위치 정보 확인 요청]\n  1. 표시된 상면들은 빈 상면입니다. (11.09 실사 기준)\n\n현장 실사는 11.26(목)~11.27(금) 중 진행 가능하오니 참고 부탁드립니다.";
+ const rows=parseScheduleText(msg,T);
+ assert.deepEqual(rows.map(e=>[e.title,e.date,e.memo,e.uncertain]),[['26년 ATDT센터 케이블공사(투자) 단가계약','2026-11-30','',false],['현장 실사','2026-11-26','~ 11/27까지',false]]);
+});
 test('날짜가 아닌 글은 일정으로 만들지 않는다',()=>{
- for(const t of ['오늘도 감사합니다','평점 3.5 받았어요','버전 1.2 나왔어요','','   ','13월 40일 회의','2월 30일 회의']) assert.deepEqual(parseScheduleText(t,T),[],t);
+ for(const t of ['오늘도 감사합니다','평점 3.5 받았어요','버전 1.2 나왔어요','10.5.2 패치 배포','버전 1.2.3 배포','','   ','13월 40일 회의','2월 30일 회의']) assert.deepEqual(parseScheduleText(t,T),[],t);
 });
 test('후보는 10개까지, 글은 4000자까지만 읽는다',()=>{
  assert.equal(parseScheduleText(Array.from({length:15},(_,i)=>`12월 ${i+1}일 오후 2시 수업`).join('\n'),T).length,10);

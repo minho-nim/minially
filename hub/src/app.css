@@ -34,7 +34,8 @@
 .kpi .value { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; line-height: 1.15; }
 .kpi .value.off { color: var(--danger); }
 .kpi .hint { font-size: 0.8rem; color: var(--muted); }
-.kpi.sig { background: var(--sig); border-color: var(--sig); }
+/* 흰 글자를 얹으므로 서명 색을 조금 어둡게(작은 글자도 4.5:1 넘게: 밝은 화면 5.1, 어두운 화면 4.9) */
+.kpi.sig { --sig-ink: color-mix(in srgb, var(--sig) 82%, #000); background: var(--sig-ink); border-color: var(--sig-ink); }
 .kpi.sig .label, .kpi.sig .hint, .kpi.sig .value { color: #fff; }
 
 .apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: var(--gap); }
@@ -189,3 +190,6 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .gcol-bars { display: flex; align-items: flex-end; justify-content: center; gap: 2px; height: 100%; }
 .gcol-bar { width: min(45%, 12px); border-radius: 4px 4px 1px 1px; }
 .gcol-label { font-size: 0.68rem; color: var(--muted); text-align: center; white-space: nowrap; }
+
+/* 손가락으로 쓰는 화면: 상단 탭·토글을 44px 이상으로(마우스 화면은 지금 크기 그대로) */
+@media (pointer: coarse) { .nav a, .scope button, .seg button { min-height: 44px; } }

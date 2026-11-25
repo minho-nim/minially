@@ -27,7 +27,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 select-none shrink-0">
           <img src={`${import.meta.env.BASE_URL}icon.svg`} alt="" aria-hidden="true" className="w-6 h-6 rounded-lg shadow-2xs" />
           <span className="text-base font-bold tracking-tight text-app-ink">
-            미니<span className="text-app-accent">어리</span>
+            미니<span className="text-app-accent-ink">어리</span>
           </span>
         </div>
 
@@ -42,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-app-muted hover:text-app-ink'
             }`}
           >
-            <Calendar className="w-3.5 h-3.5 text-app-accent" />
+            <Calendar className="w-3.5 h-3.5 text-app-accent-ink" />
             <span>캘린더</span>
           </button>
           <button
@@ -54,10 +54,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-app-muted hover:text-app-ink'
             }`}
           >
-            <CheckSquare className="w-3.5 h-3.5 text-app-accent" />
+            <CheckSquare className="w-3.5 h-3.5 text-app-accent-ink" />
             <span>할 일</span>
           </button>
-          <button type="button" onClick={() => onTabChange('notes')} className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'notes' ? 'bg-white text-app-ink shadow-2xs' : 'text-app-muted hover:text-app-ink'}`}><FileText className="w-3.5 h-3.5 text-app-accent"/><span>메모</span></button>
+          <button type="button" onClick={() => onTabChange('notes')} className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'notes' ? 'bg-white text-app-ink shadow-2xs' : 'text-app-muted hover:text-app-ink'}`}><FileText className="w-3.5 h-3.5 text-app-accent-ink"/><span>메모</span></button>
         </div>
 
         {/* Action icons: Search, PWA, Settings */}
@@ -66,7 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSearchModal}
-            className="w-9 h-9 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
+            className="w-11 h-11 md:w-9 md:h-9 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
             title="일정 검색"
             aria-label="일정 검색"
           >
@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={promptInstall}
-              className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-app-accent bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-app-accent-ink bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="앱 설치"
             >
               <Download className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             type="button"
             onClick={onOpenSettingsModal}
-            className="w-9 h-9 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
+            className="w-11 h-11 md:w-9 md:h-9 flex items-center justify-center text-app-muted hover:text-app-ink hover:bg-app-soft rounded-xl transition-colors cursor-pointer"
             title="설정 및 프리셋"
             aria-label="설정 및 프리셋"
           >

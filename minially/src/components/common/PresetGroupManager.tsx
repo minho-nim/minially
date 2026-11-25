@@ -3,7 +3,7 @@ import { GripVertical } from 'lucide-react';
 import { Preset, PresetGroup } from '../../types';
 import { savePresetGroup, deletePresetGroup, restorePresetGroup, reorderPresetGroups } from '../../db/indexedDB';
 import { useDragOrder } from '../../hooks/useDragOrder';
-const button='min-h-9 px-3 text-xs rounded-lg border border-app-outline text-app-accent bg-app-canvas disabled:opacity-40';
+const button='min-h-9 px-3 text-xs rounded-lg border border-app-outline text-app-accent-ink bg-app-canvas disabled:opacity-40';
 export function PresetGroupManager({groups,presets,onSelect,onCreated,onDirtyChange,onBusyChange}:{groups:PresetGroup[];presets:Preset[];onSelect:(id:string)=>void;onCreated?:()=>void;onDirtyChange?:(v:boolean)=>void;onBusyChange?:(v:boolean)=>void}) {
  const [editing,setEditing]=useState<string|null>(null),[name,setName]=useState(''),[deleting,setDeleting]=useState<string|null>(null),[remove,setRemove]=useState(false),[error,setError]=useState(''),[busy,setBusy]=useState(false);
  const [undo,setUndo]=useState<Awaited<ReturnType<typeof deletePresetGroup>>|null>(null); const pending=useRef(false);

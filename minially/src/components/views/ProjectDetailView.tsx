@@ -47,7 +47,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             onClick={() => onEditProject(project)}
             className="px-2.5 py-1 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-600 text-xs font-semibold flex items-center gap-1 transition"
           >
-            <Edit2 className="w-3.5 h-3.5 text-app-accent" /> 프로젝트 수정
+            <Edit2 className="w-3.5 h-3.5 text-app-accent-ink" /> 프로젝트 수정
           </button>
         </div>
 
@@ -59,7 +59,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
             )}
             <div className="flex items-center gap-3 text-xs text-stone-400 mt-2 font-mono">
               <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 기간: {project.startDate} ~ {project.dueDate}
+                <Calendar className="w-3.5 h-3.5 text-app-accent-ink" /> 기간: {project.startDate} ~ {project.dueDate}
               </span>
               <span>·</span>
               <span>{doneTasksCount}/{projectTasks.length} 작업 완료</span>
@@ -70,13 +70,13 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
           <div className="bg-app-canvas p-3 rounded-xl border border-app-line min-w-[180px]">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold text-stone-600">진행률</span>
-              <span className="text-sm font-bold font-mono text-app-accent">
+              <span className="text-sm font-bold font-mono text-app-accent-ink">
                 {project.progress}%
               </span>
             </div>
             <div className="w-full bg-app-soft rounded-full h-2 overflow-hidden">
               <div
-                className="bg-app-accent h-full rounded-full transition-all duration-300"
+                className="bg-app-accent-ink h-full rounded-full transition-all duration-300"
                 style={{ width: `${project.progress}%` }}
               />
             </div>
@@ -112,7 +112,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
         {activeTab === 'tasks' && (
           <button
             onClick={() => onOpenNewTaskModal(project.id)}
-            className="px-3 py-1 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-2xs transition flex items-center gap-1 active:scale-95"
+            className="px-3 py-1 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover rounded-lg shadow-2xs transition flex items-center gap-1 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" /> 작업 추가
           </button>
@@ -127,7 +127,7 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
               등록된 세부 작업이 없습니다.
               <button
                 onClick={() => onOpenNewTaskModal(project.id)}
-                className="mt-2 block mx-auto text-xs font-semibold text-app-accent hover:underline"
+                className="mt-2 block mx-auto text-xs font-semibold text-app-accent-ink hover:underline"
               >
                 + 새 작업 등록
               </button>
@@ -151,10 +151,10 @@ export const ProjectDetailView: React.FC<ProjectDetailViewProps> = ({
                       <button
                         type="button"
                         onClick={() => onToggleTaskStatus(task.id)}
-                        className="text-stone-300 hover:text-app-accent transition shrink-0"
+                        className="text-stone-300 hover:text-app-accent-ink transition shrink-0"
                       >
                         {isDone ? (
-                          <CheckCircle2 className="w-4 h-4 text-app-accent fill-app-soft" />
+                          <CheckCircle2 className="w-4 h-4 text-app-accent-ink fill-app-soft" />
                         ) : (
                           <Circle className="w-4 h-4" />
                         )}

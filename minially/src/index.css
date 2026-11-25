@@ -8,8 +8,11 @@
   --color-app-outline: #E9CDD8;
   --color-app-accent: #CF8FA8;
   --color-app-accent-hover: #BD7F98;
+  /* 글자·흰 글자를 얹는 채운 버튼용 진한 분홍(흰 바탕 대비 5.1:1). 점·테두리 같은 장식은 위 분홍 그대로 */
+  --color-app-accent-ink: #9E5873;
+  --color-app-accent-ink-hover: #874A62;
   --color-app-ink: #3E3438;
-  --color-app-muted: #85777D;
+  --color-app-muted: #6F6268; /* 분홍 바탕에서도 4.5:1 넘게(전 #85777D는 3.6:1) */
   --color-app-peach: #F4DCE5;
   --color-app-peach-hover: #E9CDD8;
 }
@@ -24,7 +27,7 @@
     --accent-hover: #BD7F98;
     --accent-soft: #F4DCE5;
     --text-primary: #3E3438;
-    --text-secondary: #85777D;
+    --text-secondary: #6F6268;
     --divider: #F0E7EB;
   }
 
@@ -371,7 +374,7 @@
 }
 @media (max-width: 767px) { .note-pane-separator { display: none; } }
 
-.desktop-version-button[data-update-state="available"], .desktop-version-button[data-update-state="ready"] { color: var(--color-app-accent-hover); background: var(--color-app-soft); }
+.desktop-version-button[data-update-state="available"], .desktop-version-button[data-update-state="ready"] { color: var(--color-app-accent-ink); background: var(--color-app-soft); }
 .desktop-update-label { font-weight: 600; }
 
 @media (min-width: 768px) {

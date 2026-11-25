@@ -343,8 +343,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
           </> : categoryPanel === 'manage' ? <CategoryManager onDirtyChange={setPanelDirty} onBusyChange={setPanelBusy} categories={categories} schedules={schedules} onSaveCategory={onSaveCategory} onDeleteCategory={async id => { await onDeleteCategory(id); if (category === id) setCategory(''); }} onReorderCategories={onReorderCategories} onCreated={id => { setCategory(id); returnToSchedule(); }} /> : <div className="space-y-2">
             <CategoryGrid categories={categories} value={category} onChange={id=>{setCategory(id);returnToSchedule();}}/>
             <button type="button" aria-pressed={!category} className="w-full min-h-10 px-3 rounded-xl border border-app-line text-sm" onClick={()=>{setCategory('');returnToSchedule();}}>카테고리 없음 (미분류)</button>
-            <button type="button" className="min-h-10 px-3 text-app-accent-hover" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
-            <button type="button" className="min-h-9 px-3 text-app-accent-hover" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
+            <button type="button" className="min-h-10 px-3 text-app-accent-ink" onClick={() => setCategoryPanel('manage')}>카테고리 관리</button>
+            <button type="button" className="min-h-9 px-3 text-app-accent-ink" onClick={() => { setCategoryPanel('manage'); requestAnimationFrame(() => modalRef.current?.querySelector<HTMLInputElement>('#category-name')?.focus()); }}>새 카테고리 추가</button>
           </div>}
         </div>}
         <div inert={saving} aria-busy={saving} className={panelOpen ? 'hidden' : 'flex flex-col min-h-0 min-w-0'}>
@@ -371,7 +371,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <label className="block text-xs font-semibold text-app-ink mb-1" htmlFor="schedule-title">일정 제목</label>
 
             <div className="flex gap-2 items-center">
-            <button type="button" aria-label="중요 일정" aria-pressed={isImportant} onClick={() => setIsImportant(v => !v)} className="shrink-0 text-app-accent-hover"><Star className={`w-5 h-5 ${isImportant ? 'fill-current' : ''}`} /></button>
+            <button type="button" aria-label="중요 일정" aria-pressed={isImportant} onClick={() => setIsImportant(v => !v)} className="shrink-0 text-app-accent-ink"><Star className={`w-5 h-5 ${isImportant ? 'fill-current' : ''}`} /></button>
             <input
               id="schedule-title"
               ref={titleInputRef}
@@ -383,7 +383,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               className="w-full min-w-0 px-3 py-1.5 text-base sm:text-sm bg-app-canvas border border-app-line rounded-xl focus:outline-none focus:border-app-accent text-app-ink placeholder:text-app-muted/70 transition-colors"
             />
 
-              <button type="button" className="shrink-0 min-h-9 px-3 bg-app-soft rounded-xl text-sm text-app-accent-hover" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
+              <button type="button" className="shrink-0 min-h-9 px-3 bg-app-soft rounded-xl text-sm text-app-accent-ink" aria-expanded={inlinePresetsOpen} onClick={() => setInlinePresetsOpen(value => !value)}>프리셋</button>
             </div>
             {(titleBlocks.length > 1 || titleBlocks.some(b => b.presetId)) && <div className="mt-2"><TitleBlockEditor blocks={titleBlocks} word="" onWordChange={() => {}} onChange={parts => { setTitleBlocks(parts); setTitle(parts.map(b => b.text).join(' ')); }} editable compact hideWordInput /></div>}
             {inlinePresetsOpen && <InlinePresetPicker selectedBlocks={titleBlocks} options={<label className="flex items-center gap-2 text-xs min-h-9">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'replace'|'append')} className="min-h-9 bg-white border rounded-lg px-2"><option value="replace">제목 교체</option><option value="append">이어 붙이기</option></select></label>} presets={presets} presetGroups={presetGroups} onClose={() => { setInlinePresetsOpen(false); requestAnimationFrame(()=>titleInputRef.current?.focus({preventScroll:true})); }} onManage={() => { setPhraseModalInitialType('title'); setPhraseMode('manage'); setIsPhraseModalOpen(true); }} onAdd={(parts, preset) => {
@@ -393,13 +393,13 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             }} />}
             <div className="flex items-center justify-end gap-2">
 
-              {titleHistory.length > 0 && <button type="button" onClick={handleRestoreTitle} className="min-h-9 text-xs text-app-accent-hover">이전 제목 복구</button>}
+              {titleHistory.length > 0 && <button type="button" onClick={handleRestoreTitle} className="min-h-9 text-xs text-app-accent-ink">이전 제목 복구</button>}
             </div>
             {phraseMessage && <p role="status" aria-label="프리셋 알림" className="text-xs text-app-muted">{phraseMessage}</p>}
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between"><span className="text-xs font-semibold">날짜</span>{!isEditing && <button type="button" className="schedule-inline-action text-xs text-app-accent px-1" onClick={() => setDatePanel(true)}>{allDates.length > 1 ? allDates.length + '개 날짜' : '여러 날짜 선택'}</button>}</div>
+            <div className="flex items-center justify-between"><span className="text-xs font-semibold">날짜</span>{!isEditing && <button type="button" className="schedule-inline-action text-xs text-app-accent-ink px-1" onClick={() => setDatePanel(true)}>{allDates.length > 1 ? allDates.length + '개 날짜' : '여러 날짜 선택'}</button>}</div>
             <DatePicker label="일정 날짜" value={date} onChange={setDate} />
           </div>
 
@@ -412,7 +412,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         type="checkbox"
                         checked={isAllDay}
                         onChange={(e) => setIsAllDay(e.target.checked)}
-                        className="rounded text-app-accent focus:ring-0"
+                        className="rounded text-app-accent-ink focus:ring-0"
                       />
                       <span>종일 (시간 없음)</span>
                     </label>
@@ -443,7 +443,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <button
               type="button"
               onClick={() => setShowAdditionalOptions(!showAdditionalOptions)}
-              className="w-full py-2 flex items-center justify-between text-xs font-semibold text-app-accent hover:text-app-accent-hover cursor-pointer"
+              className="w-full py-2 flex items-center justify-between text-xs font-semibold text-app-accent-ink hover:text-app-accent-ink cursor-pointer"
             >
               <span>{showAdditionalOptions ? '상세 옵션 접기' : '+ 상세 옵션 (메모)'}</span>
               {showAdditionalOptions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -452,7 +452,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             {/* Collapsed by default */}
             {showAdditionalOptions && (
               <div className="space-y-3 pt-2 border-t border-app-line animate-in fade-in">
-              <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-app-accent-hover disabled:opacity-40">프리셋으로 저장</button>
+              <button type="button" disabled={!title.trim() || savingPhrase} onClick={() => void handleSaveCurrentTitleAsPhrase()} className="min-h-9 text-xs text-app-accent-ink disabled:opacity-40">프리셋으로 저장</button>
                 <div className="space-y-2">
                   {occurrence && <p className="text-xs text-app-muted">반복 일정입니다. 저장할 때 바꿀 범위를 고릅니다.</p>}
                   {<>
@@ -471,7 +471,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                         setPhraseMode('select');
                         setIsPhraseModalOpen(true);
                       }}
-                      className="text-xs font-semibold text-app-accent hover:text-app-accent-hover flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-app-canvas border border-app-line hover:bg-app-soft transition-colors cursor-pointer"
+                      className="text-xs font-semibold text-app-accent-ink hover:text-app-accent-ink flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-app-canvas border border-app-line hover:bg-app-soft transition-colors cursor-pointer"
                     >
                       <Bookmark className="w-3.5 h-3.5" />
                       <span>자주 쓰는 메모</span>
@@ -506,8 +506,8 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
             <button type="button" className="min-h-9" onClick={() => setAskScope(false)}>취소</button>
           </div>
         </div>}
-        {initialSchedule?.sourceNoteId && onOpenNote && <button type="button" className="mx-3 min-h-8 text-left text-xs text-app-accent hover:underline" onClick={()=>closeGuard.request(()=>onOpenNote(initialSchedule.sourceNoteId!))}>원본 메모 열기</button>}
-        {initialSchedule?.sourceTaskId && onOpenTask && <button type="button" className="mx-3 min-h-8 text-left text-xs text-app-accent hover:underline" onClick={()=>closeGuard.request(()=>onOpenTask(initialSchedule.sourceTaskId!))}>원본 할 일 열기</button>}
+        {initialSchedule?.sourceNoteId && onOpenNote && <button type="button" className="mx-3 min-h-8 text-left text-xs text-app-accent-ink hover:underline" onClick={()=>closeGuard.request(()=>onOpenNote(initialSchedule.sourceNoteId!))}>원본 메모 열기</button>}
+        {initialSchedule?.sourceTaskId && onOpenTask && <button type="button" className="mx-3 min-h-8 text-left text-xs text-app-accent-ink hover:underline" onClick={()=>closeGuard.request(()=>onOpenTask(initialSchedule.sourceTaskId!))}>원본 할 일 열기</button>}
         {/* Footer */}
         <div className="px-3 py-1.5 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <div>
@@ -526,7 +526,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
                   type="checkbox"
                   checked={continuousAdd}
                   onChange={(e) => setContinuousAdd(e.target.checked)}
-                  className="rounded text-app-accent focus:ring-0"
+                  className="rounded text-app-accent-ink focus:ring-0"
                 />
                 <span className="font-medium">계속 등록</span>
               </label>
@@ -545,7 +545,7 @@ export const ScheduleModal: React.FC<ScheduleModalProps> = ({
               type="button"
               onClick={() => void handleSave()}
               disabled={!title.trim() || saving}
-              className="px-4 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              className="px-4 py-2 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover disabled:opacity-40 disabled:cursor-not-allowed rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
             >
               {saving ? '저장 중…' : isEditing ? '변경사항 저장' : continuousAdd ? '등록 후 계속' : allDates.length > 1 ? allDates.length + '개 등록' : '등록'}
             </button>

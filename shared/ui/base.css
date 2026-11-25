@@ -16,7 +16,7 @@
   --accent: var(--ink);
   --accent-text: var(--ink-text);
   --danger: #C8322A;
-  --ok: #2F8A55;
+  --ok: #24704A; /* 연한 바탕 배지에서도 4.5:1 넘게(전 #2F8A55는 3.8:1) */
   --radius: 16px;
   --shadow: 0 1px 2px rgba(43, 34, 51, 0.05);
   --font: "Pretendard Variable", "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;

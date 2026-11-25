@@ -29,7 +29,7 @@ export const ReminderSetting: React.FC<{ settings: AppSettings; onChange: (next:
           <p className="text-[11px] text-app-muted">시간이 있는 오늘 일정을 시작 전에 알려 줘요. 미니어리가 열려 있을 때만 알려요(PC 앱은 창을 내려 둬도 돼요).</p>
         </div>
         <button type="button" role="switch" aria-checked={reminder.enabled} aria-label="일정 알림" disabled={!supported} onClick={() => void toggle()}
-          className={`shrink-0 w-11 h-6 rounded-full transition-colors relative cursor-pointer disabled:opacity-50 ${reminder.enabled ? 'bg-app-accent' : 'bg-app-line'}`}>
+          className={`shrink-0 w-11 h-6 rounded-full transition-colors relative cursor-pointer disabled:opacity-50 ${reminder.enabled ? 'bg-app-accent-ink' : 'bg-app-line'}`}>
           <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${reminder.enabled ? 'left-[22px]' : 'left-0.5'}`} />
         </button>
       </div>
@@ -38,7 +38,7 @@ export const ReminderSetting: React.FC<{ settings: AppSettings; onChange: (next:
           <span className="text-app-muted">언제:</span>
           {LEADS.map(m => (
             <button key={m} type="button" onClick={() => onChange({ ...settings, reminder: { ...reminder, minutesBefore: m } })}
-              className={`px-2.5 py-1 rounded-md border cursor-pointer ${reminder.minutesBefore === m ? 'bg-app-accent text-white border-transparent' : 'bg-white border-app-line text-app-muted'}`}>
+              className={`px-2.5 py-1 rounded-md border cursor-pointer ${reminder.minutesBefore === m ? 'bg-app-accent-ink text-white border-transparent' : 'bg-white border-app-line text-app-muted'}`}>
               {m === 0 ? '시작할 때' : m === 60 ? '1시간 전' : `${m}분 전`}
             </button>
           ))}

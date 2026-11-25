@@ -9,7 +9,7 @@ interface Props { settings: AppSettings; categories: CategoryItem[]; onUpdateSet
 
 const box = 'p-3.5 border border-app-line bg-app-canvas rounded-xl space-y-2.5';
 const btn = 'inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg border border-app-line bg-white text-app-ink hover:bg-app-soft disabled:opacity-60 cursor-pointer';
-const primary = 'inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-app-accent text-white disabled:opacity-60 cursor-pointer';
+const primary = 'inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-app-accent-ink text-white disabled:opacity-60 cursor-pointer';
 
 export const SharePanel: React.FC<Props> = (props) => {
   // 공유는 서버를 쓰므로 체험 모드에서는 막는다.
@@ -63,7 +63,7 @@ const SharePanelInner: React.FC<Props> = ({ settings, categories, onUpdateSettin
   return (
     <div className="space-y-3">
       <section className={box} aria-label="내 일정 공유">
-        <div className="flex items-center gap-1.5"><Share2 className="w-4 h-4 text-app-accent" /><h4 className="text-sm font-bold text-app-ink">내 일정 공유하기</h4></div>
+        <div className="flex items-center gap-1.5"><Share2 className="w-4 h-4 text-app-accent-ink" /><h4 className="text-sm font-bold text-app-ink">내 일정 공유하기</h4></div>
         <p className="text-[11px] text-app-muted">공유 코드를 받은 사람은 내가 고른 카테고리의 일정을 <b>볼 수만</b> 있어요. 고치거나 지울 수는 없어요.</p>
         {!share.code ? (
           <button type="button" disabled={busy} onClick={start} className={primary + ' w-full'}>공유 코드 만들기</button>
@@ -98,7 +98,7 @@ const SharePanelInner: React.FC<Props> = ({ settings, categories, onUpdateSettin
       </section>
 
       <section className={box} aria-label="같이 보기">
-        <div className="flex items-center gap-1.5"><Users className="w-4 h-4 text-app-accent" /><h4 className="text-sm font-bold text-app-ink">같이 보기</h4></div>
+        <div className="flex items-center gap-1.5"><Users className="w-4 h-4 text-app-accent-ink" /><h4 className="text-sm font-bold text-app-ink">같이 보기</h4></div>
         <p className="text-[11px] text-app-muted">다른 사람에게 받은 공유 코드를 넣으면 그 사람의 일정이 내 달력에 다른 색으로 보여요. 내 PC·폰에 같이 저장돼요.</p>
         {views.map(view => (
           <div key={view.id} className="flex items-center gap-2 p-2 rounded-lg bg-white border border-app-line">

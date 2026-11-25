@@ -95,7 +95,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
         {/* Header */}
         <div className="px-4 py-3 border-b border-app-line flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2">
-            <CalendarRange className="w-5 h-5 text-app-accent" />
+            <CalendarRange className="w-5 h-5 text-app-accent-ink" />
             <h3 className="text-base font-bold text-app-ink">여러 날짜 일괄 등록</h3>
           </div>
           <button
@@ -126,7 +126,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
               <label className="text-xs font-semibold text-app-ink">
                 등록할 날짜 ({dates.length}일)
               </label>
-              <div className="flex items-center gap-1.5 text-xs text-app-accent">
+              <div className="flex items-center gap-1.5 text-xs text-app-accent-ink">
                 <button
                   type="button"
                   onClick={() => handleAddQuickRange(3)}
@@ -164,7 +164,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
                 type="button"
                 onClick={() => handleAddDate(newDateInput)}
                 disabled={!newDateInput}
-                className="px-3 py-1.5 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all cursor-pointer"
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover disabled:opacity-40 rounded-xl transition-all cursor-pointer"
               >
                 추가
               </button>
@@ -176,7 +176,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
                   key={d}
                   className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-white text-app-ink border border-app-line rounded-lg shadow-2xs"
                 >
-                  <Calendar className="w-3 h-3 text-app-accent" />
+                  <Calendar className="w-3 h-3 text-app-accent-ink" />
                   <span>{d}</span>
                   <button
                     type="button"
@@ -215,7 +215,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
         {/* Footer */}
         <div className="px-4 py-3 border-t border-app-line bg-white flex items-center justify-between shrink-0">
           <span className="text-xs text-app-muted">
-            총 <span className="font-bold text-app-accent">{dates.length}</span>개 일정 등록
+            총 <span className="font-bold text-app-accent-ink">{dates.length}</span>개 일정 등록
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -229,7 +229,7 @@ export const BatchDateModal: React.FC<BatchDateModalProps> = ({
               type="button"
               onClick={handleConfirm}
               disabled={!title.trim() || dates.length === 0}
-              className="px-4 py-2 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+              className="px-4 py-2 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
             >
               일괄 등록
             </button>

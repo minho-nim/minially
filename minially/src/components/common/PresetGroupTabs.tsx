@@ -12,10 +12,10 @@ export function PresetGroupTabs({ groups, value, onChange, unclassified = false,
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-sm font-bold text-app-ink">
             프리셋 그룹
-            <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-medium text-app-accent">{visibleGroups.length}</span>
+            <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-medium text-app-accent-ink">{visibleGroups.length}</span>
           </h3>
         </div>
-        {onManage && <button type="button" onClick={onManage} className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-app-accent hover:bg-app-soft focus-visible:outline-2 focus-visible:outline-app-accent"><Settings2 aria-hidden="true" className="h-3.5 w-3.5" />그룹 관리</button>}
+        {onManage && <button type="button" onClick={onManage} className="flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-app-accent-ink hover:bg-app-soft focus-visible:outline-2 focus-visible:outline-app-accent"><Settings2 aria-hidden="true" className="h-3.5 w-3.5" />그룹 관리</button>}
       </div>
       {!visibleGroups.length && <p className="rounded-2xl border border-dashed border-app-outline bg-app-canvas p-4 text-xs leading-relaxed text-app-muted">그룹 관리에서 첫 그룹을 만들어 보세요.</p>}
       <div className="flex min-w-0 flex-wrap gap-1.5">
@@ -29,7 +29,7 @@ export function PresetGroupTabs({ groups, value, onChange, unclassified = false,
                 : 'border-app-line bg-white text-app-ink hover:border-app-outline hover:bg-app-canvas')}>
               <span className="min-w-0 break-words text-xs font-medium leading-snug">{group.name}</span>
               {count !== undefined && <span className="shrink-0 text-[11px] tabular-nums text-app-muted">{count}개</span>}
-              {selected && <Check aria-hidden="true" className="h-3 w-3 shrink-0 text-app-accent" />}
+              {selected && <Check aria-hidden="true" className="h-3 w-3 shrink-0 text-app-accent-ink" />}
             </button>
           );
         })}

@@ -16,7 +16,7 @@ export function EmptyNoteTrashDialog({count,onClose,onEmpty,selectionOnly=false}
    <p id="empty-note-trash-description" className="text-sm mt-2 leading-6">{selectionOnly?'선택한':'휴지통의'} 메모 {count}개를 영구 삭제합니다. 삭제한 메모는 복구할 수 없습니다.</p>
    <p className="text-xs text-app-muted mt-2">{selectionOnly?'선택하지 않은 메모와 연결된 할 일·일정은 유지됩니다.':'검색 결과와 관계없이 휴지통 전체가 대상입니다. 연결된 할 일과 일정은 유지됩니다.'}</p>
    {error&&<p role="alert" className="text-xs text-red-600 mt-3">{error}</p>}
-   <div className="flex justify-end gap-2 mt-4"><button ref={cancel} type="button" disabled={busy} onClick={close} className="min-h-10 px-3 rounded-lg text-sm hover:bg-app-soft disabled:opacity-50">취소</button><button type="button" disabled={busy} onClick={()=>void empty()} className="min-h-10 px-3 rounded-lg text-sm bg-app-accent text-white disabled:opacity-50">{busy?'비우는 중…':'영구 삭제'}</button></div>
+   <div className="flex justify-end gap-2 mt-4"><button ref={cancel} type="button" disabled={busy} onClick={close} className="min-h-10 px-3 rounded-lg text-sm hover:bg-app-soft disabled:opacity-50">취소</button><button type="button" disabled={busy} onClick={()=>void empty()} className="min-h-10 px-3 rounded-lg text-sm bg-app-accent-ink text-white disabled:opacity-50">{busy?'비우는 중…':'영구 삭제'}</button></div>
   </div>
  </div>,document.body);
 }

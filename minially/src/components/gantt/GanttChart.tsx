@@ -93,7 +93,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
             <span>완료</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-app-accent" />
+            <span className="w-2.5 h-2.5 rounded-full bg-app-accent-ink" />
             <span>진행 중</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -126,7 +126,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
                     style={{ width: `${100 / totalDays}%` }}
                     className={`py-1.5 text-center border-r border-stone-100 flex flex-col items-center justify-center ${
                       d.isToday
-                        ? 'bg-app-soft text-app-accent font-bold'
+                        ? 'bg-app-soft text-app-accent-ink font-bold'
                         : d.isWeekend
                         ? 'bg-stone-100/50 text-stone-400'
                         : 'text-stone-600'
@@ -145,9 +145,9 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
               {todayLeftPercent !== null && (
                 <div
                   style={{ left: `calc(200px + (100% - 200px) * ${todayLeftPercent / 100})` }}
-                  className="absolute top-0 bottom-0 w-[1.5px] bg-app-accent z-20 pointer-events-none"
+                  className="absolute top-0 bottom-0 w-[1.5px] bg-app-accent-ink z-20 pointer-events-none"
                 >
-                  <div className="sticky top-10 -ml-2.5 bg-app-accent text-white text-[9px] px-1 py-0.2 rounded shadow-2xs whitespace-nowrap">
+                  <div className="sticky top-10 -ml-2.5 bg-app-accent-ink text-white text-[9px] px-1 py-0.2 rounded shadow-2xs whitespace-nowrap">
                     오늘
                   </div>
                 </div>
@@ -160,7 +160,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
 
                 let barColorClass = 'bg-stone-300 hover:bg-stone-400 text-stone-800';
                 if (isDone) barColorClass = 'bg-emerald-500 hover:bg-emerald-600 text-white';
-                if (isDoing) barColorClass = 'bg-app-accent hover:bg-app-accent-hover text-white';
+                if (isDoing) barColorClass = 'bg-app-accent-ink hover:bg-app-accent-ink-hover text-white';
 
                 return (
                   <div
@@ -172,7 +172,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ project, tasks, onSelect
                       {isDone ? (
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       ) : isDoing ? (
-                        <Clock className="w-3.5 h-3.5 text-app-accent shrink-0" />
+                        <Clock className="w-3.5 h-3.5 text-app-accent-ink shrink-0" />
                       ) : (
                         <Circle className="w-3.5 h-3.5 text-stone-300 shrink-0" />
                       )}
