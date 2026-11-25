@@ -447,3 +447,8 @@ select.input { appearance: auto; }
 .refine-proposal { padding: 10px 12px; border-radius: 12px; background: var(--app-soft); }
 .refine-old { text-decoration: line-through; }
 .refine-diff dd { overflow-wrap: anywhere; }
+/* 누적 합계·월별 내역: 달 이름을 눌러 그달 보고로, 지금 보는 달은 줄 색으로 */
+.link-btn { background: none; border: 0; padding: 8px 0; font: inherit; font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.link-btn:focus-visible { outline: 2px solid var(--app); outline-offset: 2px; border-radius: 4px; }
+.history-table tr[aria-current='true'] { background: var(--app-soft); }
+.history-table th[scope='row'] { text-align: left; font-weight: 400; }

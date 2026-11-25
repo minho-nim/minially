@@ -1,25 +1,12 @@
 // 게시 후 30일이 지난 사진 정리: 실제 SQL(node:sqlite)로 D1을 흉내 내 시간이 흐른 상황을 시험한다.
 import { expect, test } from '@playwright/test';
 import { DatabaseSync } from 'node:sqlite';
-import type { D1Database, R2Bucket } from '../../shared/server/d1';
+import type { R2Bucket } from '../../shared/server/d1';
+import { fakeD1 } from './fakeD1';
 import { ensureHubSchema, SCHEMA_VERSION } from '../../shared/server/schema';
 import { secretEquals } from '../../shared/server/auth';
 import { createDraft, updateDraft } from '../functions/_drafts';
 import { addPhoto, cleanupExpired, listPhotos } from '../functions/_photos';
-
-function fakeD1(sqlite = new DatabaseSync(':memory:'), seen: string[] = []): D1Database {
-  const statement = (sql: string, values: unknown[] = []) => ({
-    bind: (...next: unknown[]) => statement(sql, next),
-    all: async <T>() => ({ results: sqlite.prepare(sql).all(...(values as never[])) as T[] }),
-    first: async <T>() => (sqlite.prepare(sql).get(...(values as never[])) as T) ?? null,
-    run: async () => sqlite.prepare(sql).run(...(values as never[])),
-    _run: () => sqlite.prepare(sql).run(...(values as never[])),
-  });
-  return {
-    prepare: (sql: string) => { seen.push(sql); return statement(sql); },
-    batch: async statements => statements.map(s => (s as unknown as { _run: () => unknown })._run()),
-  };
-}
 
 function fakeR2() {
   const store = new Map<string, Uint8Array>();

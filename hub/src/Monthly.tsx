@@ -3,6 +3,7 @@ import { api, formatNumber } from '../../shared/client/api';
 import { diffKind, diffText, monthLabel, shiftMonth, sumSummaries, thisMonthKst, type MonthlyReport, type MonthSummary } from '../../shared/client/report';
 import { Signature } from './Tomong';
 import { useNameOf } from './names';
+import { HistoryCompare } from './History';
 
 // 미니허브 월간 보고: C·D 합계 + 사람별 나란히 비교 + 각자 요약·TOP 3. 'PDF로 저장'은 이 부분만 A4로.
 type Row = { label: string; pick: (s: MonthSummary) => number; unit?: string; money?: boolean; ai?: boolean };
@@ -117,6 +118,7 @@ export function Monthly() {
           <p className="muted small print-only" style={{ margin: 0 }}>조회·공감은 블로그 통계 캡처나 직접 적은 숫자 기준이에요. · hub로 만든 보고서</p>
         </>
       )}
+      <HistoryCompare />
     </section>
   );
 }
