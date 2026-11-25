@@ -503,7 +503,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <button
               type="button"
               onClick={handlePrev} data-shortcut="prev"
-              className="p-2.5 md:p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              className="p-3 md:p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="이전"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -516,7 +516,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <button
               type="button"
               onClick={handleNext} data-shortcut="next"
-              className="p-2.5 md:p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              className="p-3 md:p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="다음"
             >
               <ChevronRight className="w-5 h-5" />
