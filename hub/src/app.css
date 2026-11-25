@@ -136,9 +136,9 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 .check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; min-height: 32px; }
 .card-title { margin: 0 0 10px; font-size: 1rem; }
 .table-wrap { overflow-x: auto; }
-.compare { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 460px; }
-.compare th, .compare td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; vertical-align: top; }
-.compare th[scope="row"], .compare thead th:first-child { text-align: left; font-weight: 600; color: var(--muted); }
+.compare, .compare-like { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 460px; }
+.compare th, .compare td, .compare-like th, .compare-like td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: right; font-variant-numeric: tabular-nums; vertical-align: top; }
+.compare th[scope="row"], .compare thead th:first-child, .compare-like th[scope="row"], .compare-like thead th:first-child { text-align: left; font-weight: 600; color: var(--muted); }
 .compare td b { display: block; }
 .compare .diff { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 600; }
 .diff.up { color: var(--ok); } .diff.down { color: var(--danger); }

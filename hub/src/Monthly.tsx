@@ -24,7 +24,8 @@ function Cell({ now, before, unit = '', max, color }: { now: number; before: num
 }
 const PERSON_COLORS = ['var(--sig)', '#7C8CE0', '#3FAE8B'];
 
-export function Monthly() {
+/** compare: 사람별 월별 비교(최근 12개월)는 통합 대시보드에서만 보여 준다(내 대시보드에서는 비교할 것이 아니고, 늦게 불러와 아래 칸을 밀어내지 않게) */
+export function Monthly({ compare = false }: { compare?: boolean }) {
   const nameOf = useNameOf();
   const [month, setMonth] = useState(thisMonthKst);
   const [reports, setReports] = useState<MonthlyReport[] | null>(null);
@@ -118,7 +119,7 @@ export function Monthly() {
           <p className="muted small print-only" style={{ margin: 0 }}>조회·공감은 블로그 통계 캡처나 직접 적은 숫자 기준이에요. · hub로 만든 보고서</p>
         </>
       )}
-      <HistoryCompare />
+      {compare && <HistoryCompare />}
     </section>
   );
 }
