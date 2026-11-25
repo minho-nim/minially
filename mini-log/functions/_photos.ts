@@ -2,10 +2,26 @@
 import type { D1Database, R2Bucket } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 
-export interface Photo { id: string; draft_id: string; name: string; content_type: string; size: number; position: number; created_at: number; expires_at: number | null }
+export interface Photo { id: string; draft_id: string; name: string; content_type: string; size: number; position: number; created_at: number; expires_at: number | null; note: string }
 
-export const PHOTO_LIMITS = { bytes: 5 * 1024 * 1024, perDraft: 20, forAi: 8, name: 120 };
-const COLUMNS = 'id, draft_id, name, content_type, size, position, created_at, expires_at';
+export const PHOTO_LIMITS = { bytes: 5 * 1024 * 1024, perDraft: 20, forAi: 8, name: 120, note: 300 };
+const COLUMNS = "id, draft_id, name, content_type, size, position, created_at, expires_at, COALESCE(note, '') AS note";
+
+/** 사진 메모: 줄바꿈 말고 제어 문자를 빼고 300자까지. 글자가 아니면 null */
+export function cleanNote(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value.replace(/[\u0000-\u0009\u000b-\u001f]/g, ' ').trim().slice(0, PHOTO_LIMITS.note);
+}
+
+/** 사진마다 적은 메모를 AI에 넘길 자료 묶음으로: '사진 n: 메모' 줄(빈 메모는 뺀다). 메모는 작성자가 겪은 사실이다. */
+export function photoNotesBlock(notes: string[]) {
+  const lines = notes.map((n, i) => (n.trim() ? `사진 ${i + 1}: ${n.replace(/\s+/g, ' ').replace(/<\/?사진 메모>/g, '').trim()}` : '')).filter(Boolean);
+  return lines.length ? `<사진 메모>\n${lines.join('\n')}\n</사진 메모>` : '';
+}
+
+export async function setPhotoNote(db: D1Database, user: UserName, id: string, note: string) {
+  await db.prepare('UPDATE minilog_photos SET note = ? WHERE user = ? AND id = ?').bind(note, user, id).run();
+}
 
 /** 파일 앞부분(매직 바이트)으로 형식을 확인한다. 보낸 쪽이 적은 content-type은 믿지 않는다. */
 export function sniffImage(bytes: Uint8Array): 'image/jpeg' | 'image/png' | 'image/webp' | null {

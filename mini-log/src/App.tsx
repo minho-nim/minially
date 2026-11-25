@@ -13,6 +13,7 @@ import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api'
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
 import { fullText, instagramText, photoFileName } from './publishKit';
+import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { PostPreview } from './PostPreview';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
@@ -29,7 +30,7 @@ interface Draft {
   status: Status; published_url: string; published_at: number | null; style_id: string; post_type: string; planned_on: string | null; created_at: number; updated_at: number;
   photo_count?: number;
 }
-interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null }
+interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null; note?: string }
 const STATUS_LABEL: Record<Status, string> = { draft: '작성 중', approved: '승인됨', published: '게시됨' };
 const dayLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(ms);
 
@@ -848,11 +849,15 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
             }}>{POST_TYPES[t].label}</button>
           ))}
         </div>
-        {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지)' : ''}.</p>}
+        {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지, 나머지는 사진 메모로)' : ''}.</p>}
         <div className="field">
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>언제·어디서·무엇을 했고 어땠는지 직접 겪은 내용을 적어 주세요. AI는 여기 적힌 것만 써요.</label>
           <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
         </div>
+        {emptyOutline(fields.experience).length > 0 && (
+          <p className="muted small" data-empty-outline style={{ margin: 0 }}>아직 비어 있는 항목: {emptyOutline(fields.experience).join(' · ')} — 비워 두면 AI가 [작성자 확인 필요]로 남겨요.</p>
+        )}
+        {photos && <PhotoNotes photos={photos} onSaved={(id, note) => setPhotos(list => list?.map(p => (p.id === id ? { ...p, note } : p)) ?? null)} onError={text => setMessage({ kind: 'error', text })} />}
         <div className="field style-pick">
           <label htmlFor="style-pick">어떤 문체로 쓸까요?</label>
           <select id="style-pick" className="input" value={fields.style_id} onChange={e => change({ style_id: e.target.value })}>
@@ -889,7 +894,8 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
         </div>
       </section>
 
-      <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} />
+      <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} postType={fields.post_type}
+        sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} />
 
       <section className="card step" aria-labelledby="s4">
         <h2 id="s4" className="step-title"><span className="n">4</span>올리기·게시</h2>

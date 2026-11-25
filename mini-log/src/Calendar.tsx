@@ -47,6 +47,7 @@ export function CalendarView({ drafts, onBack, onOpenDraft, onCreate }: {
       if (c.deadline && ['proposed', 'in_progress', 'posted'].includes(c.status)) {
         add(c.deadline, { kind: 'deadline', id: `c${c.id}`, label: `${c.brand}${c.title ? ` · ${c.title}` : ''}`, sub: `협찬 마감 · ${CAMPAIGN_STATUS[c.status]}`, draftId: c.draft_id ?? undefined });
       }
+      if (c.apply_by && c.status === 'interested') add(c.apply_by, { kind: 'deadline', id: `a${c.id}`, label: `${c.brand}${c.title ? ` · ${c.title}` : ''}`, sub: '체험단 신청 마감' });
     }
     return map;
   }, [drafts, campaigns]);
