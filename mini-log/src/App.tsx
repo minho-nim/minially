@@ -213,8 +213,16 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
       <aside className="side" aria-label="원고 목록">
         <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
         <nav className="views" aria-label="미니로그 메뉴">
-          {VIEWS.map(([key, label]) => (
-            <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{label}{key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}</button>
+          {/* 메뉴 묶음(Buffer의 만들기·올리기·분석처럼): 만들기 · 일정 · 협찬 · 분석, 설정은 따로 */}
+          {MENU.map(([group, keys]) => (
+            <div key={group} className="view-group" role="group" aria-label={group}>
+              <span className="view-group-label" aria-hidden="true">{keys.length === 1 && VIEW_LABEL[keys[0]] === group ? '' : group}</span>
+              <div className="view-group-items">
+                {keys.map(key => (
+                  <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{VIEW_LABEL[key]}{key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}</button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
         <button className="btn primary" onClick={() => { void create(); }} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
@@ -270,6 +278,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} onSaved={list => list.forEach(onSaved)} />
+        : view === 'settings' ? <SettingsView onBack={() => setView('drafts')} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
@@ -293,12 +302,14 @@ function readRoute(): { view: View; draftId: string | null } {
   const hash = window.location.hash.slice(1);
   const draft = hash.match(/^draft\/([0-9a-f-]{36})$/);
   if (draft) return { view: 'drafts', draftId: draft[1] };
-  return { view: VIEWS.some(([key]) => key === hash) || hash === 'proposal' ? (hash as View) : 'drafts', draftId: null }; // 제안서는 메뉴 대신 협찬 화면에서 연다
+  return { view: (VIEWS as string[]).includes(hash) || hash === 'proposal' ? (hash as View) : 'drafts', draftId: null }; // 제안서는 메뉴 대신 협찬 화면에서 연다
 }
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
-type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style' | 'mail';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['mail', '메일'], ['blog', '블로그'], ['structure', '구조'], ['style', '문체']];
+type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style' | 'mail' | 'settings';
+const VIEW_LABEL: Record<Exclude<View, 'proposal'>, string> = { drafts: '원고', ideas: '글감', style: '문체', calendar: '캘린더', campaigns: '협찬', mail: '메일', dashboard: '대시보드', report: '월간보고', blog: '블로그', structure: '구조', settings: '설정' };
+const MENU: [string, Exclude<View, 'proposal'>[]][] = [['만들기', ['drafts', 'ideas', 'style']], ['일정', ['calendar']], ['협찬', ['campaigns', 'mail']], ['분석', ['dashboard', 'report', 'blog', 'structure']], ['설정', ['settings']]];
+const VIEWS = MENU.flatMap(([, keys]) => keys);
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
@@ -415,10 +426,25 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               <button className="btn" style={{ justifySelf: 'start' }} onClick={onCampaigns}>협찬·수익 기록 보기</button>
             </section>
           </div>
-          <AccountsCard />
-          <BackupCard />
+          <p className="muted small" style={{ margin: 0 }}>내 계정·데이터 백업은 메뉴의 <b>설정</b>으로 옮겼어요.</p>
         </>
       )}
+    </article>
+  );
+}
+
+// 설정: 내 계정(공개 아이디·바깥 서비스 연결 상태)과 데이터 백업. 대시보드에는 숫자만 둔다.
+function SettingsView({ onBack }: { onBack: () => void }) {
+  return (
+    <article className="stack" aria-labelledby="settings-title">
+      <div className="editor-head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn ghost back" onClick={onBack}>← 목록</button>
+          <h1 id="settings-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>설정</h1>
+        </div>
+      </div>
+      <AccountsCard />
+      <BackupCard />
     </article>
   );
 }
