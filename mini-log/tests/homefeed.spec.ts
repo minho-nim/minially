@@ -9,7 +9,7 @@ test('홈피드형 규칙: 지어내기 금지·빈 곳은 [작성자 확인 필
   expect(STRUCTURES.basic.guide).toBe('');
 });
 
-test('글 구조: 자세히 설정에서 홈피드형을 고르면 AI 초안에 반영되고, 기기에 기억된다', async ({ page }) => {
+test('글 구조: 자세히 설정에서 홈피드형을 고르면 AI 초안에 반영되고, 계정에 저장된다', async ({ page }) => {
   await login(page, CODE_C);
   await page.getByRole('button', { name: '새 원고' }).click();
   await page.getByLabel(/직접 겪은 내용/).fill('토요일에 성수 카페에 갔어요. 소금빵이 따뜻했고 줄이 길었어요.');
@@ -28,5 +28,5 @@ test('글 구조: 자세히 설정에서 홈피드형을 고르면 AI 초안에 
   const id = await page.evaluate(() => location.hash.split('/')[1]);
   const body = await page.evaluate(async id => (await (await fetch(`/api/drafts/${id}/generate`, { method: 'POST', body: JSON.stringify({ structure: 'clickbait' }) })).json()).draft.body as string, id);
   expect(body).not.toContain('홈피드형');
-  await page.evaluate(async id => { await fetch(`/api/drafts/${id}`, { method: 'DELETE' }); }, id);
+  await page.evaluate(async id => { await fetch(`/api/drafts/${id}`, { method: 'DELETE' }); await fetch('/api/prefs', { method: 'PUT', body: JSON.stringify({ structure: 'basic' }) }); }, id);
 });

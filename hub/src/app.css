@@ -215,3 +215,7 @@ table.usage td.off { color: var(--danger); font-weight: 700; }
   .compare, .compare-like { min-width: 0; font-size: 0.82rem; } /* 사람이 둘이라 휴대폰 폭에 다 들어간다 */
   .compare .diff { overflow-wrap: anywhere; }
 }
+
+/* 사람별 자주 쓰는 글 종류(미니로그 원고 기준) */
+.user-types { grid-column: 1 / -1; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.type-chip { display: inline-block; padding: 1px 9px; border-radius: 999px; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
