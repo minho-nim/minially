@@ -100,6 +100,14 @@ test('올리기 보조: 한 번에·따로 복사, 사진 번호 붙여 받기, 
   await kit.getByRole('button', { name: '스레드 글 복사' }).click();
   expect(await clip()).toBe('빵 좋아하면 꼭 가 보세요\n소금빵이 바삭해요\n\n#카페');
 
+  // 직접 올린 곳 체크: 저장되고 다시 열어도 그대로(미니허브 숫자에 들어감)
+  const channels = () => page.evaluate(async () => Object.keys((await (await fetch(`/api/drafts/${location.hash.split('/').pop()}/shares`)).json()).channels));
+  await kit.getByLabel('스레드에 올렸어요').check();
+  await expect.poll(channels).toEqual(['threads']);
+  await kit.getByLabel('스레드에 올렸어요').uncheck();
+  await expect.poll(channels).toEqual([]);
+  await kit.getByLabel('X에 올렸어요').check();
+
   // 올린 뒤 주소 → 게시 완료
   await page.getByLabel('게시한 글 주소').fill('https://blog.naver.com/myblog/223999999999');
   await page.getByRole('button', { name: '게시 완료' }).click();

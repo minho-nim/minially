@@ -63,3 +63,9 @@ export async function todayUsage(db: D1Database, since = kstDayStart()) {
   ).bind(since).all<TodayRow>();
   return rows.results;
 }
+
+/** 이번 주(월요일 0시, 한국 시간)의 시작 밀리초 */
+export function kstWeekStart(now = Date.now()) {
+  const kst = new Date(now + 9 * 3600000);
+  return Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate() - ((kst.getUTCDay() + 6) % 7)) - 9 * 3600000;
+}

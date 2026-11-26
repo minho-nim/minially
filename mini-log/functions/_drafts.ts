@@ -156,5 +156,8 @@ export async function saveAiBody(db: D1Database, user: UserName, id: string, bod
 }
 
 export async function deleteDraft(db: D1Database, user: UserName, id: string) {
-  await db.prepare('DELETE FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, id).run();
+  await db.batch([
+    db.prepare('DELETE FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, id),
+    db.prepare('DELETE FROM minilog_shares WHERE user = ? AND draft_id = ?').bind(user, id), // '다른 곳에도 올렸어요' 기록도 같이
+  ]);
 }

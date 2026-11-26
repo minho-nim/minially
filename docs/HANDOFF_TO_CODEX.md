@@ -225,3 +225,11 @@ D1 표(설정): `hub_profiles`. D1 표: 기존 `sync_meta`·`sync_records`·`syn
 - `release` 브랜치에 직접 커밋하지 않기(운영 배포는 `deploy-release.yml`의 fast-forward만).
 - `USER_CODE_HASHES`의 `normalizeCode` 규칙은 미니어리와 **같아야** 합니다(같은 코드로 로그인).
 - 키·코드·세션 토큰 원문을 응답·로그·D1·커밋에 남기지 않기. 통계 API는 숫자만.
+
+
+## 미노피아 세션에 넘길 것 (2026-11-26, 소유자: '미노피아 세션에서 말해 줄 테니 적어만 둬')
+- 미니허브 `/api/stats`(숫자만)에 새로 생긴 숫자를 넣을지 정하기:
+  - 미니로그 '초안 전 질문' 호출 수(task `draft_questions`), '스레드·X 글'(task `social`)
+  - 사람별 '이번 주 게시 N편'(`minilog_week`), '다른 곳 공유' 체크 수(`minilog_shares`, 인스타·스레드·X)
+  - 오늘 사람·모델별 Gemini 호출과 한도 오류(`todayUsage`)
+- 개인 글·원고·사진·계약 정보는 넘기지 않는다(숫자만). 이 저장소에서는 아직 `/api/stats`를 바꾸지 않았다.
