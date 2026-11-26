@@ -108,7 +108,7 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
               const basis = BASIS[item.basis];
               return (
                 <li key={`${item.basis}-${item.topic}-${i}`} className="demand">
-                  <div className="idea-head"><span className={`src s-${basis.src}`}>{basis.label}</span><b>{item.topic}</b>{item.post_by && <span className="muted small">{shortDay(item.post_by)}까지 올리기</span>}</div>
+                  <div className="idea-head"><span className={`src s-${basis.src}`}>{basis.label}</span><b>{item.topic}</b><span className="muted small">{!item.post_by ? '언제든' : item.post_by <= data.demand.from ? '바로 올리기' : `${shortDay(item.post_by)}까지 올리기`}</span></div>
                   <span className="muted small">{item.reason}</span>
                   {item.url && /^https:\/\//.test(item.url) && <a className="small" href={item.url} target="_blank" rel="noopener noreferrer">예전 글 보기</a>}
                   <div className="idea-actions">
