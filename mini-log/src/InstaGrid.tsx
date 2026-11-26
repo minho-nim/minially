@@ -1,33 +1,42 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../shared/client/api';
 import type { CalendarDraft } from './Calendar';
+import { freeSlots } from '../functions/_plan';
 
 // 인스타 격자 미리보기: 게시 예정 원고가 다 올라갔을 때 프로필 격자(3열, 4:5)가 어떻게 보일지 미리 본다.
 // 칸 두 개를 차례로 누르면 두 원고의 게시일을 맞바꾼다(게시 예정 원고끼리만). 사진은 원고의 첫 사진.
-export interface GridTile { id: string; title: string; kind: 'planned' | 'published'; date: string }
+export interface GridTile { id: string; title: string; kind: 'planned' | 'published' | 'empty'; date: string }
 
 const kstDate = (ms: number) => new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
 
-/** 격자 순서: 앞으로 올릴 원고(늦은 날짜가 왼쪽 위) → 이미 올린 원고(최근 것부터), 최대 size칸 */
-export function gridTiles(drafts: CalendarDraft[], today: string, size = 12): GridTile[] {
-  const planned = drafts.filter(d => d.status !== 'published' && d.planned_on && d.planned_on >= today)
-    .sort((a, b) => b.planned_on!.localeCompare(a.planned_on!) || a.id.localeCompare(b.id))
-    .map(d => ({ id: d.id, title: d.title.trim() || '제목 없는 원고', kind: 'planned' as const, date: d.planned_on! }));
+/** 격자 순서: 앞으로 올릴 원고와 빈 게시일(늦은 날짜가 왼쪽 위) → 이미 올린 원고(최근 것부터), 최대 size칸.
+ *  빈 게시일(Planoly의 자리표시처럼)은 게시 요일 중 아직 원고가 없는 날 */
+export function gridTiles(drafts: CalendarDraft[], today: string, size = 12, empty: string[] = []): GridTile[] {
+  const planned = [
+    ...drafts.filter(d => d.status !== 'published' && d.planned_on && d.planned_on >= today)
+      .map(d => ({ id: d.id, title: d.title.trim() || '제목 없는 원고', kind: 'planned' as const, date: d.planned_on! })),
+    ...empty.map(day => ({ id: `empty-${day}`, title: '빈 게시일', kind: 'empty' as const, date: day })),
+  ].sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   const published = drafts.filter(d => d.status === 'published' && d.published_at)
     .sort((a, b) => b.published_at! - a.published_at!)
     .map(d => ({ id: d.id, title: d.title.trim() || '제목 없는 원고', kind: 'published' as const, date: kstDate(d.published_at!) }));
   return [...planned, ...published].slice(0, size);
 }
 
+const shiftDay = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const short = (date: string) => `${Number(date.slice(5, 7))}/${Number(date.slice(8))}`;
 
-export function InstaGrid<D extends CalendarDraft>({ drafts, today, onSaved }: { drafts: D[]; today: string; onSaved: (drafts: D[]) => void }) {
-  const tiles = useMemo(() => gridTiles(drafts, today), [drafts, today]);
+export function InstaGrid<D extends CalendarDraft>({ drafts, today, onSaved, rhythm = [] }: { drafts: D[]; today: string; onSaved: (drafts: D[]) => void; rhythm?: number[] }) {
+  const tiles = useMemo(() => {
+    const taken = new Set(drafts.filter(d => d.planned_on && d.status !== 'published').map(d => d.planned_on!));
+    const empty = rhythm.length ? freeSlots(today, rhythm, taken, 3).filter((d): d is string => !!d && d <= shiftDay(today, 14)) : [];
+    return gridTiles(drafts, today, 12, empty);
+  }, [drafts, today, rhythm]);
   const [covers, setCovers] = useState<Record<string, string>>({});
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
-  const ids = tiles.map(t => t.id).join(',');
+  const ids = tiles.filter(t => t.kind !== 'empty').map(t => t.id).join(',');
 
   useEffect(() => {
     if (!ids) return;
@@ -67,10 +76,13 @@ export function InstaGrid<D extends CalendarDraft>({ drafts, today, onSaved }: {
         <p className="muted small">게시일을 정한 원고가 생기면 여기서 프로필 격자로 미리 볼 수 있어요.</p>
       ) : (
         <>
-          <p className="muted small">게시 예정 칸 두 개를 차례로 누르면 두 원고의 게시일을 맞바꿔요. 사진은 원고의 첫 사진이에요.</p>
+          <p className="muted small">게시 예정 칸 두 개를 차례로 누르면 두 원고의 게시일을 맞바꿔요. 사진은 원고의 첫 사진, 빗금 칸은 게시 요일 중 아직 원고가 없는 날이에요.</p>
           <ul className="insta-grid" aria-label="인스타 프로필 격자">
             {tiles.map(tile => {
               const cover = covers[tile.id];
+              if (tile.kind === 'empty') return (
+                <li key={tile.id}><span className="grid-tile k-empty" role="img" aria-label={`${short(tile.date)} 빈 게시일`}><span className="grid-title">빈 게시일</span><span className="grid-date">{short(tile.date)}</span></span></li>
+              );
               const label = `${tile.title}, ${short(tile.date)} ${tile.kind === 'planned' ? '게시 예정' : '게시함'}`;
               return (
                 <li key={tile.id}>
