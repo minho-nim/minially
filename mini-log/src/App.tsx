@@ -22,6 +22,8 @@ import { SharedPhotos } from './SharedPhotos';
 import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
 import { ReviewCard } from './Review';
+import { TagSets } from './TagSets';
+import { Lessons } from './Lessons';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
@@ -1011,7 +1013,9 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
             id="tags" className="input" value={tagText} placeholder="#맛집 #서울카페"
             onChange={e => { setTagText(e.target.value); change({ hashtags: e.target.value.split(/[\s,]+/).map(t => t.replace(/^#+/, '')).filter(Boolean).slice(0, 30) }); }}
           />
+          <TagSets tags={fields.hashtags} onApply={next => { setTagText(next.map(t => `#${t}`).join(' ')); change({ hashtags: next }); }} />
         </div>
+        <Lessons draftId={draft.id} />
       </section>
 
       <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} postType={fields.post_type}

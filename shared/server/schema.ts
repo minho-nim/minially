@@ -69,6 +69,8 @@ const TABLES = [
   // 글감 담아 두기: 떠오른 글감 한 줄(100자)·메모(500자)·참고 주소(https)만. 한 사람 200개까지
   "CREATE TABLE IF NOT EXISTS minilog_saved_ideas (id TEXT PRIMARY KEY, user TEXT NOT NULL, text TEXT NOT NULL, memo TEXT NOT NULL DEFAULT '', url TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
   'CREATE INDEX IF NOT EXISTS minilog_saved_ideas_user ON minilog_saved_ideas (user, created_at)',
+  // 해시태그 묶음: 자주 쓰는 태그 모음(이름 20자, 태그 30개). 한 사람 20묶음까지
+  "CREATE TABLE IF NOT EXISTS minilog_tag_sets (id TEXT PRIMARY KEY, user TEXT NOT NULL, name TEXT NOT NULL, tags TEXT NOT NULL, created_at INTEGER NOT NULL)",
   // 게시 7일 뒤 돌아보기: 사람이 고른 평가(good·ok·low)와 메모(300자), 그때 조회수
   "CREATE TABLE IF NOT EXISTS minilog_reviews (user TEXT NOT NULL, draft_id TEXT NOT NULL, verdict TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', views INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, draft_id))",
 ];

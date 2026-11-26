@@ -588,3 +588,13 @@ select.input { appearance: auto; }
 /* 내 계정: 휴대폰에서도 '이름 · 입력 · 저장'을 한 줄에(저장 버튼이 아래로 떨어지지 않게) */
 .handle-forms form.publish-row { display: grid; grid-template-columns: 5.5em minmax(0, 1fr) auto; align-items: center; gap: 8px; flex-wrap: nowrap; }
 .handle-forms form.publish-row .input { min-width: 0; width: 100%; }
+
+/* 해시태그 묶음 · 지난 글에서 배운 점 */
+.tag-sets { display: grid; gap: 6px; margin-top: 6px; justify-items: start; }
+.tag-set-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tag-set-list li { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; }
+.tag-set-list .btn { overflow-wrap: anywhere; }
+.tag-set-x { padding-left: 8px; padding-right: 8px; }
+.lessons { display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--radius); background: var(--surface-2); }
+.lessons ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.lessons li { overflow-wrap: anywhere; }

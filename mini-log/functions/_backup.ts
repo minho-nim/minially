@@ -1,4 +1,4 @@
-// mini-log 백업: 원고·협찬·문체·제안서 양식·내 블로그(글·숫자)·참고 블로그·블로그 구조·수익 목표를 JSON 하나로. 사진(30일 보관)·채팅·로그인 정보는 빼고.
+// mini-log 백업: 원고·협찬·문체·제안서 양식·내 블로그(글·숫자)·참고 블로그·블로그 구조·수익 목표·돌아보기·담아 둔 글감·SNS 아이디·게시 요일을 JSON 하나로. 사진(30일 보관)·채팅·로그인 정보는 빼고.
 // 불러오기는 '합치기': 없는 것은 더하고, 같은 것은 백업 쪽 updated_at이 더 클 때만 바꾼다. 다른 사용자의 id와 겹치면 건너뛴다.
 import type { D1Database } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
@@ -7,6 +7,11 @@ import { readCampaign } from './_campaigns';
 import { cleanProfile, readSamples, STYLE_LIMITS } from './_style';
 import { emptyForm, readForm } from './_proposal';
 import { parseBlogInput } from './_blog';
+import { HANDLE_PLATFORMS, isHandlePlatform, readHandle, setHandle } from '../../shared/server/accounts';
+import { getRhythm, readDays, setRhythm } from './_plan';
+import { readReview } from './_review';
+import { readSavedIdea, SAVED } from './_savedIdeas';
+import { readTagSet, TAG_SETS } from './_tagSets';
 
 export const BACKUP_VERSION = 1;
 const uuid = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/.test(v);
@@ -28,6 +33,13 @@ export async function exportBackup(db: D1Database, user: UserName) {
     all('SELECT id, name, hub, members, created_at, updated_at FROM minilog_bundles WHERE user = ?'),
     db.prepare('SELECT monthly FROM minilog_goals WHERE user = ?').bind(user).first<{ monthly: number }>(),
   ]);
+  const [reviews, savedIdeas, accounts, rhythm, tagSets] = await Promise.all([
+    all('SELECT draft_id, verdict, note, views, created_at FROM minilog_reviews WHERE user = ?'),
+    all('SELECT id, text, memo, url, created_at FROM minilog_saved_ideas WHERE user = ?'),
+    all('SELECT platform, handle FROM minilog_accounts WHERE user = ?'),
+    getRhythm(db, user),
+    all('SELECT name, tags FROM minilog_tag_sets WHERE user = ? ORDER BY created_at'),
+  ]);
   return {
     app: 'mini-log', version: BACKUP_VERSION, exported_at: Date.now(),
     drafts: drafts.map(d => ({ ...d, hashtags: String(d.hashtags || '').split('\n').filter(Boolean) })),
@@ -38,6 +50,9 @@ export async function exportBackup(db: D1Database, user: UserName) {
     // 블로그 구조(카테고리·배치·묶음)와 수익 목표
     structure: { categories, placements, bundles: bundles.map(b => ({ ...b, members: JSON.parse(String(b.members || '[]')) })) },
     goal: goal?.monthly ?? null,
+    // 게시 7일 뒤 돌아보기·담아 둔 글감·공개 SNS 아이디·게시 요일(비밀번호·토큰은 원래 저장하지 않는다)
+    reviews, saved_ideas: savedIdeas, accounts, rhythm,
+    tag_sets: tagSets.map(t => ({ name: t.name, tags: String(t.tags || '').split('\n').filter(Boolean) })),
   };
 }
 
@@ -47,7 +62,7 @@ const counts = (): Counts => ({ added: 0, updated: 0, kept: 0, skipped: 0 });
 /** 백업 합치기. 형식이 틀린 항목은 건너뛴다(전체를 거절하지 않음). */
 export async function mergeBackup(db: D1Database, user: UserName, data: Record<string, unknown>) {
   if (data.app !== 'mini-log' || data.version !== BACKUP_VERSION) throw new Error('mini-log 백업 파일이 아니에요.');
-  const result = { drafts: counts(), campaigns: counts(), styles: counts(), blogs: counts(), posts: counts(), proposal: counts(), structure: counts() };
+  const result = { drafts: counts(), campaigns: counts(), styles: counts(), blogs: counts(), posts: counts(), proposal: counts(), structure: counts(), reviews: counts(), saved_ideas: counts(), accounts: counts(), tag_sets: counts() };
   const list = (v: unknown) => (Array.isArray(v) ? v.slice(0, 5000) as Record<string, unknown>[] : []);
 
   // 원고
@@ -178,5 +193,48 @@ export async function mergeBackup(db: D1Database, user: UserName, data: Record<s
   if (Number.isSafeInteger(goal) && goal >= 1000 && !(await db.prepare('SELECT 1 AS ok FROM minilog_goals WHERE user = ?').bind(user).first())) {
     await db.prepare('INSERT INTO minilog_goals (user, monthly, updated_at) VALUES (?, ?, ?)').bind(user, goal, Date.now()).run();
   }
+  // 게시 7일 뒤 돌아보기: 내 게시 원고에 평가가 아직 없을 때만 더한다(지금 평가가 있으면 그대로)
+  for (const r of list(data.reviews).slice(0, 2000)) {
+    const input = readReview(r);
+    const created = time(r.created_at);
+    if (typeof input === 'string' || !created) { result.reviews.skipped++; continue; }
+    if (!(await db.prepare("SELECT 1 AS ok FROM minilog_drafts WHERE user = ? AND id = ? AND status = 'published'").bind(user, input.draft_id).first())) { result.reviews.skipped++; continue; }
+    const views = typeof r.views === 'number' && Number.isSafeInteger(r.views) && r.views >= 0 ? r.views : null;
+    if (await db.prepare('SELECT 1 AS ok FROM minilog_reviews WHERE user = ? AND draft_id = ?').bind(user, input.draft_id).first()) { result.reviews.kept++; continue; }
+    await db.prepare('INSERT INTO minilog_reviews (user, draft_id, verdict, note, views, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(user, draft_id) DO NOTHING')
+      .bind(user, input.draft_id, input.verdict, input.note, views, created).run();
+    result.reviews.added++;
+  }
+  // 담아 둔 글감: 같은 글감 글이 이미 있으면 건너뛰고, 200개까지만
+  let savedCount = (await db.prepare('SELECT COUNT(*) AS n FROM minilog_saved_ideas WHERE user = ?').bind(user).first<{ n: number }>())?.n ?? 0;
+  for (const i of list(data.saved_ideas).slice(0, SAVED.max)) {
+    const idea = readSavedIdea(i);
+    if (typeof idea === 'string') { result.saved_ideas.skipped++; continue; }
+    if (await db.prepare('SELECT 1 AS ok FROM minilog_saved_ideas WHERE user = ? AND text = ?').bind(user, idea.text).first()) { result.saved_ideas.kept++; continue; }
+    if (savedCount >= SAVED.max) { result.saved_ideas.skipped++; continue; }
+    const taken = uuid(i.id) && await db.prepare('SELECT 1 AS ok FROM minilog_saved_ideas WHERE id = ?').bind(i.id).first();
+    await db.prepare('INSERT INTO minilog_saved_ideas (id, user, text, memo, url, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(uuid(i.id) && !taken ? i.id : crypto.randomUUID(), user, idea.text, idea.memo, idea.url, time(i.created_at) ?? Date.now()).run();
+    savedCount++; result.saved_ideas.added++;
+  }
+  // 공개 SNS 아이디: 지금 비어 있는 곳만 채운다. 게시 요일도 지금 없을 때만
+  const filled = new Set((await db.prepare('SELECT platform FROM minilog_accounts WHERE user = ?').bind(user).all<{ platform: string }>()).results.map(r => r.platform));
+  for (const a of list(data.accounts).slice(0, Object.keys(HANDLE_PLATFORMS).length)) {
+    const handle = isHandlePlatform(a.platform) ? readHandle(a.platform, a.handle) : null;
+    if (!isHandlePlatform(a.platform) || !handle) { result.accounts.skipped++; continue; }
+    if (filled.has(a.platform)) { result.accounts.kept++; continue; }
+    await setHandle(db, user, a.platform, handle); filled.add(a.platform); result.accounts.added++;
+  }
+  // 해시태그 묶음: 같은 이름이 없을 때만, 20개까지
+  let setCount = (await db.prepare('SELECT COUNT(*) AS n FROM minilog_tag_sets WHERE user = ?').bind(user).first<{ n: number }>())?.n ?? 0;
+  for (const t of list(data.tag_sets).slice(0, TAG_SETS.max)) {
+    const set = readTagSet(t);
+    if (typeof set === 'string' || setCount >= TAG_SETS.max) { result.tag_sets.skipped++; continue; }
+    if (await db.prepare('SELECT 1 AS ok FROM minilog_tag_sets WHERE user = ? AND name = ?').bind(user, set.name).first()) { result.tag_sets.kept++; continue; }
+    await db.prepare('INSERT INTO minilog_tag_sets (id, user, name, tags, created_at) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), user, set.name, set.tags.join('\n'), Date.now()).run();
+    setCount++; result.tag_sets.added++;
+  }
+  const days = readDays(data.rhythm);
+  if (days && !(await getRhythm(db, user)).length) await setRhythm(db, user, days);
   return result;
 }
