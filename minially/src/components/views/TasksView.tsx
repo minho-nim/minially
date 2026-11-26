@@ -300,10 +300,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={()=>setImporting(true)} className="min-h-9 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent-ink">미완료 가져오기</button>
-          <button type="button" onClick={()=>{setCompletionFilter('all');onOpenCalendar();}} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent-ink"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
-          <div role="group" aria-label="할 일 완료 필터" className="flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
-            {([['all','모두'],['pending','미완료'],['completed','완료']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={completionFilter===value} onClick={()=>setCompletionFilter(value)} className={'min-h-8 px-2.5 rounded-md '+(completionFilter===value?'bg-white font-semibold text-app-ink':'text-app-muted')}>{label}</button>)}
+          <button type="button" onClick={()=>setImporting(true)} className="relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden h-8 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent-ink">미완료 가져오기</button>
+          <button type="button" onClick={()=>{setCompletionFilter('all');onOpenCalendar();}} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent-ink"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
+          <div role="group" aria-label="할 일 완료 필터" className="flex h-8 items-stretch p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
+            {([['all','모두'],['pending','미완료'],['completed','완료']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={completionFilter===value} onClick={()=>setCompletionFilter(value)} className={'relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[\'\'] md:after:hidden px-2.5 rounded-md '+(completionFilter===value?'bg-white font-semibold text-app-ink':'text-app-muted')}>{label}</button>)}
           </div>
 
           <button
@@ -313,7 +313,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               setIsSelectMode(!isSelectMode);
               setSelectedTaskIds([]);
             }}
-            className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+            className={`relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden h-8 px-2.5 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
               isSelectMode
                 ? 'bg-app-accent-ink text-white border-app-accent'
                 : 'bg-white text-app-muted border-app-line hover:text-app-ink'

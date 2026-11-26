@@ -97,3 +97,26 @@ test('공유로 받은 글(문자·메일)이 있으면 앱을 열 때 꺼내 �
   expect(page.url()).not.toContain('share-photo');
   expect(await page.evaluate(async () => !!(await (await caches.open('minially-share')).match('shared-text')))).toBe(false);
 });
+
+test('글로 넣기: 내 예전 일정을 보고 카테고리를 정하고, 두 번 넘게 쓴 제목으로 맞추며 원래대로도 된다', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.evaluate(async () => {
+    const path = '/src/db/indexedDB.ts';
+    await (await import(path)).importAllData({ categories: [{ id: 'health', name: '병원', color: '#CF8FA8' }, { id: 'work', name: '업무', color: '#94BED9' }],
+      schedules: [{ id: 'p1', title: '치과 정기 검진', date: '2026-10-01', category: 'health', completed: false }, { id: 'p2', title: '치과 정기 검진', date: '2026-11-01', category: 'health', completed: false }, { id: 'p3', title: '팀 회의', date: '2026-11-02', category: 'work', completed: false }] });
+  });
+  await page.reload(); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await sheet.getByLabel('문자·메일 붙여넣기').fill('[밝은미소치과] 12월 2일 오후 2시 진료 예약되었습니다.');
+  await sheet.getByRole('button', { name: '글에서 찾기' }).click();
+  const row = sheet.locator('[data-photo-event]').first();
+  await expect(row.getByLabel('카테고리')).toHaveValue('health');
+  await expect(row).toContainText('카테고리 추천');
+  await expect(row.getByLabel('일정 제목')).toHaveValue('치과 정기 검진'); // 두 번 쓴 제목 → 그 제목으로
+  await row.getByRole('button', { name: '원래대로' }).click();
+  await expect(row.getByLabel('일정 제목')).toHaveValue('밝은미소치과 진료');
+  await row.getByRole('button', { name: /예전처럼/ }).click();
+  await expect(row.getByLabel('일정 제목')).toHaveValue('치과 정기 검진');
+});

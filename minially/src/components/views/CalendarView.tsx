@@ -468,11 +468,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     <div className="calendar-view max-w-4xl mx-auto flex h-full min-h-0 w-full flex-col gap-1 sm:gap-1.5">
       <div role="group" aria-label="일정 만들기" className="flex flex-wrap items-center justify-end gap-1.5">
         {/* View Mode Toggle */}
-        <div className="mr-auto shrink-0 flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
+        <div className="mr-auto shrink-0 flex h-8 items-stretch p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
           <button
             type="button"
             onClick={() => setViewMode('month')} data-shortcut="month"
-            className={`min-h-11 md:min-h-0 px-3 md:px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+            className={`relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden flex items-center px-3 md:px-2.5 rounded-md transition-all cursor-pointer font-medium ${
               viewMode === 'month'
                 ? 'bg-white text-app-ink shadow-2xs font-semibold'
                 : 'text-app-muted hover:text-app-ink'
@@ -483,7 +483,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <button
             type="button"
             onClick={() => setViewMode('week')} data-shortcut="week"
-            className={`min-h-11 md:min-h-0 px-3 md:px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+            className={`relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden flex items-center px-3 md:px-2.5 rounded-md transition-all cursor-pointer font-medium ${
               viewMode === 'week'
                 ? 'bg-white text-app-ink shadow-2xs font-semibold'
                 : 'text-app-muted hover:text-app-ink'
@@ -503,7 +503,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <button
               type="button"
               onClick={handlePrev} data-shortcut="prev"
-              className="p-3 md:p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              className="relative after:absolute after:-inset-1.5 after:content-[''] md:after:hidden p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="이전"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -516,7 +516,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             <button
               type="button"
               onClick={handleNext} data-shortcut="next"
-              className="p-3 md:p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+              className="relative after:absolute after:-inset-1.5 after:content-[''] md:after:hidden p-1.5 text-app-muted hover:text-app-ink hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
               title="다음"
             >
               <ChevronRight className="w-5 h-5" />
@@ -526,7 +526,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           <button
             type="button"
             onClick={handleGoToday} data-shortcut="today"
-            className="min-h-11 md:min-h-0 px-3 md:px-2.5 py-1 text-xs font-semibold text-app-accent-ink bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
+            className="relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden min-h-8 md:min-h-0 px-2.5 md:py-1 text-xs font-semibold text-app-accent-ink bg-white border border-app-line hover:bg-app-soft rounded-lg transition-colors cursor-pointer"
           >
             오늘
           </button>
