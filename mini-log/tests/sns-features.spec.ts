@@ -124,3 +124,11 @@ test('발행 칸: 인스타 캡션 점검(피드에 보이는 부분)과 카드�
   // 다른 시험에 영향이 없게 원고를 지운다
   await page.evaluate(async () => { const { drafts } = await (await fetch('/api/drafts')).json(); for (const d of drafts) if (d.title === '성수 소금빵 맛집 비교') await fetch(`/api/drafts/${d.id}`, { method: 'DELETE' }); });
 });
+
+test('카드뉴스 줄 나누기: 띄어쓰기 단위로, 너무 긴 낱말만 글자 단위로', async () => {
+  const { wrap } = await import('../src/CardNews');
+  const len = (t: string) => t.length; // 글자 하나 = 1
+  expect(wrap(len, '제철 과일 타르트 맛집', 8)).toEqual(['제철 과일', '타르트 맛집']); // '맛/집'처럼 낱말 가운데서 자르지 않는다
+  expect(wrap(len, '가나다라마바사아자차카', 4)).toEqual(['가나다라', '마바사아', '자차카']);
+  expect(wrap(len, '첫 줄\n\n셋째 줄', 10)).toEqual(['첫 줄', '', '셋째 줄']);
+});

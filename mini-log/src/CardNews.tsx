@@ -5,12 +5,22 @@ import { cardSlides } from './publishKit';
 const W = 1080, H = 1350;
 const THEMES = [{ name: '밝게', bg: '#FFF7EE', fg: '#2B2420', accent: '#E86A4A' }, { name: '어둡게', bg: '#2B2420', fg: '#FFF7EE', accent: '#F2B66D' }] as const;
 
-function wrap(ctx: CanvasRenderingContext2D, text: string, max: number) {
+/** 띄어쓰기 단위로 줄을 나누고, 한 낱말이 너무 길면 글자 단위로 자른다 */
+export function wrap(measure: (t: string) => number, text: string, max: number) {
   const out: string[] = [];
   for (const para of text.split('\n')) {
     let line = '';
-    for (const ch of para) { if (ctx.measureText(line + ch).width > max && line) { out.push(line); line = ch.trimStart(); } else line += ch; }
-    out.push(line);
+    for (const word of para.split(/(\s+)/).filter(Boolean)) {
+      if (measure(line + word) <= max) { line += word; continue; }
+      if (line.trim()) out.push(line.trimEnd());
+      line = /^\s+$/.test(word) ? '' : word;
+      while (measure(line) > max && line.length > 1) { // 긴 낱말은 글자 단위로
+        let cut = line.length - 1;
+        while (cut > 1 && measure(line.slice(0, cut)) > max) cut--;
+        out.push(line.slice(0, cut)); line = line.slice(cut);
+      }
+    }
+    out.push(line.trimEnd());
   }
   return out;
 }
@@ -28,11 +38,20 @@ export function drawCard(ctx: CanvasRenderingContext2D, text: string, index: num
   ctx.fillStyle = theme.accent; ctx.font = '700 40px "Pretendard", "Apple SD Gothic Neo", sans-serif'; ctx.textBaseline = 'top';
   ctx.fillText(`${index + 1} / ${total}`, 90, 90);
   ctx.fillStyle = fg;
-  ctx.font = `800 ${cover ? 104 : 84}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
-  const lines = wrap(ctx, text || ' ', W - 180).slice(0, cover ? 5 : 8);
-  const lh = cover ? 130 : 108;
-  const top = cover ? H - 160 - lines.length * lh : (H - lines.length * lh) / 2;
-  lines.forEach((l, i) => { if (!cover && i > 0) ctx.font = '500 66px "Pretendard", "Apple SD Gothic Neo", sans-serif'; ctx.fillText(l, 90, top + i * lh); });
+  // 첫 줄(제목)은 크게, 나머지는 작게 — 각자 자기 글자 크기로 줄을 나눈다
+  const [head, ...rest] = (text || ' ').split('\n');
+  const big = `800 ${cover ? 104 : 84}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
+  const small = '500 60px "Pretendard", "Apple SD Gothic Neo", sans-serif';
+  ctx.font = big;
+  const heads = wrap(t => ctx.measureText(t).width, head, W - 180).slice(0, cover || !rest.join('').trim() ? 6 : 3);
+  ctx.font = small;
+  const bodies = cover ? [] : wrap(t => ctx.measureText(t).width, rest.join('\n'), W - 180).filter((l, i, a) => l || (i > 0 && i < a.length - 1)).slice(0, 9);
+  const hl = cover ? 130 : 108, bl = 86, gap = bodies.length ? 30 : 0;
+  const height = heads.length * hl + gap + bodies.length * bl;
+  let y = cover ? H - 160 - height : (H - height) / 2;
+  ctx.font = big; for (const l of heads) { ctx.fillText(l, 90, y); y += hl; }
+  y += gap;
+  ctx.font = small; for (const l of bodies) { ctx.fillText(l, 90, y); y += bl; }
 }
 
 export function CardNews({ title, body, photoId, onMessage }: { title: string; body: string; photoId: string | null; onMessage: (m: { kind: 'error' | 'info'; text: string }) => void }) {
@@ -77,7 +96,7 @@ export function CardNews({ title, body, photoId, onMessage }: { title: string; b
           <li key={i}>
             <canvas ref={el => { canvases.current[i] = el; }} width={W} height={H} className="card-canvas" role="img" aria-label={`카드 ${i + 1}: ${t.replace(/\n/g, ' ')}`} />
             <label className="sr-only" htmlFor={`card-${i}`}>카드 {i + 1} 글</label>
-            <textarea id={`card-${i}`} className="textarea" rows={2} maxLength={120} value={t} onChange={e => setSlides(s => s.map((x, k) => (k === i ? e.target.value : x)))} />
+            <textarea id={`card-${i}`} className="textarea" rows={3} maxLength={120} value={t} onChange={e => setSlides(s => s.map((x, k) => (k === i ? e.target.value : x)))} />
           </li>
         ))}
       </ol>

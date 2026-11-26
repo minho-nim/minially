@@ -50,7 +50,7 @@ const later = (a: string, b: string) => (a > b ? a : b);
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
 const byViews = (a: Post, b: Post) => (b.views ?? -1) - (a.views ?? -1) || (b.published_on ?? '').localeCompare(a.published_on ?? '');
 
-function median(values: number[]) {
+export function median(values: number[]) {
   if (!values.length) return 0;
   const s = [...values].sort((a, b) => a - b);
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;

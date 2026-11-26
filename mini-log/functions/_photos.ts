@@ -42,6 +42,17 @@ export async function listPhotos(db: D1Database, user: UserName, draftId: string
   return (await db.prepare(`SELECT ${COLUMNS} FROM minilog_photos WHERE user = ? AND draft_id = ? ORDER BY position, created_at`).bind(user, draftId).all<Photo>()).results;
 }
 
+/** 원고마다 첫 사진(표지) id — 격자 미리보기용. 본인 것만, 원고 id 목록 안에서만 */
+export async function coverPhotos(db: D1Database, user: UserName, draftIds: string[]) {
+  if (!draftIds.length) return {} as Record<string, string>;
+  const marks = draftIds.map(() => '?').join(',');
+  const rows = (await db.prepare(`SELECT draft_id, id FROM minilog_photos WHERE user = ? AND draft_id IN (${marks}) ORDER BY draft_id, position, created_at`)
+    .bind(user, ...draftIds).all<{ draft_id: string; id: string }>()).results;
+  const covers: Record<string, string> = {};
+  for (const r of rows) if (!covers[r.draft_id]) covers[r.draft_id] = r.id;
+  return covers;
+}
+
 export async function getPhoto(db: D1Database, user: UserName, id: string) {
   return db.prepare(`SELECT ${COLUMNS}, r2_key FROM minilog_photos WHERE user = ? AND id = ?`).bind(user, id).first<Photo & { r2_key: string }>();
 }

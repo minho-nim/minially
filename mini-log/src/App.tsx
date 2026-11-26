@@ -21,6 +21,7 @@ import { DraftQuestions } from './DraftQuestions';
 import { SharedPhotos } from './SharedPhotos';
 import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
+import { ReviewCard } from './Review';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
@@ -266,7 +267,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
-        : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
+        : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} onSaved={list => list.forEach(onSaved)} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
@@ -338,6 +339,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
           </div>
 
           <div className="dash-grid">
+            <ReviewCard />
             <section className="card step" aria-labelledby="d-drafts">
               <h2 id="d-drafts" className="step-title">원고 현황<span className="step-sub">전체 {formatNumber(totalDrafts)}개</span></h2>
               {totalDrafts === 0 ? <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요.</p> : (
