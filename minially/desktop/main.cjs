@@ -79,7 +79,7 @@ if(!app.requestSingleInstanceLock())app.quit();else{
   updates=createUpdates({updater,currentVersion:app.getVersion(),autoDownload:preferences.get().autoDownload,onChange:()=>{if(updates?.get().kind==='error')quitAllowed=false;publishState();}});registerIPC();
   if(!testMode){try{tray=new Tray(nativeImage.createFromPath(path.join(__dirname,'renderer/desktop-icon.png')).resize({width:20,height:20}));tray.setToolTip('미니어리');tray.on('double-click',()=>createMain());trayMenu();}catch{tray=null;}shortcutAvailable=globalShortcut.register(shortcut,createQuick);}
   createMain();if(process.argv.includes('--quick-note'))createQuick();
-  if(updater){setTimeout(()=>{void updates.check();},10000).unref();setInterval(()=>{void updates.check();},4*60*60*1000).unref();}
+  if(updater){setTimeout(()=>{void updates.check();},3000).unref();/* 켜고 3초 뒤 첫 확인(화면 알림은 UpdateNotice) */setInterval(()=>{void updates.check();},4*60*60*1000).unref();}
   app.on('activate',()=>createMain());
  }).catch(()=>{dialog.showErrorBox('미니어리','앱을 시작하지 못했습니다. 저장 공간과 설치 상태를 확인한 뒤 다시 열어 주세요.');quitAllowed=true;app.quit();});
  app.on('before-quit',event=>{if(!quitAllowed){event.preventDefault();void finishApp(false);}});
