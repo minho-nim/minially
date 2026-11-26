@@ -38,7 +38,8 @@ test('휴대폰 공유로 열면 관심 협찬으로 담고, 가이드로 채우
 test('체험단 찾기: 지역·분야를 기억하고 검색 화면을 새 창으로 연다', async ({ page }) => {
   await login(page, CODE_C);
   const manifest = await page.evaluate(async () => (await fetch('/manifest.webmanifest')).json());
-  expect(manifest.share_target).toEqual({ action: '/', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } });
+  // 사진 공유를 받으려고 POST(서비스 워커가 받아 글·주소는 예전처럼 /?title=&text=&url= 로 넘김)로 바뀜
+  expect(manifest.share_target).toMatchObject({ action: '/share', method: 'POST', params: { title: 'title', text: 'text', url: 'url' } });
   await page.getByRole('button', { name: '협찬', exact: true }).click();
   await page.getByRole('tab', { name: '관심·신청' }).click();
   await page.getByLabel('지역').fill('성수');

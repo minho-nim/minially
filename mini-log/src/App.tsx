@@ -16,6 +16,9 @@ import { fullText, instagramText, photoFileName } from './publishKit';
 import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
+import { DraftQuestions } from './DraftQuestions';
+import { SharedPhotos } from './SharedPhotos';
+import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
@@ -33,6 +36,13 @@ interface Draft {
 }
 interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null; note?: string }
 const STATUS_LABEL: Record<Status, string> = { draft: '작성 중', approved: '승인됨', published: '게시됨' };
+/** 주간 리듬: 이번 주(월~일, 한국 시간)에 게시한 원고 수. 몰아서 올리기보다 주 3~5편이 꾸준해요 */
+function WeekRhythm({ drafts }: { drafts: Draft[] }) {
+  const kst = new Date(Date.now() + 9 * 3600000);
+  const monday = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate() - ((kst.getUTCDay() + 6) % 7)) - 9 * 3600000;
+  const n = drafts.filter(d => d.status === 'published' && (d.published_at ?? 0) >= monday).length;
+  return <p className="muted small week-rhythm" aria-label="이번 주 게시">이번 주 게시 <b>{n}편</b> · 권장 3~5편{n > 5 ? ' (하루에 몰아 올리기보다 나눠 올려요)' : ''}</p>;
+}
 const dayLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(ms);
 
 async function uploadPhoto(draftId: string, file: File): Promise<Photo> {
@@ -129,6 +139,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(() => readRoute().draftId);
   // 휴대폰 공유로 열렸으면(/?url=…) 협찬 화면에서 '관심'으로 담는다. 주소의 ?…는 한 번 읽고 지운다.
   const [shared] = useState(() => readShare(window.location.search));
+  // 휴대폰 '공유 → 미니로그'로 사진이 오면(/?share-photos=N) 어느 원고에 넣을지 묻는다
+  const [sharePhotos, setSharePhotos] = useState(() => new URLSearchParams(window.location.search).has('share-photos'));
   const [view, setView] = useState<View>(() => (shared ? 'campaigns' : readRoute().view));
   useEffect(() => { if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash); }, []);
   // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
@@ -205,6 +217,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요. <b>새 원고</b>로 시작하세요.</p>
           </div>
         )}
+        {drafts && drafts.length > 0 && <WeekRhythm drafts={drafts} />}
         {drafts && drafts.length > 0 && (
           <nav className="list" aria-label="원고">
             {drafts.map(d => (
@@ -233,6 +246,13 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
+        {sharePhotos && drafts && <SharedPhotos drafts={drafts} onClose={() => setSharePhotos(false)} onUpload={async (draftId, files, progress) => {
+          let id = draftId;
+          if (!id) { const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: {} }); setDrafts(list => [draft, ...(list ?? [])]); id = draft.id; }
+          setSelectedId(null); // 연 원고에 넣을 때도 사진 목록을 새로 읽게 닫았다 연다
+          for (let i = 0; i < files.length; i++) { await uploadPhoto(id, files[i]); progress(i + 1); }
+          await refresh(); setSelectedId(id); setView('drafts');
+        }} />}
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
         : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
@@ -243,7 +263,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
-          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
+          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
@@ -620,8 +640,8 @@ type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status
 
 const isPostTypeKey = (v: string): v is PostType => v in POST_TYPES;
 
-function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack }: {
-  draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
+function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack, otherTitles }: {
+  draft: Draft; gemini: boolean; otherTitles: string[]; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
 }) {
   // 동시 수정 보호: 이 화면이 마지막으로 본 원고 수정 시각. 서버가 더 새것이면 덮어쓰지 않고 사본으로 남긴다.
   const baseUpdatedAt = useRef(draft.updated_at);
@@ -785,14 +805,16 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
     };
   }, [flush]);
 
-  async function generate() {
-    if (fields.experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
+  /** experienceOverride: '먼저 질문 받기'에서 답을 붙인 경험 글(경험 칸도 그 글로 바뀜) */
+  async function generate(experienceOverride?: string) {
+    const experience = typeof experienceOverride === 'string' ? experienceOverride : fields.experience;
+    if (experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
     if (fields.body.trim() && !window.confirm('지금 본문을 AI 초안으로 바꿀까요? 바꾼 뒤 이 화면에서 \'AI 초안 되돌리기\'로 지금 내용을 다시 불러올 수 있어요.')) return;
     await flush();
     const before = { title: fields.title, body: fields.body, hashtags: fields.hashtags };
     setAiBusy(true); setMessage(null);
     try {
-      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience, post_type: fields.post_type } });
+      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience, post_type: fields.post_type } });
       setBeforeAi(before.title.trim() || before.body.trim() || before.hashtags.length ? { ...before, aiBody: made.body } : null);
       setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, post_type: made.post_type ?? 'none', planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
@@ -951,12 +973,14 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           </select>
         </div>
         <div className="ai-row">
-          <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>
+          <button className="btn primary" onClick={() => { void generate(); }} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
           {beforeAi && !aiBusy && <button type="button" className="btn ghost" onClick={undoAi}>AI 초안 되돌리기</button>}
           {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
         </div>
+        <DraftQuestions draftId={draft.id} experience={fields.experience} postType={fields.post_type} disabled={aiBusy} canGenerate={Boolean(gemini)}
+          onReady={experience => { change({ experience }); if (gemini) void generate(experience); }} onError={text => setMessage({ kind: 'error', text })} />
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(hub 설정 참고).</p>}
       </section>
 
@@ -980,7 +1004,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
       </section>
 
       <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} postType={fields.post_type}
-        sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} />
+        sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} otherTitles={otherTitles} />
 
       <section className="card step" aria-labelledby="s4">
         <h2 id="s4" className="step-title"><span className="n">4</span>올리기·게시</h2>
@@ -1050,6 +1074,10 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                     </div>
                   </div>
                 )}
+              </li>
+              <li className="kit-wide">
+                <span className="kit-label">스레드·X</span>
+                <SocialPosts draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} url={publishUrl} beforeAi={flush} onMessage={setMessage} />
               </li>
             </ol>
             <p className="muted small" style={{ margin: 0 }}>올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>

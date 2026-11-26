@@ -87,6 +87,19 @@ test('올리기 보조: 한 번에·따로 복사, 사진 번호 붙여 받기, 
   expect(await clip()).toBe('내가 고친 인스타 글 #카페');
   await expect(kit).toContainText('해시태그 1/30개');
 
+  // 스레드·X: 규칙 글 → AI로 짧게(서버가 태그·주소·[사진] 지움) → 글이 채워진 작성 화면 주소
+  await kit.getByRole('button', { name: '스레드·X 글 만들기' }).click();
+  const threads = page.getByLabel('스레드', { exact: true });
+  await expect(threads).toHaveValue('올리기 시험 원고\n\n첫 문단\n두 번째 문단\n\n#카페');
+  await kit.getByRole('button', { name: 'AI로 짧게 다듬기' }).click();
+  await expect(threads).toHaveValue('빵 좋아하면 꼭 가 보세요\n소금빵이 바삭해요\n\n#카페');
+  await expect(page.getByLabel('X', { exact: true })).toHaveValue('동네 빵집 소금빵 바삭\n#카페');
+  const open = kit.getByRole('link', { name: 'X에서 열기 ↗' });
+  expect(await open.getAttribute('href')).toBe('https://x.com/intent/post?text=' + encodeURIComponent('동네 빵집 소금빵 바삭\n#카페'));
+  await expect(kit.getByRole('link', { name: '스레드에서 열기 ↗' })).toHaveAttribute('href', /^https:\/\/www\.threads\.net\/intent\/post\?text=/);
+  await kit.getByRole('button', { name: '스레드 글 복사' }).click();
+  expect(await clip()).toBe('빵 좋아하면 꼭 가 보세요\n소금빵이 바삭해요\n\n#카페');
+
   // 올린 뒤 주소 → 게시 완료
   await page.getByLabel('게시한 글 주소').fill('https://blog.naver.com/myblog/223999999999');
   await page.getByRole('button', { name: '게시 완료' }).click();

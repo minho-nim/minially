@@ -193,3 +193,4 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 
 /* 손가락으로 쓰는 화면: 상단 탭·토글을 44px 이상으로(마우스 화면은 지금 크기 그대로) */
 @media (pointer: coarse) { .nav a, .scope button, .seg button { min-height: 44px; } }
+table.usage td.off { color: var(--danger); font-weight: 700; }

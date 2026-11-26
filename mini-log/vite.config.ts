@@ -34,8 +34,9 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         scope: '/',
-        // 휴대폰에서 체험단 공고를 보다가 '공유 → 미니로그'를 누르면 /?title=&text=&url= 로 열려 '관심' 협찬으로 담는다(설치한 앱에서만)
-        share_target: { action: '/', method: 'GET', params: { title: 'title', text: 'text', url: 'url' } },
+        // 휴대폰 '공유 → 미니로그'(설치한 앱에서만): 체험단 공고 주소·글은 '관심' 협찬으로, 갤러리 사진은 고른 원고에 바로 넣는다.
+        // POST라 서비스 워커(share-target-sw.js)가 받는다. 사진은 이 기기 캐시에 잠깐 두고 앱이 꺼내 올린 뒤 지운다.
+        share_target: { action: '/share', method: 'POST', enctype: 'multipart/form-data', params: { title: 'title', text: 'text', url: 'url', files: [{ name: 'photos', accept: ['image/*'] }] } },
         icons: [
           { src: '/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
@@ -51,6 +52,7 @@ export default defineConfig({
           options: { cacheName: 'fonts', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } },
         }],
         navigateFallbackDenylist: [/^\/api\//, /^\/code-hash\.html$/, /^\/version\.json$/],
+        importScripts: ['/share-target-sw.js'],
         cleanupOutdatedCaches: true,
       },
     }),

@@ -64,6 +64,10 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   await expect(page.getByLabel('오류 종류')).toContainText('호출 제한 1');
   await expect(page.getByRole('list', { name: '작업별 토큰' })).toContainText('문체 분석'); // 표는 접어 두고 그래프로
   await expect(page.getByRole('img', { name: /^사용자별 토큰: .*1,200, .*3,500$/ })).toBeVisible();
+  // 오늘 Gemini 사용: 사람·모델별 호출과 한도 오류(호출 제한)
+  const todayTable = page.getByRole('table', { name: '오늘 사람·모델별 Gemini 사용' });
+  await expect(todayTable.getByRole('row', { name: /사용자 C gemini-2\.5-flash 1 0/ })).toBeVisible();
+  await expect(todayTable.getByRole('row', { name: /사용자 D gemini-2\.5-flash 2 1번 \(한도에 걸림\)/ })).toBeVisible();
   await page.screenshot({ path: 'test-results/hub-overview.png', fullPage: true });
   // 협찬·수익: 통합 화면에서 C·D 모두 보임
   const revenue = page.locator('section', { has: page.getByRole('heading', { name: '협찬·광고 수익' }) });

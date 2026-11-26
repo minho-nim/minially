@@ -78,6 +78,15 @@ createServer((req, res) => {
     if (prompt.includes('통계 화면')) {
       return ok({ posts: [{ title: '동네 빵집 소금빵 후기', views: 1520, likes: 48, comments: 12 }, { title: '겨울 카페 투어', views: 830, likes: 21, comments: null }, { title: '없는 글 제목', views: 5, likes: 0, comments: 0 }] });
     }
+    if (prompt.includes('스레드와 X(트위터)에 올릴 짧은 글')) {
+      // 다른 곳에도 올리기: 서버가 해시태그·주소·[사진] 표시를 지워야 한다
+      return ok({ threads: '빵 좋아하면 꼭 가 보세요 #빵스타그램\n소금빵이 바삭해요 [사진 1]', x: '동네 빵집 소금빵 바삭 https://spam.example' });
+    }
+    if (prompt.includes('블로그 초안을 쓰기 전에 작성자에게 물어볼 질문')) {
+      // 초안 전 질문: 경험 글이 <경험> 안에 들어갔는지 첫 질문의 이유 칸에 앞부분을 돌려준다
+      const exp = prompt.match(/<경험>\n([\s\S]*?)\n<\/경험>/)?.[1] ?? '';
+      return ok({ questions: [{ q: '소금빵 가격은 얼마였나요?', why: `경험: ${exp.slice(0, 12)}` }, { q: '아쉬웠던 점이 있었나요?', why: '솔직한 단점' }, { q: '', why: '빈 질문은 서버가 뺌' }] });
+    }
     if (prompt.includes('글(예약 문자·메일·공지) 속 일정을 찾는 도우미')) {
       // 글로 넣기 'AI로 다시 읽기': 붙여넣은 글이 <글> 안에 들어갔는지 근거 칸에 그대로 돌려준다
       const body = prompt.match(/<글>\n([\s\S]*?)\n<\/글>/)?.[1] ?? '';
