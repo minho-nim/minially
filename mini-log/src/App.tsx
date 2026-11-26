@@ -12,7 +12,8 @@ import { outlineText, POST_TYPES, type PostType } from '../functions/_postTypes'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
-import { fullText, instagramText, photoFileName } from './publishKit';
+import { fullText, instaCheck, instagramText, photoFileName } from './publishKit';
+import { CardNews } from './CardNews';
 import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
@@ -662,6 +663,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   const [thumbOpen, setThumbOpen] = useState(false);
   // 인스타 게시물 글: 처음엔 규칙으로 만든 글, 'AI로 인스타 글 쓰기'를 누르면 AI 글. 고친 내용은 이 화면에서만(저장 안 함)
   const [insta, setInsta] = useState<string | null>(null);
+  const [cardOpen, setCardOpen] = useState(false);
   const [instaBusy, setInstaBusy] = useState(false);
   const [published, setPublished] = useState({ url: draft.published_url, at: draft.published_at });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -1079,8 +1081,23 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                       <button className="btn primary small" onClick={() => { void copyInstagram(insta); }} disabled={!insta.trim()}>인스타 글 복사</button>
                       <span className={`small ${insta.length > 2200 ? 'error' : 'muted'}`}>{insta.length.toLocaleString('ko-KR')} / 2,200자 · 해시태그 {(insta.match(/#[^\s#]+/g) ?? []).length}/30개</span>
                     </div>
+                    {(() => { const c = instaCheck(insta); return (
+                      <div className="insta-check" aria-label="인스타 캡션 점검">
+                        <p className="small" style={{ margin: 0 }}><b>피드에 보이는 부분</b> <span className="muted">(이 뒤는 '더 보기'로 접혀요)</span></p>
+                        <p className="insta-preview small">{c.preview}{insta.length > 125 ? '… 더 보기' : ''}</p>
+                        <ul className="check-list">{c.items.map(i => <li key={i.label} className={i.ok ? 'ok' : 'no'}><span aria-hidden="true">{i.ok ? '✓' : '!'}</span><span>{i.label}</span>{!i.ok && <span className="muted small check-hint">{i.hint}</span>}</li>)}</ul>
+                      </div>
+                    ); })()}
                   </div>
                 )}
+              </li>
+              <li className="kit-wide">
+                <span className="kit-label">카드뉴스</span>
+                <div className="kit-buttons">
+                  <button className="btn small" onClick={() => setCardOpen(v => !v)} aria-expanded={cardOpen}>{cardOpen ? '카드뉴스 닫기' : '카드뉴스 7장 만들기'}</button>
+                  <span className="muted small">원고에서 장마다 글을 뽑아 4:5 카드로 그려요. 첫 장은 첫 사진을 써요.</span>
+                </div>
+                {cardOpen && <CardNews title={fields.title} body={fields.body} photoId={photos?.[0]?.id ?? null} onMessage={setMessage} />}
               </li>
               <li className="kit-wide">
                 <span className="kit-label">스레드·X</span>

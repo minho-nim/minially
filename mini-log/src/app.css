@@ -538,3 +538,12 @@ select.input { appearance: auto; }
   .mail-back { display: inline-flex; }
 }
 @media (pointer: coarse) { .mail-tools .tool, .tool-select, .mail-folders button { min-height: 44px; } }
+
+/* 인스타 캡션 점검·카드뉴스 */
+.insta-check { display: grid; gap: 4px; margin-top: 6px; }
+.insta-preview { margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.card-news { grid-column: 1 / -1; display: grid; gap: 8px; margin-top: 6px; min-width: 0; }
+.card-slides { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.post-kit .card-slides li, .card-slides li { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; align-items: start; counter-increment: none; }
+.card-canvas { width: 100%; height: auto; aspect-ratio: 4 / 5; border-radius: 10px; border: 1px solid var(--line); }
+.card-slides textarea { font-size: 0.85rem; }

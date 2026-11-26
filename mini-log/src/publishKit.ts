@@ -62,3 +62,39 @@ export function xText(title: string, body: string, tags: string[], url = '', dra
 /** 글이 채워진 채로 여는 작성 화면 주소(게시는 사람이 그 앱에서 누른다) */
 export const composeUrl = (where: 'threads' | 'x', text: string) =>
   where === 'threads' ? `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}` : `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
+
+/**
+ * 인스타 캡션 점검(Later·Planoly처럼): 피드에는 첫 125자 안팎만 보이고 '더 보기'로 접힌다.
+ * 첫 줄은 짧게(40자 안) 눈길을 끌고, 해시태그는 3~5개만 고르는 것을 권장한다.
+ */
+export function instaCheck(text: string) {
+  const body = text.replace(/\r/g, '');
+  const first = body.split('\n').find(l => l.trim()) ?? '';
+  const tags = body.match(/#[^\s#]+/g) ?? [];
+  return {
+    preview: body.replace(/\n+/g, ' ').slice(0, 125),
+    items: [
+      { label: '첫 줄 40자 안(피드에서 눈에 띄게)', ok: first.trim().length > 0 && first.trim().length <= 40, hint: `지금 ${first.trim().length}자` },
+      { label: '해시태그 3~5개', ok: tags.length >= 3 && tags.length <= 5, hint: `지금 ${tags.length}개` },
+      { label: '2,200자 안', ok: body.length <= 2200, hint: `지금 ${body.length.toLocaleString('ko-KR')}자` },
+    ],
+  };
+}
+
+/**
+ * 카드뉴스 7장 글(Canva 카드뉴스처럼, 규칙으로): 1장 표지(제목) → 2~6장 문단마다 첫 문장(소제목이 있으면 소제목+첫 문장) → 7장 마무리.
+ * 문장은 장마다 60자 안으로 자르고, 사람이 고쳐 쓸 수 있다.
+ */
+export function cardSlides(title: string, body: string): string[] {
+  const cut = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
+  const lines = body.replace(/[ \t]*\[사진\s*\d*\][ \t]*/g, '').split('\n').map(l => l.trim()).filter(Boolean);
+  const points: string[] = [];
+  for (let i = 0; i < lines.length && points.length < 5; i++) {
+    const line = lines[i];
+    const isHead = line.length <= 25 && !/[.!?~요다]$/.test(line);
+    if (isHead && lines[i + 1]) { points.push(`${line.replace(/^[■●▶◆#\s]+/, '')}\n${cut(lines[i + 1].split(/(?<=[.!?~요다])\s/)[0], 60)}`); i++; }
+    else points.push(cut(line.split(/(?<=[.!?~요다])\s/)[0], 60));
+  }
+  while (points.length < 5) points.push('');
+  return [cut(title.trim() || '제목', 40), ...points, '자세한 이야기는 블로그에서\n저장해 두고 필요할 때 보세요'];
+}

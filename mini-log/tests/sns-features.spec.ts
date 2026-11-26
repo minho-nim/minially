@@ -85,3 +85,42 @@ test('한 달 계획: 게시 요일을 고르고 수요 예측 글감을 골라 
     await fetch('/api/blog?blog_id=lastyear', { method: 'DELETE' });
   }, draft.id);
 });
+
+test('인스타 캡션 점검과 카드뉴스 7장 글 뽑기', async () => {
+  const { instaCheck, cardSlides } = await import('../src/publishKit');
+  const good = instaCheck('성수 소금빵 3곳 비교\n\n버터 향이 진해요.\n\n#성수 #소금빵 #빵집');
+  expect(good.items.every(i => i.ok)).toBe(true);
+  const bad = instaCheck(`${'아주 긴 첫 줄이라서 피드에서 눈에 잘 안 띄는 문장이에요 정말로요 이렇게 계속 길어지면 잘려요'}\n#a #b #c #d #e #f #g`);
+  expect(bad.items.filter(i => !i.ok).map(i => i.label)).toEqual(['첫 줄 40자 안(피드에서 눈에 띄게)', '해시태그 3~5개']);
+  expect(instaCheck('가'.repeat(300)).preview).toHaveLength(125);
+  const slides = cardSlides('성수 소금빵 맛집 비교', '[사진 1]\n■ 위치\n성수역 3번 출구에서 5분이에요. 골목 안쪽이에요.\n버터 향이 정말 진해요. 겉은 바삭해요.\n가격은 3,500원이에요.');
+  expect(slides).toHaveLength(7);
+  expect(slides[0]).toBe('성수 소금빵 맛집 비교');
+  expect(slides[1]).toBe('위치\n성수역 3번 출구에서 5분이에요.');
+  expect(slides[2]).toBe('버터 향이 정말 진해요.');
+  expect(slides[4]).toBe(''); // 문단이 모자라면 빈 장(사람이 채움)
+  expect(slides[6]).toContain('블로그');
+});
+
+test('발행 칸: 인스타 캡션 점검(피드에 보이는 부분)과 카드뉴스 7장 받기', async ({ page }) => {
+  await login(page, CODE_D);
+  await page.getByRole('button', { name: '새 원고' }).click();
+  await page.getByLabel('제목').fill('성수 소금빵 맛집 비교');
+  await page.getByLabel('본문').fill('■ 위치\n성수역 3번 출구에서 5분이에요.\n버터 향이 정말 진해요.\n가격은 3,500원이에요.');
+  await page.getByRole('button', { name: '인스타 게시물 글 만들기' }).click();
+  const check = page.getByLabel('인스타 캡션 점검');
+  await expect(check).toContainText('피드에 보이는 부분');
+  await expect(check).toContainText('해시태그 3~5개');
+  await page.getByRole('button', { name: '카드뉴스 7장 만들기' }).click();
+  await expect(page.locator('.card-canvas')).toHaveCount(7);
+  await expect(page.getByLabel('카드 2 글')).toHaveValue('위치\n성수역 3번 출구에서 5분이에요.');
+  await page.getByLabel('카드 7 글').fill('저장해 두세요');
+  await expect(page.getByRole('img', { name: '카드 7: 저장해 두세요' })).toBeVisible();
+  const files: string[] = [];
+  page.on('download', d => files.push(d.suggestedFilename()));
+  await page.getByRole('button', { name: '카드 7장 받기' }).click();
+  await expect.poll(() => files.length).toBe(7);
+  expect(files[0]).toMatch(/^minilog_card_\d{8}_01\.jpg$/);
+  // 다른 시험에 영향이 없게 원고를 지운다
+  await page.evaluate(async () => { const { drafts } = await (await fetch('/api/drafts')).json(); for (const d of drafts) if (d.title === '성수 소금빵 맛집 비교') await fetch(`/api/drafts/${d.id}`, { method: 'DELETE' }); });
+});
