@@ -21,7 +21,27 @@ export interface DemandItem {
   url: string | null;
   tags: string[];
 }
-export interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number }
+export interface WeekdayStat { day: number; label: string; posts: number; avg: number }
+export interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number; weekdays: { days: WeekdayStat[]; best: WeekdayStat | null } }
+
+const DAY_LABEL = ['일', '월', '화', '수', '목', '금', '토'];
+/**
+ * 올리기 좋은 요일(Buffer·Metricool의 '좋은 시간'을 내 데이터로): 게시 요일별 평균 조회수.
+ * 조회수 있는 글이 6편 이상이고, 2편 이상 올린 요일끼리만 비교해 가장 높은 요일을 best로 둔다.
+ */
+export function weekdayStats(posts: Post[]): { days: WeekdayStat[]; best: WeekdayStat | null } {
+  const sums = DAY_LABEL.map(() => ({ posts: 0, sum: 0 }));
+  for (const p of posts) {
+    if (!p.published_on || p.views === null) continue;
+    const day = new Date(`${p.published_on}T00:00:00Z`).getUTCDay();
+    sums[day].posts += 1; sums[day].sum += p.views;
+  }
+  const days = sums.map((s, day) => ({ day, label: DAY_LABEL[day], posts: s.posts, avg: s.posts ? Math.round(s.sum / s.posts) : 0 }));
+  const total = days.reduce((n, d) => n + d.posts, 0);
+  const candidates = days.filter(d => d.posts >= 2);
+  const best = total >= 6 && candidates.length >= 2 ? candidates.reduce((a, b) => (b.avg > a.avg ? b : a)) : null;
+  return { days, best };
+}
 
 const shift = (day: string, days: number) => new Date(Date.parse(`${day}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
 const md = (day: string) => `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
@@ -88,5 +108,5 @@ export function forecastDemand(posts: Post[], today: string): Demand {
   }
 
   items.sort((a, b) => (a.post_by ?? '9999').localeCompare(b.post_by ?? '9999'));
-  return { from: today, to, items: items.slice(0, MAX_ITEMS), posts_with_views: withViews.length, posts_last_year: lastYear.length };
+  return { from: today, to, items: items.slice(0, MAX_ITEMS), posts_with_views: withViews.length, posts_last_year: lastYear.length, weekdays: weekdayStats(dated) };
 }

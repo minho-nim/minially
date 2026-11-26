@@ -9,7 +9,8 @@ export interface Idea { topic: string; title: string; reason: string; hashtags: 
 interface Season { label: string; from: string; to: string }
 interface Watch { blog_id: string; titles: string[]; synced_at: number | null }
 interface DemandItem { topic: string; post_by: string | null; reason: string; basis: 'last_year' | 'season' | 'steady'; views: number | null; url: string | null; tags: string[] }
-interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number }
+interface WeekdayStat { day: number; label: string; posts: number; avg: number }
+interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number; weekdays: { days: WeekdayStat[]; best: WeekdayStat | null } }
 interface IdeasData { seasons: Season[]; demand: Demand; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
 
 const SOURCE: Record<string, string> = { blogs: '참고 블로그', mine: '내 블로그', season: '시기', search: '구글 검색' };
@@ -122,6 +123,18 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
           </ul>
         ) : <p className="muted small" style={{ margin: 0 }}>아직 예측할 내 글 기록이 없어요. 블로그 화면에서 내 블로그를 연결하고 조회수를 넣어 보세요.</p>)}
         {data && data.demand.items.length > 0 && data.demand.posts_last_year === 0 && <p className="muted small" style={{ margin: 0 }}>작년 이맘때 글이 아직 없어서 시기·태그로만 골랐어요. 블로그를 오래 연결해 둘수록 정확해져요.</p>}
+        {data && (
+          <div className="weekday-best" aria-label="올리기 좋은 요일">
+            {data.demand.weekdays.best
+              ? <p className="small" style={{ margin: 0 }}><b>{data.demand.weekdays.best.label}요일</b>에 올린 글이 평균 조회 {data.demand.weekdays.best.avg.toLocaleString('ko-KR')}회로 가장 높아요.</p>
+              : <p className="muted small" style={{ margin: 0 }}>조회수를 넣은 글이 6편 넘게 쌓이면 올리기 좋은 요일을 알려 줘요.</p>}
+            {data.demand.weekdays.days.some(d => d.posts) && (
+              <ul className="trend-chips">
+                {data.demand.weekdays.days.filter(d => d.posts).map(d => <li key={d.day} className={d.day === data.demand.weekdays.best?.day ? 'chip-best' : undefined}>{d.label}<span className="muted"> {d.posts}편·평균 {d.avg.toLocaleString('ko-KR')}</span></li>)}
+              </ul>
+            )}
+          </div>
+        )}
       </section>
 
       <section className="card step" aria-labelledby="season-title">

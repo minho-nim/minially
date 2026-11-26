@@ -99,6 +99,27 @@ export function factCheck(body: string, sources: string): string[] {
   return [...found].slice(0, 12);
 }
 
+/**
+ * AI 요약(네이버 AI 브리핑·AI 검색 답변)에 인용되기 쉬운 글 모양을 본다. 미니로그 기준이며 네이버 공식 기준이 아니다.
+ * 본문이 300자(공백 빼고) 넘을 때만 보고, 해당하는 글에만 항목을 더한다.
+ */
+export function briefingCheck(d: { body: string; postType?: string }, keyword: string): CheckItem[] {
+  if (bodyChars(d.body) < 300) return [];
+  const text = d.body.replace(/\[사진\s*\d+\]/g, '').trim();
+  const items: CheckItem[] = [];
+  if (keyword) items.push({ label: `첫 40자에 핵심어 '${keyword}'`, ok: norm(text.replace(/\s+/g, ' ').slice(0, 40)).includes(norm(keyword)), hint: '첫 문장에 무엇·어디·결론을 먼저 적어 주세요' });
+  const longOnes = text.split(/(?<=[.!?~])\s+|\n/).map(s => s.trim()).filter(s => s.length > 60).length;
+  items.push({ label: '긴 문장(60자 넘음) 3개 이하', ok: longOnes <= 3, hint: `${longOnes}개: 두 문장으로 나누면 읽기 쉬워요` });
+  if (/\d[\d,]*\s*(?:만\s*)?원|영업\s*시간|운영\s*시간/.test(text))
+    items.push({ label: '가격·영업시간에 기준일', ok: /기준|\d{4}\s*[.년]\s*\d{1,2}/.test(text), hint: '예) 2026년 11월 기준. 바뀔 수 있는 정보예요' });
+  if (['food', 'cafe', 'travel', 'info', 'product'].includes(d.postType ?? '') && bodyChars(d.body) >= 800) {
+    const rows = text.split('\n').filter(l => /^\s*([-•·▶✔]|\d+[.)])\s*\S/.test(l) || /^[^:：\n]{1,12}[:：]\s*\S/.test(l.trim())).length;
+    items.push({ label: "정리 줄 3개 이상('항목: 값'·목록)", ok: rows >= 3, hint: '위치·가격·영업시간을 "가격: 4,500원"처럼 줄로 정리하면 요약에 잘 잡혀요' });
+  }
+  if (d.postType === 'info') items.push({ label: '정보 글 출처 표시', ok: /출처|참고\s*[:：]|https?:\/\//.test(text), hint: '예) 출처: 국세청 안내(2026.11)' });
+  return items;
+}
+
 /** 재탕 경고: 낱말(2글자 이상)이 70% 넘게 겹치는 다른 원고 제목. 같은 글을 또 쓰면 블로그 품질이 떨어진다 */
 export function similarTitle(title: string, others: string[]): string | null {
   const words = (t: string) => new Set((t.toLowerCase().match(/[가-힣a-z0-9]{2,}/g) ?? []));
@@ -140,7 +161,8 @@ export function DraftCheck({ draftId, title, body, hashtags, photos, postType, s
   const basic = checkDraft({ title, body, hashtags, photos }, guide?.guide ?? null);
   const quality = qualityCheck({ title, body, hashtags, photos, postType }, guide?.guide ?? null);
   const twin = title.trim() ? similarTitle(title, otherTitles) : null;
-  const items = [...basic, ...quality, ...(title.trim() && otherTitles.length ? [{ label: '비슷한 제목의 다른 원고 없음(재탕 방지)', ok: !twin, hint: twin ? `‘${twin}’과 많이 겹쳐요. 다른 관점이나 새 정보로 바꿔 주세요` : '' }] : [])];
+  const briefing = briefingCheck({ body, postType }, guide?.guide.keywords[0] ?? hashtags[0] ?? '');
+  const items = [...basic, ...quality, ...briefing, ...(title.trim() && otherTitles.length ? [{ label: '비슷한 제목의 다른 원고 없음(재탕 방지)', ok: !twin, hint: twin ? `‘${twin}’과 많이 겹쳐요. 다른 관점이나 새 정보로 바꿔 주세요` : '' }] : [])];
   const facts = sources !== undefined && body.trim() ? factCheck(body, sources) : [];
   const done = items.filter(i => i.ok).length;
   const shown = showAll ? items : items.filter(i => !i.ok);
