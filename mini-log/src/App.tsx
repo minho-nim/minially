@@ -780,6 +780,10 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   const [aiBusy, setAiBusy] = useState(false);
   // AI 초안 되돌리기: 초안을 넣기 직전의 제목·본문·해시태그(이 화면을 떠나기 전까지 한 번)와 AI가 넣은 본문
   const [beforeAi, setBeforeAi] = useState<{ title: string; body: string; hashtags: string[]; aiBody: string } | null>(null);
+  // 원고 편집 2단(Buffer 작성 화면처럼): 쓰는 칸 옆에 점검·미리보기·올리기. '집중'을 누르면 옆 칸을 접는다(기기에 기억)
+  const [focus, setFocus] = useState(() => { try { return localStorage.getItem('minilog.focus') === '1'; } catch { return false; } });
+  const toggleFocus = () => setFocus(f => { try { localStorage.setItem('minilog.focus', f ? '0' : '1'); } catch { /* 기억 못 해도 됨 */ } return !f; });
+  const jump = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const pending = useRef<Fields | null>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -937,6 +941,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
         </div>
         <div className="actions">
           <button className="btn" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>한 번에 복사</button>
+          <button className="btn focus-toggle" aria-pressed={focus} onClick={toggleFocus} title="옆의 점검·미리보기·올리기 칸을 접고 쓰기에만 집중">{focus ? '집중 끝' : '집중'}</button>
           {fields.status !== 'published' && (
             <button className="btn" onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
           )}
@@ -946,6 +951,8 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
 
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
 
+      <div className={`editor-cols${focus ? ' focus' : ''}`}>
+      <div className="editor-main" id="ed-write">
       <section className="card step" aria-labelledby="s1">
         <h2 id="s1" className="step-title"><span className="n">1</span>사진<span className="step-sub">{photos ? `${photos.length}/20장` : ''}</span></h2>
         {!storage ? (
@@ -1044,10 +1051,18 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
         <Lessons draftId={draft.id} />
       </section>
 
+      </div>
+      <aside className="editor-side" aria-label="점검·미리보기·올리기">
+      <nav className="side-jump" aria-label="옆 칸 바로가기">
+        <button type="button" className="btn small" onClick={() => jump('ed-check')}>점검</button>
+        <button type="button" className="btn small" onClick={() => jump('ed-preview')}>미리보기</button>
+        <button type="button" className="btn small" onClick={() => jump('ed-publish')}>올리기</button>
+      </nav>
+      <div id="ed-check" className="jump-target" />
       <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} postType={fields.post_type}
         sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} otherTitles={otherTitles} />
 
-      <section className="card step" aria-labelledby="s4">
+      <section className="card step" aria-labelledby="s4" id="ed-publish">
         <h2 id="s4" className="step-title"><span className="n">4</span>올리기·게시</h2>
         {fields.status === 'published' && published.url ? (
           <div className="published">
@@ -1074,6 +1089,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                   <button className="btn primary" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>{copied ? '복사됨 ✓' : '한 번에 복사'}</button>
                   <span className="muted small">또는 아래 미리보기에서 제목·문단·사진·해시태그를 하나씩 눌러 복사</span>
                 </div>
+                <span id="ed-preview" className="jump-target" />
                 <PostPreview title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos ?? []} onMessage={setMessage} />
               </li>
               <li className="kit-wide">
@@ -1145,6 +1161,15 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           </>
         )}
       </section>
+      </aside>
+      </div>
+      {/* 휴대폰: 아래 막대로 쓰기·점검·미리보기·올리기 사이를 오간다 */}
+      <nav className="editor-tabbar" aria-label="원고 화면 바로가기">
+        <button type="button" onClick={() => jump('ed-write')}>쓰기</button>
+        <button type="button" onClick={() => jump('ed-check')}>점검</button>
+        <button type="button" onClick={() => jump('ed-preview')}>미리보기</button>
+        <button type="button" onClick={() => jump('ed-publish')}>올리기</button>
+      </nav>
     </article>
   );
 }

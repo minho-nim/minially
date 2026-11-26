@@ -620,3 +620,26 @@ select.input { appearance: auto; }
 .drawer-title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; overflow-wrap: anywhere; }
 .cal-side .step-title, .cal-drawer .step-title { flex-wrap: wrap; }
 .cal-side .step-sub { margin-left: 0; flex-basis: 100%; }
+
+/* 원고 편집 2단: 쓰기 | 점검·미리보기·올리기(넓은 화면), 휴대폰은 한 줄 + 아래 바로가기 막대 */
+.editor-cols { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); align-items: start; }
+.editor-main, .editor-side { display: grid; gap: var(--gap); align-content: start; min-width: 0; }
+.side-jump { display: none; }
+.focus-toggle { display: none !important; }
+.jump-target { display: block; scroll-margin-top: 56px; }
+#ed-write, #ed-publish { scroll-margin-top: 12px; }
+@media (min-width: 1240px) {
+  .editor-cols { grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); }
+  .editor-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 12px 0; }
+  .side-jump { display: flex; gap: 6px; position: sticky; top: 0; z-index: 2; padding: 2px 0 6px; background: var(--bg); }
+  .focus-toggle { display: inline-flex !important; }
+  .editor-cols.focus { grid-template-columns: minmax(0, 1fr); }
+  .editor-cols.focus .editor-side { display: none; }
+  .editor-side .post-kit { grid-template-columns: minmax(0, 1fr); }
+}
+.editor-tabbar { display: none; }
+@media (max-width: 760px) {
+  .editor-tabbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: sticky; bottom: 0; z-index: 5; margin-top: 4px; padding: 4px 4px calc(4px + env(safe-area-inset-bottom, 0px)); border: 1px solid var(--line); border-radius: 14px 14px 0 0; background: var(--surface); box-shadow: 0 -4px 12px rgba(43, 34, 51, 0.06); }
+  .editor-tabbar button { min-height: 44px; border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 700; border-radius: 10px; }
+  .editor-tabbar button:active { background: var(--surface-2); color: var(--text); }
+}
