@@ -16,6 +16,7 @@ test('계정: 통합 대시보드에서 두 사람의 블로그·SNS 아이디�
   db.prepare("INSERT OR REPLACE INTO minilog_accounts (user, platform, handle, updated_at) VALUES ('D', 'instagram', 'd_daily.log', 1)").run();
   db.prepare("INSERT OR IGNORE INTO minilog_blogs (user, blog_id, created_at) VALUES ('C', 'cblog', 1)").run();
   db.close();
+  await page.reload(); // 로그인하면서 이미 불러온 계정 목록이 있을 수 있어, 넣은 뒤 다시 불러온다(hub.spec과 같은 방식)
   await page.getByRole('button', { name: '통합 대시보드' }).click();
   const panel = page.locator('#accounts');
   await expect(panel).toContainText('비밀번호는 저장하지 않아요');

@@ -11,6 +11,7 @@ type Item = { kind: 'planned' | 'published' | 'deadline'; id: string; label: str
 
 const kstDate = (ms: number) => new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+const DRAG_TYPE = 'application/x-minilog-draft';
 
 function monthDays(month: string) {
   const [y, m] = month.split('-').map(Number);
@@ -31,10 +32,25 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
   const [selected, setSelected] = useState(today);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [error, setError] = useState('');
+  const [rhythm, setRhythm] = useState<number[]>([]);
+  const [dropDay, setDropDay] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setCampaigns(d.campaigns)).catch(e => setError(e instanceof Error ? e.message : '협찬 마감을 불러오지 못했어요.'));
+    api<{ days: number[] }>('/api/plan').then(d => setRhythm(d.days)).catch(() => setRhythm([])); // 게시 요일이 없어도 달력은 그대로
   }, []);
+
+  // 날짜 없는 원고 서랍(Planoly·Later처럼): 끌어서 날짜 칸에 놓거나, 날짜를 고른 뒤 '이 날로'를 누른다
+  const unscheduled = drafts.filter(d => d.status !== 'published' && !d.planned_on);
+  async function assign(id: string, day: string) {
+    setError(''); setNotice('');
+    try {
+      const { draft } = await api<{ draft: D }>(`/api/drafts/${id}`, { method: 'PUT', body: { planned_on: day } });
+      onSaved([draft]);
+      setNotice(`'${draft.title.trim() || '제목 없는 원고'}'을 ${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일에 잡았어요.`);
+    } catch (e) { setError(e instanceof Error ? e.message : '날짜를 잡지 못했어요.'); }
+  }
 
   const byDay = useMemo(() => {
     const map = new Map<string, Item[]>();
@@ -56,6 +72,7 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
   const days = monthDays(month);
   const items = byDay.get(selected) ?? [];
   const [y, m] = month.split('-').map(Number);
+  const selectedShort = `${Number(selected.slice(5, 7))}/${Number(selected.slice(8))}`;
   const selectedLabel = new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'UTC' }).format(new Date(`${selected}T00:00:00Z`));
 
   return (
@@ -77,6 +94,28 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
         <li><i className="k-planned" />게시 예정</li><li><i className="k-published" />게시 완료</li><li><i className="k-deadline" />협찬 마감</li>
       </ul>
 
+      {notice && <p className="muted small" role="status" style={{ margin: 0 }}>{notice}</p>}
+      <div className="cal-layout">
+      <section className="card step cal-drawer" aria-labelledby="drawer-title">
+        <h2 id="drawer-title" className="step-title">날짜 없는 원고<span className="step-sub">{unscheduled.length}개</span></h2>
+        {unscheduled.length === 0 ? <p className="muted small" style={{ margin: 0 }}>모든 원고에 게시일이 있어요.</p> : (
+          <>
+            <ul className="drawer-list" aria-label="날짜 없는 원고">
+              {unscheduled.slice(0, 30).map(d => {
+                const title = d.title.trim() || '제목 없는 원고';
+                return (
+                  <li key={d.id} draggable onDragStart={e => { e.dataTransfer.setData(DRAG_TYPE, d.id); e.dataTransfer.effectAllowed = 'move'; }} onDragEnd={() => setDropDay(null)}>
+                    <span className="drawer-title" title={title}>{title}</span>
+                    <button type="button" className="btn small" aria-label={`'${title}' ${selectedShort}로 잡기`} onClick={() => { void assign(d.id, selected); }}>{selectedShort}로</button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="muted small" style={{ margin: 0 }}>끌어서 날짜 칸에 놓거나, 달력에서 날짜를 고르고 버튼을 누르세요.</p>
+          </>
+        )}
+      </section>
+      <div className="cal-center">
       <div className="card cal" role="grid" aria-label={`${y}년 ${m}월`}>
         <div className="cal-row cal-head" role="row">{WEEK.map((w, i) => <span key={w} role="columnheader" className={i === 0 ? 'sun' : i === 6 ? 'sat' : ''}>{w}</span>)}</div>
         {Array.from({ length: 6 }, (_, week) => (
@@ -86,8 +125,11 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
               const out = day.slice(0, 7) !== month;
               return (
                 <button key={day} role="gridcell" aria-selected={day === selected} aria-label={`${Number(day.slice(5, 7))}월 ${Number(day.slice(8))}일, 일정 ${list.length}개`}
-                  className={`cal-day${out ? ' out' : ''}${day === today ? ' today' : ''}${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}`}
-                  onClick={() => { setSelected(day); if (out) setMonth(day.slice(0, 7)); }}>
+                  className={`cal-day${out ? ' out' : ''}${day === today ? ' today' : ''}${i === 0 ? ' sun' : i === 6 ? ' sat' : ''}${dropDay === day ? ' drop' : ''}`}
+                  onClick={() => { setSelected(day); if (out) setMonth(day.slice(0, 7)); }}
+                  onDragOver={e => { if (e.dataTransfer.types.includes(DRAG_TYPE)) { e.preventDefault(); setDropDay(day); } }}
+                  onDragLeave={() => setDropDay(d => (d === day ? null : d))}
+                  onDrop={e => { e.preventDefault(); setDropDay(null); const id = e.dataTransfer.getData(DRAG_TYPE); if (id) { setSelected(day); void assign(id, day); } }}>
                   <span className="cal-num">{Number(day.slice(8))}</span>
                   <span className="cal-items">
                     {list.slice(0, 3).map(item => <span key={item.id} className={`cal-chip k-${item.kind}`}>{item.label}</span>)}
@@ -120,7 +162,9 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
           </ul>
         )}
       </section>
-      <InstaGrid drafts={drafts} today={today} onSaved={onSaved} />
+      </div>
+      <div className="cal-side"><InstaGrid drafts={drafts} today={today} onSaved={onSaved} rhythm={rhythm} /></div>
+      </div>
       <CalendarFeed />
     </article>
   );
