@@ -64,7 +64,7 @@ export function AccountsCard() {
               <form key={f.platform} className="publish-row" onSubmit={e => { void save(e, f.platform); }}>
                 <label htmlFor={`handle-${f.platform}`} className="handle-label">{f.label}</label>
                 <input id={`handle-${f.platform}`} className="input" value={value} maxLength={120} placeholder="@아이디 또는 프로필 주소" onChange={e => setDrafts(d => ({ ...d, [f.platform]: e.target.value }))} />
-                <button className="btn small" type="submit" disabled={busy || value === saved}>저장</button>
+                <button className="btn small" type="submit" aria-label={`${f.label} 아이디 저장`} disabled={busy || value === saved}>저장</button>
               </form>
             );
           })}

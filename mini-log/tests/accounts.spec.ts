@@ -25,8 +25,8 @@ test('내 계정: 블로그·SNS 아이디·연락 이메일을 보고 아이디
   await page.getByRole('button', { name: '대시보드', exact: true }).click();
   const card = page.locator('section').filter({ has: page.getByRole('heading', { name: '내 계정' }) });
   await expect(card).toContainText('비밀번호는 묻지도 저장하지도 않아요');
-  await card.getByLabel('인스타그램').fill('https://www.instagram.com/d_daily.log/');
-  await card.getByLabel('인스타그램').locator('xpath=..').getByRole('button', { name: '저장' }).click();
+  await card.getByRole('textbox', { name: '인스타그램' }).fill('https://www.instagram.com/d_daily.log/');
+  await card.getByRole('button', { name: '인스타그램 아이디 저장' }).click();
   await expect(card.getByRole('link', { name: '@d_daily.log' })).toHaveAttribute('href', 'https://www.instagram.com/d_daily.log/');
   await expect(card).toContainText('네이버 블로그');
   // 다른 사용자(C)에게는 D의 아이디가 보이지 않는다
@@ -37,7 +37,7 @@ test('내 계정: 블로그·SNS 아이디·연락 이메일을 보고 아이디
   expect(JSON.stringify(c)).not.toContain('d_daily.log');
   await other.close();
   // 지우기
-  await card.getByLabel('인스타그램').fill('');
-  await card.getByLabel('인스타그램').locator('xpath=..').getByRole('button', { name: '저장' }).click();
+  await card.getByRole('textbox', { name: '인스타그램' }).fill('');
+  await card.getByRole('button', { name: '인스타그램 아이디 저장' }).click();
   await expect(card.getByRole('link', { name: '@d_daily.log' })).toHaveCount(0);
 });
