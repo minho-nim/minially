@@ -36,6 +36,13 @@ export interface HubEnv {
   MINILOG_PHOTOS?: R2Bucket;
   /** Minoffia 통계 API용 토큰 */
   STATS_API_TOKEN?: string;
+  /** 네이버 메일 연결: "아이디@naver.com:애플리케이션 비밀번호"(Cloudflare 비밀값에만) */
+  NAVER_MAIL_C?: string;
+  NAVER_MAIL_D?: string;
+  /** 메일 자동 받기 예약 작업(GitHub Actions)이 보내는 토큰 */
+  MAIL_CRON_TOKEN?: string;
+  /** 시험용: 가짜 메일 서버 "127.0.0.1:포트"(IMAP=포트, SMTP=포트+1) */
+  MAIL_TEST_SERVER?: string;
   [key: string]: unknown;
 }
 export interface HubContext { request: Request; env: HubEnv; params?: Record<string, string | string[]> }
