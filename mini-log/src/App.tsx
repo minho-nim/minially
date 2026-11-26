@@ -17,6 +17,7 @@ import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
 import { DraftQuestions } from './DraftQuestions';
+import { SharedPhotos } from './SharedPhotos';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
@@ -130,6 +131,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(() => readRoute().draftId);
   // 휴대폰 공유로 열렸으면(/?url=…) 협찬 화면에서 '관심'으로 담는다. 주소의 ?…는 한 번 읽고 지운다.
   const [shared] = useState(() => readShare(window.location.search));
+  // 휴대폰 '공유 → 미니로그'로 사진이 오면(/?share-photos=N) 어느 원고에 넣을지 묻는다
+  const [sharePhotos, setSharePhotos] = useState(() => new URLSearchParams(window.location.search).has('share-photos'));
   const [view, setView] = useState<View>(() => (shared ? 'campaigns' : readRoute().view));
   useEffect(() => { if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash); }, []);
   // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
@@ -234,6 +237,13 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </div>
       </aside>
       <main className="main">
+        {sharePhotos && drafts && <SharedPhotos drafts={drafts} onClose={() => setSharePhotos(false)} onUpload={async (draftId, files, progress) => {
+          let id = draftId;
+          if (!id) { const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: {} }); setDrafts(list => [draft, ...(list ?? [])]); id = draft.id; }
+          setSelectedId(null); // 연 원고에 넣을 때도 사진 목록을 새로 읽게 닫았다 연다
+          for (let i = 0; i < files.length; i++) { await uploadPhoto(id, files[i]); progress(i + 1); }
+          await refresh(); setSelectedId(id); setView('drafts');
+        }} />}
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
         : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
