@@ -209,11 +209,12 @@ select.input { appearance: auto; }
 /* 글감 */
 .check { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; flex: 1 1 240px; flex-wrap: wrap; }
 .idea-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.idea { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.idea, .demand { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
 .idea-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .idea-head b { overflow-wrap: anywhere; }
 .idea-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
 .small-input { min-height: 36px; padding: 4px 8px; width: auto; }
+@media (pointer: coarse) { .idea-actions .btn, .idea-actions .small-input { min-height: 44px; } } /* 휴대폰에서 손가락으로 누르기 쉽게 */
 .src { font-size: 0.72rem; font-weight: 800; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--text); white-space: nowrap; }
 .src.s-season, .src.s-search { background: var(--sig-soft); border-color: transparent; }
 .trend-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }

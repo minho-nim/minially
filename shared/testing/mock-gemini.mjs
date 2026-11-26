@@ -23,9 +23,13 @@ createServer((req, res) => {
     if (rss) {
       if (rss[1] === 'nobody') { res.writeHead(404); return res.end('not found'); }
       const id = rss[1];
-      const pre = id === 'myblog' ? '223' : '224'; // 네이버 글 번호는 블로그끼리 겹치지 않는다
+      const pre = id === 'myblog' ? '223' : id === 'lastyear' ? '225' : '224'; // 네이버 글 번호는 블로그끼리 겹치지 않는다
       const item = (no, title, date, tags) => `<item><title><![CDATA[${title}]]></title><link>https://blog.naver.com/${id}/${no}?fromRss=true&amp;trackingCode=rss</link><guid>https://blog.naver.com/${id}/${no}</guid><description><![CDATA[<p>${title} 본문 앞부분이에요 &amp; 사진도 있어요.</p>]]></description><pubDate>${date}</pubDate><tag><![CDATA[${tags}]]></tag></item>`;
       res.writeHead(200, { 'content-type': 'application/rss+xml; charset=utf-8' });
+      // 수요 예측 시험용: 오늘 기준 작년 이맘때(352·345일 전, 한국 정오) 글
+      const daysAgo = days => { const d = new Date(Date.now() - days * 86400000); d.setUTCHours(3, 0, 0, 0); return d.toUTCString(); };
+      if (id === 'lastyear') return res.end(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${id}</title>` +
+        item(`${pre}000000001`, '작년 겨울 붕어빵 지도', daysAgo(352), '붕어빵,겨울간식') + item(`${pre}000000002`, '작년 귤 따기 체험', daysAgo(345), '귤') + '</channel></rss>');
       return res.end(`<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${id}</title>` +
         (id === 'myblog'
           ? item(`${pre}000000001`, '동네 빵집 소금빵 후기', 'Mon, 02 Nov 2026 10:00:00 +0900', '빵집,소금빵') +
