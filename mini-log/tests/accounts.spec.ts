@@ -22,7 +22,7 @@ test('내 계정: 블로그·SNS 아이디·연락 이메일을 보고 아이디
     (await fetch('/api/accounts', { method: 'PUT', body: JSON.stringify({ platform: 'x', handle: 'a b' }) })).status,
   ]);
   expect(bad).toEqual([400, 400]);
-  await page.getByRole('button', { name: '대시보드', exact: true }).click();
+  await page.getByRole('button', { name: '설정', exact: true }).click(); // 계정·백업은 설정 화면으로 옮김
   const card = page.locator('section').filter({ has: page.getByRole('heading', { name: '내 계정' }) });
   await expect(card).toContainText('비밀번호는 묻지도 저장하지도 않아요');
   await card.getByRole('textbox', { name: '인스타그램' }).fill('https://www.instagram.com/d_daily.log/');

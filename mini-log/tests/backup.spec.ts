@@ -13,7 +13,7 @@ test('mini-log 백업: 받기 → 다른 사용자 계정에 합치기(새로 �
     await s('/api/proposal', 'PUT', { blog_name: '백업 블로그' });
     return { draft: d.id as string, campaign: c.id as string };
   });
-  await page.getByRole('button', { name: '대시보드', exact: true }).click();
+  await page.getByRole('button', { name: '설정', exact: true }).click(); // 계정·백업은 설정 화면으로 옮김
   const downloads: string[] = [];
   page.on('download', d => downloads.push(d.suggestedFilename()));
   const dl = page.waitForEvent('download');

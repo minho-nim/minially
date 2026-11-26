@@ -145,10 +145,13 @@ select.input { appearance: auto; }
 .row-between { flex-wrap: wrap; }
 .row-between > .step-title { white-space: nowrap; }
 
-/* 메뉴 7개: 4개 + 3개 두 줄(자주 쓰는 원고·글감·캘린더·대시보드가 첫 줄) */
-.views { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.views { gap: 2px; }
-.views button { padding: 0 1px; font-size: 0.78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.02em; }
+/* 메뉴 묶음: 줄마다 '묶음 이름 + 버튼들'(만들기·일정·협찬·분석·설정) */
+.views { display: grid; gap: 2px; }
+.view-group { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); align-items: center; gap: 4px; }
+.view-group-label { font-size: 0.72rem; font-weight: 700; color: var(--muted); padding-left: 6px; }
+.view-group-items { display: flex; flex-wrap: wrap; gap: 2px; }
+.views button { flex: 0 1 auto; padding: 0 10px; font-size: 0.8rem; min-width: 0; white-space: nowrap; letter-spacing: -0.02em; }
+.view-group + .view-group { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); padding-top: 2px; }
 .cal-nav { align-items: center; }
 .cal-month { font-weight: 800; min-width: 96px; text-align: center; font-variant-numeric: tabular-nums; }
 .cal-legend { list-style: none; margin: 0; padding: 0; display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--muted); }
