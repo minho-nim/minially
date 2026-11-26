@@ -16,6 +16,8 @@ const versionFile = (): Plugin => ({
 });
 
 export default defineConfig({
+  // 켤 때 새 버전 알림이 version.json과 비교할 이 화면의 커밋
+  define: { __APP_COMMIT__: JSON.stringify(commitSha()) },
   plugins: [
     versionFile(),
     react(),

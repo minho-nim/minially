@@ -18,6 +18,17 @@ interface Props {
 }
 
 const field = 'min-w-0 rounded-lg border border-app-line bg-white px-2 text-sm text-app-ink';
+/** 시작일~끝날(포함) 날짜 목록. 끝날이 없거나 앞서면 하루, 최대 14일 */
+export function daysOf(start: string, until?: string) {
+  if (!until || until <= start) return [start];
+  const out: string[] = [];
+  for (let d = new Date(`${start}T00:00:00Z`); out.length < 14; d.setUTCDate(d.getUTCDate() + 1)) {
+    const day = d.toISOString().slice(0, 10);
+    if (day > until) break;
+    out.push(day);
+  }
+  return out;
+}
 
 export function PhotoScheduleSheet({ open, file, text, categories, schedules, onClose, onAdd }: Props) {
   const root = useRef<HTMLDivElement>(null);
@@ -75,10 +86,11 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
     if (!picked.length) return;
     setSaving(true);
     try {
-      await onAdd(picked.map(r => ({
-        id: crypto.randomUUID(), title: r.title.trim(), date: r.date, ...(r.start ? { startTime: r.start } : {}), ...(r.start && r.end ? { endTime: r.end } : {}),
+      // 여러 날 일정(until)은 날마다 같은 일정을 만든다(달력이 이어진 한 줄로 그림, 최대 14일)
+      await onAdd(picked.flatMap(r => daysOf(r.date, r.until).map(date => ({
+        id: crypto.randomUUID(), title: r.title.trim(), date, ...(r.start ? { startTime: r.start } : {}), ...(r.start && r.end ? { endTime: r.end } : {}),
         category: r.category, completed: false, ...(r.location || r.memo ? { memo: [r.location && `장소: ${r.location}`, r.memo].filter(Boolean).join('\n') } : {}),
-      } as Schedule)));
+      } as Schedule))));
       setSaving(false);
       onClose();
     } catch (e) { setSaving(false); setError({ text: e instanceof Error ? e.message : '등록하지 못했어요.', code: 'save' }); }
@@ -142,6 +154,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
               <input className={field + ' h-10 w-full font-semibold'} value={r.title} maxLength={60} aria-label="일정 제목" onChange={e => set(r.key, { title: e.target.value })} />
               <div className="flex flex-wrap items-center gap-1.5">
                 <label className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4 text-app-accent-ink" aria-hidden="true" /><span className="sr-only">날짜</span><input type="date" className={field + ' h-9'} value={r.date} onChange={e => set(r.key, { date: e.target.value })} /></label>
+                {r.until && <label className="inline-flex items-center gap-1"><span className="text-xs text-app-muted">~</span><span className="sr-only">끝 날짜</span><input type="date" className={field + ' h-9'} min={r.date} value={r.until} onChange={e => set(r.key, { until: e.target.value || undefined })} /><span className="text-xs text-app-muted">{daysOf(r.date, r.until).length}일</span></label>}
                 <label className="inline-flex items-center gap-1"><Clock className="h-4 w-4 text-app-accent-ink" aria-hidden="true" /><span className="sr-only">시작 시간</span><input type="time" className={field + ' h-9'} value={r.start ?? ''} onChange={e => set(r.key, { start: e.target.value || null })} /></label>
                 {r.start && <label className="inline-flex items-center gap-1"><span className="text-xs text-app-muted">~</span><span className="sr-only">끝 시간</span><input type="time" className={field + ' h-9'} value={r.end ?? ''} onChange={e => set(r.key, { end: e.target.value || null })} /></label>}
                 <label className="inline-flex items-center"><span className="sr-only">카테고리</span><select className={field + ' h-9'} value={r.category} onChange={e => set(r.key, { category: e.target.value })}><option value="">미분류</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>

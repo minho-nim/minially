@@ -3,7 +3,8 @@
 import { syncEngine } from '../sync/syncEngine';
 import type { Schedule } from '../types';
 
-export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean }
+/** until: 여러 날 일정의 마지막 날(YYYY-MM-DD, 없으면 하루짜리) */
+export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean; until?: string }
 
 const MAX_SIDE = 1600;
 const MAX_DATA_URL = 4_000_000;

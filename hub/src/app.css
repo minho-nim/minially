@@ -194,3 +194,8 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0
 /* 손가락으로 쓰는 화면: 상단 탭·토글을 44px 이상으로(마우스 화면은 지금 크기 그대로) */
 @media (pointer: coarse) { .nav a, .scope button, .seg button { min-height: 44px; } }
 table.usage td.off { color: var(--danger); font-weight: 700; }
+
+/* 켤 때 새 버전 알림(화면 아래, 대화상자보다 아래 층) */
+.update-banner { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40; width: min(92vw, 30rem);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); font-size: 0.9rem; }
+.update-banner span { flex: 1 1 14rem; min-width: 0; }

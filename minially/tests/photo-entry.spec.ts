@@ -120,3 +120,50 @@ test('글로 넣기: 내 예전 일정을 보고 카테고리를 정하고, 두 
   await row.getByRole('button', { name: /예전처럼/ }).click();
   await expect(row.getByLabel('일정 제목')).toHaveValue('치과 정기 검진');
 });
+
+test('빠른 입력: 카테고리를 고르지 않았으면 예전 일정을 보고 추천하고, 직접 고르면 그걸 쓴다', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.evaluate(async () => {
+    const path = '/src/db/indexedDB.ts';
+    await (await import(path)).importAllData({ categories: [{ id: 'health', name: '병원', color: '#CF8FA8' }, { id: 'work', name: '업무', color: '#94BED9' }],
+      schedules: [{ id: 'p1', title: '치과 정기 검진', date: '2026-10-01', category: 'health', completed: false }, { id: 'p3', title: '팀 회의', date: '2026-11-02', category: 'work', completed: false }] });
+  });
+  await page.reload(); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.locator('[data-calendar-date]').nth(24).click();
+  const sheet = page.getByRole('dialog', { name: '날짜별 일정' });
+  await sheet.getByRole('button', { name: '일정 등록하기', exact: true }).click();
+  const grid = sheet.getByRole('group', { name: '카테고리 목록' });
+  if (await grid.isVisible()) await sheet.getByRole('button', { name: '간편 입력으로' }).click();
+  const title = sheet.getByLabel('빠른 일정 제목', { exact: true });
+  await title.fill('치과 진료');
+  const pill = sheet.getByRole('button', { name: '빠른 등록 카테고리 선택' });
+  await expect(pill).toContainText('병원');
+  await expect(pill).toContainText('추천');
+  await sheet.getByRole('button', { name: '등록', exact: true }).click();
+  await expect(title).toHaveValue('');
+  const saved = await page.evaluate(async () => { const p = '/src/db/indexedDB.ts'; return (await (await import(p)).getAllSchedules()).find((s: { title: string }) => s.title === '치과 진료'); });
+  expect(saved.category).toBe('health');
+  // 직접 고르면 추천보다 내 선택
+  await pill.click();
+  await sheet.getByRole('group', { name: '카테고리 목록' }).getByRole('button', { name: '업무', exact: true }).click();
+  await title.fill('치과 예약 전화');
+  await expect(pill).toContainText('업무');
+  await expect(pill).not.toContainText('추천');
+});
+
+test('글로 넣기: 12.3(목)~12.4(금) 같은 기간은 끝 날짜를 보여 주고, 등록하면 날마다 같은 일정(이어진 한 줄)으로 넣는다', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await sheet.getByLabel('문자·메일 붙여넣기').fill('현장 실사는 12.3(목)~12.4(금) 중 진행 가능하오니 참고 부탁드립니다.');
+  await sheet.getByRole('button', { name: '글에서 찾기' }).click();
+  const row = sheet.locator('[data-photo-event]').first();
+  await expect(row.getByLabel('일정 제목')).toHaveValue('현장 실사');
+  await expect(row.getByLabel('끝 날짜')).toHaveValue(/-12-04$/);
+  await expect(row).toContainText('2일');
+  await sheet.getByRole('button', { name: '1개 등록' }).click();
+  await expect(sheet).toHaveCount(0);
+  const days = await page.evaluate(async () => { const p = '/src/db/indexedDB.ts'; return (await (await import(p)).getAllSchedules()).filter((s: { title: string }) => s.title === '현장 실사').map((s: { date: string }) => s.date.slice(5)).sort(); });
+  expect(days).toEqual(['12-03', '12-04']);
+});

@@ -52,3 +52,18 @@ for (const width of [390, 1280]) test.describe(`${width}px 달력 공휴일·이
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
   });
 });
+
+test('주간 보기도 월간처럼 공휴일 이름·빨간 날짜·연휴를 보여 준다', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-02-16T09:00:00+09:00') });
+  await page.route('**/fonts.googleapis.com/**', r => r.abort());
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('button', { name: '주간', exact: true }).click();
+  const cell = (d: string) => page.locator(`[data-swipe-current] [data-calendar-date="${d}"]`);
+  await expect(cell('2026-02-17')).toHaveAttribute('data-holiday', '설날');
+  await expect(cell('2026-02-17').locator('[data-holiday-name]')).toHaveText('설날');
+  await expect(cell('2026-02-18').locator('[data-holiday-name]')).toHaveText('설 연휴');
+  await expect(cell('2026-02-17').locator('[data-date-number]')).toHaveCSS('color', 'rgb(217, 83, 79)');
+  await expect(cell('2026-02-19')).not.toHaveAttribute('data-holiday');
+  await expect(cell('2026-02-19').locator('[data-holiday-name]')).toHaveCount(0);
+});
