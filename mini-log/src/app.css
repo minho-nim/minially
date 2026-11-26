@@ -209,7 +209,7 @@ select.input { appearance: auto; }
 /* 글감 */
 .check { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; flex: 1 1 240px; flex-wrap: wrap; }
 .idea-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.idea { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.idea, .demand { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
 .idea-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .idea-head b { overflow-wrap: anywhere; }
 .idea-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 4px; }

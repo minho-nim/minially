@@ -8,9 +8,13 @@ import { blogInfo } from './Blog';
 export interface Idea { topic: string; title: string; reason: string; hashtags: string[]; source: string }
 interface Season { label: string; from: string; to: string }
 interface Watch { blog_id: string; titles: string[]; synced_at: number | null }
-interface IdeasData { seasons: Season[]; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
+interface DemandItem { topic: string; post_by: string | null; reason: string; basis: 'last_year' | 'season' | 'steady'; views: number | null; url: string | null; tags: string[] }
+interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number }
+interface IdeasData { seasons: Season[]; demand: Demand; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
 
 const SOURCE: Record<string, string> = { blogs: '참고 블로그', mine: '내 블로그', season: '시기', search: '구글 검색' };
+const BASIS: Record<DemandItem['basis'], { label: string; src: string }> = { last_year: { label: '작년 이맘때', src: 'mine' }, season: { label: '시기', src: 'season' }, steady: { label: '꾸준히', src: 'mine' } };
+const shortDay = (day: string) => `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
 
 export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea: Idea, plannedOn: string | null) => Promise<void> }) {
   const [data, setData] = useState<IdeasData | null>(null);
@@ -18,6 +22,7 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
   const [blogId, setBlogId] = useState('');
   const [busy, setBusy] = useState<'ideas' | 'watch' | 'use' | null>(null);
   const [dates, setDates] = useState<Record<number, string>>({});
+  const [demandDates, setDemandDates] = useState<Record<number, string>>({});
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const fail = (e: unknown, text: string) => setMessage({ kind: 'error', text: e instanceof Error ? e.message : text });
 
@@ -49,9 +54,9 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
     if (await watchCall('/api/ideas/watch', { body: { blog_id: blogId } })) setBlogId('');
   }
 
-  async function use(idea: Idea, i: number) {
+  async function use(idea: Idea, plannedOn: string | null) {
     setBusy('use');
-    try { await onUse(idea, dates[i] || null); } catch (e) { fail(e, '원고를 만들지 못했어요.'); setBusy(null); }
+    try { await onUse(idea, plannedOn); } catch (e) { fail(e, '원고를 만들지 못했어요.'); setBusy(null); }
   }
 
   const ideas = data?.last?.ideas ?? [];
@@ -84,7 +89,7 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
                 <div className="idea-actions">
                   <label className="sr-only" htmlFor={`idea-date-${i}`}>게시 예정일</label>
                   <input id={`idea-date-${i}`} type="date" className="input small-input" value={dates[i] ?? ''} onChange={e => setDates(d => ({ ...d, [i]: e.target.value }))} />
-                  <button className="btn small" onClick={() => { void use(idea, i); }} disabled={busy !== null}>이걸로 원고 만들기</button>
+                  <button className="btn small" onClick={() => { void use(idea, dates[i] || null); }} disabled={busy !== null}>이걸로 원고 만들기</button>
                 </div>
               </li>
             ))}
@@ -92,6 +97,31 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
         ) : data && busy !== 'ideas' && (
           <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>아직 받은 글감이 없어요. 위 버튼을 눌러 보세요.</p></div>
         )}
+      </section>
+
+      <section className="card step" aria-labelledby="demand-title">
+        <h2 id="demand-title" className="step-title">다음 4주 수요 예측{data && <span className="step-sub">내 글 기준 · {shortDay(data.demand.from)}~{shortDay(data.demand.to)}</span>}</h2>
+        <Help short={'작년 이맘때 잘 된 내 글, 다가오는 시기, 꾸준히 잘 되는 태그로 쓸 주제와 올릴 날을 골라요.'}>AI를 부르지 않고 내 블로그 기록으로만 계산해요. 작년 같은 때(52주 전) 올린 글 중 조회수가 내 보통 글 이상인 것, 앞으로 6주 안의 시기(2주 전에 올리기)와 내가 예전에 쓴 같은 시기 글, 글 2편 이상에서 평균 조회수가 높은데 30일 넘게 안 쓴 태그를 보여 줘요. 조회수는 블로그 화면에서 마지막으로 넣은 누적 숫자라 오래된 글이 조금 유리해요. 검색량(네이버 데이터랩)은 아직 연결하지 않았어요.</Help>
+        {data && (data.demand.items.length > 0 ? (
+          <ul className="idea-list" aria-label="수요 예측">
+            {data.demand.items.map((item, i) => {
+              const basis = BASIS[item.basis];
+              return (
+                <li key={`${item.basis}-${item.topic}-${i}`} className="demand">
+                  <div className="idea-head"><span className={`src s-${basis.src}`}>{basis.label}</span><b>{item.topic}</b>{item.post_by && <span className="muted small">{shortDay(item.post_by)}까지 올리기</span>}</div>
+                  <span className="muted small">{item.reason}</span>
+                  {item.url && /^https:\/\//.test(item.url) && <a className="small" href={item.url} target="_blank" rel="noopener noreferrer">예전 글 보기</a>}
+                  <div className="idea-actions">
+                    <label className="sr-only" htmlFor={`demand-date-${i}`}>올릴 날</label>
+                    <input id={`demand-date-${i}`} type="date" className="input small-input" value={demandDates[i] ?? item.post_by ?? ''} onChange={e => setDemandDates(d => ({ ...d, [i]: e.target.value }))} />
+                    <button className="btn small" onClick={() => { void use({ topic: item.topic, title: '', reason: item.reason, hashtags: item.tags, source: item.basis === 'season' ? 'season' : 'mine' }, (demandDates[i] ?? item.post_by) || null); }} disabled={busy !== null}>이걸로 원고 만들기</button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : <p className="muted small" style={{ margin: 0 }}>아직 예측할 내 글 기록이 없어요. 블로그 화면에서 내 블로그를 연결하고 조회수를 넣어 보세요.</p>)}
+        {data && data.demand.items.length > 0 && data.demand.posts_last_year === 0 && <p className="muted small" style={{ margin: 0 }}>작년 이맘때 글이 아직 없어서 시기·태그로만 골랐어요. 블로그를 오래 연결해 둘수록 정확해져요.</p>}
       </section>
 
       <section className="card step" aria-labelledby="season-title">
