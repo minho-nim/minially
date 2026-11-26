@@ -18,6 +18,7 @@ import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
 import { DraftQuestions } from './DraftQuestions';
 import { SharedPhotos } from './SharedPhotos';
+import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
@@ -1073,6 +1074,10 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                     </div>
                   </div>
                 )}
+              </li>
+              <li className="kit-wide">
+                <span className="kit-label">스레드·X</span>
+                <SocialPosts draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} url={publishUrl} beforeAi={flush} onMessage={setMessage} />
               </li>
             </ol>
             <p className="muted small" style={{ margin: 0 }}>올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>

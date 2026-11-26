@@ -21,3 +21,44 @@ export function instagramText(title: string, body: string, tags: string[], capti
   const cut = text.length > room ? `${text.slice(0, Math.max(0, room - 1)).trimEnd()}…` : text;
   return [cut, line].filter(Boolean).join('\n\n');
 }
+
+/** 본문을 짧은 글용으로: 사진 표시·빈 줄 정리, 문장 단위로 자른다 */
+function shortBody(title: string, body: string) {
+  return [title.trim(), body.replace(/[ \t]*\[사진\s*\d*\][ \t]*/g, '').replace(/\n{2,}/g, '\n').trim()].filter(Boolean).join('\n\n');
+}
+function cutTo(text: string, fits: (t: string) => boolean) {
+  if (fits(text)) return text;
+  const parts = text.split(/(?<=[.!?~요다])\s+/);
+  let out = '';
+  for (const p of parts) { const next = out ? `${out} ${p}` : p; if (!fits(`${next}…`)) break; out = next; }
+  if (!out) { out = text; while (out && !fits(`${out}…`)) out = out.slice(0, -1); }
+  return `${out.trimEnd()}…`;
+}
+
+/** 스레드: 500자, 주제 태그 1개 권장. 글 주소가 있으면 끝에 붙인다 */
+export const THREADS_LIMIT = 500;
+export function threadsText(title: string, body: string, tags: string[], url = '', draft?: string) {
+  const tag = tags.map(t => t.replace(/^#+/, '').replace(/\s+/g, '')).find(Boolean);
+  const tail = [url.trim(), tag ? `#${tag}` : ''].filter(Boolean).join('\n');
+  const room = THREADS_LIMIT - (tail ? tail.length + 2 : 0);
+  return [cutTo((draft ?? shortBody(title, body)).trim(), t => t.length <= room), tail].filter(Boolean).join('\n\n');
+}
+
+/** X 글자 수: 한글·한자·일본어는 2, 주소는 23으로 센다(X 기준) */
+export function xLength(text: string) {
+  let n = 0;
+  const rest = text.replace(/https?:\/\/\S+/g, () => { n += 23; return ''; });
+  for (const ch of rest) n += /[ᄀ-ᇿ　-鿿가-힯豈-﫿＀-￯]/.test(ch) ? 2 : 1;
+  return n;
+}
+export const X_LIMIT = 280;
+export function xText(title: string, body: string, tags: string[], url = '', draft?: string) {
+  const tag = tags.map(t => t.replace(/^#+/, '').replace(/\s+/g, '')).find(Boolean);
+  const tail = [url.trim(), tag ? `#${tag}` : ''].filter(Boolean).join(' ');
+  const room = X_LIMIT - (tail ? xLength(tail) + 1 : 0);
+  return [cutTo((draft ?? title.trim()) || shortBody(title, body), t => xLength(t) <= room), tail].filter(Boolean).join('\n');
+}
+
+/** 글이 채워진 채로 여는 작성 화면 주소(게시는 사람이 그 앱에서 누른다) */
+export const composeUrl = (where: 'threads' | 'x', text: string) =>
+  where === 'threads' ? `https://www.threads.net/intent/post?text=${encodeURIComponent(text)}` : `https://x.com/intent/post?text=${encodeURIComponent(text)}`;
