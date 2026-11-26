@@ -219,6 +219,13 @@ select.input { appearance: auto; }
 .src.s-season, .src.s-search { background: var(--sig-soft); border-color: transparent; }
 .trend-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .trend-chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 0.86rem; font-weight: 700; }
+.trend-chips li.chip-best { background: var(--sig-soft); border-color: transparent; }
+.weekday-best { display: grid; gap: 6px; }
+.day-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-picks .btn { min-width: 44px; }
+.plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.plan-pick { font-weight: 400; align-items: baseline; }
+.plan-title { font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
 .watch-titles { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 올리기 보조 */
@@ -471,3 +478,12 @@ select.input { appearance: auto; }
 .share-marks { border: 0; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .share-marks legend { padding: 0; margin-bottom: 2px; }
 .share-marks .check { min-height: 44px; flex: 0 0 auto; font-weight: 600; }
+
+/* 내 계정 */
+.account-list { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+.account-list > div { display: contents; }
+.account-list dt { font-weight: 700; font-size: 0.9rem; }
+.account-list dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; min-width: 0; overflow-wrap: anywhere; }
+.handle-forms { display: grid; gap: 6px; }
+.handle-label { min-width: 72px; font-weight: 700; font-size: 0.9rem; align-self: center; }
+.connections summary { cursor: pointer; min-height: 32px; }

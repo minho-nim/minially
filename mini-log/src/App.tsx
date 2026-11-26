@@ -24,6 +24,7 @@ import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
 import { BackupCard } from './Backup';
+import { AccountsCard } from './Accounts';
 import { applyTheme, type Theme } from '../../shared/client/theme';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
@@ -255,7 +256,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         }} />}
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
-        : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
+        : view === 'ideas' ? <IdeasView<Draft> onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
@@ -404,6 +405,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
               <button className="btn" style={{ justifySelf: 'start' }} onClick={onCampaigns}>협찬·수익 기록 보기</button>
             </section>
           </div>
+          <AccountsCard />
           <BackupCard />
         </>
       )}

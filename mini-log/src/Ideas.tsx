@@ -9,20 +9,25 @@ export interface Idea { topic: string; title: string; reason: string; hashtags: 
 interface Season { label: string; from: string; to: string }
 interface Watch { blog_id: string; titles: string[]; synced_at: number | null }
 interface DemandItem { topic: string; post_by: string | null; reason: string; basis: 'last_year' | 'season' | 'steady'; views: number | null; url: string | null; tags: string[] }
-interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number }
-interface IdeasData { seasons: Season[]; demand: Demand; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
+interface WeekdayStat { day: number; label: string; posts: number; avg: number }
+interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number; weekdays: { days: WeekdayStat[]; best: WeekdayStat | null } }
+interface IdeasData { seasons: Season[]; demand: Demand; rhythm: number[]; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
+export interface PlannedDraft { id: string; title: string; planned_on: string | null }
+const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+const dayName = (day: string) => DAY_NAMES[new Date(`${day}T00:00:00Z`).getUTCDay()];
 
 const SOURCE: Record<string, string> = { blogs: '참고 블로그', mine: '내 블로그', season: '시기', search: '구글 검색' };
 const BASIS: Record<DemandItem['basis'], { label: string; src: string }> = { last_year: { label: '작년 이맘때', src: 'mine' }, season: { label: '시기', src: 'season' }, steady: { label: '꾸준히', src: 'mine' } };
 const shortDay = (day: string) => `${Number(day.slice(5, 7))}/${Number(day.slice(8, 10))}`;
 
-export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea: Idea, plannedOn: string | null) => Promise<void> }) {
+export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: { onBack: () => void; onUse: (idea: Idea, plannedOn: string | null) => Promise<void>; onPlanned: (drafts: D[]) => void }) {
   const [data, setData] = useState<IdeasData | null>(null);
   const [search, setSearch] = useState(false);
   const [blogId, setBlogId] = useState('');
-  const [busy, setBusy] = useState<'ideas' | 'watch' | 'use' | null>(null);
+  const [busy, setBusy] = useState<'ideas' | 'watch' | 'use' | 'plan' | null>(null);
   const [dates, setDates] = useState<Record<number, string>>({});
   const [demandDates, setDemandDates] = useState<Record<number, string>>({});
+  const [picked, setPicked] = useState<string[]>([]);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const fail = (e: unknown, text: string) => setMessage({ kind: 'error', text: e instanceof Error ? e.message : text });
 
@@ -57,6 +62,29 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
   async function use(idea: Idea, plannedOn: string | null) {
     setBusy('use');
     try { await onUse(idea, plannedOn); } catch (e) { fail(e, '원고를 만들지 못했어요.'); setBusy(null); }
+  }
+
+  // 한 달 계획: 수요 예측 + AI 글감 중 고른 것을 빈 게시일에 나눠 원고로(마감이 빠른 것부터)
+  const candidates = [...new Map([
+    ...(data?.demand.items ?? []).map(i => ({ title: i.topic, hashtags: i.tags, by: i.post_by, from: BASIS[i.basis].label })),
+    ...(data?.last?.ideas ?? []).map(i => ({ title: i.title || i.topic, hashtags: i.hashtags, by: null as string | null, from: 'AI 글감' })),
+  ].map(c => [c.title, c] as const)).values()];
+  async function saveDays(days: number[]) {
+    setData(d => d && { ...d, rhythm: days });
+    if (!days.length) return; // 하나도 안 고르면 저장하지 않고 만들기 버튼만 막는다
+    try { await api('/api/plan', { method: 'PUT', body: { days } }); } catch (e) { fail(e, '게시 요일을 저장하지 못했어요.'); }
+  }
+  async function plan() {
+    const chosen = candidates.filter(c => picked.includes(c.title)).sort((a, b) => (a.by ?? '9999').localeCompare(b.by ?? '9999'));
+    setBusy('plan'); setMessage(null);
+    try {
+      const made = await api<{ drafts: D[]; unplaced: number }>('/api/plan', { body: { items: chosen.map(c => ({ title: c.title, hashtags: c.hashtags.slice(0, 10) })) } });
+      onPlanned(made.drafts);
+      setPicked([]);
+      const when = made.drafts.filter(d => d.planned_on).map(d => `${shortDay(d.planned_on!)}(${dayName(d.planned_on!)})`).join(', ');
+      setMessage({ kind: 'info', text: `원고 ${made.drafts.length}개를 만들었어요${when ? `: ${when}` : ''}.${made.unplaced ? ` ${made.unplaced}개는 8주 안에 빈 게시일이 없어 날짜 없이 만들었어요.` : ''}` });
+    } catch (e) { fail(e, '원고를 만들지 못했어요.'); }
+    finally { setBusy(null); }
   }
 
   const ideas = data?.last?.ideas ?? [];
@@ -122,6 +150,52 @@ export function IdeasView({ onBack, onUse }: { onBack: () => void; onUse: (idea:
           </ul>
         ) : <p className="muted small" style={{ margin: 0 }}>아직 예측할 내 글 기록이 없어요. 블로그 화면에서 내 블로그를 연결하고 조회수를 넣어 보세요.</p>)}
         {data && data.demand.items.length > 0 && data.demand.posts_last_year === 0 && <p className="muted small" style={{ margin: 0 }}>작년 이맘때 글이 아직 없어서 시기·태그로만 골랐어요. 블로그를 오래 연결해 둘수록 정확해져요.</p>}
+        {data && (
+          <div className="weekday-best" aria-label="올리기 좋은 요일">
+            {data.demand.weekdays.best
+              ? <p className="small" style={{ margin: 0 }}><b>{data.demand.weekdays.best.label}요일</b>에 올린 글이 평균 조회 {data.demand.weekdays.best.avg.toLocaleString('ko-KR')}회로 가장 높아요.</p>
+              : <p className="muted small" style={{ margin: 0 }}>조회수를 넣은 글이 6편 넘게 쌓이면 올리기 좋은 요일을 알려 줘요.</p>}
+            {data.demand.weekdays.days.some(d => d.posts) && (
+              <ul className="trend-chips">
+                {data.demand.weekdays.days.filter(d => d.posts).map(d => <li key={d.day} className={d.day === data.demand.weekdays.best?.day ? 'chip-best' : undefined}>{d.label}<span className="muted"> {d.posts}편·평균 {d.avg.toLocaleString('ko-KR')}</span></li>)}
+              </ul>
+            )}
+          </div>
+        )}
+      </section>
+
+      <section className="card step" aria-labelledby="plan-title">
+        <h2 id="plan-title" className="step-title">한 달 계획 한 번에 짜기{data && <span className="step-sub">주 {data.rhythm.length}편</span>}</h2>
+        <Help short={'게시 요일을 정하고 글감을 고르면 빈 게시일에 원고를 한꺼번에 만들어요.'}>고른 글감은 올릴 날이 빠른 것부터 앞으로 8주 안의 게시 요일 중 원고가 아직 없는 날에 하나씩 들어가요. 제목·해시태그만 채우고 경험 칸은 비워 둬요. 게시는 지금처럼 직접 해요.</Help>
+        {data && (
+          <>
+            <div className="day-picks" role="group" aria-label="게시 요일">
+              {DAY_NAMES.map((name, day) => {
+                const on = data.rhythm.includes(day);
+                return <button key={name} type="button" className={`btn small${on ? ' primary' : ''}`} aria-pressed={on} disabled={busy !== null}
+                  onClick={() => { void saveDays(on ? data.rhythm.filter(d => d !== day) : [...data.rhythm, day].sort()); }}>{name}</button>;
+              })}
+            </div>
+            {candidates.length > 0 ? (
+              <ul className="plan-list" aria-label="계획에 넣을 글감">
+                {candidates.map((c, i) => (
+                  <li key={c.title}>
+                    <label className="check plan-pick" htmlFor={`plan-${i}`}>
+                      <input id={`plan-${i}`} type="checkbox" checked={picked.includes(c.title)} disabled={busy !== null}
+                        onChange={e => setPicked(p => e.target.checked ? [...p, c.title].slice(0, 12) : p.filter(t => t !== c.title))} />
+                      <span className="plan-title">{c.title}</span>
+                      <span className="muted small">{c.from}{c.by ? ` · ${shortDay(c.by)}까지` : ''}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            ) : <p className="muted small" style={{ margin: 0 }}>수요 예측이나 AI 글감이 생기면 여기서 골라 한 번에 원고로 만들 수 있어요.</p>}
+            <button className="btn primary" style={{ justifySelf: 'start' }} onClick={() => { void plan(); }} disabled={!picked.length || !data.rhythm.length || busy !== null}>
+              {busy === 'plan' ? '만드는 중…' : `고른 ${picked.length}개를 게시일에 나눠 원고 만들기`}
+            </button>
+            {!data.rhythm.length && <p className="muted small" style={{ margin: 0 }}>먼저 글을 올릴 요일을 골라 주세요. 주 3~5편이면 꾸준히 쓰기 좋아요.</p>}
+          </>
+        )}
       </section>
 
       <section className="card step" aria-labelledby="season-title">

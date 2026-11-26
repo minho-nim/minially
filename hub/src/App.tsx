@@ -4,6 +4,7 @@ import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { Monthly } from './Monthly';
+import { AccountsPanel } from './Accounts';
 import { NamesContext, useNameOf } from './names';
 import { applyTheme, type Theme } from '../../shared/client/theme';
 
@@ -396,6 +397,7 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
         </section>
 
         <Monthly compare={scope === 'all'} />
+        {scope === 'all' && <AccountsPanel />}
 
         <section id="apps" aria-labelledby="apps-title">
           <h2 id="apps-title" className="section-title">앱</h2>
