@@ -75,10 +75,10 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
     } catch (e) { setSaving(false); setError({ text: e instanceof Error ? e.message : '등록하지 못했어요.', code: 'save' }); }
   }
 
-  const pickButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-hover" onClick={() => input.current?.click()}><ImagePlus className="mr-1 inline h-4 w-4" aria-hidden="true" />{phase === 'pick' ? '사진 고르기' : '다른 사진'}</button>;
-  const editTextButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-hover" onClick={() => { run.current += 1; setError(null); setPhase('pick'); }}>글 고치기</button>;
+  const pickButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => input.current?.click()}><ImagePlus className="mr-1 inline h-4 w-4" aria-hidden="true" />{phase === 'pick' ? '사진 고르기' : '다른 사진'}</button>;
+  const editTextButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => { run.current += 1; setError(null); setPhase('pick'); }}>글 고치기</button>;
   const againButton = source === 'text' ? editTextButton : pickButton;
-  const aiButton = <button type="button" className="min-h-11 rounded-xl border border-app-line bg-white px-4 text-sm font-semibold text-app-ink" onClick={askAi}><Sparkles className="mr-1 inline h-4 w-4 text-app-accent-hover" aria-hidden="true" />AI로 다시 읽기</button>;
+  const aiButton = <button type="button" className="min-h-11 rounded-xl border border-app-line bg-white px-4 text-sm font-semibold text-app-ink" onClick={askAi}><Sparkles className="mr-1 inline h-4 w-4 text-app-accent-ink" aria-hidden="true" />AI로 다시 읽기</button>;
   const aiNote = <p className="text-xs text-app-muted">AI로 읽으면 이 글이 구글 무료 AI(Gemini)로 가요. 무료 AI에 보낸 내용은 구글 서비스 개선에 쓰일 수 있어요.</p>;
 
   return <div ref={root} role="dialog" aria-modal="true" aria-label="사진으로 일정 넣기" data-photo-schedule className="app-modal fixed inset-x-0 top-0 h-[var(--modal-height,100dvh)] z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[rgba(52,40,35,0.30)]" onClick={e => { if (e.target === e.currentTarget) close(); }}>
@@ -132,12 +132,13 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
             <div className="min-w-0 flex-1 space-y-2">
               <input className={field + ' h-10 w-full font-semibold'} value={r.title} maxLength={60} aria-label="일정 제목" onChange={e => set(r.key, { title: e.target.value })} />
               <div className="flex flex-wrap items-center gap-1.5">
-                <label className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4 text-app-accent-hover" aria-hidden="true" /><span className="sr-only">날짜</span><input type="date" className={field + ' h-9'} value={r.date} onChange={e => set(r.key, { date: e.target.value })} /></label>
-                <label className="inline-flex items-center gap-1"><Clock className="h-4 w-4 text-app-accent-hover" aria-hidden="true" /><span className="sr-only">시작 시간</span><input type="time" className={field + ' h-9'} value={r.start ?? ''} onChange={e => set(r.key, { start: e.target.value || null })} /></label>
+                <label className="inline-flex items-center gap-1"><CalendarDays className="h-4 w-4 text-app-accent-ink" aria-hidden="true" /><span className="sr-only">날짜</span><input type="date" className={field + ' h-9'} value={r.date} onChange={e => set(r.key, { date: e.target.value })} /></label>
+                <label className="inline-flex items-center gap-1"><Clock className="h-4 w-4 text-app-accent-ink" aria-hidden="true" /><span className="sr-only">시작 시간</span><input type="time" className={field + ' h-9'} value={r.start ?? ''} onChange={e => set(r.key, { start: e.target.value || null })} /></label>
                 {r.start && <label className="inline-flex items-center gap-1"><span className="text-xs text-app-muted">~</span><span className="sr-only">끝 시간</span><input type="time" className={field + ' h-9'} value={r.end ?? ''} onChange={e => set(r.key, { end: e.target.value || null })} /></label>}
                 <label className="inline-flex items-center"><span className="sr-only">카테고리</span><select className={field + ' h-9'} value={r.category} onChange={e => set(r.key, { category: e.target.value })}><option value="">미분류</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               </div>
               {r.location && <p className="text-xs text-app-ink">장소: {r.location}</p>}
+              {r.memo && <p className="text-xs text-app-ink">메모: {r.memo}</p>}
               {clash && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 시간에 ‘{clash.title}{clash.startTime ? ` ${clash.startTime}` : ''}’이 있어요</p>}
               {r.uncertain && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 날짜를 짐작했어요(연도·요일을 확인해 주세요)</p>}
               {r.source && <p className="break-words text-xs text-app-muted">{source === 'text' ? '붙여넣은 글' : '사진 속 글'}: “{r.source}”</p>}
@@ -145,7 +146,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
           </article>;
         })}
         {phase === 'list' && rows.length > 0 && source === 'text' && !aiTried && <div className="space-y-1 pt-1">
-          <button type="button" className="min-h-11 text-sm font-semibold text-app-accent-hover underline underline-offset-4" onClick={askAi}>결과가 이상하면 AI로 다시 읽기</button>
+          <button type="button" className="min-h-11 text-sm font-semibold text-app-accent-ink underline underline-offset-4" onClick={askAi}>결과가 이상하면 AI로 다시 읽기</button>
           {aiNote}
         </div>}
         {phase === 'list' && error && <p role="alert" className="text-sm text-red-700">{error.text}</p>}

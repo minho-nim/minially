@@ -59,14 +59,14 @@ export const SyncPanel: React.FC<{ variant?: 'settings' | 'login' }> = ({ varian
   return (
     <div className="p-3.5 border border-app-line bg-app-canvas rounded-xl space-y-2.5" aria-label="기기 연결">
       <div className="flex items-center gap-1.5">
-        <Link2 className="w-4 h-4 text-app-accent" />
+        <Link2 className="w-4 h-4 text-app-accent-ink" />
         <h4 className="text-sm font-bold text-app-ink">{login ? '코드로 로그인' : '로그인·기기 연결'}</h4>
       </div>
 
       {!connected && isDemo() ? (
         <>
           <p className="text-[11px] text-app-muted">지금은 체험 모드예요. 체험 기록은 이 기기에만 있고 다른 기기와 맞추지 않아요. 코드로 로그인하려면 체험을 끝내 주세요(체험 데이터는 지워져요).</p>
-          <button type="button" onClick={() => void endDemo()} className="w-full py-2 text-xs font-bold rounded-lg bg-app-accent text-white cursor-pointer">체험 끝내고 로그인하기</button>
+          <button type="button" onClick={() => void endDemo()} className="w-full py-2 text-xs font-bold rounded-lg bg-app-accent-ink text-white cursor-pointer">체험 끝내고 로그인하기</button>
         </>
       ) : connected ? (
         <>
@@ -74,7 +74,7 @@ export const SyncPanel: React.FC<{ variant?: 'settings' | 'login' }> = ({ varian
           <p className="text-[11px] text-app-muted">로그인되어 있어요. 같은 코드로 로그인한 기기끼리 일정·할 일·문구·카테고리·설정이 자동으로 맞춰져요.</p>
           <div className="flex gap-2">
             <button type="button" disabled={status.kind === 'syncing'} onClick={() => void syncEngine.syncNow()}
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg bg-app-accent text-white disabled:opacity-60 cursor-pointer">
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded-lg bg-app-accent-ink text-white disabled:opacity-60 cursor-pointer">
               <RefreshCw className={`w-3.5 h-3.5 ${status.kind === 'syncing' ? 'animate-spin' : ''}`} /> 지금 맞추기
             </button>
             <button type="button" disabled={busy} onClick={async () => {
@@ -108,7 +108,7 @@ export const SyncPanel: React.FC<{ variant?: 'settings' | 'login' }> = ({ varian
               autoComplete="off" autoCapitalize="characters" spellCheck={false}
               className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border border-app-line bg-white tracking-wider uppercase" />
             <button type="submit" disabled={busy || !code.trim()}
-              className="px-4 py-2 text-xs font-bold rounded-lg bg-app-accent text-white disabled:opacity-60 cursor-pointer">
+              className="px-4 py-2 text-xs font-bold rounded-lg bg-app-accent-ink text-white disabled:opacity-60 cursor-pointer">
               {busy ? '확인 중…' : login ? '로그인' : '연결'}
             </button>
           </form>

@@ -29,7 +29,7 @@ type PhraseActions = {
   expandableGroups?: boolean;
 };
 const button = 'min-h-9 min-w-9 px-2 py-1 text-xs rounded-lg text-app-muted hover:bg-app-soft disabled:opacity-40 cursor-pointer';
-const primary = `${button} bg-app-accent text-white font-semibold hover:bg-app-accent-hover`;
+const primary = `${button} bg-app-accent-ink text-white font-semibold hover:bg-app-accent-ink-hover`;
 const input = 'w-full min-w-0 min-h-9 px-3 py-2 text-base sm:text-sm border border-app-line rounded-lg bg-white text-app-ink focus:outline-none focus:border-app-peach';
 export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeletePreset, onReorderPresets, onDirtyChange, onBusyChange, initialBlocks = [], existingTitle = '', onApplyComposition, composePresets = false, hideSearch = false, presetGroups = [], initialType = 'title', initialMode = 'manage', expandableGroups = false }: PhraseActions) {
   const [groupsCollapsed, setGroupsCollapsed] = useState(expandableGroups);
@@ -107,7 +107,7 @@ export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeleteP
   return <fieldset disabled={pending || groupBusy} aria-busy={pending || groupBusy} className="min-w-0 flex flex-col gap-2 text-app-ink">
     {guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
     {!groupManaging && <PresetGroupTabs groups={presetGroups} presets={presets} value={activeGroupId} expandedGroupId={expandableGroups ? (groupsCollapsed ? null : activeGroupId) : undefined} unclassified={hasUnclassified} onManage={()=>navigate(()=>{setGroupManaging(true);setGroupDirty(false);})} onChange={id=>navigate(()=>{setActiveGroup(id);setGroupsCollapsed(expandableGroups && id===activeGroupId ? !groupsCollapsed : false);setQuery('');setFavoritesOnly(false);setFilter(initialType);setGroupDirty(false);setMoving(null);setMoreId(null);})}/>}
-    {groupManaging && <button type="button" className={button+' self-start border border-app-outline bg-app-canvas text-app-accent'} onClick={()=>navigate(()=>{setGroupManaging(false);setGroupDirty(false);})}>프리셋 목록으로</button>}
+    {groupManaging && <button type="button" className={button+' self-start border border-app-outline bg-app-canvas text-app-accent-ink'} onClick={()=>navigate(()=>{setGroupManaging(false);setGroupDirty(false);})}>프리셋 목록으로</button>}
     {groupManaging ? <PresetGroupManager groups={presetGroups} presets={presets} onSelect={setActiveGroup} onCreated={()=>{setGroupManaging(false);setGroupsCollapsed(false);setGroupDirty(false);setGroupBusy(false);}} onDirtyChange={setGroupDirty} onBusyChange={setGroupBusy}/> : (expandableGroups && groupsCollapsed) ? null : <>
 
     {!hideSearch && !adding && !editingId && <div className="relative"><Search className="absolute left-3 top-3.5 w-4 h-4 text-app-muted" /><input type="search" aria-label="프리셋 검색" placeholder="프리셋 검색" value={query} onChange={e => setQuery(e.target.value)} className={`${input} pl-9 pr-14`} />{query && <button type="button" aria-label="검색어 지우기" className={`${button} absolute right-0 top-0`} onClick={() => setQuery('')}><X className="w-4 h-4" /></button>}</div>}
@@ -141,7 +141,7 @@ export function PhraseManager({ presets, onSelectPhrase, onSavePreset, onDeleteP
           <button type="submit" className={primary} disabled={!editedText || (!bundleDirty && editedText === phrase.text)}>변경사항 저장</button><button type="button" className={button} onClick={() => navigate(() => {})}>취소</button>
         </form> : <>
           <div data-preset-row className="flex min-h-8 items-center gap-0.5 min-w-0">
-            {managing && <button type="button" {...drag.handleProps(phrase.id)} disabled={sort !== 'manual' || !!search || favoritesOnly} aria-label={phrase.text + ' 프리셋 위치 이동'} className="min-w-9 px-1 cursor-grab active:cursor-grabbing"><GripVertical className="w-4 h-4 text-app-accent" /></button>}
+            {managing && <button type="button" {...drag.handleProps(phrase.id)} disabled={sort !== 'manual' || !!search || favoritesOnly} aria-label={phrase.text + ' 프리셋 위치 이동'} className="min-w-9 px-1 cursor-grab active:cursor-grabbing"><GripVertical className="w-4 h-4 text-app-accent-ink" /></button>}
             {managing && <button type="button" className={`${button} shrink-0`} aria-label={phrase.isFavorite ? '즐겨찾기 해제' : '즐겨찾기 등록'} aria-pressed={phrase.isFavorite} onClick={() => void run(async () => { await onSavePreset({ ...phrase, isFavorite: !phrase.isFavorite }); })}><Star className={`w-4 h-4 ${phrase.isFavorite ? 'text-app-peach fill-app-peach' : ''}`} /></button>}
             {onSelectPhrase || compositionEnabled ? <button type="button" title={phrase.text} className="flex-1 min-w-0 min-h-7 text-left text-xs whitespace-normal break-words" onClick={() => select(phrase)}>{phrase.text}</button> : <span className="flex-1 min-w-0 text-xs break-words">{phrase.text}</span>}
             {phrase.blocks && phrase.blocks.length > 1 && <span className="text-[10px] text-app-muted shrink-0">묶음 {phrase.blocks.length}블록</span>}

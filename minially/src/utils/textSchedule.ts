@@ -39,6 +39,8 @@ function datesIn(line: string, today: Date): Found[] {
     }
   };
   take(/(?<!\d)(20\d{2})\s*[년.\-/]\s*(\d{1,2})\s*[월.\-/]\s*(\d{1,2})\s*일?(?!\d)/g, m => ({ y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) }));
+  // '26.11.30, 26-11-30처럼 두 자리 연도(앞에 ' 가 붙기도 함)
+  take(/(?<![\d.\-/])['’‘]?(\d{2})\s*([.\-/])\s*(\d{1,2})\s*\2\s*(\d{1,2})(?![\d.\-/])/g, m => (Number(m[1]) >= 20 && Number(m[1]) <= 39 ? { y: 2000 + Number(m[1]), m: Number(m[3]), d: Number(m[4]) } : null)); // '10.5.2' 같은 버전 번호는 빼려고 20~39년만
   take(/(?<!\d)(\d{1,2})\s*월\s*(\d{1,2})\s*일/g, m => ({ m: Number(m[1]), d: Number(m[2]) }));
   take(/(?<![\d.:\-/])(\d{1,2})[./](\d{1,2})(?![\d.:/])/g, m => ({ m: Number(m[1]), d: Number(m[2]), loose: true }));
   if (out.length) return out.sort((a, b) => a.start - b.start);
@@ -87,7 +89,7 @@ function titleFrom(line: string) {
     .replace(/\S+님/g, ' ')
     .replace(/(?:일시|날짜|일자|시간|기간|때)\s*[:：]/g, ' ')
     .replace(TIME, ' ')
-    .replace(/[()~～\-:：,，·*•※!.]/g, ' ')
+    .replace(/[()~～\-:：,，·*•※!.'’‘]/g, ' ')
     .replace(/(?:되었습니다|되셨습니다|예정입니다|입니다|있습니다|드립니다|합니다|해요|이에요|예요)\.?/g, ' ')
     .replace(/^\s*(?:에|부터|까지|은|는|이|가)\s+/, ' ')
     .replace(/\s+(?:에|부터|까지)\s*$/, ' '), 40);
@@ -102,11 +104,22 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
   const sender = [...text.matchAll(/\[([^\]\n]{1,20})\]/g)].map(m => m[1].trim()).find(s => !/web\s*발신|광고|국외|국제|알림/i.test(s)) ?? '';
   const loc = text.match(/(?:장\s*소|위\s*치|주\s*소|오시는\s*곳)\s*[:：]\s*([^\n]+)/);
   const location = loc ? clean(loc[1].replace(/\d{2,4}-\d{3,4}-\d{4}/g, ''), 80) : '';
-  const firstLine = lines.map(titleFrom).find(l => /[가-힣A-Za-z]{2}/.test(l)) ?? '';
+  // 인사말 줄은 제목 후보에서 뺀다
+  const firstLine = lines.filter(l => !/^(?:안녕|수고|감사|고맙|반갑)/.test(l)).map(titleFrom).find(l => /[가-힣A-Za-z]{2}/.test(l)) ?? '';
+  // '계약건명 : …', '행사명: …'처럼 이름을 적은 줄이 있으면 그것을 제목으로
+  const named = clean(text.match(/(?:계약\s*건명|건\s*명|제\s*목|행사명|일정명|과정명|교육명|회의명)\s*[:：]\s*([^\n]+)/)?.[1] ?? '', 60);
+  // '작업일자 : 날짜', '일시: 날짜'처럼 이름표만 있는 날짜 줄은 그 줄을 제목으로 쓰지 않는다
+  const labelOnly = /^[\s가-힣]{0,8}(?:일자|일시|날짜|기간|시간|때|일)\s*[:：]/;
   const out: PhotoEvent[] = [];
   const seen = new Set<string>();
   lines.forEach((line, i) => {
-    const found = datesIn(line, base);
+    let found = datesIn(line, base);
+    // '11.26(목)~11.27(금)'처럼 물결로 이은 두 날짜는 일정 하나(시작 날짜)로, 끝 날짜는 메모에
+    let until = '';
+    if (found.length === 2 && /^\s*[~～\-]\s*$/.test(line.slice(found[0].end, found[1].start))) {
+      until = `~ ${found[1].date.slice(5).replace('-', '/')}까지`;
+      found = [{ ...found[0], end: found[1].end }];
+    }
     found.forEach((f, k) => {
       // 이 날짜의 몫: 앞 날짜 끝 ~ 다음 날짜 시작(한 줄에 날짜가 여럿이면 시간·제목을 서로 빌려 오지 않게)
       const before = line.slice(k ? found[k - 1].end : 0, f.start), after = line.slice(f.end, found[k + 1]?.start ?? line.length);
@@ -116,12 +129,15 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
       const [start = null, endRaw = null] = times;
       const end = start && endRaw && endRaw > start ? endRaw : null;
       const keyword = KEYWORDS.find(k => line.includes(k)) ?? KEYWORDS.find(k => text.includes(k)) ?? '';
-      const own = titleFrom(found.length === 1 ? `${before} ${after}` : after);
-      const title = clean(sender ? `${sender} ${keyword && !sender.includes(keyword) ? keyword : ''}` : /[가-힣A-Za-z]{2}/.test(own) ? own : firstLine || keyword || '일정', 60);
+      // 제목: 날짜 앞에 이름이 있으면('현장 실사는 11.26…') 그것을, 없으면 날짜 뒤에서 '진행·가능·부탁' 같은 안내 말 앞까지
+      const lead = found.length === 1 ? titleFrom(before).replace(/(?:은|는|이|가|을|를|은요|에서|의)$/, '').trim() : '';
+      const tail = titleFrom(after.split(/\s(?:중\s)?(?:진행|가능|참고|부탁|예정|송부|확인|바랍|드립|하오니|합니다)/)[0]);
+      const own = labelOnly.test(line) ? '' : /[가-힣A-Za-z]{2}/.test(lead) ? lead : tail;
+      const title = clean(labelOnly.test(line) && named ? named : sender ? `${sender} ${keyword && !sender.includes(keyword) ? keyword : ''}` : /[가-힣A-Za-z]{2}/.test(own) ? own : named || firstLine || keyword || '일정', 60);
       const key = `${f.date}|${start}|${title}`;
       if (seen.has(key) || out.length >= MAX_EVENTS) return;
       seen.add(key);
-      out.push({ title, date: f.date, start, end, location, memo: '', source: clean(line, 120), uncertain: f.uncertain });
+      out.push({ title, date: f.date, start, end, location, memo: until, source: clean(line, 120), uncertain: f.uncertain });
     });
   });
   return out.slice(0, MAX_EVENTS);

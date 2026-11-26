@@ -12,7 +12,7 @@ export function GoalBar({ goal, paid, pending, month, onChange }: { goal: number
     catch (e) { setError(e instanceof Error ? e.message : '저장하지 못했어요.'); }
   }
   if (editing || goal === null) {
-    if (!editing) return <button className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => setEditing(true)}>🎯 {month}월 수익 목표 정하기</button>;
+    if (!editing) return <button className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => setEditing(true)}>{month}월 수익 목표 정하기</button>;
     return (
       <form className="goal-form" onSubmit={e => { e.preventDefault(); const n = Number(text.replace(/[,\s원]/g, '')); if (!Number.isFinite(n)) { setError('숫자로 적어 주세요.'); return; } void save(Math.round(n)); }}>
         <label htmlFor="goal-input" className="small">한 달 목표(원)</label>
@@ -31,7 +31,7 @@ export function GoalBar({ goal, paid, pending, month, onChange }: { goal: number
   return (
     <div className="goal" aria-label={`${month}월 목표 ${formatNumber(goal)}원 중 ${pct}%`}>
       <div className="row-between">
-        <span className="small"><b>🎯 목표 {pct}%</b> <span className="muted">· {formatNumber(goal)}원 중</span></span>
+        <span className="small"><b>목표 {pct}%</b> <span className="muted">· {formatNumber(goal)}원 중</span></span>
         <button className="btn ghost small" onClick={() => { setText(String(goal)); setEditing(true); }}>바꾸기</button>
       </div>
       <div className="goal-track" aria-hidden="true">

@@ -17,9 +17,9 @@ export function ConfirmDeleteDialog({ target, busy, onClose, onDelete, noun = '�
       <h3 className="text-base font-bold">{repeating ? '반복 일정을 어디까지 삭제할까요?' : noun === '일정' ? '이 일정을 삭제할까요?' : '이 할 일을 삭제할까요?'}</h3><p className="text-sm break-words mt-2">{target.title}</p><p className="text-xs text-app-muted mt-2">삭제 후 실행 취소할 수 있습니다.</p>
       {error && <p role="alert" className="text-xs text-red-600 mt-2">{error}</p>}
       {repeating ? <div role="group" aria-label="반복 일정 삭제 범위" className="grid gap-2 mt-4">
-        {SCOPES.map(([scope, label]) => <button key={scope} type="button" disabled={busy} onClick={() => run(scope)} className="min-h-10 px-3 rounded-xl bg-app-soft text-app-accent text-sm text-left">{label} 삭제</button>)}
+        {SCOPES.map(([scope, label]) => <button key={scope} type="button" disabled={busy} onClick={() => run(scope)} className="min-h-10 px-3 rounded-xl bg-app-soft text-app-accent-ink text-sm text-left">{label} 삭제</button>)}
         <button type="button" ref={cancelRef} disabled={busy} onClick={close} className="min-h-10 px-3 rounded-xl">취소</button>
-      </div> : <div className="flex justify-end gap-2 mt-4"><button type="button" ref={cancelRef} disabled={busy} onClick={close} className="px-3 rounded-xl">취소</button><button type="button" disabled={busy} onClick={() => run()} className="px-3 rounded-xl bg-app-soft text-app-accent">{busy ? '삭제 중…' : '삭제'}</button></div>}
+      </div> : <div className="flex justify-end gap-2 mt-4"><button type="button" ref={cancelRef} disabled={busy} onClick={close} className="px-3 rounded-xl">취소</button><button type="button" disabled={busy} onClick={() => run()} className="px-3 rounded-xl bg-app-soft text-app-accent-ink">{busy ? '삭제 중…' : '삭제'}</button></div>}
     </div>
   </div>;
 }

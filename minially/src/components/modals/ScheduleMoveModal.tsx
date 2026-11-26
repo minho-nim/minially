@@ -86,7 +86,7 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
               type="button"
               onClick={() => void submit('move')}
               disabled={!targetDate || targetDate === schedule.date}
-              className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+              className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover disabled:opacity-40 rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
               <ArrowRight className="w-3.5 h-3.5" />
               <span>{pending ? '저장 중…' : '이동'}</span>
@@ -98,7 +98,7 @@ export const ScheduleMoveModal: React.FC<ScheduleMoveModalProps> = ({
               disabled={!targetDate}
               className="w-full py-2.5 px-4 text-xs font-semibold text-app-ink bg-app-soft hover:bg-app-soft border border-app-line rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
             >
-              <Copy className="w-3.5 h-3.5 text-app-accent" />
+              <Copy className="w-3.5 h-3.5 text-app-accent-ink" />
               <span>복사</span>
             </button>
           </div>

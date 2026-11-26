@@ -122,12 +122,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-app-line bg-app-canvas px-4 gap-1 overflow-x-auto text-xs font-semibold shrink-0 no-scrollbar">
+        {/* 넘치는 탭은 옆으로 밀어 보되, 끝 탭 뒤에도 여백(스크롤 영역은 오른쪽 padding을 무시해 after로 둠)·누른 탭은 보이게 */}
+        <div className="flex border-b border-app-line bg-app-canvas px-4 gap-1 overflow-x-auto text-xs font-semibold shrink-0 no-scrollbar [&>button]:shrink-0 after:block after:w-3 after:shrink-0 after:content-['']" onClickCapture={event => (event.target as HTMLElement).closest('button')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })}>
           <button
             onClick={() => changeTab('presets')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'presets'
-                ? 'border-app-accent text-app-accent'
+                ? 'border-app-accent text-app-accent-ink'
                 : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
@@ -138,19 +139,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('categories')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'categories'
-                ? 'border-app-accent text-app-accent'
+                ? 'border-app-accent text-app-accent-ink'
                 : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
             <Palette className="w-3.5 h-3.5" />
             <span>카테고리</span>
           </button>
-          <button type="button" onClick={()=>changeTab('notes')} className={'py-2.5 px-3 border-b-2 whitespace-nowrap '+(activeTab==='notes'?'border-app-accent text-app-accent':'border-transparent text-app-muted')}>메모 서식</button>
+          <button type="button" onClick={()=>changeTab('notes')} className={'py-2.5 px-3 border-b-2 whitespace-nowrap '+(activeTab==='notes'?'border-app-accent text-app-accent-ink':'border-transparent text-app-muted')}>메모 서식</button>
           <button
             onClick={() => changeTab('calendar')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'calendar'
-                ? 'border-app-accent text-app-accent'
+                ? 'border-app-accent text-app-accent-ink'
                 : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
@@ -161,7 +162,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('share')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'share'
-                ? 'border-app-accent text-app-accent'
+                ? 'border-app-accent text-app-accent-ink'
                 : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
@@ -172,7 +173,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('backup')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'backup'
-                ? 'border-app-accent text-app-accent'
+                ? 'border-app-accent text-app-accent-ink'
                 : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
@@ -183,7 +184,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={() => changeTab('pwa')}
             className={`py-2.5 px-3 border-b-2 transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
               activeTab === 'pwa'
-                ? 'border-app-accent text-app-accent'
+                ? 'border-app-accent text-app-accent-ink'
                 : 'border-transparent text-app-muted hover:text-app-ink'
             }`}
           >
@@ -224,7 +225,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => void updateSettings({ ...settings, startDayOfWeek: 0 })}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         settings.startDayOfWeek === 0
-                          ? 'bg-app-accent text-white'
+                          ? 'bg-app-accent-ink text-white'
                           : 'text-app-muted hover:bg-stone-50'
                       }`}
                     >
@@ -235,7 +236,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onClick={() => void updateSettings({ ...settings, startDayOfWeek: 1 })}
                       className={`px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
                         settings.startDayOfWeek === 1
-                          ? 'bg-app-accent text-white'
+                          ? 'bg-app-accent-ink text-white'
                           : 'text-app-muted hover:bg-stone-50'
                       }`}
                     >
@@ -261,7 +262,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-app-accent"></div>
+                    <div className="w-9 h-5 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-app-accent-ink"></div>
                   </label>
                 </div>
               </fieldset>
@@ -291,7 +292,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }}
                   className="p-3.5 border border-app-line bg-app-canvas hover:bg-app-soft rounded-xl text-left transition-colors cursor-pointer"
                 >
-                  <Download className="w-5 h-5 text-app-accent mb-1.5" />
+                  <Download className="w-5 h-5 text-app-accent-ink mb-1.5" />
                   <p className="text-xs font-bold text-app-ink">JSON 백업 다운로드</p>
                   <p className="text-[11px] text-app-muted mt-0.5">파일로 내보내기</p>
                 </button>
@@ -308,7 +309,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={handleFileChange}
                     className="hidden"
                   />
-                  <Upload className="w-5 h-5 text-app-accent mb-1.5" />
+                  <Upload className="w-5 h-5 text-app-accent-ink mb-1.5" />
                   <p className="text-xs font-bold text-app-ink">JSON 백업 복원</p>
                   <p className="text-[11px] text-app-muted mt-0.5">파일에서 불러오기</p>
                 </div>
@@ -350,7 +351,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     type="button"
                     onClick={promptInstall}
-                    className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover rounded-xl transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                   >
                     <Smartphone className="w-4 h-4" />
                     <span>홈 화면에 앱 설치하기</span>

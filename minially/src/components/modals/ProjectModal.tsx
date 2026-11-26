@@ -99,7 +99,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         <form onSubmit={handleSubmit} className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">
-              프로젝트 이름 <span className="text-app-accent">*</span>
+              프로젝트 이름 <span className="text-app-accent-ink">*</span>
             </label>
             <input
               type="text"
@@ -125,7 +125,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 시작일
+                <Calendar className="w-3.5 h-3.5 text-app-accent-ink" /> 시작일
               </label>
               <input
                 type="date"
@@ -137,7 +137,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-app-accent" /> 마감일
+                <Calendar className="w-3.5 h-3.5 text-app-accent-ink" /> 마감일
               </label>
               <input
                 type="date"
@@ -160,7 +160,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                     onClick={() => setStatus(st)}
                     className={`py-1.5 text-xs font-medium rounded-xl border transition-all ${
                       status === st
-                        ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
+                        ? 'bg-app-soft text-app-accent-ink border-app-line font-bold shadow-2xs'
                         : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                     }`}
                   >
@@ -172,7 +172,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1.5 flex items-center gap-1">
-                <Palette className="w-3.5 h-3.5 text-app-accent" /> 포인트 색상
+                <Palette className="w-3.5 h-3.5 text-app-accent-ink" /> 포인트 색상
               </label>
               <div className="flex items-center gap-2 pt-0.5">
                 {COLOR_OPTIONS.map((c) => (
@@ -230,7 +230,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-xs transition"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover rounded-lg shadow-xs transition"
               >
                 {isEdit ? '수정' : '생성'}
               </button>

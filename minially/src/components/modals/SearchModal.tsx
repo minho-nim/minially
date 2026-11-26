@@ -66,7 +66,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
         <header className="shrink-0 px-3 py-1.5 border-b border-app-line flex items-center justify-between"><h2 className="text-sm font-bold text-app-ink">일정 검색</h2><button type="button" aria-label="일정 검색 닫기" title="닫기" onClick={onClose} className="min-h-9 min-w-9 flex items-center justify-center rounded-lg text-app-muted hover:bg-app-soft"><X aria-hidden="true" className="h-4 w-4"/></button></header>
         {/* Search Input Bar */}
         <div className="px-3 py-2 border-b border-app-line flex items-center gap-2 bg-app-canvas">
-          <Search className="w-4 h-4 text-app-accent shrink-0" />
+          <Search className="w-4 h-4 text-app-accent-ink shrink-0" />
           <input
             ref={inputRef}
             type="search"
@@ -88,7 +88,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
 
         </div>
 
-        <details className="shrink-0 px-3 py-1 border-b border-app-line text-xs text-app-muted"><summary className="min-h-8 cursor-pointer py-1.5"><span className="inline-flex items-center gap-1"><CalendarRange aria-hidden="true" className="h-3.5 w-3.5"/>기간 검색{hasRange?' · 적용 중':''}</span></summary><div className="grid gap-2 pb-2 sm:grid-cols-2"><DatePicker label="검색 시작일" value={from} onChange={setFrom}/><DatePicker label="검색 종료일" value={to} onChange={setTo}/></div>{hasRange&&<button type="button" onClick={()=>{setFrom('');setTo('');}} className="min-h-8 text-xs text-app-accent">기간 초기화</button>}{invalidRange&&<p role="alert" className="pb-2 text-xs text-red-600">종료일은 시작일 이후로 선택해 주세요.</p>}</details>
+        <details className="shrink-0 px-3 py-1 border-b border-app-line text-xs text-app-muted"><summary className="min-h-8 cursor-pointer py-1.5"><span className="inline-flex items-center gap-1"><CalendarRange aria-hidden="true" className="h-3.5 w-3.5"/>기간 검색{hasRange?' · 적용 중':''}</span></summary><div className="grid gap-2 pb-2 sm:grid-cols-2"><DatePicker label="검색 시작일" value={from} onChange={setFrom}/><DatePicker label="검색 종료일" value={to} onChange={setTo}/></div>{hasRange&&<button type="button" onClick={()=>{setFrom('');setTo('');}} className="min-h-8 text-xs text-app-accent-ink">기간 초기화</button>}{invalidRange&&<p role="alert" className="pb-2 text-xs text-red-600">종료일은 시작일 이후로 선택해 주세요.</p>}</details>
         {/* Results List */}
         <div className="flex-1 px-3 py-2 overflow-y-auto space-y-1 min-h-0">
           {!query.trim()&&!hasRange ? (
@@ -118,7 +118,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-0.5">
-                      {item.isImportant && <Star aria-label="중요 일정" className="w-3.5 h-3.5 shrink-0 text-app-accent fill-current" />}
+                      {item.isImportant && <Star aria-label="중요 일정" className="w-3.5 h-3.5 shrink-0 text-app-accent-ink fill-current" />}
                       <span className={`text-sm text-app-ink break-words ${item.completed ? 'line-through text-app-muted' : item.isImportant ? 'font-bold' : 'font-medium'}`}>
                         {item.title}
                       </span>
@@ -130,7 +130,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-app-muted">
                       <span className="flex items-center gap-1 font-mono">
-                        <Calendar className="w-3 h-3 text-app-accent" />
+                        <Calendar className="w-3 h-3 text-app-accent-ink" />
                         {formatKoreanDate(item.date)}
                       </span>
                       {item.startTime && (
@@ -139,7 +139,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
                           {item.startTime}
                         </span>
                       )}
-                      <span className="bg-app-soft text-app-accent px-1.5 py-0.2 rounded text-[10px] font-semibold">
+                      <span className="bg-app-soft text-app-accent-ink px-1.5 py-0.2 rounded text-[10px] font-semibold">
                         {catMap.get(item.category) || item.category || '미분류'}
                       </span>
                     </div>

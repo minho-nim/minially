@@ -713,14 +713,14 @@ export default function App() {
     if (action === 'today') shortcutActions.todaySchedules();
   }, [isReady, loggedIn, shortcutActions, setActiveTab]);
 
-  if (databaseBlocked && !isReady) return <div role="alert" className="min-h-dvh bg-app-canvas flex flex-col items-center justify-center gap-3 p-6 text-center text-app-ink"><h1 className="font-semibold">미니어리 업데이트 준비 중</h1><p className="max-w-sm text-sm text-app-muted">열려 있는 다른 미니어리 창을 닫거나 새로고침해 주세요. 데이터는 유지되며 준비가 끝나면 자동으로 열립니다.</p><button type="button" onClick={()=>window.location.reload()} className="min-h-9 rounded-lg px-3 bg-app-soft text-app-accent-hover text-sm">다시 확인</button></div>;
+  if (databaseBlocked && !isReady) return <div role="alert" className="min-h-dvh bg-app-canvas flex flex-col items-center justify-center gap-3 p-6 text-center text-app-ink"><h1 className="font-semibold">미니어리 업데이트 준비 중</h1><p className="max-w-sm text-sm text-app-muted">열려 있는 다른 미니어리 창을 닫거나 새로고침해 주세요. 데이터는 유지되며 준비가 끝나면 자동으로 열립니다.</p><button type="button" onClick={()=>window.location.reload()} className="min-h-9 rounded-lg px-3 bg-app-soft text-app-accent-ink text-sm">다시 확인</button></div>;
   if (!loggedIn) return <LoginScreen />;
 
   if (!isReady) {
     return (
       <div className="min-h-dvh bg-app-canvas flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-app-accent text-white flex items-center justify-center font-bold text-base shadow-2xs animate-pulse">
+          <div className="w-9 h-9 rounded-xl bg-app-accent-ink text-white flex items-center justify-center font-bold text-base shadow-2xs animate-pulse">
             M
           </div>
           <span className="text-xs font-semibold text-app-muted">미니어리 준비 중...</span>
@@ -736,7 +736,7 @@ export default function App() {
       {isDemo() && (
         <div role="status" className="shrink-0 flex items-center justify-center gap-2 px-3 py-1.5 text-[11px] bg-app-soft text-app-ink">
           <span><b>체험 모드</b> · 예시 데이터예요. 기록은 이 기기에만 저장돼요.</span>
-          <button type="button" onClick={() => void endDemo()} className="font-bold underline text-app-accent-hover cursor-pointer">체험 끝내기</button>
+          <button type="button" onClick={() => void endDemo()} className="font-bold underline text-app-accent-ink cursor-pointer">체험 끝내기</button>
         </div>
       )}
 

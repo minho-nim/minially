@@ -61,7 +61,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
 
           <button
             onClick={onOpenNewProjectModal}
-            className="px-3 py-1 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-2xs transition flex items-center gap-1 active:scale-95"
+            className="px-3 py-1 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover rounded-lg shadow-2xs transition flex items-center gap-1 active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" /> 새 프로젝트
           </button>
@@ -74,7 +74,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           <p className="text-xs font-semibold text-stone-500">등록된 프로젝트가 없습니다.</p>
           <button
             onClick={onOpenNewProjectModal}
-            className="mt-2.5 px-3 py-1 text-xs font-semibold text-app-accent hover:underline"
+            className="mt-2.5 px-3 py-1 text-xs font-semibold text-app-accent-ink hover:underline"
           >
             + 새 프로젝트 만들기
           </button>
@@ -93,10 +93,10 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <h2 className="text-sm font-bold text-app-ink group-hover:text-app-accent transition-colors truncate">
+                    <h2 className="text-sm font-bold text-app-ink group-hover:text-app-accent-ink transition-colors truncate">
                       {project.name}
                     </h2>
-                    <span className="text-xs font-mono font-bold text-app-accent">
+                    <span className="text-xs font-mono font-bold text-app-accent-ink">
                       {project.progress}%
                     </span>
                   </div>
@@ -104,7 +104,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   {/* Progress Bar */}
                   <div className="w-full bg-app-soft rounded-full h-1.5 mb-3 overflow-hidden">
                     <div
-                      className="bg-app-accent h-full rounded-full transition-all duration-300"
+                      className="bg-app-accent-ink h-full rounded-full transition-all duration-300"
                       style={{ width: `${project.progress}%` }}
                     />
                   </div>
@@ -113,7 +113,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 <div className="flex items-center justify-between text-xs text-stone-400 pt-2 border-t border-stone-100 font-mono">
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1 text-stone-600">
-                      <CheckSquare className="w-3.5 h-3.5 text-app-accent" />
+                      <CheckSquare className="w-3.5 h-3.5 text-app-accent-ink" />
                       <strong>{doneTasks}</strong>/{projTasks.length} 완료
                     </span>
                     <span className="flex items-center gap-1">
@@ -122,7 +122,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                     </span>
                   </div>
 
-                  <span className="text-app-accent group-hover:translate-x-0.5 transition-transform">
+                  <span className="text-app-accent-ink group-hover:translate-x-0.5 transition-transform">
                     <ChevronRight className="w-4 h-4" />
                   </span>
                 </div>

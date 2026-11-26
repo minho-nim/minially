@@ -25,7 +25,7 @@ export const MovedScreen: React.FC = () => {
           <h1 className="text-lg font-bold text-app-ink">미니어리가 새 주소로 옮겼어요</h1>
           <p className="text-xs text-app-muted mt-1">이제 코드로 로그인하고 PC·폰이 자동으로 맞춰지는 새 주소에서 써 주세요.</p>
         </div>
-        <a href={NEW_URL} className="block w-full py-2.5 rounded-xl bg-app-accent text-white text-sm font-bold">새 주소로 가기</a>
+        <a href={NEW_URL} className="block w-full py-2.5 rounded-xl bg-app-accent-ink text-white text-sm font-bold">새 주소로 가기</a>
         <div className="pt-3 border-t border-app-line space-y-2">
           <p className="text-[11px] text-app-muted">예전에 이 주소에서 쓰던 일정이 있다면 먼저 백업한 뒤, 새 주소에서 복원하세요.</p>
           <button type="button" onClick={() => void backup()} className="w-full py-2 rounded-xl border border-app-line text-xs font-bold text-app-ink hover:bg-app-soft cursor-pointer">이 주소의 데이터 백업 받기</button>

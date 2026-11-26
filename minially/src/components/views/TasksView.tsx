@@ -187,10 +187,10 @@ export const TasksView: React.FC<TasksViewProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleSelectTask(task.id)}
-                        className="w-7 h-7 flex items-center justify-center text-app-accent cursor-pointer shrink-0"
+                        className="w-7 h-7 flex items-center justify-center text-app-accent-ink cursor-pointer shrink-0"
                       >
                         {isSelected ? (
-                          <CheckSquare className="w-5 h-5 text-app-accent" />
+                          <CheckSquare className="w-5 h-5 text-app-accent-ink" />
                         ) : (
                           <Square className="w-5 h-5 text-app-muted/40" />
                         )}
@@ -201,12 +201,12 @@ export const TasksView: React.FC<TasksViewProps> = ({
                         onClick={() => void run(async () => { await onToggleTaskStatus(task.id); })}
                         aria-label={isDone ? '할 일 완료 해제' : '할 일 완료'}
                         aria-pressed={isDone}
-                        className="w-9 h-9 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent transition-colors cursor-pointer shrink-0"
+                        className="w-9 h-9 -ml-1 flex items-center justify-center text-stone-300 hover:text-app-accent-ink transition-colors cursor-pointer shrink-0"
                       >
                         {isDone ? (
-                          <CheckCircle2 className="w-5 h-5 text-app-accent fill-app-soft" />
+                          <CheckCircle2 className="w-5 h-5 text-app-accent-ink fill-app-soft" />
                         ) : (
-                          <Circle className="w-5 h-5 text-app-muted/40 hover:text-app-accent" />
+                          <Circle className="w-5 h-5 text-app-muted/40 hover:text-app-accent-ink" />
                         )}
                       </button>
                     )}
@@ -222,18 +222,18 @@ export const TasksView: React.FC<TasksViewProps> = ({
                       </p>
 
                       <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-app-muted">
-                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 선택'}</button>
-                        {task.categoryId && categories.some(category=>category.id===task.categoryId) && <span className="rounded px-1.5 py-0.5 bg-app-soft text-app-accent-hover">{categories.find(category=>category.id===task.categoryId)?.name}</span>}
-                        {(task.linkedScheduleId || scheduleTaskIds.includes(task.id)) && onOpenSchedule && <button type="button" onClick={()=>onOpenSchedule(task)} className="text-app-accent hover:underline">원본 일정</button>}
-                        {!task.linkedScheduleId && !scheduleTaskIds.includes(task.id) && onCreateSchedule && !task.id.startsWith('shared~') && <button type="button" onClick={()=>onCreateSchedule(task)} className="text-app-accent hover:underline">일정으로 등록</button>}
-                        {task.sourceNoteId && onOpenNote && <button type="button" onClick={()=>onOpenNote(task.sourceNoteId!)} className="text-app-accent hover:underline">원본 메모</button>}
+                        <button type="button" aria-label={task.title+' 날짜 변경'} onClick={()=>setDateTarget(task)} className="flex items-center gap-1 font-mono text-app-accent-ink hover:underline"><Calendar className="w-3 h-3"/>{task.dueDate || '날짜 선택'}</button>
+                        {task.categoryId && categories.some(category=>category.id===task.categoryId) && <span className="rounded px-1.5 py-0.5 bg-app-soft text-app-accent-ink">{categories.find(category=>category.id===task.categoryId)?.name}</span>}
+                        {(task.linkedScheduleId || scheduleTaskIds.includes(task.id)) && onOpenSchedule && <button type="button" onClick={()=>onOpenSchedule(task)} className="text-app-accent-ink hover:underline">원본 일정</button>}
+                        {!task.linkedScheduleId && !scheduleTaskIds.includes(task.id) && onCreateSchedule && !task.id.startsWith('shared~') && <button type="button" onClick={()=>onCreateSchedule(task)} className="text-app-accent-ink hover:underline">일정으로 등록</button>}
+                        {task.sourceNoteId && onOpenNote && <button type="button" onClick={()=>onOpenNote(task.sourceNoteId!)} className="text-app-accent-ink hover:underline">원본 메모</button>}
                         {isDone && <span className="inline-flex items-center gap-0.5 text-[11px] rounded bg-[#8F526C] px-1.5 py-0.5 font-semibold text-white"><Check aria-hidden="true" className="h-3 w-3"/>완료</span>}
 
                         {hasChecklist && (
                           <button
                             type="button"
                             onClick={() => toggleExpand(task.id)}
-                            className="flex items-center gap-1 text-app-accent hover:underline cursor-pointer"
+                            className="flex items-center gap-1 text-app-accent-ink hover:underline cursor-pointer"
                           >
                             <span>
                               체크리스트 {completedCount}/{task.checklist?.length}
@@ -260,7 +260,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                                 type="checkbox"
                                 checked={item.done}
                                 onChange={() => {}}
-                                className="rounded text-app-accent focus:ring-0"
+                                className="rounded text-app-accent-ink focus:ring-0"
                               />
                               <span className={item.done ? 'line-through text-app-muted' : ''}>
                                 {item.text}
@@ -274,7 +274,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                   {/* Single Delete Action */}
                   {!isSelectMode && (
-                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} title={isDone?'완료 취소':'완료'} className="min-h-8 rounded-lg px-2 text-xs text-app-accent">{isDone?<RotateCcw aria-hidden="true" className="h-4 w-4"/>:<Check aria-hidden="true" className="h-4 w-4"/>}</button>
+                    <div className="flex shrink-0 items-center gap-1"><button type="button" onClick={()=>void run(async()=>{await onToggleTaskStatus(task.id);})} aria-label={task.title+(isDone?' 완료 취소':' 완료')} title={isDone?'완료 취소':'완료'} className="min-h-8 rounded-lg px-2 text-xs text-app-accent-ink">{isDone?<RotateCcw aria-hidden="true" className="h-4 w-4"/>:<Check aria-hidden="true" className="h-4 w-4"/>}</button>
                     <button
                       type="button"
                       onClick={() => onDeleteTask(task.id)}
@@ -300,8 +300,8 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
         {/* Completion & Select Mode Toggle */}
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={()=>setImporting(true)} className="min-h-9 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent">미완료 가져오기</button>
-          <button type="button" onClick={()=>{setCompletionFilter('all');onOpenCalendar();}} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
+          <button type="button" onClick={()=>setImporting(true)} className="min-h-9 shrink-0 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent-ink">미완료 가져오기</button>
+          <button type="button" onClick={()=>{setCompletionFilter('all');onOpenCalendar();}} aria-haspopup="dialog" aria-label="캘린더 일정 가져오기" title="캘린더 일정 가져오기" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-app-outline bg-white px-2.5 text-xs text-app-accent-ink"><Calendar aria-hidden="true" className="h-4 w-4" /></button>
           <div role="group" aria-label="할 일 완료 필터" className="flex items-center p-0.5 bg-app-soft rounded-lg border border-app-line text-xs">
             {([['all','모두'],['pending','미완료'],['completed','완료']] as const).map(([value,label])=><button key={value} type="button" aria-pressed={completionFilter===value} onClick={()=>setCompletionFilter(value)} className={'min-h-8 px-2.5 rounded-md '+(completionFilter===value?'bg-white font-semibold text-app-ink':'text-app-muted')}>{label}</button>)}
           </div>
@@ -315,7 +315,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
             }}
             className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
               isSelectMode
-                ? 'bg-app-accent text-white border-app-accent'
+                ? 'bg-app-accent-ink text-white border-app-accent'
                 : 'bg-white text-app-muted border-app-line hover:text-app-ink'
             }`}
           >
@@ -328,7 +328,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
       <div className="bg-white rounded-2xl border border-app-line shadow-2xs overflow-hidden">
         {/* Quick Inline Add Bar */}
         <form aria-label="할 일 등록" onSubmit={handleQuickAdd} onKeyDown={e=>{if(e.key==='Enter'&&e.target instanceof HTMLInputElement&&e.target!==quickInput.current)e.preventDefault();}} className="p-3 space-y-2 border-b border-app-line bg-app-canvas/50">
-          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0"><p className="text-xs text-app-muted px-1">{formatKoreanDate(selectedDate)} · 간편 등록</p></div><button type="button" onClick={onOpenPresetManager} aria-label="프리셋 설정" title="프리셋 설정" className="min-h-9 px-2 flex items-center gap-1 text-xs text-app-accent rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/></button></div>
+          <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-0"><p className="text-xs text-app-muted px-1">{formatKoreanDate(selectedDate)} · 간편 등록</p></div><button type="button" onClick={onOpenPresetManager} aria-label="프리셋 설정" title="프리셋 설정" className="min-h-9 px-2 flex items-center gap-1 text-xs text-app-accent-ink rounded-lg hover:bg-app-soft"><Settings2 aria-hidden="true" className="w-4 h-4"/></button></div>
           <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-app-line focus-within:border-app-accent transition-colors">
             <input
               type="text"
@@ -343,18 +343,18 @@ export const TasksView: React.FC<TasksViewProps> = ({
               placeholder="+ 새로운 할 일 입력 후 Enter"
               className="flex-1 min-w-0 text-base sm:text-sm bg-transparent text-app-ink placeholder:text-app-muted/70 focus:outline-none"
             />
-            <button type="button" disabled={pending} aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-9 px-2 text-xs text-app-accent bg-app-soft rounded-lg">프리셋</button>
+            <button type="button" disabled={pending} aria-expanded={presetsOpen} onClick={()=>setPresetsOpen(!presetsOpen)} className="min-h-9 px-2 text-xs text-app-accent-ink bg-app-soft rounded-lg">프리셋</button>
             <button
               type="submit"
               aria-label="추가" title="할 일 추가"
               disabled={pending || !quickTitle.trim()}
-              className="px-2.5 py-1 text-xs font-semibold text-white bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 rounded-lg transition-all cursor-pointer"
+              className="px-2.5 py-1 text-xs font-semibold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover disabled:opacity-40 rounded-lg transition-all cursor-pointer"
             >
               <Plus aria-hidden="true" className="h-4 w-4"/>
             </button>
           </div>
           {!!blocks.length && <TitleBlockEditor compact editable hideWordInput blocks={blocks} word="" onWordChange={()=>{}} onChange={next=>{setTitleHistory(history=>[...history,{text:quickTitle,blocks}]);setBlocks(next);setQuickTitle(next.map(b=>b.text).join(' '));}}/>}
-          {!!titleHistory.length && <button type="button" className="min-h-9 px-2 text-xs text-app-accent" onClick={()=>{const previous=titleHistory[titleHistory.length-1];setQuickTitle(previous.text);setBlocks(previous.blocks);setTitleHistory(history=>history.slice(0,-1));}}>이전 제목 복구</button>}
+          {!!titleHistory.length && <button type="button" className="min-h-9 px-2 text-xs text-app-accent-ink" onClick={()=>{const previous=titleHistory[titleHistory.length-1];setQuickTitle(previous.text);setBlocks(previous.blocks);setTitleHistory(history=>history.slice(0,-1));}}>이전 제목 복구</button>}
           {presetsOpen && <div ref={presetPanel}><InlinePresetPicker presets={presets} presetGroups={presetGroups} selectedBlocks={blocks} onManage={onOpenPresetManager} onClose={()=>{setPresetsOpen(false);requestAnimationFrame(()=>quickInput.current?.focus({preventScroll:true}));}} options={<label className="flex items-center gap-2">적용 방식<select aria-label="프리셋 적용 방식" value={applyMode} onChange={e=>setApplyMode(e.target.value as 'append'|'replace')} className="min-h-9 border rounded-lg px-2 bg-white"><option value="append">이어 붙이기</option><option value="replace">제목 교체</option></select></label>} onAdd={(parts,preset)=>{
             const current=blocks.map(b=>b.text).join(' ')===quickTitle?blocks:quickTitle.trim()?[{id:crypto.randomUUID(),text:quickTitle.trim()}]:[];
             const next=applyMode==='append'?[...current,...parts]:parts;
@@ -370,7 +370,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               <button
                 type="button"
                 onClick={handleSelectAll}
-                className="text-app-accent font-bold cursor-pointer hover:underline"
+                className="text-app-accent-ink font-bold cursor-pointer hover:underline"
               >
                 {selectedTaskIds.length === filteredTasks.length ? '전체 해제' : '전체 선택'}
               </button>

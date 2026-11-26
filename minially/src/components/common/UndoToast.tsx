@@ -22,7 +22,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({ notice, onUndo, onDismiss 
 
   return (
     <div role="status" aria-label="변경 알림" className="app-undo-toast fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-app-ink text-white px-4 py-2.5 rounded-2xl shadow-lg border border-stone-600/40 text-xs sm:text-sm max-w-[92vw] sm:max-w-md animate-in fade-in slide-in-from-bottom-2 duration-150">
-      <div className="w-4 h-4 rounded-full bg-app-accent text-white flex items-center justify-center shrink-0">
+      <div className="w-4 h-4 rounded-full bg-app-accent-ink text-white flex items-center justify-center shrink-0">
         <Check className="w-2.5 h-2.5 stroke-[3]" />
       </div>
       <span className="truncate font-medium">{notice.message}</span>

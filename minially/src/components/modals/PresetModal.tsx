@@ -115,7 +115,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
         <form onSubmit={handleSubmit} className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1">
-              프리셋 이름 <span className="text-app-accent">*</span>
+              프리셋 이름 <span className="text-app-accent-ink">*</span>
             </label>
             <input
               type="text"
@@ -151,7 +151,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 onClick={() => setDefaultCategory('work')}
                 className={`py-1.5 px-3 text-xs font-medium rounded-xl border transition-all ${
                   defaultCategory === 'work'
-                    ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
+                    ? 'bg-app-soft text-app-accent-ink border-app-line font-bold shadow-2xs'
                     : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                 }`}
               >
@@ -162,7 +162,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
                 onClick={() => setDefaultCategory('personal')}
                 className={`py-1.5 px-3 text-xs font-medium rounded-xl border transition-all ${
                   defaultCategory === 'personal'
-                    ? 'bg-app-soft text-app-accent border-app-line font-bold shadow-2xs'
+                    ? 'bg-app-soft text-app-accent-ink border-app-line font-bold shadow-2xs'
                     : 'bg-white text-stone-600 border-stone-200 hover:bg-stone-50'
                 }`}
               >
@@ -185,7 +185,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold text-stone-600 mb-1 flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-app-accent" /> 시작 시간
+                <Clock className="w-3.5 h-3.5 text-app-accent-ink" /> 시작 시간
               </label>
               <input
                 type="time"
@@ -263,7 +263,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               <button
                 type="button"
                 onClick={handleAddTemplate}
-                className="px-2.5 py-1 bg-app-soft text-app-accent text-xs font-semibold rounded-lg hover:bg-app-line transition"
+                className="px-2.5 py-1 bg-app-soft text-app-accent-ink text-xs font-semibold rounded-lg hover:bg-app-line transition"
               >
                 추가
               </button>
@@ -310,7 +310,7 @@ export const PresetModal: React.FC<PresetModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent hover:bg-app-accent-hover rounded-lg shadow-xs transition"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-app-accent-ink hover:bg-app-accent-ink-hover rounded-lg shadow-xs transition"
               >
                 {isEdit ? '저장' : '등록'}
               </button>
