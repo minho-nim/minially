@@ -40,6 +40,7 @@ export const onRequestPost = async ({ request, env }: Context): Promise<Response
   }
   let raw: unknown = null;
   try { raw = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { return json({ error: pasted !== null ? '글을 읽지 못했어요. 다시 시도해 주세요.' : '사진을 읽지 못했어요. 다시 시도해 주세요.', code: 'bad_response' }, 502); }
-  // 사진은 AI가 옮겨 적은 글, 글로 넣기는 붙여넣은 글로 날짜·시간을 한 번 더 확인한다
-  return json({ events: crossCheck(readPhotoEvents(raw), pasted ?? readTranscript(raw), today) });
+  // 사진은 AI가 옮겨 적은 글로 날짜·시간을 한 번 더 확인한다. 글로 넣기 'AI로 다시 읽기'는 사람이 규칙 결과가 이상하다고 본 경우라 AI 답을 그대로 준다
+  const events = readPhotoEvents(raw);
+  return json({ events: pasted === null ? crossCheck(events, readTranscript(raw), today) : events });
 };
