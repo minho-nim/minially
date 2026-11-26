@@ -39,6 +39,7 @@ test('수익 목표: 정하기 → 받은·받을 금액 대비 → 새로고침
 
   await page.goto('/#campaigns');
   await page.getByRole('tab', { name: '전체' }).click();
+  { const t = page.getByRole('button', { name: '협찬 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'CSV로 받기' }).click()]);
   expect(download.suggestedFilename()).toMatch(/^minilog_campaigns_\d{8}\.csv$/);
   const text = await readFile((await download.path())!, 'utf8');

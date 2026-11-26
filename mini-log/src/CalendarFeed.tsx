@@ -35,7 +35,7 @@ export function CalendarFeed() {
       <div className="row-between">
         <h2 id="feed-title" className="step-title">휴대폰 달력에 알림 받기<span className="step-sub">{on === null ? '' : on ? '켜짐' : '꺼짐'}</span></h2>
         <div className="ai-row">
-          <button className="btn small primary" onClick={() => { void make(); }} disabled={busy || on === null}>{on ? '새 주소 만들기' : '구독 주소 만들기'}</button>
+          <button className="btn small" onClick={() => { void make(); }} disabled={busy || on === null}>{on ? '새 주소 만들기' : '구독 주소 만들기'}</button>
           {on && <button className="btn ghost small" onClick={() => { void off(); }} disabled={busy}>끄기</button>}
         </div>
       </div>

@@ -138,7 +138,7 @@ createServer((req, res) => {
     const avoided = prompt.includes('피하는 표현(') ? ' · 피하는 표현' : ''; // '더 내 스타일로'로 생긴 피하는 표현이 초안 프롬프트에 들어갔는지
     const styled = !prompt.includes('<문체>') ? '' : prompt.includes('다른 블로거의 쓰는 방식') ? (prompt.includes('남의표현') ? ' · 표현 샘' : ' · 참고 문체') : ' · 내 문체';
     const memo = prompt.match(/<사진 메모>\n([\s\S]*?)\n<\/사진 메모>/)?.[1]; // 사진 메모가 자료로 들어갔는지 시험에서 볼 수 있게
-    const draft = { title: (images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목') + styled + avoided, body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]${postType ? `\n(글 종류: ${postType})` : ''}${memo ? `\n(메모 반영: ${memo.split('\n')[0]})\n가격은 9,900원이었어요.` : ''}`, hashtags: ['#시험', '미니로그', '시험'] };
+    const draft = { title: (images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목') + styled + avoided, body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]${postType ? `\n(글 종류: ${postType})` : ''}${prompt.includes('[글 구조: 홈피드형]') ? '\n(글 구조: 홈피드형)' : ''}${memo ? `\n(메모 반영: ${memo.split('\n')[0]})\n가격은 9,900원이었어요.` : ''}`, hashtags: ['#시험', '미니로그', '시험'] };
     send(200, {
       candidates: [{ content: { parts: [{ text: JSON.stringify(draft) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 },

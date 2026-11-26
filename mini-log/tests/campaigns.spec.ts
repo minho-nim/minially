@@ -37,6 +37,7 @@ test('협찬을 적고 정산 완료하면 이번 달 수익·대시보드에 �
   await expect(page.locator('.campaign').filter({ hasText: '동네빵집' })).toContainText('정산 완료');
 
   // 광고 수익: 업체 없이 금액만
+  { const t = page.getByRole('button', { name: '협찬 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '광고 수익 적기' }).click();
   await page.getByLabel('금액(원)').fill('23500');
   await page.getByRole('button', { name: '저장' }).click();

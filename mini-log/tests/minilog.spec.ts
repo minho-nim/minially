@@ -44,6 +44,7 @@ test('원고를 만들고 AI 초안·자동 저장·승인·삭제를 한다', a
   await expect(page.getByLabel('본문')).toHaveValue('직접 고친 본문');
   await expect(page.locator('.badge')).toHaveText('승인됨');
   page.once('dialog', d => d.accept());
+  { const t = page.getByRole('button', { name: '원고 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '삭제' }).click();
   await expect(page.getByText('아직 원고가 없어요')).toBeVisible();
 });

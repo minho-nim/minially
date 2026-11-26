@@ -15,6 +15,7 @@ test('글 종류: 고르면 경험 칸에 뼈대, 바꾸면 뼈대만 바뀌고 
   await types.getByRole('button', { name: '카페' }).click();
   await expect(exp).toHaveValue(outlineText('cafe')); // 뼈대만 있으면 새 뼈대로
   await exp.fill('카페 이름·위치: 성수 토몽카페\n시그니처: 소금빵 라테 6,500원');
+  { const t = types.getByRole('button', { name: /더 보기/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await types.getByRole('button', { name: '제품 리뷰' }).click();
   await expect(exp).toHaveValue(/성수 토몽카페/); // 직접 쓴 글은 그대로
   await types.getByRole('button', { name: '카페' }).click();

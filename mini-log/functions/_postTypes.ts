@@ -24,3 +24,24 @@ export type PostType = keyof typeof POST_TYPES;
 export const isPostType = (v: unknown): v is PostType => typeof v === 'string' && v in POST_TYPES;
 /** 경험 칸에 넣는 뼈대: "항목: " 줄들 */
 export const outlineText = (t: PostType) => POST_TYPES[t].outline.map(line => `${line}: `).join('\n');
+
+// 글 구조(원고 편집 '자세히 설정'): 기본 또는 홈피드형. 홈피드형은 도입 흐름·문장형 소제목 3개·마무리 질문으로 끝까지 읽게 하되,
+// 사실·경험은 작성자가 적은 것만 쓰고 모자라면 [작성자 확인 필요]로 비운다(지어낸 사건·경험·논쟁 금지).
+export const STRUCTURES = {
+  basic: { label: '기본', guide: '' },
+  homefeed: {
+    label: '홈피드형',
+    guide: [
+      '[글 구조: 홈피드형]',
+      '- 도입: <경험>에 적힌 상황을 2줄 이상 설명하고, 작성자의 반응 한 줄을 넣은 뒤, 다음이 궁금해지는 문장으로 끝낸다.',
+      '- 본문: 정보 문단과 느낌 문단을 번갈아, 친구에게 수다 떨듯 대화체로 쓴다. 중간에 의외였던 점과 공감할 만한 점을 하나씩 넣되 <경험>·사진 메모에 있는 것에서만 고른다.',
+      '- 소제목: 정확히 3개, "■ "로 시작하는 문장형(요약이 아니라 읽고 싶어지는 문장)으로 쓴다.',
+      '- 작성자의 경험·생각은 <경험>과 사진 메모에 있는 것만 쓴다. 모자라면 지어내지 말고 그 자리에 [작성자 확인 필요] (그때 느낌)처럼 비워 둔다.',
+      '- 자료에 없는 사건·뉴스·통계·후기는 새로 만들지 않는다. 업체나 사람을 깎아내리지 않고, "충격"·"경악" 같은 낚시성 과장은 쓰지 않는다.',
+      '- 마무리: 독자에게 의견이나 경험을 묻는 질문 하나로 끝낸다.',
+      '- 제목: 40자 이내, 궁금증을 주되 본문 내용과 맞게.',
+    ].join('\n'),
+  },
+} as const;
+export type Structure = keyof typeof STRUCTURES;
+export const isStructure = (v: unknown): v is Structure => typeof v === 'string' && v in STRUCTURES;

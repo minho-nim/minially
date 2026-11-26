@@ -4,12 +4,12 @@ import { AiError, callGemini } from '../../../../../shared/server/ai';
 import { cleanHashtags, getDraft, LIMITS, saveAiBody, updateDraft } from '../../../_drafts';
 import { listPhotos, photoNotesBlock, PHOTO_LIMITS, toBase64 } from '../../../_photos';
 import { styleBlock, styleForDraft } from '../../../_style';
-import { isPostType, POST_TYPES } from '../../../_postTypes';
+import { isPostType, isStructure, POST_TYPES, STRUCTURES, type Structure } from '../../../_postTypes';
 
 // AI 원고 초안: 사용자가 적은 실제 경험을 재료로 네이버 블로그용 제목·본문·해시태그를 만든다.
 // 사용자 글은 지시문과 섞지 않고 <경험> 안의 "자료"로만 넘긴다.
 // 사진이 있으면 앞에서부터 8장까지 함께 보내 사진 내용을 반영하고, 사진 자리를 [사진 n]으로 표시하게 한다.
-function buildPrompt(experience: string, title: string, photoCount: number, style: string, postType = 'none', notes = '', totalPhotos = photoCount) {
+function buildPrompt(experience: string, title: string, photoCount: number, style: string, postType = 'none', notes = '', totalPhotos = photoCount, structure: Structure = 'basic') {
   const extra = totalPhotos > photoCount ? ` 사진 ${photoCount + 1}~${totalPhotos}은 파일을 보내지 않았으니 <사진 메모>로만 내용을 알고, 메모가 없으면 [사진 n] 자리만 둔다.` : '';
   const photoRule = totalPhotos > 0
     ? `사진은 모두 ${totalPhotos}장이고 함께 보낸 ${photoCount}장은 보낸 순서대로 사진 1~${photoCount}이다. 사진에 보이는 것만 묘사하고, 각 사진이 어울리는 자리에 [사진 1]처럼 번호를 한 줄로 넣는다. 사진 1~${totalPhotos}을 한 번씩 쓴다.${extra}`
@@ -22,6 +22,7 @@ function buildPrompt(experience: string, title: string, photoCount: number, styl
     photoRule,
     noteRule,
     isPostType(postType) && POST_TYPES[postType].guide ? `[글 종류: ${POST_TYPES[postType].label}] ${POST_TYPES[postType].guide}` : '',
+    STRUCTURES[structure].guide,
     style,
     '답은 JSON 하나로만: {"title": string(40자 이내), "body": string, "hashtags": string[](#없이 10개 이내)}',
     title ? `작성자가 생각한 제목: ${JSON.stringify(title.slice(0, LIMITS.title))}` : '',
@@ -54,7 +55,7 @@ export const onRequestPost = async (ctx: HubContext) => {
 
   let text: string;
   try {
-    ({ text } = await callGemini({ env: ctx.env, db: auth.db, user: auth.session.user, app: 'minilog', task: images.length ? 'draft_with_photos' : 'draft', prompt: buildPrompt(experience, draft.title, images.length, styleBlock(await styleForDraft(auth.db, auth.session.user, draft.style_id)), isPostType(body?.post_type) ? body.post_type : draft.post_type, notes, images.length ? allPhotos.length : 0), images, json: true }));
+    ({ text } = await callGemini({ env: ctx.env, db: auth.db, user: auth.session.user, app: 'minilog', task: images.length ? 'draft_with_photos' : 'draft', prompt: buildPrompt(experience, draft.title, images.length, styleBlock(await styleForDraft(auth.db, auth.session.user, draft.style_id)), isPostType(body?.post_type) ? body.post_type : draft.post_type, notes, images.length ? allPhotos.length : 0, isStructure(body?.structure) ? body.structure : 'basic'), images, json: true }));
   } catch (error) {
     if (error instanceof AiError) return json({ error: error.message, code: error.code }, error.status);
     throw error;

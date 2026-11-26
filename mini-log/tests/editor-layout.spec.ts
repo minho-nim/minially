@@ -16,20 +16,26 @@ test('원고 편집 2단: 넓은 화면은 옆 칸(점검·미리보기·올리�
   // 바로가기: '올리기'를 누르면 옆 칸 안에서 올리기 칸이 보인다
   await side.getByRole('navigation', { name: '옆 칸 바로가기' }).getByRole('button', { name: '올리기' }).click();
   await expect(page.getByLabel('게시 예정일(캘린더에 표시)')).toBeInViewport();
-  // 집중: 옆 칸을 접고, 새로고침해도 기억, 다시 누르면 펼침
-  await page.getByRole('button', { name: '집중', exact: true }).click();
+  // 집중: 옆 칸 위 '접기 ⟩'로 접고, 새로고침해도 기억, 오른쪽 끝 손잡이로 다시 편다. ⋯ 메뉴에서도 된다
+  await side.getByRole('button', { name: '옆 칸 접기', exact: true }).click();
   await expect(side).toBeHidden();
   await page.reload();
-  await expect(page.getByRole('button', { name: '집중 끝' })).toHaveAttribute('aria-pressed', 'true');
   await expect(side).toBeHidden();
-  await page.getByRole('button', { name: '집중 끝' }).click();
+  await page.getByRole('button', { name: '옆 칸 펴기' }).click();
+  await expect(side).toBeVisible();
+  await page.getByRole('button', { name: '원고 메뉴' }).click();
+  await page.getByRole('button', { name: '옆 칸 접기(집중)' }).click();
+  await expect(side).toBeHidden();
+  await page.getByRole('button', { name: '옆 칸 펴기' }).click();
   await expect(side).toBeVisible();
 
-  // 휴대폰: 한 줄로, 아래 막대로 오간다(집중 버튼은 숨김)
+  // 휴대폰: 한 줄로, 아래 막대로 오간다
   await page.setViewportSize({ width: 390, height: 844 });
   const bar = page.getByRole('navigation', { name: '원고 화면 바로가기' });
   await expect(bar).toBeVisible();
-  await expect(page.getByRole('button', { name: '집중', exact: true })).toBeHidden();
+  await page.getByRole('button', { name: '원고 메뉴' }).click();
+  await expect(page.getByRole('button', { name: '옆 칸 접기(집중)' })).toBeHidden(); // 휴대폰엔 옆 칸이 없어 메뉴에서도 숨김
+  await page.keyboard.press('Escape');
   await bar.getByRole('button', { name: '올리기' }).click();
   await expect(page.getByLabel('게시 예정일(캘린더에 표시)')).toBeInViewport();
   await bar.getByRole('button', { name: '쓰기' }).click();
