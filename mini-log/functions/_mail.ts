@@ -1,0 +1,137 @@
+// 메일 자동 처리: 네이버 메일에서 새 메일을 받아(IMAP) AI가 협찬 제안·체험단 안내·내 제안에 온 답장으로 나누고,
+// 협찬(→ 캘린더·휴대폰 달력)에 담고, 답장이 필요한 메일엔 초안을 써 둔다. 보내기는 사람이 누를 때만(SMTP).
+import type { D1Database, HubEnv } from '../../shared/server/d1';
+import type { UserName } from '../../shared/server/auth';
+import { AiError, callGemini } from '../../shared/server/ai';
+import { createCampaign, listCampaigns, updateCampaign } from './_campaigns';
+import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readReplies, replyPrompt, sameBrand, str, type Judgement, type Mail, type MailKind } from './_mailRules';
+export type { Mail } from './_mailRules';
+import { buildMail, parseMail } from './_mime';
+import { MailError, fetchNew, mailAccount, sendMail } from './_mailbox';
+
+async function linkCampaign(db: D1Database, user: UserName, j: Judgement, subject: string): Promise<string | null> {
+  if (!['offer', 'notice', 'pitch_reply'].includes(j.kind) || !j.brand) return null;
+  const open = (await listCampaigns(db, user)).campaigns.filter(c => c.status !== 'cancelled' && c.status !== 'paid' && sameBrand(c.brand, j.brand));
+  if (j.kind === 'pitch_reply') {
+    const c = open.find(x => x.pitch) ?? open[0];
+    if (!c) return null;
+    if (c.pitch && j.answer !== 'unknown') await updateCampaign(db, user, c.id, { pitch: { ...c.pitch, reply: j.answer } });
+    return c.id;
+  }
+  const existing = open[0];
+  if (existing) {
+    const patch: Parameters<typeof updateCampaign>[3] = {};
+    if (!existing.deadline && j.deadline) patch.deadline = j.deadline;
+    if (j.kind === 'notice' && ['interested', 'applied', 'proposed'].includes(existing.status)) patch.status = 'in_progress';
+    if (Object.keys(patch).length) await updateCampaign(db, user, existing.id, patch);
+    return existing.id;
+  }
+  const made = await createCampaign(db, user, {
+    kind: 'sponsor', brand: j.brand, title: j.title, amount: j.amount, deadline: j.deadline, status: j.kind === 'notice' ? 'in_progress' : 'proposed',
+    memo: `메일에서 담음: ${subject}`.slice(0, 1000),
+    guide: j.visit_on ? { keywords: [], hashtags: [], min_photos: null, min_chars: null, links: [], visit_on: j.visit_on, notes: '' } : null,
+  });
+  return typeof made === 'string' ? null : made.id;
+}
+
+async function signatureOf(db: D1Database, user: UserName) {
+  const form = await db.prepare('SELECT form FROM minilog_proposals WHERE user = ?').bind(user).first<{ form: string }>();
+  try { const f = form ? JSON.parse(form.form) : {}; return str(f.blog_name, 60) || '블로거 드림'; } catch { return '블로거 드림'; }
+}
+
+/** 답장 초안 쓰기(답장이 필요한 메일만). 실패하면 초안 없이 둔다 */
+export async function draftReplies(db: D1Database, env: HubEnv, user: UserName, mails: Mail[]) {
+  if (!mails.length) return 0;
+  const { text } = await callGemini({ env, db, user, app: 'minilog', task: 'mail_reply', json: true,
+    prompt: replyPrompt(await signatureOf(db, user), mails.map(m => ({ id: m.id, from: `${m.from_name} <${m.from_addr}>`, subject: m.subject, text: m.snippet, kind: m.kind }))) });
+  const replies = readReplies(text, mails.map(m => m.id));
+  for (const r of replies) {
+    const subject = r.subject || `Re: ${mails.find(m => m.id === r.id)?.subject ?? ''}`;
+    await db.prepare("UPDATE minilog_mails SET reply_subject = ?, reply_body = ?, status = CASE WHEN status = 'new' THEN 'drafted' ELSE status END WHERE user = ? AND id = ? AND status != 'sent'").bind(subject, r.body, user, r.id).run();
+  }
+  return replies.length;
+}
+
+const kstDate = (ms: number) => new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
+
+/** 새 메일 받기 → 분류 → 협찬 담기 → 답장 초안. 같은 사람 것이 동시에 두 번 돌지 않게 잠근다 */
+export async function syncMail(db: D1Database, env: HubEnv, user: UserName): Promise<{ added: number; skipped?: 'no_account' | 'busy'; error?: string }> {
+  const account = mailAccount(env, user);
+  if (!account) return { added: 0, skipped: 'no_account' };
+  const now = Date.now();
+  await db.prepare('INSERT OR IGNORE INTO minilog_mail_state (user) VALUES (?)').bind(user).run();
+  const lock = await db.prepare('UPDATE minilog_mail_state SET lock_until = ? WHERE user = ? AND lock_until < ?').bind(now + LOCK_MS, user, now).run() as { meta?: { changes?: number } };
+  if (lock?.meta?.changes === 0) return { added: 0, skipped: 'busy' };
+  let error = '';
+  let added = 0;
+  try {
+    const state = await db.prepare('SELECT uid_validity, last_uid FROM minilog_mail_state WHERE user = ?').bind(user).first<{ uid_validity: number; last_uid: number }>();
+    let last = state?.last_uid ?? 0;
+    const got = await fetchNew(env, account, last);
+    if (state?.uid_validity && got.uidValidity && state.uid_validity !== got.uidValidity) last = 0; // 메일함이 바뀌면 처음부터
+    const fresh: (Mail & { bulk: boolean })[] = [];
+    for (const m of got.mails) {
+      const p = parseMail(m.raw);
+      const id = crypto.randomUUID();
+      const res = await db.prepare('INSERT OR IGNORE INTO minilog_mails (id, user, uid, message_id, refs, from_name, from_addr, subject, received_at, snippet, kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(id, user, m.uid, p.messageId, p.references, p.from.name.slice(0, 100), p.from.address.slice(0, 200), p.subject, p.date ?? now, p.text.slice(0, 4000), p.bulk ? 'other' : 'unknown', now).run() as { meta?: { changes?: number } };
+      last = Math.max(last, m.uid);
+      if (res?.meta?.changes) {
+        added++;
+        fresh.push({ id, from_name: p.from.name, from_addr: p.from.address, subject: p.subject, received_at: p.date ?? now, snippet: p.text.slice(0, 4000), kind: p.bulk ? 'other' : 'unknown', brand: '', summary: '', deadline: null, needs_reply: 0, reply_subject: '', reply_body: '', status: 'new', campaign_id: null, sent_at: null, bulk: p.bulk });
+      }
+    }
+    await db.prepare('UPDATE minilog_mail_state SET uid_validity = ?, last_uid = ? WHERE user = ?').bind(got.uidValidity, last, user).run();
+    const judge = fresh.filter(m => !m.bulk);
+    if (judge.length) {
+      try {
+        const { text } = await callGemini({ env, db, user, app: 'minilog', task: 'mail_classify', json: true, model: 'gemini-2.5-flash-lite',
+          prompt: classifyPrompt(kstDate(now), judge.map(m => ({ id: m.id, from: `${m.from_name} <${m.from_addr}>`, subject: m.subject, date: kstDate(m.received_at), text: m.snippet }))) });
+        const toDraft: Mail[] = [];
+        for (const j of readJudgements(text, judge.map(m => m.id))) {
+          const mail = judge.find(m => m.id === j.id)!;
+          const campaign = await linkCampaign(db, user, j, mail.subject);
+          await db.prepare('UPDATE minilog_mails SET kind = ?, brand = ?, summary = ?, deadline = ?, needs_reply = ?, campaign_id = ? WHERE user = ? AND id = ?')
+            .bind(j.kind, j.brand, j.summary, j.deadline ?? j.visit_on, j.needs_reply ? 1 : 0, campaign, user, j.id).run();
+          if (j.needs_reply && j.kind !== 'other') toDraft.push({ ...mail, kind: j.kind });
+        }
+        await draftReplies(db, env, user, toDraft);
+      } catch (e) {
+        if (!(e instanceof AiError)) throw e;
+        error = `메일은 받았지만 AI가 분류하지 못했어요: ${e.message}`;
+      }
+    }
+    await db.prepare('DELETE FROM minilog_mails WHERE user = ? AND received_at < ?').bind(user, now - KEEP_DAYS * 86400000).run();
+  } catch (e) {
+    if (!(e instanceof MailError)) throw e;
+    error = e.message;
+  } finally {
+    await db.prepare('UPDATE minilog_mail_state SET synced_at = ?, error = ?, lock_until = 0 WHERE user = ?').bind(Date.now(), error, user).run();
+  }
+  return { added, ...(error ? { error } : {}) };
+}
+
+export async function listMails(db: D1Database, user: UserName) {
+  const mails = (await db.prepare(`SELECT ${COLUMNS} FROM minilog_mails WHERE user = ? ORDER BY received_at DESC LIMIT 100`).bind(user).all<Mail>()).results;
+  const state = await db.prepare('SELECT synced_at, error FROM minilog_mail_state WHERE user = ?').bind(user).first<{ synced_at: number | null; error: string }>();
+  return { mails, synced_at: state?.synced_at ?? null, error: state?.error ?? '', waiting: mails.filter(m => m.needs_reply && m.kind !== 'other' && (m.status === 'new' || m.status === 'drafted')).length };
+}
+
+export async function getMail(db: D1Database, user: UserName, id: string) {
+  return db.prepare(`SELECT ${COLUMNS}, message_id, refs FROM minilog_mails WHERE user = ? AND id = ?`).bind(user, id).first<Mail & { message_id: string; refs: string }>();
+}
+
+/** 사람이 '보내기'를 눌렀을 때: 저장된 답장을 내 계정으로 보낸다 */
+export async function sendReply(db: D1Database, env: HubEnv, user: UserName, id: string): Promise<true | string> {
+  const account = mailAccount(env, user);
+  if (!account) return '네이버 메일이 연결되지 않았어요.';
+  const mail = await getMail(db, user, id);
+  if (!mail) return '메일을 찾지 못했어요.';
+  if (mail.status === 'sent') return '이미 보낸 답장이에요.';
+  if (!mail.reply_body.trim() || !mail.from_addr) return '보낼 답장 내용이 없어요.';
+  const raw = buildMail({ from: account.address, to: mail.from_addr, subject: mail.reply_subject || `Re: ${mail.subject}`, body: mail.reply_body,
+    inReplyTo: mail.message_id || undefined, references: mail.refs || undefined, id: `<${crypto.randomUUID()}@minilog>` });
+  try { await sendMail(env, account, mail.from_addr, raw); } catch (e) { if (e instanceof MailError) return e.message; throw e; }
+  await db.prepare("UPDATE minilog_mails SET status = 'sent', sent_at = ? WHERE user = ? AND id = ?").bind(Date.now(), user, id).run();
+  return true;
+}

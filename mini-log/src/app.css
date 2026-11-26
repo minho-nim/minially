@@ -487,3 +487,15 @@ select.input { appearance: auto; }
 .handle-forms { display: grid; gap: 6px; }
 .handle-label { min-width: 72px; font-weight: 700; font-size: 0.9rem; align-self: center; }
 .connections summary { cursor: pointer; min-height: 32px; }
+
+/* 메일 */
+.nav-badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--danger, #D0574B); color: #fff; font-size: 0.72rem; font-weight: 800; line-height: 18px; text-align: center; }
+.mail-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mail { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.mail-done, .mail-sent { opacity: 0.8; }
+.mail-subject { overflow-wrap: anywhere; }
+.mail-body { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; margin: 4px 0 0; }
+.mail-reply { display: grid; gap: 4px; margin-top: 6px; }
+.mail-reply textarea { width: 100%; resize: vertical; }
+.link-btn { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; min-height: 32px; }
+.badge-ok { padding: 1px 8px; border-radius: 999px; background: var(--sig-soft); font-weight: 700; }

@@ -25,6 +25,7 @@ import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
 import { BackupCard } from './Backup';
 import { AccountsCard } from './Accounts';
+import { MailView } from './Mail';
 import { applyTheme, type Theme } from '../../shared/client/theme';
 import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
@@ -143,6 +144,9 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   // 휴대폰 '공유 → 미니로그'로 사진이 오면(/?share-photos=N) 어느 원고에 넣을지 묻는다
   const [sharePhotos, setSharePhotos] = useState(() => new URLSearchParams(window.location.search).has('share-photos'));
   const [view, setView] = useState<View>(() => (shared ? 'campaigns' : readRoute().view));
+  // 답장 기다리는 메일 수(메뉴 '메일' 옆 숫자). 켤 때 한 번, 메일 화면에서 바뀌면 다시
+  const [mailWaiting, setMailWaiting] = useState(0);
+  useEffect(() => { api<{ waiting: number }>('/api/mail').then(d => setMailWaiting(d.waiting)).catch(() => { /* 메일이 없어도 앱은 쓴다 */ }); }, []);
   useEffect(() => { if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash); }, []);
   // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
   const firstRoute = useRef(true);
@@ -206,7 +210,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
         <nav className="views" aria-label="미니로그 메뉴">
           {VIEWS.map(([key, label]) => (
-            <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{label}</button>
+            <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{label}{key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}</button>
           ))}
         </nav>
         <button className="btn primary" onClick={() => { void create(); }} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
@@ -256,6 +260,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         }} />}
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
+        : view === 'mail' ? <MailView onBack={() => setView('drafts')} onCampaigns={() => setView('campaigns')} onWaiting={setMailWaiting} />
         : view === 'ideas' ? <IdeasView<Draft> onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
@@ -288,8 +293,8 @@ function readRoute(): { view: View; draftId: string | null } {
 }
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
-type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style';
-const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['blog', '블로그'], ['structure', '구조'], ['style', '문체']];
+type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style' | 'mail';
+const VIEWS: [View, string][] = [['drafts', '원고'], ['ideas', '글감'], ['calendar', '캘린더'], ['dashboard', '대시보드'], ['report', '월간보고'], ['campaigns', '협찬'], ['mail', '메일'], ['blog', '블로그'], ['structure', '구조'], ['style', '문체']];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };

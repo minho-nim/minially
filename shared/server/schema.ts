@@ -61,6 +61,11 @@ const TABLES = [
   'CREATE TABLE IF NOT EXISTS minilog_rhythm (user TEXT PRIMARY KEY, days TEXT NOT NULL, updated_at INTEGER NOT NULL)',
   // 계정 정보: 사람이 적은 공개 SNS 아이디만(비밀번호·토큰은 저장하지 않음)
   'CREATE TABLE IF NOT EXISTS minilog_accounts (user TEXT NOT NULL, platform TEXT NOT NULL, handle TEXT NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (user, platform))',
+  // 받은 메일(네이버 메일 연결): 보낸 사람·제목·본문 앞부분(4,000자)과 AI 분류·답장 초안. 90일 지나면 지운다. 계정 비밀번호는 여기에 없다
+  "CREATE TABLE IF NOT EXISTS minilog_mails (id TEXT PRIMARY KEY, user TEXT NOT NULL, uid INTEGER NOT NULL, message_id TEXT NOT NULL DEFAULT '', refs TEXT NOT NULL DEFAULT '', from_name TEXT NOT NULL DEFAULT '', from_addr TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL DEFAULT '', received_at INTEGER NOT NULL, snippet TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'unknown', brand TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '', deadline TEXT, needs_reply INTEGER NOT NULL DEFAULT 0, reply_subject TEXT NOT NULL DEFAULT '', reply_body TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'new', campaign_id TEXT, sent_at INTEGER, created_at INTEGER NOT NULL)",
+  'CREATE UNIQUE INDEX IF NOT EXISTS minilog_mails_uid ON minilog_mails (user, uid)',
+  // 메일 받기 상태: 마지막으로 읽은 UID, 동시에 두 번 돌지 않게 잡는 잠금 시각, 마지막 오류
+  'CREATE TABLE IF NOT EXISTS minilog_mail_state (user TEXT PRIMARY KEY, uid_validity INTEGER NOT NULL DEFAULT 0, last_uid INTEGER NOT NULL DEFAULT 0, synced_at INTEGER, lock_until INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT \'\')',
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
 const COLUMNS: [table: string, column: string, type: string][] = [

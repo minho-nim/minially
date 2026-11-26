@@ -48,6 +48,22 @@ createServer((req, res) => {
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
+    if (prompt.includes('블로거의 메일함을 정리하는')) {
+      // 제목 낱말로 종류를 정한다: 협찬 제안 → offer, 선정 → notice, 답장 → pitch_reply, 그 밖 → other
+      const mails = [...prompt.matchAll(/<메일 id="([^"]+)">\n보낸 사람: .*\n제목: (.*)\n/g)].map(m => {
+        const [id, subject] = [m[1], m[2]];
+        if (subject.includes('협찬 제안')) return { id, kind: 'offer', brand: '메일빵집', title: '겨울 신메뉴 체험', amount: 50000, deadline: '2026-12-20', visit_on: null, answer: 'unknown', summary: '메일빵집이 신메뉴 체험을 제안', needs_reply: true };
+        if (subject.includes('선정')) return { id, kind: 'notice', brand: '메일구름카페', title: '체험단 선정', amount: 0, deadline: null, visit_on: '2026-12-05', answer: 'unknown', summary: '체험단 선정 안내', needs_reply: false };
+        if (subject.includes('답장')) return { id, kind: 'pitch_reply', brand: '메일달빛상점', title: '', amount: 0, deadline: null, visit_on: null, answer: 'yes', summary: '내 제안에 좋다고 답함', needs_reply: true };
+        return { id, kind: 'other', brand: '', title: '', amount: 0, deadline: null, visit_on: null, answer: 'unknown', summary: '기타', needs_reply: false };
+      });
+      return ok({ mails });
+    }
+    if (prompt.includes('블로거 대신 메일 답장 초안을')) {
+      const sign = prompt.match(/끝에 서명: (.*)/)?.[1] ?? '';
+      const replies = [...prompt.matchAll(/<메일 id="([^"]+)" 종류="[^"]+">\n보낸 사람: .*\n제목: (.*)\n/g)].map(m => ({ id: m[1], subject: `Re: ${m[2]}`, body: `안녕하세요, 가짜 AI 답장 초안이에요.\n방문 일정은 [확인 필요]\n${sign}` }));
+      return ok({ replies });
+    }
     if (prompt.includes('블로그 체험단 가이드를 정리하는')) {
       const brand = images ? '캡처카페' : (prompt.match(/업체명:\s*(\S+)/)?.[1] ?? '가이드카페');
       return ok({ brand, title: `${brand} 겨울 신메뉴 체험단`, provided: '2인 식사권(5만 원 상당)', amount: 30000, deadline: '2026-12-10', apply_by: '2026-11-28', visit_on: '2026-12-01', keywords: ['성수 카페', '소금빵', '성수 카페'], hashtags: ['#성수카페', '체험단'], min_photos: 15, min_chars: 1500, links: ['https://map.naver.com/p/entry/place/1', 'http://not-https.example'], notes: '공정위 문구 필수' });
