@@ -15,6 +15,7 @@ test('광고 수익 CSV 읽기: 한글·영어 머리글, 탭, 설명 줄·합�
 test('광고 수익 가져오기: 미리보기 → 기록 → 같은 달은 금액만 바뀜 → 월간 보고에 반영', async ({ page }) => {
   await login(page, CODE_C);
   await page.getByRole('button', { name: '협찬', exact: true }).click();
+  { const t = page.getByRole('button', { name: '협찬 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '광고 수익 가져오기' }).click();
   const csv = (amount: string) => ({ name: 'adsense.csv', mimeType: 'text/csv', buffer: Buffer.from(`날짜,예상 수입(KRW)\n2026-09-10,"${amount}"\n2026-09-20,1000\n2026-08-05,700\n`) });
   await page.locator('input[type="file"][accept*="csv"]').setInputFiles(csv('2,000'));

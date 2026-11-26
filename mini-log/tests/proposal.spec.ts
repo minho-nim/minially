@@ -67,6 +67,7 @@ test('제안서: AI 초안 → 고치고 저장 → 미리보기·PDF(단가 옵
   expect(stats.brands).toContain('보고시험카페');
 
   await page.getByRole('button', { name: '협찬', exact: true }).click();
+  { const t = page.getByRole('button', { name: '협찬 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '제안서·메일 만들기' }).click();
   await expect(page).toHaveURL(/#proposal$/);
   await expect(page.getByRole('heading', { name: '협찬 제안하기' })).toBeVisible();

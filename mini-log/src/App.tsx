@@ -8,7 +8,7 @@ import { GoalBar } from './GoalBar';
 import { ThumbnailMaker } from './Thumbnail';
 import { StructureView } from './Structure';
 import { CategoryPick } from './CategoryPick';
-import { outlineText, POST_TYPES, type PostType } from '../functions/_postTypes';
+import { isStructure, outlineText, POST_TYPES, STRUCTURES, type PostType, type Structure } from '../functions/_postTypes';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
@@ -22,6 +22,7 @@ import { SharedPhotos } from './SharedPhotos';
 import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
 import { ReviewCard } from './Review';
+import { MoreMenu } from './MoreMenu';
 import { TagSets } from './TagSets';
 import { Lessons } from './Lessons';
 import { IdeasView, type Idea } from './Ideas';
@@ -780,6 +781,26 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   const [aiBusy, setAiBusy] = useState(false);
   // AI 초안 되돌리기: 초안을 넣기 직전의 제목·본문·해시태그(이 화면을 떠나기 전까지 한 번)와 AI가 넣은 본문
   const [beforeAi, setBeforeAi] = useState<{ title: string; body: string; hashtags: string[]; aiBody: string } | null>(null);
+  // 올리기 칸: 인스타·카드뉴스·스레드·X는 '다른 곳에도 올리기'로 접어 둔다(펼친 상태는 기기에 기억)
+  const [kitMore, setKitMore] = useState(() => { try { return localStorage.getItem('minilog.kitMore') === '1'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem('minilog.kitMore', kitMore ? '1' : '0'); } catch { /* 기억 못 해도 됨 */ } }, [kitMore]);
+  // 글 구조(기본·홈피드형): 기기에 기억. 홈피드형도 사실·경험은 적은 것만 쓴다(서버 규칙)
+  const [structure, setStructure] = useState<Structure>(() => { try { const v = localStorage.getItem('minilog.structure'); return isStructure(v) ? v : 'basic'; } catch { return 'basic'; } });
+  useEffect(() => { try { localStorage.setItem('minilog.structure', structure); } catch { /* 기억 못 해도 됨 */ } }, [structure]);
+  // 2번 칸: 문체·먼저 질문 받기는 '자세히 설정' 안에(가끔 바꾸는 것), 글 종류는 자주 쓴 3개만 먼저
+  const [aiMore, setAiMore] = useState(false);
+  const [allTypes, setAllTypes] = useState(false);
+  const allTypeKeys: PostType[] = (Object.keys(POST_TYPES) as PostType[]).filter(t => t !== 'none');
+  const frequent = (() => {
+    let used: Record<string, number> = {};
+    try { used = JSON.parse(localStorage.getItem('minilog.typeUse') ?? '{}') ?? {}; } catch { used = {}; }
+    const base: PostType[] = ['food', 'cafe', 'sponsored'];
+    return [...allTypeKeys].sort((a, b) => (used[b] ?? 0) - (used[a] ?? 0) || Number(base.includes(b)) - Number(base.includes(a)) || allTypeKeys.indexOf(a) - allTypeKeys.indexOf(b)).slice(0, 3);
+  })();
+  const picked = fields.post_type as PostType;
+  const typesShown = allTypes ? allTypeKeys : [...frequent, ...(allTypeKeys.includes(picked) && !frequent.includes(picked) ? [picked] : [])];
+  const typesHidden = allTypeKeys.length - typesShown.length;
+  const countType = (t: string) => { try { const used = JSON.parse(localStorage.getItem('minilog.typeUse') ?? '{}') ?? {}; used[t] = (used[t] ?? 0) + 1; localStorage.setItem('minilog.typeUse', JSON.stringify(used)); } catch { /* 기억 못 해도 됨 */ } };
   // 원고 편집 2단(Buffer 작성 화면처럼): 쓰는 칸 옆에 점검·미리보기·올리기. '집중'을 누르면 옆 칸을 접는다(기기에 기억)
   const [focus, setFocus] = useState(() => { try { return localStorage.getItem('minilog.focus') === '1'; } catch { return false; } });
   const toggleFocus = () => setFocus(f => { try { localStorage.setItem('minilog.focus', f ? '0' : '1'); } catch { /* 기억 못 해도 됨 */ } return !f; });
@@ -857,7 +878,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
     const before = { title: fields.title, body: fields.body, hashtags: fields.hashtags };
     setAiBusy(true); setMessage(null);
     try {
-      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience, post_type: fields.post_type } });
+      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience, post_type: fields.post_type, structure } });
       setBeforeAi(before.title.trim() || before.body.trim() || before.hashtags.length ? { ...before, aiBody: made.body } : null);
       setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, post_type: made.post_type ?? 'none', planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
@@ -930,6 +951,8 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
 
   const saveLabel = { saved: '저장됨', dirty: '저장 대기', saving: '저장 중…', failed: '저장 실패' }[save];
 
+  // 지금 단계의 메인 버튼 하나만 진하게: 본문이 비면 AI 초안, 쓰는 중이면 원고 승인, 승인·게시 뒤엔 한 번에 복사
+  const stage: 'write' | 'approve' | 'post' = !fields.body.trim() ? 'write' : fields.status === 'draft' ? 'approve' : 'post';
   return (
     <article className="stack" aria-label="원고 편집">
       <div className="editor-head">
@@ -939,18 +962,22 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           <span className={`save-state${save === 'failed' ? ' fail' : ''}`} role="status">{saveLabel}</span>
           {save === 'failed' && <button className="btn small" onClick={() => { void flush(); }}>다시 저장</button>}
         </div>
+        {/* 힉의 법칙: 위쪽에는 지금 할 일 하나(원고 승인)만, 나머지는 ⋯ 안으로 */}
         <div className="actions">
-          <button className="btn" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>한 번에 복사</button>
-          <button className="btn focus-toggle" aria-pressed={focus} onClick={toggleFocus} title="옆의 점검·미리보기·올리기 칸을 접고 쓰기에만 집중">{focus ? '집중 끝' : '집중'}</button>
           {fields.status !== 'published' && (
-            <button className="btn" onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
+            <button className={`btn${stage === 'approve' ? ' primary' : fields.status === 'approved' ? ' ghost' : ''}`} onClick={() => change({ status: fields.status === 'approved' ? 'draft' : 'approved' })}>{fields.status === 'approved' ? '승인 취소' : '원고 승인'}</button>
           )}
-          <button className="btn ghost" onClick={remove}>삭제</button>
+          <MoreMenu label="원고 메뉴">
+            <button type="button" className="btn ghost" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>한 번에 복사</button>
+            <button type="button" className="btn ghost focus-toggle" aria-pressed={focus} onClick={toggleFocus}>{focus ? '옆 칸 펴기' : '옆 칸 접기(집중)'}</button>
+            <button type="button" className="btn ghost danger-text" onClick={remove}>삭제</button>
+          </MoreMenu>
         </div>
       </div>
 
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
 
+      {focus && <button type="button" className="side-handle" onClick={toggleFocus} aria-label="옆 칸 펴기">⟨ 점검·올리기</button>}
       <div className={`editor-cols${focus ? ' focus' : ''}`}>
       <div className="editor-main" id="ed-write">
       <section className="card step" aria-labelledby="s1">
@@ -988,8 +1015,9 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
 
       <section className="card step" aria-labelledby="s2">
         <h2 id="s2" className="step-title"><span className="n">2</span>실제 방문·사용 경험</h2>
+        {/* 글 종류: 자주 쓴 3개(+ 고른 것)만 먼저, 나머지는 '+N개'로 */}
         <div className="type-pick" role="group" aria-label="글 종류">
-          {(Object.keys(POST_TYPES) as PostType[]).filter(t => t !== 'none').map(t => (
+          {typesShown.map(t => (
             <button key={t} type="button" className="chip-btn" aria-pressed={fields.post_type === t} onClick={() => {
               const next = fields.post_type === t ? 'none' : t;
               const patch: Partial<Fields> = { post_type: next };
@@ -997,36 +1025,51 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
               const prev = isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
               if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineText(next);
               if (next === 'none' && fields.experience.trim() === prev.trim()) patch.experience = '';
+              if (next !== 'none') countType(next);
               change(patch);
             }}>{POST_TYPES[t].label}</button>
           ))}
+          {!allTypes && typesHidden > 0 && <button type="button" className="chip-btn more" onClick={() => setAllTypes(true)} aria-label={`글 종류 ${typesHidden}개 더 보기`}>+ {typesHidden}개</button>}
         </div>
         {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지, 나머지는 사진 메모로)' : ''}.</p>}
         <div className="field">
-          <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>언제·어디서·무엇을 했고 어땠는지 직접 겪은 내용을 적어 주세요. AI는 여기 적힌 것만 써요.</label>
+          <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>직접 겪은 내용만 적어요(언제·어디서·무엇·어땠는지). AI는 여기 적힌 것만 써요.</label>
           <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
         </div>
         {emptyOutline(fields.experience).length > 0 && (
           <p className="muted small" data-empty-outline style={{ margin: 0 }}>아직 비어 있는 항목: {emptyOutline(fields.experience).join(' · ')} — 비워 두면 AI가 [작성자 확인 필요]로 남겨요.</p>
         )}
         {photos && <PhotoNotes photos={photos} onSaved={(id, note) => setPhotos(list => list?.map(p => (p.id === id ? { ...p, note } : p)) ?? null)} onError={text => setMessage({ kind: 'error', text })} />}
-        <div className="field style-pick">
-          <label htmlFor="style-pick">어떤 문체로 쓸까요?</label>
-          <select id="style-pick" className="input" value={fields.style_id} onChange={e => change({ style_id: e.target.value })}>
-            <option value="mine">내 문체{styleOptions.find(s => s.kind === 'mine')?.profile ? '' : ' (아직 분석 전)'}</option>
-            {styleOptions.filter(s => s.kind === 'reference').map(s => <option key={s.id} value={s.id}>참고: {s.name}{s.profile ? '' : ' (분석 전)'}</option>)}
-            <option value="none">문체 없이</option>
-          </select>
-        </div>
         <div className="ai-row">
-          <button className="btn primary" onClick={() => { void generate(); }} disabled={aiBusy || !gemini}>
+          <button className={`btn${stage === 'write' ? ' primary' : ''}`} onClick={() => { void generate(); }} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
           {beforeAi && !aiBusy && <button type="button" className="btn ghost" onClick={undoAi}>AI 초안 되돌리기</button>}
           {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
+          <button type="button" className="btn ghost ai-more" aria-expanded={aiMore} onClick={() => setAiMore(v => !v)}>자세히 설정 {aiMore ? '▴' : '▾'}</button>
         </div>
-        <DraftQuestions draftId={draft.id} experience={fields.experience} postType={fields.post_type} disabled={aiBusy} canGenerate={Boolean(gemini)}
-          onReady={experience => { change({ experience }); if (gemini) void generate(experience); }} onError={text => setMessage({ kind: 'error', text })} />
+        {aiMore ? (
+          <div className="ai-more-box">
+            <div className="field">
+              <label htmlFor="structure-pick">글 구조</label>
+              <select id="structure-pick" className="input" value={structure} onChange={e => setStructure(isStructure(e.target.value) ? e.target.value : 'basic')}>
+                <option value="basic">기본</option>
+                <option value="homefeed">홈피드형(궁금해지는 도입·문장형 소제목 3개·마무리 질문)</option>
+              </select>
+              {structure === 'homefeed' && <p className="muted small" style={{ margin: 0 }}>경험이 모자란 곳은 지어내지 않고 [작성자 확인 필요]로 남겨요. 채운 뒤 올려 주세요.</p>}
+            </div>
+          <div className="field style-pick">
+            <label htmlFor="style-pick">어떤 문체로 쓸까요?</label>
+            <select id="style-pick" className="input" value={fields.style_id} onChange={e => change({ style_id: e.target.value })}>
+              <option value="mine">내 문체{styleOptions.find(s => s.kind === 'mine')?.profile ? '' : ' (아직 분석 전)'}</option>
+              {styleOptions.filter(s => s.kind === 'reference').map(s => <option key={s.id} value={s.id}>참고: {s.name}{s.profile ? '' : ' (분석 전)'}</option>)}
+              <option value="none">문체 없이</option>
+            </select>
+          </div>
+          <DraftQuestions draftId={draft.id} experience={fields.experience} postType={fields.post_type} disabled={aiBusy} canGenerate={Boolean(gemini)}
+            onReady={experience => { change({ experience }); if (gemini) void generate(experience); }} onError={text => setMessage({ kind: 'error', text })} />
+          </div>
+        ) : <p className="muted small ai-more-sum" style={{ margin: 0 }}>구조: {STRUCTURES[structure].label} · 문체: {fields.style_id === 'mine' ? '내 문체' : fields.style_id === 'none' ? '문체 없이' : `참고: ${styleOptions.find(x => x.id === fields.style_id)?.name ?? ''}`} · 먼저 질문 받기는 '자세히 설정'에</p>}
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(hub 설정 참고).</p>}
       </section>
 
@@ -1054,6 +1097,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
       </div>
       <aside className="editor-side" aria-label="점검·미리보기·올리기">
       <nav className="side-jump" aria-label="옆 칸 바로가기">
+        <button type="button" className="btn small ghost side-fold" onClick={toggleFocus} aria-label="옆 칸 접기">접기 ⟩</button>
         <button type="button" className="btn small" onClick={() => jump('ed-check')}>점검</button>
         <button type="button" className="btn small" onClick={() => jump('ed-preview')}>미리보기</button>
         <button type="button" className="btn small" onClick={() => jump('ed-publish')}>올리기</button>
@@ -1086,7 +1130,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
               <li className="kit-wide">
                 <span className="kit-label">글 복사</span>
                 <div className="kit-buttons">
-                  <button className="btn primary" onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>{copied ? '복사됨 ✓' : '한 번에 복사'}</button>
+                  <button className={`btn${stage === 'post' ? ' primary' : ''}`} onClick={() => { void copyAll(); }} disabled={!fields.title.trim() && !fields.body.trim()}>{copied ? '복사됨 ✓' : '한 번에 복사'}</button>
                   <span className="muted small">또는 아래 미리보기에서 제목·문단·사진·해시태그를 하나씩 눌러 복사</span>
                 </div>
                 <span id="ed-preview" className="jump-target" />
@@ -1114,6 +1158,12 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                   <span className="muted small">티스토리는 내 블로그 관리 → 글쓰기</span>
                 </div>
               </li>
+              <li className="kit-wide kit-more">
+                <button type="button" className="btn ghost kit-more-toggle" aria-expanded={kitMore} onClick={() => setKitMore(v => !v)}>
+                  다른 곳에도 올리기 <span className="muted small">인스타·카드뉴스·스레드·X</span> <span aria-hidden="true">{kitMore ? '▴' : '▾'}</span>
+                </button>
+              </li>
+              {kitMore && (<>
               <li className="kit-wide">
                 <span className="kit-label">인스타</span>
                 <div className="kit-buttons">
@@ -1151,6 +1201,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                 <span className="kit-label">스레드·X</span>
                 <SocialPosts draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} url={publishUrl} beforeAi={flush} onMessage={setMessage} />
               </li>
+              </>)}
             </ol>
             <p className="muted small" style={{ margin: 0 }}>올린 뒤 글 주소를 넣으면 게시 완료로 기록해요. 사진은 그로부터 30일 뒤에 지워져요.</p>
             <div className="publish-row">

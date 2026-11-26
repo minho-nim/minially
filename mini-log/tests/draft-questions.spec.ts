@@ -26,6 +26,7 @@ test('먼저 질문 받기: AI 질문에 답한 것만 경험 글에 붙여 초�
   await login(page, CODE_C);
   await page.getByRole('button', { name: '새 원고' }).click();
   await page.getByLabel(/직접 겪은 내용/).fill('토요일 오후에 동네 빵집에 다녀왔어요. 소금빵이 맛있었어요.');
+  { const t = page.getByRole('button', { name: /자세히 설정/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '먼저 질문 받기' }).click();
   const box = page.getByRole('region', { name: '초안 전 질문' });
   await expect(box.getByLabel('소금빵 가격은 얼마였나요?')).toBeVisible();
@@ -37,6 +38,7 @@ test('먼저 질문 받기: AI 질문에 답한 것만 경험 글에 붙여 초�
   await expect(page.getByLabel(/직접 겪은 내용/)).toHaveValue(/\[더 적은 내용\]\n- 소금빵 가격은 얼마였나요\? 3,500원$/);
   await expect(box).toHaveCount(0);
   page.once('dialog', d => d.accept());
+  { const t = page.getByRole('button', { name: '원고 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '삭제' }).click(); // 다른 시험이 빈 목록에서 시작하게 지운다
   await expect(page.getByText('아직 원고가 없어요')).toBeVisible();
 
@@ -45,6 +47,7 @@ test('먼저 질문 받기: AI 질문에 답한 것만 경험 글에 붙여 초�
   await login(other, CODE_D);
   await other.getByRole('button', { name: '새 원고' }).click();
   await other.getByLabel(/직접 겪은 내용/).fill('카페에 다녀왔어요. 라떼 가격은 5,000원이었어요.');
+  { const t = other.getByRole('button', { name: /자세히 설정/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await other.getByRole('button', { name: '먼저 질문 받기' }).click();
   const rule = other.getByRole('region', { name: '초안 전 질문' });
   await expect(rule).toContainText('기본 질문');
@@ -53,6 +56,7 @@ test('먼저 질문 받기: AI 질문에 답한 것만 경험 글에 붙여 초�
   await rule.getByRole('button', { name: '답 1개 경험 글에 넣기' }).click();
   await expect(other.getByLabel(/직접 겪은 내용/)).toHaveValue(/- 아쉬웠던 점이 있었나요\? 자리가 좁았어요$/);
   other.once('dialog', d => d.accept());
+  { const t = other.getByRole('button', { name: '원고 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await other.getByRole('button', { name: '삭제' }).click();
   await expect(other.getByText('아직 원고가 없어요')).toBeVisible();
   await other.close();

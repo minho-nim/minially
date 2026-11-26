@@ -77,6 +77,7 @@ test('올리기 보조: 한 번에·따로 복사, 사진 번호 붙여 받기, 
   await expect(kit.getByRole('link', { name: /네이버 블로그 글쓰기/ })).toHaveAttribute('href', 'https://blog.naver.com/GoBlogWrite.naver');
 
   // 인스타 게시물 글: 규칙 글 → AI 글(자연스러운 한국어 규칙) → 고치기 → 복사
+  { const t = page.getByRole('button', { name: /다른 곳에도 올리기/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await kit.getByRole('button', { name: '인스타 게시물 글 만들기' }).click();
   const insta = page.getByLabel('인스타 게시물 글');
   await expect(insta).toHaveValue('올리기 시험 원고\n\n첫 문단\n\n두 번째 문단\n\n#카페 #시험');
@@ -116,5 +117,6 @@ test('올리기 보조: 한 번에·따로 복사, 사진 번호 붙여 받기, 
 
   // 다른 시험(빈 목록 확인)에 영향이 없게 지운다
   page.once('dialog', d => d.accept());
+  { const t = page.getByRole('button', { name: '원고 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '삭제' }).click();
 });

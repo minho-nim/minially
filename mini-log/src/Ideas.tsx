@@ -128,7 +128,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
         <form className="keep-form" onSubmit={e => { void keep(e); }}>
           <label className="sr-only" htmlFor="keep-text">담아 둘 글감</label>
           <input id="keep-text" className="input" maxLength={100} value={note.text} onChange={e => setNote(n => ({ ...n, text: e.target.value }))} placeholder="떠오른 글감 한 줄(예: 동네 붕어빵 가게 지도)" />
-          <button className="btn primary" type="submit" disabled={!note.text.trim() || busy !== null}>{busy === 'keep' ? '담는 중…' : '담기'}</button>
+          <button className="btn" type="submit" disabled={!note.text.trim() || busy !== null}>{busy === 'keep' ? '담는 중…' : '담기'}</button>
           <button className="btn ghost small" type="button" aria-expanded={noteOpen} onClick={() => setNoteOpen(v => !v)}>{noteOpen ? '메모 접기' : '메모·주소 적기'}</button>
           {noteOpen && (
             <div className="keep-more">
@@ -163,7 +163,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
         <Help short={'시기·참고 블로그·내 블로그·협찬 일정을 보고 글감을 골라요.'}>다가오는 시기(설·추석·크리스마스·휴가철 등), 아래 참고 블로그의 최근 글 제목, 내 블로그(조회수 높은 글·자주 쓰는 태그)와 협찬 마감·게시 예정을 보고 AI가 글감을 골라 줘요. 다른 블로그 글은 제목만 참고해요.</Help>
         <div className="publish-row" style={{ alignItems: 'center' }}>
           <label className="check"><input type="checkbox" checked={search} onChange={e => setSearch(e.target.checked)} disabled={busy !== null} /> 최신 검색 포함<span className="muted small"> (Gemini가 구글 검색도 해요, 사용량이 더 들어요)</span></label>
-          <button className="btn primary" onClick={() => { void recommend(); }} disabled={!data || busy !== null}>{busy === 'ideas' ? '고르는 중…' : ideas.length ? '다시 추천받기' : '글감 추천받기'}</button>
+          <button className={`btn${picked.length ? '' : ' primary'}`} onClick={() => { void recommend(); }} disabled={!data || busy !== null}>{busy === 'ideas' ? '고르는 중…' : ideas.length ? '다시 추천받기' : '글감 추천받기'}</button>
         </div>
         {busy === 'ideas' && <span className="ai-busy" role="status"><Tomong kind="minilog" size={32} bounce /><span className="hand">토몽이가 글감을 고르고 있어요</span></span>}
         {ideas.length > 0 ? (
@@ -250,7 +250,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
                 ))}
               </ul>
             ) : <p className="muted small" style={{ margin: 0 }}>수요 예측·AI 글감·담아 둔 글감이 생기면 여기서 골라 한 번에 원고로 만들 수 있어요.</p>}
-            <button className="btn primary" style={{ justifySelf: 'start' }} onClick={() => { void plan(); }} disabled={!picked.length || !data.rhythm.length || busy !== null}>
+            <button className={`btn${picked.length ? ' primary' : ''}`} style={{ justifySelf: 'start' }} onClick={() => { void plan(); }} disabled={!picked.length || !data.rhythm.length || busy !== null}>
               {busy === 'plan' ? '만드는 중…' : `고른 ${picked.length}개를 게시일에 나눠 원고 만들기`}
             </button>
             {!data.rhythm.length && <p className="muted small" style={{ margin: 0 }}>먼저 글을 올릴 요일을 골라 주세요. 주 3~5편이면 꾸준히 쓰기 좋아요.</p>}

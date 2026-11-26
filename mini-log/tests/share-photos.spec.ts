@@ -32,6 +32,7 @@ test('공유로 받은 사진을 새 원고에 넣고 원고를 열며, 캐시�
   expect(page.url()).not.toContain('share-photos');
   const opened = await page.evaluate(() => location.hash);
   page.once('dialog', d => d.accept());
+  { const t = page.getByRole('button', { name: '원고 메뉴' }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '삭제' }).click();
   await expect.poll(() => page.evaluate(() => location.hash)).not.toBe(opened); // 만든 원고는 지움
 });

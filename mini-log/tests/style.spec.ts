@@ -23,6 +23,7 @@ test('내 문체를 분석하고, AI 초안이 기본으로 내 문체를 쓴다
   await expect(page.getByLabel('글 2')).toHaveValue('두 번째 글입니다.');
 
   await page.getByRole('button', { name: '새 원고' }).click();
+  { const t = page.getByRole('button', { name: /자세히 설정/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await expect(page.getByLabel('어떤 문체로 쓸까요?')).toHaveValue('mine');
   await page.getByLabel(/직접 겪은 내용/).fill('토요일 오후에 동네 빵집에 다녀왔어요.');
   await page.getByRole('button', { name: 'AI로 초안 만들기' }).click();
@@ -51,6 +52,7 @@ test('참고 블로그 문체를 추가·분석하고 원고에서 고르면 쓰
 
   await page.getByRole('button', { name: '새 원고' }).click();
   const id = await page.evaluate(async () => (await (await fetch('/api/styles')).json()).styles.find((s: { kind: string }) => s.kind === 'reference').id as string);
+  { const t = page.getByRole('button', { name: /자세히 설정/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByLabel('어떤 문체로 쓸까요?').selectOption(id);
   await expect(page.getByText('저장됨')).toBeVisible();
   await page.getByLabel(/직접 겪은 내용/).fill('동네 카페에 다녀왔어요. 라떼가 맛있었어요.');

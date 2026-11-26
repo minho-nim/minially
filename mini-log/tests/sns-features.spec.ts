@@ -107,6 +107,7 @@ test('발행 칸: 인스타 캡션 점검(피드에 보이는 부분)과 카드�
   await page.getByRole('button', { name: '새 원고' }).click();
   await page.getByLabel('제목').fill('성수 소금빵 맛집 비교');
   await page.getByLabel('본문').fill('■ 위치\n성수역 3번 출구에서 5분이에요.\n버터 향이 정말 진해요.\n가격은 3,500원이에요.');
+  { const t = page.getByRole('button', { name: /다른 곳에도 올리기/ }); if (await t.getAttribute('aria-expanded') !== 'true') await t.click(); } // 화면 정리로 메뉴·접기 안에 들어가 먼저 연다
   await page.getByRole('button', { name: '인스타 게시물 글 만들기' }).click();
   const check = page.getByLabel('인스타 캡션 점검');
   await expect(check).toContainText('피드에 보이는 부분');

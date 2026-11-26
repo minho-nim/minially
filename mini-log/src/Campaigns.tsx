@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Help } from './Help';
+import { MoreMenu } from './MoreMenu';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
@@ -161,16 +162,19 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
           <button className="btn ghost back" onClick={onBack}>← 목록</button>
           <h1 id="camp-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>협찬·수익</h1>
         </div>
+        {/* 힉의 법칙: 자주 쓰는 '새 협찬' 하나만 보이고, 가끔 쓰는 것은 ⋯ 안으로 */}
         <div className="actions">
-          <button className="btn" onClick={onProposal}>제안서·메일 만들기</button>
-          <button className="btn" onClick={() => setImporting(v => !v)} aria-expanded={importing}>광고 수익 가져오기</button>
-          <button className="btn" onClick={() => startNew('ad')}>광고 수익 적기</button>
-          <button className="btn" disabled={!items?.length} onClick={() => {
-            const list = filter === 'brand' ? items ?? [] : shown;
-            downloadCsv(campaignsCsv(list), `minilog_campaigns_${todayKst().replace(/-/g, '')}.csv`);
-            setMessage({ kind: 'info', text: `${list.length}건을 CSV로 받았어요(지금 보는 목록 기준).` });
-          }}>CSV로 받기</button>
           <button className="btn primary" onClick={() => startNew('sponsor')}>새 협찬</button>
+          <MoreMenu label="협찬 메뉴">
+            <button className="btn ghost" onClick={onProposal}>제안서·메일 만들기</button>
+            <button className="btn ghost" onClick={() => setImporting(v => !v)} aria-expanded={importing}>광고 수익 가져오기</button>
+            <button className="btn ghost" onClick={() => startNew('ad')}>광고 수익 적기</button>
+            <button className="btn ghost" disabled={!items?.length} onClick={() => {
+              const list = filter === 'brand' ? items ?? [] : shown;
+              downloadCsv(campaignsCsv(list), `minilog_campaigns_${todayKst().replace(/-/g, '')}.csv`);
+              setMessage({ kind: 'info', text: `${list.length}건을 CSV로 받았어요(지금 보는 목록 기준).` });
+            }}>CSV로 받기</button>
+          </MoreMenu>
         </div>
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
