@@ -297,12 +297,14 @@ export default function App() {
   const handleAddPhotoSchedules = async (list: Schedule[]) => {
     if (!list.length) return;
     setRegistrationNotice(null);
-    const notice = await recordOccurrenceHistory('CREATE', `사진에서 일정 ${list.length}개 추가됨`, [], list, recurrenceExceptions);
+    // 여러 날 일정은 날마다 한 개씩 들어가서, 알림에는 '일정 N개(M일)'로 보여 준다
+    const titles = [...new Set(list.map(s => s.title))];
+    const notice = await recordOccurrenceHistory('CREATE', `사진·글에서 일정 ${titles.length}개 추가됨`, [], list, recurrenceExceptions);
     setUndoNotice(notice);
     await reloadData();
     setSelectedDate(list[0].date);
     setRegistrationUndoId(notice.id);
-    setRegistrationNotice({ undoId: notice.id, id: crypto.randomUUID(), message: `일정 ${list.length}개를 넣었어요`, title: list.map(s => s.title).join(', '), dates: list.map(s => s.date) });
+    setRegistrationNotice({ undoId: notice.id, id: crypto.randomUUID(), message: titles.length === list.length ? `일정 ${list.length}개를 넣었어요` : `일정 ${titles.length}개(${list.length}일)를 넣었어요`, title: titles.join(', '), dates: [...new Set(list.map(s => s.date))] });
   };
 
   const handleSaveSchedule = async (schedule: Schedule, keepOpen: boolean = false, rule?: RecurrenceRule | null, scope: SeriesScope = 'this') => {

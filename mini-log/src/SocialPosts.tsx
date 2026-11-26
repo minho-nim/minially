@@ -1,6 +1,6 @@
 // 다른 곳에도 올리기: 원고 하나로 스레드·X 짧은 글을 만들고, 복사하거나 글이 채워진 작성 화면을 연다.
 // 앱이 대신 게시하지 않는다(게시 버튼은 사람이 그 앱에서 누른다). X 공식 API는 유료라 쓰지 않는다.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../shared/client/api';
 import { composeUrl, THREADS_LIMIT, threadsText, X_LIMIT, xLength, xText } from './publishKit';
 
@@ -15,6 +15,19 @@ export function SocialPosts({ draftId, title, body, hashtags, url, beforeAi, onM
   const [x, setX] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const open = threads !== null;
+  // 올린 곳 기록: 사람이 직접 올린 뒤 체크(미니허브 '다른 곳 공유' 숫자에 들어감)
+  const [shared, setShared] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let alive = true;
+    api<{ channels: Record<string, number> }>(`/api/drafts/${draftId}/shares`).then(r => { if (alive) setShared(r.channels); }).catch(() => { /* 기록 칸만 비어 보임 */ });
+    return () => { alive = false; };
+  }, [draftId]);
+  async function mark(channel: 'instagram' | 'threads' | 'x', on: boolean) {
+    const before = shared;
+    setShared(cur => { const next = { ...cur }; if (on) next[channel] = Date.now(); else delete next[channel]; return next; }); // 누르면 바로 바뀌고, 못 저장하면 되돌린다
+    try { const r = await api<{ channels: Record<string, number> }>(`/api/drafts/${draftId}/shares`, { method: 'PUT', body: { channel, shared: on } }); setShared(r.channels); }
+    catch (e) { setShared(before); onMessage({ kind: 'error', text: e instanceof Error ? e.message : '기록하지 못했어요.' }); }
+  }
 
   async function ai() {
     await beforeAi();
@@ -50,6 +63,12 @@ export function SocialPosts({ draftId, title, body, hashtags, url, beforeAi, onM
       {open && <button className="btn small" onClick={() => { void ai(); }} disabled={busy || body.trim().length < 20}>{busy ? '쓰는 중…' : 'AI로 짧게 다듬기'}</button>}
       <span className="muted small">앱이 대신 올리지 않아요. '…에서 열기'는 글이 채워진 작성 화면을 열고, 올리기는 직접 눌러요.{link ? '' : ' 게시한 글 주소를 넣으면 끝에 붙여요.'}</span>
     </div>
+    <fieldset className="share-marks">
+      <legend className="small muted">직접 올린 곳 체크(미니허브에 기록)</legend>
+      {([['instagram', '인스타'], ['threads', '스레드'], ['x', 'X']] as const).map(([ch, label]) => (
+        <label key={ch} className="check"><input type="checkbox" checked={Boolean(shared[ch])} onChange={e => { void mark(ch, e.target.checked); }} />{label}에 올렸어요</label>
+      ))}
+    </fieldset>
     {threads !== null && row('threads', '스레드', threads, setThreads, threads.length > THREADS_LIMIT, `${threads.length.toLocaleString('ko-KR')} / ${THREADS_LIMIT}자`)}
     {x !== null && row('x', 'X', x, setX, xLength(x) > X_LIMIT, `${xLength(x)} / ${X_LIMIT}(한글은 2로 셈)`)}
   </>;

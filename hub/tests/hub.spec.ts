@@ -51,6 +51,8 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   const camp = db.prepare("INSERT INTO minilog_campaigns (id, user, kind, brand, title, amount, deadline, status, paid_on, created_at, updated_at) VALUES (?, ?, 'sponsor', ?, ?, ?, ?, ?, ?, ?, ?)");
   camp.run('c1', 'C', '동네빵집', '체험단', 100000, null, 'paid', today, now, now);
   camp.run('c2', 'D', '○○카페', '신메뉴', 50000, soon, 'in_progress', null, now, now);
+  db.prepare("INSERT INTO minilog_drafts (id, user, status, published_at, created_at, updated_at) VALUES ('w1', 'D', 'published', ?, ?, ?)").run(now, now, now);
+  db.prepare("INSERT INTO minilog_shares (user, draft_id, channel, shared_at) VALUES ('D', 'w1', 'threads', ?), ('D', 'w1', 'x', ?)").run(now, now);
   db.close();
   await page.reload();
   await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
@@ -61,6 +63,8 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   const rowD = page.locator('.user-row').filter({ hasText: '사용자 D' });
   await expect(rowD.locator('dd').nth(0)).toHaveText('2');
   await expect(rowD.locator('dd').nth(2)).toHaveText('1');
+  await expect(rowD.locator('dd').nth(4)).toHaveText('1편'); // 이번 주 게시
+  await expect(rowD.locator('dd').nth(5)).toHaveText('2'); // 다른 곳 공유(스레드·X)
   await expect(page.getByLabel('오류 종류')).toContainText('호출 제한 1');
   await expect(page.getByRole('list', { name: '작업별 토큰' })).toContainText('문체 분석'); // 표는 접어 두고 그래프로
   await expect(page.getByRole('img', { name: /^사용자별 토큰: .*1,200, .*3,500$/ })).toBeVisible();

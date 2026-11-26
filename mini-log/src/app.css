@@ -465,3 +465,8 @@ select.input { appearance: auto; }
 .update-banner { position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 40; width: min(92vw, 30rem);
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); font-size: 0.9rem; }
 .update-banner span { flex: 1 1 14rem; min-width: 0; }
+
+/* 다른 곳에도 올리기: 직접 올린 곳 체크 */
+.share-marks { border: 0; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.share-marks legend { padding: 0; margin-bottom: 2px; }
+.share-marks .check { min-height: 44px; flex: 0 0 auto; font-weight: 600; }

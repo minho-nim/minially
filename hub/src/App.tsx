@@ -108,6 +108,10 @@ interface Overview {
   usage: (UsageRow & { user: string; model: string; task: string })[];
   errors: { app: string; error_code: string; count: number }[];
   minilog_published: { user: string; count: number }[];
+  /** 이번 주(월~일, 한국 시간) 게시 글 수 */
+  minilog_week?: { user: string; count: number }[];
+  /** 이번 달 다른 곳(인스타·스레드·X)에 올렸다고 체크한 수 */
+  minilog_shares?: { user: string; count: number }[];
   /** 오늘(한국 시간) 사람·모델별 Gemini 호출 수와 한도 오류 수 */
   today?: { user: string; model: string; calls: number; limited: number }[];
   revenue: {
@@ -143,7 +147,7 @@ function OverviewPanel({ month }: { month: number }) {
   const users = data.users.map(u => {
     const rows = data.usage.filter(r => r.user === u.user);
     const rev = data.revenue.users.find(r => r.user === u.user);
-    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0, revenue: rev?.this_month ?? 0, openCount: rev?.open_count ?? 0, openTotal: rev?.open_total ?? 0 };
+    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0, week: data.minilog_week?.find(p => p.user === u.user)?.count ?? 0, shares: data.minilog_shares?.find(p => p.user === u.user)?.count ?? 0, revenue: rev?.this_month ?? 0, openCount: rev?.open_count ?? 0, openTotal: rev?.open_total ?? 0 };
   });
   const apps = [...new Set(data.usage.map(r => r.app))].map(app => {
     const rows = data.usage.filter(r => r.app === app);
@@ -186,6 +190,8 @@ function OverviewPanel({ month }: { month: number }) {
                 <div><dt>토큰</dt><dd>{formatNumber(u.tokens)}</dd></div>
                 <div><dt>오류</dt><dd>{formatNumber(u.errors)}</dd></div>
                 <div><dt>게시 글</dt><dd>{formatNumber(u.published)}</dd></div>
+                <div><dt>이번 주</dt><dd title="이번 주 게시 글(권장 3~5편)">{formatNumber(u.week)}편</dd></div>
+                <div><dt>다른 곳 공유</dt><dd title="이번 달 인스타·스레드·X에 올렸다고 체크한 수">{formatNumber(u.shares)}</dd></div>
               </dl>
             </div>
           ))}

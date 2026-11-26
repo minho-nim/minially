@@ -166,4 +166,5 @@ test('글로 넣기: 12.3(목)~12.4(금) 같은 기간은 끝 날짜를 보여 �
   await expect(sheet).toHaveCount(0);
   const days = await page.evaluate(async () => { const p = '/src/db/indexedDB.ts'; return (await (await import(p)).getAllSchedules()).filter((s: { title: string }) => s.title === '현장 실사').map((s: { date: string }) => s.date.slice(5)).sort(); });
   expect(days).toEqual(['12-03', '12-04']);
+  await expect(page.getByRole('status', { name: '등록 완료 알림' })).toContainText('일정 1개(2일)를 넣었어요');
 });
