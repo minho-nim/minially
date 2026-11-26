@@ -77,6 +77,9 @@ const COLUMNS: [table: string, column: string, type: string][] = [
   ['minilog_campaigns', 'source_url', 'TEXT'], // 체험단 모집 공고 주소(직접 붙여 넣음, https만)
   ['minilog_campaigns', 'apply_by', 'TEXT'], // 신청 마감일 YYYY-MM-DD
   ['minilog_drafts', 'ai_body', 'TEXT'], // AI가 마지막으로 쓴 본문 원문('더 내 스타일로'에서 사람이 고친 최종본과 비교)
+  ['minilog_mails', 'body_html', 'TEXT'], // 받은 메일 HTML 원문(300KB까지, 화면이 허용한 모양으로만 다시 그림)
+  ['minilog_mails', 'reply_doc', 'TEXT'], // 서식 있는 답장(JSON 문서, _mailDoc.ts)
+  ['minilog_mails', 'to_addr', 'TEXT'], // 내가 새로 쓴 메일의 받는 사람
 ];
 
 /** 표 정의 전체의 지문(FNV-1a). 두 앱(hub·mini-log)이 같은 코드를 쓰므로 같은 값이 나온다 */

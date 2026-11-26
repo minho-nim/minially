@@ -77,26 +77,41 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   expect(campaigns.find(c => c.brand === '메일구름카페')).toMatchObject({ status: 'in_progress', guide: { visit_on: '2026-12-05' } });
   expect(campaigns.find(c => c.id === pitched)?.pitch?.reply).toBe('yes');
 
-  // 화면: 메뉴 숫자, 고쳐서 보내기(확인 한 번 더)
+  // 화면: 메뉴 숫자, 메일 앱처럼 목록 → 읽기, 서식 있는 답장을 고쳐 보내기(확인 한 번 더)
   await page.reload();
   await expect(page.getByRole('button', { name: /^메일/ })).toContainText('2');
   await page.getByRole('button', { name: /^메일/ }).click();
-  const offer = page.locator('.mail').filter({ hasText: '[협찬 제안] 겨울 신메뉴 체험' });
-  await expect(offer).toContainText('협찬에 담음: 메일빵집');
-  await expect(page.locator('.mail').filter({ hasText: '이번 주 소식' })).toHaveCount(0); // 기타는 기본으로 숨김
-  await offer.getByLabel('답장 내용').fill('안녕하세요, 제안 감사합니다.\n12월 둘째 주에 방문할게요.');
+  const rows = page.getByRole('complementary', { name: '메일 목록' });
+  await expect(rows.getByRole('button', { name: /이번 주 소식/ })).toHaveCount(0); // 기타는 '협찬 관련'에 안 보인다
+  await rows.getByRole('button', { name: /\[협찬 제안\] 겨울 신메뉴 체험/ }).click();
+  const reader = page.getByRole('region', { name: '메일 읽기' });
+  await expect(reader.getByRole('heading', { name: '[협찬 제안] 겨울 신메뉴 체험' })).toBeVisible();
+  await expect(reader).toContainText('협찬에 담음: 메일빵집');
+  await expect(reader).toContainText('AI 요약');
+  const editor = reader.getByRole('textbox', { name: '답장 내용' });
+  await expect(editor).toContainText('가짜 AI 답장 초안');
+  await editor.click();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.type('안녕하세요, 제안 감사합니다.');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('12월 둘째 주에 방문할게요.');
+  await page.keyboard.press('ControlOrMeta+A');
+  await reader.getByRole('button', { name: '굵게' }).click();
   expect((await (await request.get(`${MAIL}/sent`)).json())).toEqual([]); // 아직 안 보냄
-  await offer.getByRole('button', { name: '보내기', exact: true }).click();
-  await expect(offer.getByRole('group', { name: '보내기 확인' })).toContainText('offer@bread.kr');
-  await offer.getByRole('button', { name: '보내기 확정' }).click();
-  await expect(offer).toContainText('보냄');
+  await reader.getByRole('button', { name: '보내기', exact: true }).click();
+  await expect(reader.getByRole('group', { name: '보내기 확인' })).toContainText('offer@bread.kr');
+  await reader.getByRole('button', { name: '보내기 확정' }).click();
+  await expect(reader).toContainText('답장을 보냈어요');
   const sent = await (await request.get(`${MAIL}/sent`)).json();
   expect(sent).toHaveLength(1);
   expect(sent[0]).toMatchObject({ from: 'c-test@naver.com', to: 'offer@bread.kr' });
   expect(sent[0].data).toContain('In-Reply-To: <o1@bread.kr>');
+  expect(sent[0].data).toContain('multipart/alternative');
   const { parseMail } = await import('../functions/_mime');
   expect(parseMail(sent[0].data).text).toBe('안녕하세요, 제안 감사합니다.\n12월 둘째 주에 방문할게요.');
-  await expect(page.getByRole('button', { name: /^메일/ })).toContainText('1');
+  const htmlPart = Buffer.from(sent[0].data.split('Content-Type: text/html; charset=UTF-8')[1].split('\r\n\r\n')[1].split('--minilog')[0].replace(/\s/g, ''), 'base64').toString('utf8');
+  expect(htmlPart).toContain('<b>안녕하세요, 제안 감사합니다.</b>');
+  await expect(page.getByRole('navigation', { name: '미니로그 메뉴' }).getByRole('button', { name: /^메일/ })).toContainText('1');
 
   // 다시 받아도 겹치지 않는다, 보낸 답장은 다시 못 보낸다
   const again = await page.evaluate(async () => (await fetch('/api/mail/sync', { method: 'POST', body: '{}' })).json());
@@ -119,4 +134,72 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   // 다른 시험(협찬 합계 등)에 영향이 없게 만든 협찬을 지운다
   await page.evaluate(async ids => { for (const id of ids) await fetch(`/api/campaigns/${id}`, { method: 'DELETE' }); },
     campaigns.filter(c => ['메일빵집', '메일구름카페', '메일달빛상점'].includes(c.brand)).map(c => c.id));
+});
+
+test('메일 쓰기 문서: 정해진 모양만 받고, HTML은 서버가 이스케이프해 만든다', async () => {
+  const { readMailDoc, docToHtml, docToText, docFromText } = await import('../functions/_mailDoc');
+  const doc = readMailDoc([
+    { type: 'p', runs: [{ t: '안녕 <script>', b: true, color: '#d0574b', size: 'l' }, { t: '링크', href: 'javascript:alert(1)' }, { t: '좋은 링크', href: 'https://ok.kr/a' }, { t: '이상한 색', color: 'red; background:url(x)' }] },
+    { type: 'ul', items: [[{ t: '하나' }], [{ t: '둘', i: true }]] },
+    { type: 'quote', runs: [{ t: '인용' }] },
+  ]);
+  expect(doc).not.toBeNull();
+  expect(doc![0].runs).toEqual([{ t: '안녕 <script>', b: true, color: '#D0574B', size: 'l' }, { t: '링크' }, { t: '좋은 링크', href: 'https://ok.kr/a' }, { t: '이상한 색' }]);
+  const html = docToHtml(doc!);
+  expect(html).toContain('&lt;script&gt;');
+  expect(html).not.toContain('<script>');
+  expect(html).toContain('<b><span style="font-size:18px;color:#D0574B">');
+  expect(html).not.toContain('javascript:');
+  expect(docToText(doc!)).toBe('안녕 <script>링크좋은 링크(https://ok.kr/a)이상한 색\n- 하나\n- 둘\n> 인용');
+  for (const bad of [null, 'x', [{ type: 'h1', runs: [] }], [{ type: 'p', runs: [{ t: 1 }] }], [{ type: 'p', runs: [{ t: '가'.repeat(20001) }] }]]) expect(readMailDoc(bad)).toBeNull();
+  expect(docFromText('첫 줄\n\n셋째')).toEqual([{ type: 'p', runs: [{ t: '첫 줄' }] }, { type: 'p', runs: [] }, { type: 'p', runs: [{ t: '셋째' }] }]);
+});
+
+test('받은 HTML 메일은 원래 모양으로 보되 스크립트·바깥 이미지·javascript 링크는 막고, 새 메일을 서식 있게 써서 보낸다', async ({ page, request }) => {
+  await request.post(`${MAIL}/reset`);
+  const html = '<div style="font-size:18px;color:#2F6FD6"><b>강조된 안내</b> 입니다</div><script>window.__hacked=1</script><img src="https://tracker.example/p.gif" alt="로고"><a href="javascript:alert(1)">나쁜 링크</a> <a href="https://good.example/x">좋은 링크</a><table><tr><td colspan="2">표 칸</td></tr></table>';
+  await request.post(`${MAIL}/inbox`, { data: { raw: ['From: 안내 <info@html.kr>', `Subject: =?UTF-8?B?${b64('HTML 안내 메일')}?=`, 'Message-ID: <h1@html.kr>', 'MIME-Version: 1.0', 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', b64(html), ''].join('\r\n') } });
+  await login(page, CODE_C);
+  await page.evaluate(async () => { await fetch('/api/mail/sync', { method: 'POST', body: '{}' }); });
+  const blocked: string[] = [];
+  page.on('request', r => { if (r.url().includes('tracker.example')) blocked.push(r.url()); });
+  await page.getByRole('button', { name: /^메일/ }).click();
+  await page.getByRole('tab', { name: '전체' }).click();
+  await page.getByRole('complementary', { name: '메일 목록' }).getByRole('button', { name: /HTML 안내 메일/ }).click();
+  const reader = page.getByRole('region', { name: '메일 읽기' });
+  const body = reader.locator('.mail-html');
+  await expect(body.locator('b')).toHaveText('강조된 안내');
+  await expect(body.locator('div').first()).toHaveCSS('color', 'rgb(47, 111, 214)');
+  await expect(body).toContainText('[이미지: 로고]');
+  await expect(body.locator('img, script')).toHaveCount(0);
+  await expect(body.getByText('나쁜 링크')).not.toHaveAttribute('href', /.*/);
+  await expect(body.getByRole('link', { name: '좋은 링크' })).toHaveAttribute('rel', 'noopener noreferrer');
+  await expect(body.locator('td')).toHaveAttribute('colspan', '2');
+  expect(await page.evaluate(() => (window as unknown as { __hacked?: number }).__hacked)).toBeUndefined();
+  expect(blocked).toEqual([]);
+  await reader.getByRole('button', { name: '글만 보기' }).click();
+  await expect(reader.locator('.mail-body')).toContainText('강조된 안내');
+
+  // 새 메일: 받는 사람·제목·서식 있는 내용 → 보내기 확정 → '보낸 메일'
+  await page.getByRole('button', { name: '새 메일' }).click();
+  const compose = page.getByRole('region', { name: '새 메일 쓰기' });
+  await compose.getByLabel('받는 사람').fill('brand@shop.kr');
+  await compose.getByLabel('제목').fill('[협찬 제안] 토몽이 블로그입니다');
+  await compose.getByRole('textbox', { name: '메일 내용' }).click();
+  await page.keyboard.type('안녕하세요, 제안드립니다.');
+  await page.keyboard.press('ControlOrMeta+A');
+  await compose.getByLabel('글자 크기').selectOption('l');
+  await compose.getByRole('button', { name: '보내기', exact: true }).click();
+  await compose.getByRole('button', { name: '보내기 확정' }).click();
+  await expect(page.getByRole('tab', { name: '보낸 메일' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('complementary', { name: '메일 목록' })).toContainText('받는 사람: brand@shop.kr');
+  const sent = await (await request.get(`${MAIL}/sent`)).json();
+  expect(sent.at(-1)).toMatchObject({ to: 'brand@shop.kr' });
+  expect(sent.at(-1).data).toContain('multipart/alternative');
+  // 잘못된 받는 사람·제목 줄바꿈은 서버가 막는다
+  const bad = await page.evaluate(async () => [
+    (await fetch('/api/mail/compose', { method: 'POST', body: JSON.stringify({ to: 'a@b.kr, c@d.kr', subject: 'x', doc: [{ type: 'p', runs: [{ t: 'x' }] }] }) })).status,
+    (await fetch('/api/mail/compose', { method: 'POST', body: JSON.stringify({ to: 'a@b.kr', subject: 'x', doc: [{ type: 'script' }] }) })).status,
+  ]);
+  expect(bad).toEqual([400, 400]);
 });

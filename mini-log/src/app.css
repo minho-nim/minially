@@ -490,12 +490,51 @@ select.input { appearance: auto; }
 
 /* 메일 */
 .nav-badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--danger, #D0574B); color: #fff; font-size: 0.72rem; font-weight: 800; line-height: 18px; text-align: center; }
-.mail-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.mail { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
-.mail-done, .mail-sent { opacity: 0.8; }
-.mail-subject { overflow-wrap: anywhere; }
-.mail-body { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow: auto; margin: 4px 0 0; }
-.mail-reply { display: grid; gap: 4px; margin-top: 6px; }
-.mail-reply textarea { width: 100%; resize: vertical; }
+.mail-app { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.mail-side { display: grid; gap: 8px; padding: 10px; min-width: 0; }
+.mail-read { display: grid; gap: 10px; min-width: 0; min-height: 320px; }
+.mail-back { display: none; justify-self: start; }
+.mail-folders { display: flex; flex-wrap: wrap; gap: 4px; }
+.mail-folders button { border: 1px solid var(--line); background: transparent; color: inherit; border-radius: 999px; padding: 4px 10px; min-height: 36px; font: inherit; font-size: 0.86rem; font-weight: 700; cursor: pointer; }
+.mail-folders button.on { background: var(--sig-soft); border-color: transparent; }
+.mail-folders .count { margin-left: 4px; color: var(--danger, #D0574B); }
+.mail-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 70vh; overflow: auto; }
+.mail-row { display: grid; gap: 2px; width: 100%; text-align: left; border: 0; border-radius: 10px; padding: 8px 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; min-width: 0; }
+.mail-row:hover, .mail-row.on { background: var(--sig-soft); }
+.mail-row-top { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.mail-row-top b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mail-row.unread .mail-row-top b, .mail-row.unread .mail-row-subject { font-weight: 800; }
+.mail-row-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.92rem; }
+.mail-row-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; min-width: 0; }
+.mail-row-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1 1 120px; }
+.mail-flag { color: var(--danger, #D0574B); font-weight: 700; }
+.mail-read-head { display: grid; gap: 4px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.mail-read-subject { margin: 0; font-size: 1.15rem; overflow-wrap: anywhere; }
+.mail-summary { margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--sig-soft); }
+.mail-body-box { overflow-x: auto; min-width: 0; }
+.mail-html { overflow-wrap: anywhere; line-height: 1.6; }
+.mail-html table { max-width: 100%; border-collapse: collapse; }
+.mail-html td, .mail-html th { padding: 2px 4px; vertical-align: top; }
+.mail-html blockquote { margin: 0 0 8px; padding-left: 10px; border-left: 3px solid var(--line); }
+.mail-img { display: inline-block; padding: 0 4px; border: 1px dashed var(--line); border-radius: 4px; color: var(--muted, #888); font-size: 0.8rem; }
+.mail-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.mail-reply { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.mail-editor { display: grid; gap: 6px; }
+.mail-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+.mail-tools .tool { min-width: 36px; min-height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; }
+.mail-tools .tool[aria-pressed="true"] { background: var(--sig-soft); border-color: transparent; }
+.mail-tools .tool-italic { font-style: italic; } .mail-tools .tool-underline { text-decoration: underline; } .mail-tools .tool-strikeThrough { text-decoration: line-through; }
+.tool-select { min-height: 36px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; font: inherit; padding: 0 6px; }
+.mail-compose { min-height: 180px; max-height: 60vh; overflow: auto; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card, #fff); line-height: 1.6; overflow-wrap: anywhere; }
+.mail-compose:focus { outline: 2px solid var(--sig-soft); }
+.mail-compose blockquote { margin: 0; padding-left: 10px; border-left: 3px solid var(--line); color: var(--muted, #666); }
+.mail-compose ul, .mail-compose ol { margin: 0; padding-left: 22px; }
 .link-btn { background: none; border: 0; padding: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; min-height: 32px; }
 .badge-ok { padding: 1px 8px; border-radius: 999px; background: var(--sig-soft); font-weight: 700; }
+@media (max-width: 860px) {
+  .mail-app { grid-template-columns: minmax(0, 1fr); }
+  .mail-app.is-reading .mail-side { display: none; }
+  .mail-app:not(.is-reading) .mail-read { display: none; }
+  .mail-back { display: inline-flex; }
+}
+@media (pointer: coarse) { .mail-tools .tool, .tool-select, .mail-folders button { min-height: 44px; } }
