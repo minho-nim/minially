@@ -16,6 +16,7 @@ import { fullText, instagramText, photoFileName } from './publishKit';
 import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
+import { DraftQuestions } from './DraftQuestions';
 import { CalendarView } from './Calendar';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
@@ -785,14 +786,16 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
     };
   }, [flush]);
 
-  async function generate() {
-    if (fields.experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
+  /** experienceOverride: '먼저 질문 받기'에서 답을 붙인 경험 글(경험 칸도 그 글로 바뀜) */
+  async function generate(experienceOverride?: string) {
+    const experience = typeof experienceOverride === 'string' ? experienceOverride : fields.experience;
+    if (experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
     if (fields.body.trim() && !window.confirm('지금 본문을 AI 초안으로 바꿀까요? 바꾼 뒤 이 화면에서 \'AI 초안 되돌리기\'로 지금 내용을 다시 불러올 수 있어요.')) return;
     await flush();
     const before = { title: fields.title, body: fields.body, hashtags: fields.hashtags };
     setAiBusy(true); setMessage(null);
     try {
-      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience: fields.experience, post_type: fields.post_type } });
+      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience, post_type: fields.post_type } });
       setBeforeAi(before.title.trim() || before.body.trim() || before.hashtags.length ? { ...before, aiBody: made.body } : null);
       setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, post_type: made.post_type ?? 'none', planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
@@ -951,12 +954,14 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
           </select>
         </div>
         <div className="ai-row">
-          <button className="btn primary" onClick={generate} disabled={aiBusy || !gemini}>
+          <button className="btn primary" onClick={() => { void generate(); }} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
           {beforeAi && !aiBusy && <button type="button" className="btn ghost" onClick={undoAi}>AI 초안 되돌리기</button>}
           {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
         </div>
+        <DraftQuestions draftId={draft.id} experience={fields.experience} postType={fields.post_type} disabled={aiBusy} canGenerate={Boolean(gemini)}
+          onReady={experience => { change({ experience }); if (gemini) void generate(experience); }} onError={text => setMessage({ kind: 'error', text })} />
         {!gemini && <p className="muted small" style={{ margin: 0 }}>Gemini 키가 연결되면 쓸 수 있어요(hub 설정 참고).</p>}
       </section>
 
