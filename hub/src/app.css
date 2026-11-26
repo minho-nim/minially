@@ -207,3 +207,11 @@ table.usage td.off { color: var(--danger); font-weight: 700; }
 .account-list > div { display: contents; }
 .account-list dt { font-weight: 700; }
 .account-list dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; min-width: 0; overflow-wrap: anywhere; }
+
+/* 휴대폰: 오늘 Gemini 사용 표가 오른쪽에서 잘리지 않게 글자를 줄이고 줄바꿈을 허용 */
+@media (max-width: 480px) {
+  table.usage { width: 100%; font-size: 0.8rem; table-layout: auto; }
+  table.usage th, table.usage td { white-space: normal; overflow-wrap: anywhere; padding-left: 4px; padding-right: 4px; }
+  .compare, .compare-like { min-width: 0; font-size: 0.82rem; } /* 사람이 둘이라 휴대폰 폭에 다 들어간다 */
+  .compare .diff { overflow-wrap: anywhere; }
+}

@@ -7,6 +7,7 @@ import { createCampaign, listCampaigns, updateCampaign } from './_campaigns';
 import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readReplies, replyPrompt, sameBrand, str, type Judgement, type Mail, type MailKind } from './_mailRules';
 export type { Mail } from './_mailRules';
 import { buildMail, parseMail } from './_mime';
+import { docFromText, docToHtml, docToText, readMailDoc, type MailDoc } from './_mailDoc';
 import { MailError, fetchNew, mailAccount, sendMail } from './_mailbox';
 
 async function linkCampaign(db: D1Database, user: UserName, j: Judgement, subject: string): Promise<string | null> {
@@ -47,7 +48,7 @@ export async function draftReplies(db: D1Database, env: HubEnv, user: UserName, 
   const replies = readReplies(text, mails.map(m => m.id));
   for (const r of replies) {
     const subject = r.subject || `Re: ${mails.find(m => m.id === r.id)?.subject ?? ''}`;
-    await db.prepare("UPDATE minilog_mails SET reply_subject = ?, reply_body = ?, status = CASE WHEN status = 'new' THEN 'drafted' ELSE status END WHERE user = ? AND id = ? AND status != 'sent'").bind(subject, r.body, user, r.id).run();
+    await db.prepare("UPDATE minilog_mails SET reply_subject = ?, reply_body = ?, reply_doc = ?, status = CASE WHEN status = 'new' THEN 'drafted' ELSE status END WHERE user = ? AND id = ? AND status != 'sent'").bind(subject, r.body, JSON.stringify(docFromText(r.body)), user, r.id).run();
   }
   return replies.length;
 }
@@ -73,12 +74,12 @@ export async function syncMail(db: D1Database, env: HubEnv, user: UserName): Pro
     for (const m of got.mails) {
       const p = parseMail(m.raw);
       const id = crypto.randomUUID();
-      const res = await db.prepare('INSERT OR IGNORE INTO minilog_mails (id, user, uid, message_id, refs, from_name, from_addr, subject, received_at, snippet, kind, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(id, user, m.uid, p.messageId, p.references, p.from.name.slice(0, 100), p.from.address.slice(0, 200), p.subject, p.date ?? now, p.text.slice(0, 4000), p.bulk ? 'other' : 'unknown', now).run() as { meta?: { changes?: number } };
+      const res = await db.prepare('INSERT OR IGNORE INTO minilog_mails (id, user, uid, message_id, refs, from_name, from_addr, subject, received_at, snippet, kind, body_html, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(id, user, m.uid, p.messageId, p.references, p.from.name.slice(0, 100), p.from.address.slice(0, 200), p.subject, p.date ?? now, p.text.slice(0, 4000), p.bulk ? 'other' : 'unknown', p.html, now).run() as { meta?: { changes?: number } };
       last = Math.max(last, m.uid);
       if (res?.meta?.changes) {
         added++;
-        fresh.push({ id, from_name: p.from.name, from_addr: p.from.address, subject: p.subject, received_at: p.date ?? now, snippet: p.text.slice(0, 4000), kind: p.bulk ? 'other' : 'unknown', brand: '', summary: '', deadline: null, needs_reply: 0, reply_subject: '', reply_body: '', status: 'new', campaign_id: null, sent_at: null, bulk: p.bulk });
+        fresh.push({ id, from_name: p.from.name, from_addr: p.from.address, subject: p.subject, received_at: p.date ?? now, snippet: p.text.slice(0, 4000), kind: p.bulk ? 'other' : 'unknown', brand: '', summary: '', deadline: null, needs_reply: 0, reply_subject: '', reply_body: '', status: 'new', campaign_id: null, sent_at: null, to_addr: '', bulk: p.bulk });
       }
     }
     await db.prepare('UPDATE minilog_mail_state SET uid_validity = ?, last_uid = ? WHERE user = ?').bind(got.uidValidity, last, user).run();
@@ -117,8 +118,20 @@ export async function listMails(db: D1Database, user: UserName) {
   return { mails, synced_at: state?.synced_at ?? null, error: state?.error ?? '', waiting: mails.filter(m => m.needs_reply && m.kind !== 'other' && (m.status === 'new' || m.status === 'drafted')).length };
 }
 
-export async function getMail(db: D1Database, user: UserName, id: string) {
-  return db.prepare(`SELECT ${COLUMNS}, message_id, refs FROM minilog_mails WHERE user = ? AND id = ?`).bind(user, id).first<Mail & { message_id: string; refs: string }>();
+export type FullMail = Mail & { message_id: string; refs: string; body_html: string; reply_doc: MailDoc | null };
+/** 메일 한 통(받은 HTML 원문·서식 답장 포함) */
+export async function getMail(db: D1Database, user: UserName, id: string): Promise<FullMail | null> {
+  const row = await db.prepare(`SELECT ${COLUMNS}, message_id, refs, COALESCE(body_html, '') AS body_html, COALESCE(reply_doc, '') AS reply_doc FROM minilog_mails WHERE user = ? AND id = ?`).bind(user, id)
+    .first<Mail & { message_id: string; refs: string; body_html: string; reply_doc: string }>();
+  if (!row) return null;
+  let doc: MailDoc | null = null;
+  try { doc = row.reply_doc ? readMailDoc(JSON.parse(row.reply_doc)) : null; } catch { doc = null; }
+  return { ...row, reply_doc: doc };
+}
+
+/** 서식 답장 저장: 문서를 검사하고 글만 버전도 함께 둔다 */
+export async function saveReply(db: D1Database, user: UserName, id: string, subject: string, doc: MailDoc, status: 'drafted' | 'done') {
+  await db.prepare('UPDATE minilog_mails SET reply_subject = ?, reply_body = ?, reply_doc = ?, status = ? WHERE user = ? AND id = ?').bind(subject, docToText(doc), JSON.stringify(doc), status, user, id).run();
 }
 
 /** 사람이 '보내기'를 눌렀을 때: 저장된 답장을 내 계정으로 보낸다 */
@@ -129,9 +142,24 @@ export async function sendReply(db: D1Database, env: HubEnv, user: UserName, id:
   if (!mail) return '메일을 찾지 못했어요.';
   if (mail.status === 'sent') return '이미 보낸 답장이에요.';
   if (!mail.reply_body.trim() || !mail.from_addr) return '보낼 답장 내용이 없어요.';
-  const raw = buildMail({ from: account.address, to: mail.from_addr, subject: mail.reply_subject || `Re: ${mail.subject}`, body: mail.reply_body,
+  const raw = buildMail({ from: account.address, to: mail.from_addr, subject: mail.reply_subject || `Re: ${mail.subject}`, body: mail.reply_doc ? docToText(mail.reply_doc) : mail.reply_body, html: mail.reply_doc ? docToHtml(mail.reply_doc) : undefined,
     inReplyTo: mail.message_id || undefined, references: mail.refs || undefined, id: `<${crypto.randomUUID()}@minilog>` });
   try { await sendMail(env, account, mail.from_addr, raw); } catch (e) { if (e instanceof MailError) return e.message; throw e; }
   await db.prepare("UPDATE minilog_mails SET status = 'sent', sent_at = ? WHERE user = ? AND id = ?").bind(Date.now(), user, id).run();
   return true;
+}
+
+/** 새 메일 보내기(협찬 제안 등): 사람이 '보내기 확정'을 눌렀을 때만. 보낸 메일은 '보낸 메일'에 남긴다 */
+export async function sendNew(db: D1Database, env: HubEnv, user: UserName, to: string, subject: string, doc: MailDoc): Promise<FullMail | string> {
+  const account = mailAccount(env, user);
+  if (!account) return '네이버 메일이 연결되지 않았어요.';
+  const text = docToText(doc);
+  if (!text.trim()) return '보낼 내용이 없어요.';
+  const raw = buildMail({ from: account.address, to, subject, body: text, html: docToHtml(doc), id: `<${crypto.randomUUID()}@minilog>` });
+  try { await sendMail(env, account, to, raw); } catch (e) { if (e instanceof MailError) return e.message; throw e; }
+  const id = crypto.randomUUID(), now = Date.now();
+  // 내가 쓴 메일은 IMAP 번호가 없어 음수 번호로 둔다(받은 메일과 겹치지 않음)
+  await db.prepare("INSERT INTO minilog_mails (id, user, uid, from_addr, to_addr, subject, received_at, snippet, kind, reply_subject, reply_body, reply_doc, status, sent_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'outgoing', ?, ?, ?, 'sent', ?, ?)")
+    .bind(id, user, -now - Math.floor(Math.random() * 1000), account.address, to, subject, now, text.slice(0, 4000), subject, text, JSON.stringify(doc), now, now).run();
+  return (await getMail(db, user, id))!;
 }

@@ -2,7 +2,7 @@
 import { KOREAN_STYLE_RULES } from '../../shared/server/koreanStyle';
 import { validDate } from './_campaigns';
 
-export const KINDS = ['offer', 'notice', 'pitch_reply', 'other', 'unknown'] as const;
+export const KINDS = ['offer', 'notice', 'pitch_reply', 'other', 'unknown', 'outgoing'] as const; // outgoing: 내가 새로 쓴 메일
 export type MailKind = (typeof KINDS)[number];
 export const KEEP_DAYS = 90;
 export const LOCK_MS = 120_000;
@@ -10,9 +10,9 @@ export const LOCK_MS = 120_000;
 export interface Mail {
   id: string; from_name: string; from_addr: string; subject: string; received_at: number; snippet: string;
   kind: MailKind; brand: string; summary: string; deadline: string | null; needs_reply: number;
-  reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null;
+  reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null; to_addr: string;
 }
-export const COLUMNS = 'id, from_name, from_addr, subject, received_at, snippet, kind, brand, summary, deadline, needs_reply, reply_subject, reply_body, status, campaign_id, sent_at';
+export const COLUMNS = "id, from_name, from_addr, subject, received_at, snippet, kind, brand, summary, deadline, needs_reply, reply_subject, reply_body, status, campaign_id, sent_at, COALESCE(to_addr, '') AS to_addr";
 
 export interface Judgement { id: string; kind: MailKind; brand: string; title: string; amount: number; deadline: string | null; visit_on: string | null; answer: 'yes' | 'no' | 'unknown'; summary: string; needs_reply: boolean }
 
@@ -38,7 +38,7 @@ export function readJudgements(text: string, ids: string[]): Judgement[] {
   return list.flatMap(item => {
     const v = (item ?? {}) as Record<string, unknown>;
     const id = str(v.id, 40);
-    if (!ids.includes(id) || !KINDS.includes(v.kind as MailKind)) return [];
+    if (!ids.includes(id) || !['offer', 'notice', 'pitch_reply', 'other'].includes(v.kind as string)) return [];
     const amount = Number(v.amount);
     return [{
       id, kind: v.kind as MailKind, brand: str(v.brand, 60), title: str(v.title, 100), amount: Number.isSafeInteger(amount) && amount > 0 && amount <= 1e9 ? amount : 0,

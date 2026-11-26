@@ -12,7 +12,8 @@ import { outlineText, POST_TYPES, type PostType } from '../functions/_postTypes'
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
-import { fullText, instagramText, photoFileName } from './publishKit';
+import { fullText, instaCheck, instagramText, photoFileName } from './publishKit';
+import { CardNews } from './CardNews';
 import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
@@ -20,6 +21,7 @@ import { DraftQuestions } from './DraftQuestions';
 import { SharedPhotos } from './SharedPhotos';
 import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
+import { ReviewCard } from './Review';
 import { IdeasView, type Idea } from './Ideas';
 import { ReportView } from './Report';
 import { ProposalView } from './Proposal';
@@ -265,7 +267,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
-        : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} />
+        : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} onSaved={list => list.forEach(onSaved)} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
@@ -337,6 +339,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
           </div>
 
           <div className="dash-grid">
+            <ReviewCard />
             <section className="card step" aria-labelledby="d-drafts">
               <h2 id="d-drafts" className="step-title">원고 현황<span className="step-sub">전체 {formatNumber(totalDrafts)}개</span></h2>
               {totalDrafts === 0 ? <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요.</p> : (
@@ -662,6 +665,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   const [thumbOpen, setThumbOpen] = useState(false);
   // 인스타 게시물 글: 처음엔 규칙으로 만든 글, 'AI로 인스타 글 쓰기'를 누르면 AI 글. 고친 내용은 이 화면에서만(저장 안 함)
   const [insta, setInsta] = useState<string | null>(null);
+  const [cardOpen, setCardOpen] = useState(false);
   const [instaBusy, setInstaBusy] = useState(false);
   const [published, setPublished] = useState({ url: draft.published_url, at: draft.published_at });
   const fileInput = useRef<HTMLInputElement>(null);
@@ -1079,8 +1083,23 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
                       <button className="btn primary small" onClick={() => { void copyInstagram(insta); }} disabled={!insta.trim()}>인스타 글 복사</button>
                       <span className={`small ${insta.length > 2200 ? 'error' : 'muted'}`}>{insta.length.toLocaleString('ko-KR')} / 2,200자 · 해시태그 {(insta.match(/#[^\s#]+/g) ?? []).length}/30개</span>
                     </div>
+                    {(() => { const c = instaCheck(insta); return (
+                      <div className="insta-check" aria-label="인스타 캡션 점검">
+                        <p className="small" style={{ margin: 0 }}><b>피드에 보이는 부분</b> <span className="muted">(이 뒤는 '더 보기'로 접혀요)</span></p>
+                        <p className="insta-preview small">{c.preview}{insta.length > 125 ? '… 더 보기' : ''}</p>
+                        <ul className="check-list">{c.items.map(i => <li key={i.label} className={i.ok ? 'ok' : 'no'}><span aria-hidden="true">{i.ok ? '✓' : '!'}</span><span>{i.label}</span>{!i.ok && <span className="muted small check-hint">{i.hint}</span>}</li>)}</ul>
+                      </div>
+                    ); })()}
                   </div>
                 )}
+              </li>
+              <li className="kit-wide">
+                <span className="kit-label">카드뉴스</span>
+                <div className="kit-buttons">
+                  <button className="btn small" onClick={() => setCardOpen(v => !v)} aria-expanded={cardOpen}>{cardOpen ? '카드뉴스 닫기' : '카드뉴스 7장 만들기'}</button>
+                  <span className="muted small">원고에서 장마다 글을 뽑아 4:5 카드로 그려요. 첫 장은 첫 사진을 써요.</span>
+                </div>
+                {cardOpen && <CardNews title={fields.title} body={fields.body} photoId={photos?.[0]?.id ?? null} onMessage={setMessage} />}
               </li>
               <li className="kit-wide">
                 <span className="kit-label">스레드·X</span>

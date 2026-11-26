@@ -93,7 +93,7 @@ function partText(part: Part): { plain: string; html: string } {
   return /^text\/html/i.test(type) ? { plain: '', html: text } : /^text\/plain/i.test(type) ? { plain: text, html: '' } : { plain: '', html: '' };
 }
 
-export interface ParsedMail { from: { name: string; address: string }; subject: string; date: number | null; messageId: string; references: string; text: string; bulk: boolean }
+export interface ParsedMail { from: { name: string; address: string }; subject: string; date: number | null; messageId: string; references: string; text: string; html: string; bulk: boolean }
 
 /** 메일 원문(바이트를 latin1 글자로 받은 것) 읽기. 본문은 8,000자까지 */
 export function parseMail(raw: string): ParsedMail {
@@ -108,6 +108,7 @@ export function parseMail(raw: string): ParsedMail {
     messageId: (h.get('message-id') ?? '').trim().slice(0, 300),
     references: (h.get('references') ?? '').trim().slice(0, 1000),
     text: (plain || htmlText(html)).replace(/\r\n/g, '\n').trim().slice(0, 8000),
+    html: html.length <= 300_000 ? html : '', // 너무 큰 HTML은 버리고 글만 보여 준다
     // 광고·뉴스레터(대량 발송)는 AI로 보내지 않는다
     bulk: h.has('list-unsubscribe') || /bulk|list|junk/i.test(h.get('precedence') ?? ''),
   };
@@ -117,11 +118,20 @@ const b64 = (bytes: Uint8Array) => { let s = ''; for (const b of bytes) s += Str
 const encodeWord = (s: string) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${b64(enc.encode(s))}?=`);
 
 /** 답장 메일 원문(UTF-8 글, base64). 줄바꿈은 CRLF */
-export function buildMail(m: { from: string; to: string; subject: string; body: string; inReplyTo?: string; references?: string; date?: Date; id: string }) {
-  const body = b64(enc.encode(m.body.replace(/\r?\n/g, '\r\n'))).replace(/.{76}/g, '$&\r\n');
+export function buildMail(m: { from: string; to: string; subject: string; body: string; html?: string; inReplyTo?: string; references?: string; date?: Date; id: string }) {
+  // 머리줄에 줄바꿈이 들어가면 다른 머리줄을 끼워 넣을 수 있어 모두 한 줄로
+  const one = (v?: string) => (v ?? '').replace(/[\r\n]+/g, ' ').trim();
+  m = { ...m, from: one(m.from), to: one(m.to), subject: one(m.subject), inReplyTo: one(m.inReplyTo) || undefined, references: one(m.references) || undefined, id: one(m.id) };
+  const part = (text: string) => b64(enc.encode(text.replace(/\r?\n/g, '\r\n'))).replace(/.{76}/g, '$&\r\n');
+  const body = part(m.body);
+  const boundary = `minilog-${m.id.replace(/[^A-Za-z0-9]/g, '').slice(0, 24)}`;
+  const content = m.html
+    ? [`Content-Type: multipart/alternative; boundary="${boundary}"`, '', `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', body,
+      `--${boundary}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', part(m.html), `--${boundary}--`, '']
+    : ['Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', body, ''];
   return [
     `From: ${m.from}`, `To: ${m.to}`, `Subject: ${encodeWord(m.subject)}`, `Date: ${(m.date ?? new Date()).toUTCString().replace('GMT', '+0000')}`,
     `Message-ID: ${m.id}`, ...(m.inReplyTo ? [`In-Reply-To: ${m.inReplyTo}`, `References: ${[m.references, m.inReplyTo].filter(Boolean).join(' ')}`] : []),
-    'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', body, '',
+    'MIME-Version: 1.0', ...content,
   ].join('\r\n');
 }

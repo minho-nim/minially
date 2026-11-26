@@ -66,6 +66,11 @@ const TABLES = [
   'CREATE UNIQUE INDEX IF NOT EXISTS minilog_mails_uid ON minilog_mails (user, uid)',
   // 메일 받기 상태: 마지막으로 읽은 UID, 동시에 두 번 돌지 않게 잡는 잠금 시각, 마지막 오류
   'CREATE TABLE IF NOT EXISTS minilog_mail_state (user TEXT PRIMARY KEY, uid_validity INTEGER NOT NULL DEFAULT 0, last_uid INTEGER NOT NULL DEFAULT 0, synced_at INTEGER, lock_until INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT \'\')',
+  // 글감 담아 두기: 떠오른 글감 한 줄(100자)·메모(500자)·참고 주소(https)만. 한 사람 200개까지
+  "CREATE TABLE IF NOT EXISTS minilog_saved_ideas (id TEXT PRIMARY KEY, user TEXT NOT NULL, text TEXT NOT NULL, memo TEXT NOT NULL DEFAULT '', url TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
+  'CREATE INDEX IF NOT EXISTS minilog_saved_ideas_user ON minilog_saved_ideas (user, created_at)',
+  // 게시 7일 뒤 돌아보기: 사람이 고른 평가(good·ok·low)와 메모(300자), 그때 조회수
+  "CREATE TABLE IF NOT EXISTS minilog_reviews (user TEXT NOT NULL, draft_id TEXT NOT NULL, verdict TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', views INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, draft_id))",
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
 const COLUMNS: [table: string, column: string, type: string][] = [
@@ -77,6 +82,9 @@ const COLUMNS: [table: string, column: string, type: string][] = [
   ['minilog_campaigns', 'source_url', 'TEXT'], // 체험단 모집 공고 주소(직접 붙여 넣음, https만)
   ['minilog_campaigns', 'apply_by', 'TEXT'], // 신청 마감일 YYYY-MM-DD
   ['minilog_drafts', 'ai_body', 'TEXT'], // AI가 마지막으로 쓴 본문 원문('더 내 스타일로'에서 사람이 고친 최종본과 비교)
+  ['minilog_mails', 'body_html', 'TEXT'], // 받은 메일 HTML 원문(300KB까지, 화면이 허용한 모양으로만 다시 그림)
+  ['minilog_mails', 'reply_doc', 'TEXT'], // 서식 있는 답장(JSON 문서, _mailDoc.ts)
+  ['minilog_mails', 'to_addr', 'TEXT'], // 내가 새로 쓴 메일의 받는 사람
 ];
 
 /** 표 정의 전체의 지문(FNV-1a). 두 앱(hub·mini-log)이 같은 코드를 쓰므로 같은 값이 나온다 */

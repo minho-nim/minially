@@ -12,6 +12,7 @@ interface DemandItem { topic: string; post_by: string | null; reason: string; ba
 interface WeekdayStat { day: number; label: string; posts: number; avg: number }
 interface Demand { from: string; to: string; items: DemandItem[]; posts_with_views: number; posts_last_year: number; weekdays: { days: WeekdayStat[]; best: WeekdayStat | null } }
 interface IdeasData { seasons: Season[]; demand: Demand; rhythm: number[]; watch: Watch[]; last: { ideas: Idea[]; used_search: boolean; created_at: number } | null }
+interface SavedIdea { id: string; text: string; memo: string; url: string; created_at: number }
 export interface PlannedDraft { id: string; title: string; planned_on: string | null }
 const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
 const dayName = (day: string) => DAY_NAMES[new Date(`${day}T00:00:00Z`).getUTCDay()];
@@ -24,14 +25,36 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
   const [data, setData] = useState<IdeasData | null>(null);
   const [search, setSearch] = useState(false);
   const [blogId, setBlogId] = useState('');
-  const [busy, setBusy] = useState<'ideas' | 'watch' | 'use' | 'plan' | null>(null);
+  const [busy, setBusy] = useState<'ideas' | 'watch' | 'use' | 'plan' | 'keep' | null>(null);
   const [dates, setDates] = useState<Record<number, string>>({});
   const [demandDates, setDemandDates] = useState<Record<number, string>>({});
   const [picked, setPicked] = useState<string[]>([]);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  const [saved, setSaved] = useState<SavedIdea[]>([]);
+  const [note, setNote] = useState({ text: '', memo: '', url: '' });
+  const [noteOpen, setNoteOpen] = useState(false);
   const fail = (e: unknown, text: string) => setMessage({ kind: 'error', text: e instanceof Error ? e.message : text });
 
   useEffect(() => { api<IdeasData>('/api/ideas').then(setData).catch(e => fail(e, '불러오지 못했어요.')); }, []);
+  useEffect(() => { api<{ saved: SavedIdea[] }>('/api/ideas/saved').then(d => setSaved(d.saved)).catch(e => fail(e, '담아 둔 글감을 불러오지 못했어요.')); }, []);
+
+  async function keep(event: FormEvent) {
+    event.preventDefault();
+    setBusy('keep'); setMessage(null);
+    try {
+      const r = await api<{ saved: SavedIdea[] }>('/api/ideas/saved', { body: note });
+      setSaved(r.saved); setNote({ text: '', memo: '', url: '' }); setNoteOpen(false);
+    } catch (e) { fail(e, '글감을 담지 못했어요.'); }
+    finally { setBusy(null); }
+  }
+  async function forget(id: string) {
+    try { setSaved((await api<{ saved: SavedIdea[] }>(`/api/ideas/saved/${id}`, { method: 'DELETE' })).saved); } catch (e) { fail(e, '지우지 못했어요.'); }
+  }
+  async function useSaved(item: SavedIdea) {
+    setBusy('use');
+    try { await onUse({ topic: item.text, title: item.text, reason: item.memo, hashtags: [], source: 'saved' }, null); void forget(item.id); }
+    catch (e) { fail(e, '원고를 만들지 못했어요.'); setBusy(null); }
+  }
 
   async function recommend() {
     setBusy('ideas'); setMessage(null);
@@ -68,6 +91,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
   const candidates = [...new Map([
     ...(data?.demand.items ?? []).map(i => ({ title: i.topic, hashtags: i.tags, by: i.post_by, from: BASIS[i.basis].label })),
     ...(data?.last?.ideas ?? []).map(i => ({ title: i.title || i.topic, hashtags: i.hashtags, by: null as string | null, from: 'AI 글감' })),
+    ...saved.map(i => ({ title: i.text, hashtags: [] as string[], by: null as string | null, from: '담아 둔 글감' })),
   ].map(c => [c.title, c] as const)).values()];
   async function saveDays(days: number[]) {
     setData(d => d && { ...d, rhythm: days });
@@ -81,6 +105,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
       const made = await api<{ drafts: D[]; unplaced: number }>('/api/plan', { body: { items: chosen.map(c => ({ title: c.title, hashtags: c.hashtags.slice(0, 10) })) } });
       onPlanned(made.drafts);
       setPicked([]);
+      for (const item of saved.filter(i => chosen.some(c => c.from === '담아 둔 글감' && c.title === i.text))) void forget(item.id); // 원고가 된 담아 둔 글감은 비운다
       const when = made.drafts.filter(d => d.planned_on).map(d => `${shortDay(d.planned_on!)}(${dayName(d.planned_on!)})`).join(', ');
       setMessage({ kind: 'info', text: `원고 ${made.drafts.length}개를 만들었어요${when ? `: ${when}` : ''}.${made.unplaced ? ` ${made.unplaced}개는 8주 안에 빈 게시일이 없어 날짜 없이 만들었어요.` : ''}` });
     } catch (e) { fail(e, '원고를 만들지 못했어요.'); }
@@ -97,6 +122,41 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
         </div>
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+
+      <section className="card step" aria-labelledby="keep-title">
+        <h2 id="keep-title" className="step-title">글감 담아 두기<span className="step-sub">{saved.length}개</span></h2>
+        <form className="keep-form" onSubmit={e => { void keep(e); }}>
+          <label className="sr-only" htmlFor="keep-text">담아 둘 글감</label>
+          <input id="keep-text" className="input" maxLength={100} value={note.text} onChange={e => setNote(n => ({ ...n, text: e.target.value }))} placeholder="떠오른 글감 한 줄(예: 동네 붕어빵 가게 지도)" />
+          <button className="btn primary" type="submit" disabled={!note.text.trim() || busy !== null}>{busy === 'keep' ? '담는 중…' : '담기'}</button>
+          <button className="btn ghost small" type="button" aria-expanded={noteOpen} onClick={() => setNoteOpen(v => !v)}>{noteOpen ? '메모 접기' : '메모·주소 적기'}</button>
+          {noteOpen && (
+            <div className="keep-more">
+              <label className="sr-only" htmlFor="keep-memo">글감 메모</label>
+              <textarea id="keep-memo" className="textarea" rows={2} maxLength={500} value={note.memo} onChange={e => setNote(n => ({ ...n, memo: e.target.value }))} placeholder="메모(왜 쓰고 싶은지, 넣을 내용)" />
+              <label className="sr-only" htmlFor="keep-url">참고 주소</label>
+              <input id="keep-url" className="input" maxLength={500} value={note.url} onChange={e => setNote(n => ({ ...n, url: e.target.value }))} placeholder="참고 주소(https://, 선택)" />
+            </div>
+          )}
+        </form>
+        {saved.length === 0 ? <p className="muted small" style={{ margin: 0 }}>떠오른 글감을 적어 두면 여기 모이고, 원고나 아래 한 달 계획으로 바로 쓸 수 있어요.</p> : (
+          <ul className="keep-list" aria-label="담아 둔 글감">
+            {saved.map(item => (
+              <li key={item.id}>
+                <span className="keep-main">
+                  <b>{item.text}</b>
+                  {item.memo && <span className="muted small">{item.memo}</span>}
+                  {item.url && /^https:\/\//.test(item.url) && <a className="small" href={item.url} target="_blank" rel="noopener noreferrer">참고 주소 열기</a>}
+                </span>
+                <span className="keep-actions">
+                  <button className="btn small" disabled={busy !== null} onClick={() => { void useSaved(item); }} aria-label={`'${item.text}' 원고로 만들기`}>원고로</button>
+                  <button className="btn ghost small" disabled={busy !== null} onClick={() => { void forget(item.id); }} aria-label={`'${item.text}' 지우기`}>지우기</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="card step" aria-labelledby="rec-title">
         <h2 id="rec-title" className="step-title">글감 추천받기{data?.last && <span className="step-sub">마지막 {new Date(data.last.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}{data.last.used_search ? ' · 검색 포함' : ''}</span>}</h2>
@@ -189,7 +249,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
                   </li>
                 ))}
               </ul>
-            ) : <p className="muted small" style={{ margin: 0 }}>수요 예측이나 AI 글감이 생기면 여기서 골라 한 번에 원고로 만들 수 있어요.</p>}
+            ) : <p className="muted small" style={{ margin: 0 }}>수요 예측·AI 글감·담아 둔 글감이 생기면 여기서 골라 한 번에 원고로 만들 수 있어요.</p>}
             <button className="btn primary" style={{ justifySelf: 'start' }} onClick={() => { void plan(); }} disabled={!picked.length || !data.rhythm.length || busy !== null}>
               {busy === 'plan' ? '만드는 중…' : `고른 ${picked.length}개를 게시일에 나눠 원고 만들기`}
             </button>
