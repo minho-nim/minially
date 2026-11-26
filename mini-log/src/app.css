@@ -478,3 +478,12 @@ select.input { appearance: auto; }
 .share-marks { border: 0; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
 .share-marks legend { padding: 0; margin-bottom: 2px; }
 .share-marks .check { min-height: 44px; flex: 0 0 auto; font-weight: 600; }
+
+/* 내 계정 */
+.account-list { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+.account-list > div { display: contents; }
+.account-list dt { font-weight: 700; font-size: 0.9rem; }
+.account-list dd { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; min-width: 0; overflow-wrap: anywhere; }
+.handle-forms { display: grid; gap: 6px; }
+.handle-label { min-width: 72px; font-weight: 700; font-size: 0.9rem; align-self: center; }
+.connections summary { cursor: pointer; min-height: 32px; }
