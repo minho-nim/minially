@@ -83,6 +83,7 @@ const clean = (s: string, max: number) => s.replace(/[\u0000-\u001f]/g, ' ').rep
 /** 제목 후보: 날짜·시간·이름(…님)·전화번호·주소·안내 말투를 지운 줄 */
 function titleFrom(line: string) {
   return clean(line
+    .replace(/^(?:\s*(?:re|fw|fwd|답장|전달|회신)\s*[:：]\s*)+/i, ' ') // 메일 제목의 Re: Re: RE:·Fwd:
     .replace(/https?:\/\/\S+/g, ' ')
     .replace(/\d{2,4}-\d{3,4}-\d{4}/g, ' ')
     .replace(/\[[^\]]*\]/g, ' ')
@@ -101,7 +102,7 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
   const base = new Date(`${today}T00:00:00Z`);
   if (!text.trim() || Number.isNaN(base.getTime())) return [];
   const lines = text.split('\n').map(l => l.trim());
-  const sender = [...text.matchAll(/\[([^\]\n]{1,20})\]/g)].map(m => m[1].trim()).find(s => !/web\s*발신|광고|국외|국제|알림/i.test(s)) ?? '';
+  const sender = [...text.matchAll(/\[([^\]\n]{1,20})\]/g)].map(m => m[1].trim()).find(s => !/web\s*발신|광고|국외|국제|알림|요청|공지|안내|긴급|중요|필독|참고|회신|문의|확인|변경|재송부|공유|협조/i.test(s)) ?? ''; // [요청]·[공지] 같은 말머리는 보낸 곳이 아님
   const loc = text.match(/(?:장\s*소|위\s*치|주\s*소|오시는\s*곳)\s*[:：]\s*([^\n]+)/);
   const location = loc ? clean(loc[1].replace(/\d{2,4}-\d{3,4}-\d{4}/g, ''), 80) : '';
   // 인사말 줄은 제목 후보에서 뺀다
@@ -116,8 +117,8 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
     let found = datesIn(line, base);
     // '11.26(목)~11.27(금)'처럼 물결로 이은 두 날짜는 일정 하나(시작 날짜)로, 끝 날짜는 메모에
     let until = '';
-    if (found.length === 2 && /^\s*[~～\-]\s*$/.test(line.slice(found[0].end, found[1].start))) {
-      until = `~ ${found[1].date.slice(5).replace('-', '/')}까지`;
+    if (found.length === 2 && /^\s*[~～\-]\s*$/.test(line.slice(found[0].end, found[1].start)) && found[1].date > found[0].date) {
+      until = found[1].date; // 여러 날 일정: 등록할 때 날마다 같은 일정을 만들어 달력에서 한 줄로 이어 그린다
       found = [{ ...found[0], end: found[1].end }];
     }
     found.forEach((f, k) => {
@@ -137,7 +138,9 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
       const key = `${f.date}|${start}|${title}`;
       if (seen.has(key) || out.length >= MAX_EVENTS) return;
       seen.add(key);
-      out.push({ title, date: f.date, start, end, location, memo: until, source: clean(line, 120), uncertain: f.uncertain });
+      // '(야간)'·'(주간)'·'(오전)' 같은 때 표시는 시간이 없으면 메모로 남긴다
+      const shift = start ? '' : (line.match(/[(（]\s*(야간|주간|심야|새벽|오전|오후|종일)\s*[)）]/)?.[1] ?? '');
+      out.push({ title, date: f.date, start, end, location, memo: shift ? `${shift} 작업`.replace(/(오전|오후|종일) 작업/, '$1') : '', ...(until ? { until } : {}), source: clean(line, 120), uncertain: f.uncertain });
     });
   });
   return out.slice(0, MAX_EVENTS);

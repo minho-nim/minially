@@ -24,7 +24,9 @@ test('원고 점검에 재탕 경고가 뜨고, 목록 위에 이번 주 게시 
   await expect(page.getByText(/비슷한 제목의 다른 원고 없음/)).toBeVisible();
   await expect(page.getByText(/‘동네 빵집 소금빵 솔직 후기’과 많이 겹쳐요/)).toBeVisible();
   page.once('dialog', d => d.accept()); await page.getByRole('button', { name: '삭제' }).click();
+  await expect(page.getByRole('navigation', { name: '원고' }).getByRole('button', { name: /소금빵 후기 2편/ })).toHaveCount(0); // 첫 삭제가 끝난 뒤에
   await page.getByRole('navigation', { name: '원고' }).getByRole('button', { name: /동네 빵집 소금빵 솔직 후기/ }).click();
+  await expect(page.getByLabel('제목')).toHaveValue('동네 빵집 소금빵 솔직 후기'); // 고른 원고가 다 열린 뒤에 지운다(편집 화면이 바뀌는 중엔 삭제 버튼이 새로 그려짐)
   page.once('dialog', d => d.accept()); await page.getByRole('button', { name: '삭제' }).click();
   await expect(page.getByRole('navigation', { name: '원고' }).getByRole('button', { name: /동네 빵집 소금빵/ })).toHaveCount(0);
 });

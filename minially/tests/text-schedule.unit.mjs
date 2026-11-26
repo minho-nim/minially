@@ -31,7 +31,13 @@ test('업무 메일: 두 자리 연도(\'26.11.30)를 읽고, 이름표만 있�
 test('업무 메일: 인사말·안내 말투는 제목에서 빼고, 11.26(목)~11.27(금)은 일정 하나(끝 날짜는 메모)',()=>{
  const msg="안녕하십니까 OOO 매니저입니다.\n\n계약건명 : 26년 ATDT센터 케이블공사(투자) 단가계약\n작업 예정일 : '26.11.30(월) (주간)\n\n상기 일정으로 작업을 진행할 예정이며, 작업 절차서와 견적서는 작성 후 송부드리겠습니다.\n[판교 과금DR 자동화 서버 NW 케이블 Sheet 스위치 정보 확인 요청]\n  1. 표시된 상면들은 빈 상면입니다. (11.09 실사 기준)\n\n현장 실사는 11.26(목)~11.27(금) 중 진행 가능하오니 참고 부탁드립니다.";
  const rows=parseScheduleText(msg,T);
- assert.deepEqual(rows.map(e=>[e.title,e.date,e.memo,e.uncertain]),[['26년 ATDT센터 케이블공사(투자) 단가계약','2026-11-30','',false],['현장 실사','2026-11-26','~ 11/27까지',false]]);
+ assert.deepEqual(rows.map(e=>[e.title,e.date,e.memo,e.until??'',e.uncertain]),[['26년 ATDT센터 케이블공사(투자) 단가계약','2026-11-30','주간 작업','',false],['현장 실사','2026-11-26','','2026-11-27',false]]);
+});
+test('메일 제목의 Re:·[요청]은 빼고 제목으로, (야간)은 메모로',()=>{
+ const msg="Re: Re: RE: [요청] 둔산 케이블 포설 요청\n\n안녕하십니까 OOO 매니저입니다.\n\n작업일정 변경되어 재송부드립니다.\n\n작업일자 : '26.11.26 (야간)\n\n첨부파일 참고부탁드립니다.";
+ const [e,...rest]=parseScheduleText(msg,T);
+ assert.equal(rest.length,0);
+ assert.deepEqual([e.title,e.date,e.memo],['둔산 케이블 포설 요청','2026-11-26','야간 작업']);
 });
 test('날짜가 아닌 글은 일정으로 만들지 않는다',()=>{
  for(const t of ['오늘도 감사합니다','평점 3.5 받았어요','버전 1.2 나왔어요','10.5.2 패치 배포','버전 1.2.3 배포','','   ','13월 40일 회의','2월 30일 회의']) assert.deepEqual(parseScheduleText(t,T),[],t);

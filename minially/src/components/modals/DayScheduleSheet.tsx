@@ -2,7 +2,7 @@ import { useDaySheetMotion } from '../../hooks/useDaySheetMotion';
 import { RegistrationNotice, type RegistrationNoticeData } from '../common/RegistrationNotice';
 import { CalendarDateMenu } from '../common/CalendarDateMenu';
 import { CategoryGrid } from '../common/CategoryGrid';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle, Copy, GripVertical, Plus, RotateCcw, Star, X, MoreHorizontal, CalendarRange, Calendar, SlidersHorizontal, Repeat, ImagePlus } from 'lucide-react';
 import { AppSettings, CategoryItem, Preset, RecurrenceRule, Schedule, TitleBlock } from '../../types';
@@ -20,8 +20,10 @@ import { CategoryActions, CategoryManager } from './CategoryManager';
 import { TitleBlockEditor } from '../common/TitleBlockEditor';
 import { InlinePresetPicker } from '../common/InlinePresetPicker';
 import { PhraseManager } from './PhraseManageModal';
+import { historyHint } from '../../utils/scheduleSuggest';
 
-type QuickDraft = { title: string; blocks?: TitleBlock[]; isImportant: boolean; category: string; timed: boolean; startTime: string; endTime: string; memo: string; repeat?: RepeatSettings };
+/** picked: 사람이 카테고리를 직접 골랐는지(고르지 않았으면 예전 일정을 보고 추천한 카테고리를 쓴다) */
+type QuickDraft = { title: string; blocks?: TitleBlock[]; isImportant: boolean; category: string; picked?: boolean; timed: boolean; startTime: string; endTime: string; memo: string; repeat?: RepeatSettings };
 const emptyDraft = (): QuickDraft => ({ title: '', isImportant: false, category: '', timed: false, startTime: '09:00', endTime: '10:00', memo: '' });
 const button = 'min-h-9 min-w-9 px-2 rounded-lg text-xs text-app-muted hover:bg-app-soft disabled:opacity-40';
 interface Props extends CategoryActions {
@@ -99,6 +101,10 @@ export function DayScheduleSheet(props: Props) {
   const daySurface = useRef<HTMLElement>(null), composerSurface = useRef<HTMLElement>(null);
   const [drafts, setDrafts] = useState<Record<string, QuickDraft>>({});
   const draft = drafts[date] || emptyDraft();
+  // 빠른 입력 카테고리 추천: 직접 고르지 않았고 비어 있으면, 제목을 예전 일정과 비교해 고른 카테고리를 쓴다(이 기기 안에서만)
+  const hint = useMemo(() => (!draft.picked && !draft.category && draft.title.trim().length >= 2 ? historyHint({ title: draft.title }, props.categorySchedules, categories) : null), [draft.picked, draft.category, draft.title, props.categorySchedules, categories]);
+  const suggested = hint?.category ? hint : null;
+  const category = suggested ? suggested.category : draft.category;
   const update = (patch: Partial<QuickDraft>) => setDrafts(all => ({ ...all, [date]: { ...(all[date] || emptyDraft()), ...patch } }));
   const [expanded, setExpanded] = useState(false);
   const [dateMenuOpen,setDateMenuOpen]=useState(false);
@@ -157,7 +163,7 @@ export function DayScheduleSheet(props: Props) {
   const backdropClick = () => { if (keyboardTap.current) { keyboardTap.current = false; return; } closeComposer(); };
   useEffect(() => { if (!open) {setDateMenuOpen(false);changePanel(null);return;} if (open) { setDateMenuOpen(false);setPresetApplyMode('append'); setExpanded(false); changePanel(null); setNotice(''); setOldTitle(null); guard.cancel(); requestAnimationFrame(() => root.current?.querySelector<HTMLButtonElement>('header button')?.focus({ preventScroll: true })); } }, [open, date]);
   const selectCategory = (category: string) => {
-    flushSync(() => { update({ category }); setExpanded(true); changePanel(categoryReturn.current); });
+    flushSync(() => { update({ category, picked: true }); setExpanded(true); changePanel(categoryReturn.current); });
     if (!categoryReturn.current) input.current?.focus({ preventScroll: true });
   };
   const focusTitle = () => requestAnimationFrame(() => input.current?.focus({ preventScroll: true }));
@@ -190,7 +196,7 @@ export function DayScheduleSheet(props: Props) {
     savingRef.current = true; setSaving(true); setError('');
     try {
       const rule = repeat ? repeatToRule(repeat, { id: draftId.current + '-repeat', scheduleId: draftId.current, startDate: date }) ?? undefined : undefined;
-      await props.onSave({ id: draftId.current, title: draft.title.trim(), date, category: draft.category, startTime: draft.timed ? draft.startTime : '', endTime: draft.timed ? draft.endTime : '', memo: draft.memo, isImportant: draft.isImportant, completed: false, sortOrder: Date.now(), ...(draft.blocks && draft.blocks.map(b => b.text).join(' ') === draft.title ? { titleBlocks: draft.blocks } : {}) }, rule);
+      await props.onSave({ id: draftId.current, title: draft.title.trim(), date, category, startTime: draft.timed ? draft.startTime : '', endTime: draft.timed ? draft.endTime : '', memo: draft.memo, isImportant: draft.isImportant, completed: false, sortOrder: Date.now(), ...(draft.blocks && draft.blocks.map(b => b.text).join(' ') === draft.title ? { titleBlocks: draft.blocks } : {}) }, rule);
       update({ title: '', blocks: undefined, isImportant: false, memo: '', repeat: undefined }); draftId.current = crypto.randomUUID(); setOldTitle(null); setNotice('');
     } catch { setError('일정을 저장하지 못했습니다. 입력 내용은 유지됩니다. 다시 시도해 주세요.'); }
     finally { savingRef.current = false; setSaving(false); focusTitle(); }
@@ -216,7 +222,7 @@ export function DayScheduleSheet(props: Props) {
         <button type="button" className={button+' w-full text-left'} onClick={()=>shiftDate(1)}>다음 날짜</button>
         <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);setExpanded(true);categoryReturn.current=null;changePanel(categories.length?'categories':null);if(!categories.length)focusTitle();}}><Plus className="w-4 h-4"/>간편 등록</button>
         <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);props.onCopyDate();}}><Copy className="w-4 h-4"/>일정 전체 복사</button>
-        <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);props.onDetails({title:draft.title,date,category:draft.category,isImportant:draft.isImportant,startTime:draft.timed?draft.startTime:'',endTime:draft.timed?draft.endTime:'',memo:draft.memo,titleBlocks:draft.blocks},()=>update({title:'',blocks:undefined,isImportant:false,memo:''}),true);}}><CalendarRange className="w-4 h-4"/>여러 날짜 등록</button>
+        <button type="button" className={button+' w-full flex items-center gap-2 text-left'} onClick={()=>{setDateMenuOpen(false);props.onDetails({title:draft.title,date,category,isImportant:draft.isImportant,startTime:draft.timed?draft.startTime:'',endTime:draft.timed?draft.endTime:'',memo:draft.memo,titleBlocks:draft.blocks},()=>update({title:'',blocks:undefined,isImportant:false,memo:''}),true);}}><CalendarRange className="w-4 h-4"/>여러 날짜 등록</button>
       </CalendarDateMenu>}
       {!expanded && !panel && guard.confirming && <DiscardPrompt onContinue={guard.cancel} onDiscard={guard.discard} />}
       {!expanded && !panel && error && <p role="alert" className="px-4 py-1.5 text-xs text-[#C4476B] shrink-0">{error}</p>}
@@ -250,7 +256,7 @@ export function DayScheduleSheet(props: Props) {
               <span className="inline-flex min-h-9 items-center gap-1 rounded-full bg-white px-2 text-xs text-app-accent-ink"><Calendar className="h-4 w-4"/>{formatShortDate(date)}</span>
               <button type="button" aria-label="중요 일정" aria-pressed={draft.isImportant} className={button} disabled={saving} onClick={()=>update({isImportant:!draft.isImportant})}><Star className={'h-4 w-4 text-app-accent-ink '+(draft.isImportant?'fill-current':'')}/></button>
               <button type="button" className={button+' text-app-accent-ink'} disabled={saving} aria-expanded={panel==='presets'} onPointerDown={event=>{if(document.activeElement===input.current)event.preventDefault();}} onClick={()=>changePanel(panel==='presets'?null:'presets')}>프리셋</button>
-              <button type="button" aria-label="빠른 등록 카테고리 선택" className={button+' inline-flex items-center gap-1 rounded-full bg-white'} disabled={saving} onClick={()=>{categoryReturn.current=null;changePanel('categories');}}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{background:categories.find(cat=>cat.id===draft.category)?.color}}/>{categories.find(cat=>cat.id===draft.category)?.name || '미분류'}</button>
+              <button type="button" aria-label="빠른 등록 카테고리 선택" className={button+' inline-flex items-center gap-1 rounded-full bg-white'} disabled={saving} onClick={()=>{categoryReturn.current=null;changePanel('categories');}}><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{background:categories.find(cat=>cat.id===category)?.color}}/>{categories.find(cat=>cat.id===category)?.name || '미분류'}{suggested && <span className="text-[10px] text-app-muted" title={suggested.reason}>추천</span>}</button>
               <button type="button" aria-label={'반복 설정: ' + (draft.repeat ? describeRepeat(draft.repeat, date) : '반복 없음')} title="반복" className={button + ' inline-flex items-center gap-1' + (draft.repeat && draft.repeat.frequency !== 'none' ? ' rounded-full bg-white text-app-accent-ink' : '')} disabled={saving} onClick={() => changePanel('repeat')}><Repeat className="h-4 w-4 text-app-accent-ink"/>{draft.repeat && draft.repeat.frequency !== 'none' && <span className="max-w-[9rem] truncate">{describeRepeat(draft.repeat, date)}</span>}</button>
               <button type="button" aria-label="상세 옵션" title="상세 옵션" className={button} disabled={saving} onClick={()=>changePanel('options')}><SlidersHorizontal className="h-4 w-4 text-app-accent-ink"/></button>
               <button type="submit" disabled={saving||!draft.title.trim()} className="ml-auto min-h-9 rounded-full bg-app-accent-ink px-3 text-xs font-semibold text-white disabled:opacity-40">{saving?'저장 중':'등록'}</button>
