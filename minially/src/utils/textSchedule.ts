@@ -5,7 +5,14 @@ import type { PhotoEvent } from './photoSchedule';
 export const TEXT_LIMIT = 4000;
 const MAX_EVENTS = 10;
 const DAYS = '일월화수목금토';
-const KEYWORDS = ['진료', '검진', '예약', '회의', '미팅', '면접', '수업', '강의', '모임', '약속', '공연', '행사', '상담', '방문', '시술', '접종', '설명회', '세미나', '워크숍', '시험', '결혼식', '돌잔치', '송년회', '신년회', '회식', '발표', '마감', '납부', '출발', '체크인', '배송'];
+const KEYWORDS = ['진료', '검진', '예약', '회의', '미팅', '면접', '수업', '강의', '모임', '약속', '공연', '행사', '상담', '방문', '시술', '접종', '설명회', '세미나', '워크숍', '시험', '결혼식', '돌잔치', '송년회', '신년회', '회식', '발표', '마감', '납부', '출발', '체크인', '배송', '여행', '출장', '휴가', '교육', '연수', '캠프', '축제', '전시', '공연', '콘서트', '생일', '파티', '수술', '입원', '이사', '제출', '신청', '접수', '개강', '방학', '졸업', '입학', '레슨', '운동', '경기', '예매'];
+// 시간을 글자로 쓴 것('두 시 반')을 숫자로. '세 시간'·'한시적'은 시간이 아니다
+const HOUR_WORDS: [string, number][] = [['열한', 11], ['열두', 12], ['다섯', 5], ['여섯', 6], ['일곱', 7], ['여덟', 8], ['아홉', 9], ['한', 1], ['두', 2], ['세', 3], ['네', 4], ['열', 10]];
+export function normalizeTimeWords(line: string) {
+  let out = line.replace(/정오/g, '12시').replace(/자정/g, '0시');
+  for (const [word, n] of HOUR_WORDS) out = out.replace(new RegExp(`(^|[^가-힣])${word}\\s*시(?!간|적|작|장|청|민|대|절|즌)`, 'g'), `$1${n}시`);
+  return out;
+}
 
 interface Found { date: string; uncertain: boolean; start: number; end: number; relative: boolean }
 
@@ -33,7 +40,8 @@ function datesIn(line: string, today: Date): Found[] {
       const date = ymd(utc(y, v.m, v.d));
       const weekday = line.slice(end).match(/^\s*\(?\s*([월화수목금토일])(?:요일)?\s*\)?/);
       if (weekday && DAYS.indexOf(weekday[1]) !== utc(y, v.m, v.d).getUTCDay()) uncertain = true; // 적힌 요일과 다르면 확인 필요
-      if (v.loose && !weekday && !/\d\s*(?::\d{2}|시(?!간))/.test(line.slice(end)) && !KEYWORDS.some(k => line.includes(k))) continue; // '평점 3.5'처럼 날짜가 아닌 글은 뺀다
+      const ranged = /^\s*[~～]\s*\d{1,2}[./]\d{1,2}/.test(line.slice(end)) || /\d{1,2}[./]\d{1,2}\s*[~～]\s*$/.test(line.slice(0, at));
+      if (v.loose && !weekday && !ranged && !/\d\s*(?::\d{2}|시(?!간))/.test(line.slice(end)) && !KEYWORDS.some(k => line.includes(k))) continue; // '평점 3.5'처럼 날짜가 아닌 글은 뺀다
       out.push({ date, uncertain, start: at, end: end + (weekday?.[0].length ?? 0), relative: false });
       rest = rest.slice(0, at) + ' '.repeat(m[0].length) + rest.slice(end);
     }
@@ -43,6 +51,14 @@ function datesIn(line: string, today: Date): Found[] {
   take(/(?<![\d.\-/])['’‘]?(\d{2})\s*([.\-/])\s*(\d{1,2})\s*\2\s*(\d{1,2})(?![\d.\-/])/g, m => (Number(m[1]) >= 20 && Number(m[1]) <= 39 ? { y: 2000 + Number(m[1]), m: Number(m[3]), d: Number(m[4]) } : null)); // '10.5.2' 같은 버전 번호는 빼려고 20~39년만
   take(/(?<!\d)(\d{1,2})\s*월\s*(\d{1,2})\s*일/g, m => ({ m: Number(m[1]), d: Number(m[2]) }));
   take(/(?<![\d.:\-/])(\d{1,2})[./](\d{1,2})(?![\d.:/])/g, m => ({ m: Number(m[1]), d: Number(m[2]), loose: true }));
+  // '다음 달 3일'·'이번 달 30일'·'오는 28일'(월이 없는 날짜)
+  for (const m of rest.matchAll(/(다음\s*달|담달|이번\s*달|오는)\s*(\d{1,2})\s*일/g)) {
+    const n = Number(m[2]), word = m[1].replace(/\s/g, '');
+    let y = today.getUTCFullYear(), mon = today.getUTCMonth() + 1;
+    if (word === '다음달' || word === '담달' || (word === '오는' && n < today.getUTCDate())) { mon += 1; if (mon > 12) { mon = 1; y += 1; } }
+    if (!valid(y, mon, n)) continue;
+    out.push({ date: ymd(utc(y, mon, n)), uncertain: false, start: m.index ?? 0, end: (m.index ?? 0) + m[0].length, relative: false });
+  }
   if (out.length) return out.sort((a, b) => a.start - b.start);
   // 날짜 글자가 없으면 '내일'·'다음 주 화요일' 같은 말(시간이나 일정 낱말이 같은 줄에 있을 때만: '오늘도 감사합니다' 같은 글 막기)
   if (!/\d\s*(?::\d{2}|시(?!간))/.test(line) && !KEYWORDS.some(k => line.includes(k))) return out;
@@ -51,11 +67,11 @@ function datesIn(line: string, today: Date): Found[] {
     const t = new Date(today); t.setUTCDate(t.getUTCDate() + { 오늘: 0, 내일: 1, 모레: 2, 글피: 3 }[rel[1] as '오늘']);
     return [{ date: ymd(t), uncertain: false, start: rel.index ?? 0, end: (rel.index ?? 0) + rel[0].length, relative: true }];
   }
-  const wd = line.match(/(?:(다음\s*주|이번\s*주|담주)\s*)?([월화수목금토일])요일/);
+  const wd = line.match(/(?:(다다음\s*주|다음\s*주|이번\s*주|담주)\s*)?([월화수목금토일])요일/);
   if (wd) {
     const day = DAYS.indexOf(wd[2]), cur = today.getUTCDay(), mon = (x: number) => (x + 6) % 7; // 월요일 시작 주
     const next = wd[1] && wd[1].replace(/\s/g, '') !== '이번주';
-    const delta = next ? 7 - mon(cur) + mon(day) : wd[1] ? mon(day) - mon(cur) : (day - cur + 7) % 7;
+    const delta = (next ? 7 - mon(cur) + mon(day) : wd[1] ? mon(day) - mon(cur) : (day - cur + 7) % 7) + (wd[1]?.startsWith('다다음') ? 7 : 0);
     const t = new Date(today); t.setUTCDate(t.getUTCDate() + delta);
     return [{ date: ymd(t), uncertain: !wd[1] && delta === 0, start: wd.index ?? 0, end: (wd.index ?? 0) + wd[0].length, relative: true }];
   }
@@ -101,16 +117,16 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
   const text = String(input ?? '').slice(0, TEXT_LIMIT).replace(/\r/g, '');
   const base = new Date(`${today}T00:00:00Z`);
   if (!text.trim() || Number.isNaN(base.getTime())) return [];
-  const lines = text.split('\n').map(l => l.trim());
-  const sender = [...text.matchAll(/\[([^\]\n]{1,20})\]/g)].map(m => m[1].trim()).find(s => !/web\s*발신|광고|국외|국제|알림|요청|공지|안내|긴급|중요|필독|참고|회신|문의|확인|변경|재송부|공유|협조/i.test(s)) ?? ''; // [요청]·[공지] 같은 말머리는 보낸 곳이 아님
+  const lines = text.split('\n').map(l => normalizeTimeWords(l.trim()));
+  const sender = [...text.matchAll(/\[([^\]\n]{1,20})\]/g)].map(m => m[1].trim()).find(s => !/web\s*발신|광고|국외|국제|알림|요청|공지|안내|긴급|중요|필독|참고|회신|문의|확인|변경|재송부|공유|협조|예약|네이버|카카오|배송|택배|주문|결제/i.test(s)) ?? ''; // 예약·배송 앱 이름도 보낸 곳(업체)이 아님 // [요청]·[공지] 같은 말머리는 보낸 곳이 아님
   const loc = text.match(/(?:장\s*소|위\s*치|주\s*소|오시는\s*곳)\s*[:：]\s*([^\n]+)/);
   const location = loc ? clean(loc[1].replace(/\d{2,4}-\d{3,4}-\d{4}/g, ''), 80) : '';
   // 인사말 줄은 제목 후보에서 뺀다
   const firstLine = lines.filter(l => !/^(?:안녕|수고|감사|고맙|반갑)/.test(l)).map(titleFrom).find(l => /[가-힣A-Za-z]{2}/.test(l)) ?? '';
   // '계약건명 : …', '행사명: …'처럼 이름을 적은 줄이 있으면 그것을 제목으로
-  const named = clean(text.match(/(?:계약\s*건명|건\s*명|제\s*목|행사명|일정명|과정명|교육명|회의명)\s*[:：]\s*([^\n]+)/)?.[1] ?? '', 60);
+  const named = clean(text.match(/(?:계약\s*건명|건\s*명|제\s*목|행사명|일정명|과정명|교육명|회의명|업체명|매장명|상호|병원명|가게명|지점명|예약처)\s*[:：]\s*([^\n]+)/)?.[1] ?? '', 60);
   // '작업일자 : 날짜', '일시: 날짜'처럼 이름표만 있는 날짜 줄은 그 줄을 제목으로 쓰지 않는다
-  const labelOnly = /^[\s가-힣]{0,8}(?:일자|일시|날짜|기간|시간|때|일)\s*[:：]/;
+  const labelOnly = /^[\s가-힣■●▶▷◆◇○•·※*\-]{0,10}(?:일자|일시|날짜|기간|시간|때|일)\s*[:：]/;
   const out: PhotoEvent[] = [];
   const seen = new Set<string>();
   lines.forEach((line, i) => {

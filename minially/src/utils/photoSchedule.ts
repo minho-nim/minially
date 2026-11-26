@@ -1,4 +1,4 @@
-// 사진으로 일정 넣기(클라이언트): 사진을 긴 변 1600px JPEG로 줄여(위치·촬영 정보도 빠짐) 서버에 보내고, 일정 후보를 받는다.
+// 사진으로 일정 넣기(클라이언트): 사진을 긴 변 2048px JPEG로 줄여(작은 글자도 읽히게)(위치·촬영 정보도 빠짐) 서버에 보내고, 일정 후보를 받는다.
 // 저장은 하지 않는다. 사람이 고른 후보만 App이 일정으로 저장한다.
 import { syncEngine } from '../sync/syncEngine';
 import type { Schedule } from '../types';
@@ -6,20 +6,20 @@ import type { Schedule } from '../types';
 /** until: 여러 날 일정의 마지막 날(YYYY-MM-DD, 없으면 하루짜리) */
 export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean; until?: string }
 
-const MAX_SIDE = 1600;
+const MAX_SIDE = 2048;
 const MAX_DATA_URL = 4_000_000;
 
 export async function shrinkForReading(file: Blob): Promise<string> {
   let bitmap: ImageBitmap;
   try { bitmap = await createImageBitmap(file); } catch { throw new Error('이 사진 형식은 열 수 없어요(HEIC는 JPG로 바꿔 넣어 주세요).'); }
-  for (const side of [MAX_SIDE, 1280, 1024]) {
+  for (const side of [MAX_SIDE, 1600, 1280]) {
     const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
     const width = Math.max(1, Math.round(bitmap.width * scale)), height = Math.max(1, Math.round(bitmap.height * scale));
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext('2d')!;
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height); ctx.drawImage(bitmap, 0, 0, width, height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     if (dataUrl.length <= MAX_DATA_URL) { bitmap.close(); return dataUrl; }
   }
   bitmap.close();

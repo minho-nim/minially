@@ -7,7 +7,7 @@ import { AiError, callGemini } from '../../../shared/server/ai';
 import { userForCode } from '../../../shared/server/auth';
 import { ensureHubSchema } from '../../../shared/server/schema';
 import type { HubEnv } from '../../../shared/server/d1';
-import { PHOTO_LIMITS, PHOTO_MODEL, photoPrompt, readPhotoEvents, textPrompt } from '../_photoSchedule';
+import { PHOTO_LIMITS, PHOTO_MODEL, crossCheck, photoPrompt, readPhotoEvents, readTranscript, textPrompt } from '../_photoSchedule';
 
 export const onRequestPost = async ({ request, env }: Context): Promise<Response> => {
   if (!env.DB) return json({ error: '서버 설정이 아직 끝나지 않았습니다.' }, 503);
@@ -40,5 +40,6 @@ export const onRequestPost = async ({ request, env }: Context): Promise<Response
   }
   let raw: unknown = null;
   try { raw = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { return json({ error: pasted !== null ? '글을 읽지 못했어요. 다시 시도해 주세요.' : '사진을 읽지 못했어요. 다시 시도해 주세요.', code: 'bad_response' }, 502); }
-  return json({ events: readPhotoEvents(raw) });
+  // 사진은 AI가 옮겨 적은 글, 글로 넣기는 붙여넣은 글로 날짜·시간을 한 번 더 확인한다
+  return json({ events: crossCheck(readPhotoEvents(raw), pasted ?? readTranscript(raw), today) });
 };
