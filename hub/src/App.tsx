@@ -113,6 +113,8 @@ interface Overview {
   minilog_week?: { user: string; count: number }[];
   /** 이번 달 다른 곳(인스타·스레드·X)에 올렸다고 체크한 수 */
   minilog_shares?: { user: string; count: number }[];
+  /** 미니로그 글 종류별 원고 수(계정 기반, 많은 순) */
+  minilog_types?: { user: string; type: string; label: string; count: number }[];
   /** 오늘(한국 시간) 사람·모델별 Gemini 호출 수와 한도 오류 수 */
   today?: { user: string; model: string; calls: number; limited: number }[];
   revenue: {
@@ -148,7 +150,7 @@ function OverviewPanel({ month }: { month: number }) {
   const users = data.users.map(u => {
     const rows = data.usage.filter(r => r.user === u.user);
     const rev = data.revenue.users.find(r => r.user === u.user);
-    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0, week: data.minilog_week?.find(p => p.user === u.user)?.count ?? 0, shares: data.minilog_shares?.find(p => p.user === u.user)?.count ?? 0, revenue: rev?.this_month ?? 0, openCount: rev?.open_count ?? 0, openTotal: rev?.open_total ?? 0 };
+    return { ...u, calls: sum(rows, r => r.calls), tokens: sum(rows, tokens), errors: sum(rows, r => r.errors), published: data.minilog_published.find(p => p.user === u.user)?.count ?? 0, week: data.minilog_week?.find(p => p.user === u.user)?.count ?? 0, shares: data.minilog_shares?.find(p => p.user === u.user)?.count ?? 0, types: (data.minilog_types ?? []).filter(t => t.user === u.user).slice(0, 3), revenue: rev?.this_month ?? 0, openCount: rev?.open_count ?? 0, openTotal: rev?.open_total ?? 0 };
   });
   const apps = [...new Set(data.usage.map(r => r.app))].map(app => {
     const rows = data.usage.filter(r => r.app === app);
@@ -194,6 +196,9 @@ function OverviewPanel({ month }: { month: number }) {
                 <div><dt>이번 주</dt><dd title="이번 주 게시 글(권장 3~5편)">{formatNumber(u.week)}편</dd></div>
                 <div><dt>다른 곳 공유</dt><dd title="이번 달 인스타·스레드·X에 올렸다고 체크한 수">{formatNumber(u.shares)}</dd></div>
               </dl>
+              <p className="user-types small" aria-label={`${nameOf(u.user)} 자주 쓰는 글 종류`}>
+                <span className="muted">자주 쓰는 글 종류</span> {u.types.length ? u.types.map(t => <span key={t.type} className="type-chip">{t.label} {formatNumber(t.count)}</span>) : <span className="muted">아직 없음</span>}
+              </p>
             </div>
           ))}
         </div>

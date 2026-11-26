@@ -784,23 +784,32 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   // 올리기 칸: 인스타·카드뉴스·스레드·X는 '다른 곳에도 올리기'로 접어 둔다(펼친 상태는 기기에 기억)
   const [kitMore, setKitMore] = useState(() => { try { return localStorage.getItem('minilog.kitMore') === '1'; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem('minilog.kitMore', kitMore ? '1' : '0'); } catch { /* 기억 못 해도 됨 */ } }, [kitMore]);
-  // 글 구조(기본·홈피드형): 기기에 기억. 홈피드형도 사실·경험은 적은 것만 쓴다(서버 규칙)
-  const [structure, setStructure] = useState<Structure>(() => { try { const v = localStorage.getItem('minilog.structure'); return isStructure(v) ? v : 'basic'; } catch { return 'basic'; } });
-  useEffect(() => { try { localStorage.setItem('minilog.structure', structure); } catch { /* 기억 못 해도 됨 */ } }, [structure]);
+  // 글 구조(기본·홈피드형)와 자주 쓴 글 종류는 계정 기반(서버): 어느 기기에서든 같고 미니허브에서도 보인다
+  const [structure, setStructureState] = useState<Structure>('basic');
+  const [typeUse, setTypeUse] = useState<{ type: string; count: number }[]>([]);
+  useEffect(() => {
+    let alive = true;
+    api<{ structure: string; type_usage: { type: string; count: number }[] }>('/api/prefs')
+      .then(d => { if (!alive) return; setStructureState(isStructure(d.structure) ? d.structure : 'basic'); setTypeUse(d.type_usage); })
+      .catch(() => { /* 못 불러오면 기본 구조·기본 순서 */ });
+    return () => { alive = false; };
+  }, []);
+  const setStructure = (next: Structure) => {
+    setStructureState(next);
+    api('/api/prefs', { method: 'PUT', body: { structure: next } }).catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '글 구조를 저장하지 못했어요.' }));
+  };
   // 2번 칸: 문체·먼저 질문 받기는 '자세히 설정' 안에(가끔 바꾸는 것), 글 종류는 자주 쓴 3개만 먼저
   const [aiMore, setAiMore] = useState(false);
   const [allTypes, setAllTypes] = useState(false);
   const allTypeKeys: PostType[] = (Object.keys(POST_TYPES) as PostType[]).filter(t => t !== 'none');
   const frequent = (() => {
-    let used: Record<string, number> = {};
-    try { used = JSON.parse(localStorage.getItem('minilog.typeUse') ?? '{}') ?? {}; } catch { used = {}; }
+    const used = Object.fromEntries(typeUse.map(u => [u.type, u.count]));
     const base: PostType[] = ['food', 'cafe', 'sponsored'];
     return [...allTypeKeys].sort((a, b) => (used[b] ?? 0) - (used[a] ?? 0) || Number(base.includes(b)) - Number(base.includes(a)) || allTypeKeys.indexOf(a) - allTypeKeys.indexOf(b)).slice(0, 3);
   })();
   const picked = fields.post_type as PostType;
   const typesShown = allTypes ? allTypeKeys : [...frequent, ...(allTypeKeys.includes(picked) && !frequent.includes(picked) ? [picked] : [])];
   const typesHidden = allTypeKeys.length - typesShown.length;
-  const countType = (t: string) => { try { const used = JSON.parse(localStorage.getItem('minilog.typeUse') ?? '{}') ?? {}; used[t] = (used[t] ?? 0) + 1; localStorage.setItem('minilog.typeUse', JSON.stringify(used)); } catch { /* 기억 못 해도 됨 */ } };
   // 원고 편집 2단(Buffer 작성 화면처럼): 쓰는 칸 옆에 점검·미리보기·올리기. '집중'을 누르면 옆 칸을 접는다(기기에 기억)
   const [focus, setFocus] = useState(() => { try { return localStorage.getItem('minilog.focus') === '1'; } catch { return false; } });
   const toggleFocus = () => setFocus(f => { try { localStorage.setItem('minilog.focus', f ? '0' : '1'); } catch { /* 기억 못 해도 됨 */ } return !f; });
@@ -1025,7 +1034,6 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
               const prev = isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
               if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineText(next);
               if (next === 'none' && fields.experience.trim() === prev.trim()) patch.experience = '';
-              if (next !== 'none') countType(next);
               change(patch);
             }}>{POST_TYPES[t].label}</button>
           ))}

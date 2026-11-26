@@ -12,6 +12,7 @@ import { getRhythm, readDays, setRhythm } from './_plan';
 import { readReview } from './_review';
 import { readSavedIdea, SAVED } from './_savedIdeas';
 import { readTagSet, TAG_SETS } from './_tagSets';
+import { getStructure, isWritingStructure, setStructure } from '../../shared/server/writing';
 
 export const BACKUP_VERSION = 1;
 const uuid = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/.test(v);
@@ -40,6 +41,7 @@ export async function exportBackup(db: D1Database, user: UserName) {
     getRhythm(db, user),
     all('SELECT name, tags FROM minilog_tag_sets WHERE user = ? ORDER BY created_at'),
   ]);
+  const structure = await getStructure(db, user);
   return {
     app: 'mini-log', version: BACKUP_VERSION, exported_at: Date.now(),
     drafts: drafts.map(d => ({ ...d, hashtags: String(d.hashtags || '').split('\n').filter(Boolean) })),
@@ -52,6 +54,7 @@ export async function exportBackup(db: D1Database, user: UserName) {
     goal: goal?.monthly ?? null,
     // 게시 7일 뒤 돌아보기·담아 둔 글감·공개 SNS 아이디·게시 요일(비밀번호·토큰은 원래 저장하지 않는다)
     reviews, saved_ideas: savedIdeas, accounts, rhythm,
+    prefs: { structure },
     tag_sets: tagSets.map(t => ({ name: t.name, tags: String(t.tags || '').split('\n').filter(Boolean) })),
   };
 }
@@ -234,6 +237,9 @@ export async function mergeBackup(db: D1Database, user: UserName, data: Record<s
     await db.prepare('INSERT INTO minilog_tag_sets (id, user, name, tags, created_at) VALUES (?, ?, ?, ?, ?)').bind(crypto.randomUUID(), user, set.name, set.tags.join('\n'), Date.now()).run();
     setCount++; result.tag_sets.added++;
   }
+  // 글 구조: 지금 설정이 없을 때(기본)만 백업 값으로
+  const prefs = data.prefs as Record<string, unknown> | undefined;
+  if (prefs && isWritingStructure(prefs.structure) && !(await db.prepare('SELECT 1 AS ok FROM minilog_prefs WHERE user = ?').bind(user).first())) await setStructure(db, user, prefs.structure);
   const days = readDays(data.rhythm);
   if (days && !(await getRhythm(db, user)).length) await setRhythm(db, user, days);
   return result;
