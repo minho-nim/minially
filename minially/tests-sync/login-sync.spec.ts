@@ -63,3 +63,18 @@ test('PC·폰 동기화: 추가·삭제·오프라인 수정이 다른 기기에
   await syncNow(pc);
   await expect.poll(() => titles(pc)).toContain('오프라인 수정');
 });
+
+test('코드 기준은 미니허브: 허브(USER_CODE_HASHES)에만 있는 코드도 로그인·동기화되고, 같은 코드면 같은 데이터가 열린다', async ({ browser, request }) => {
+  const { CODE_HUB_ONLY } = await import('../playwright.sync.config');
+  // 서버: 허브 줄에만 있는 코드도 내 공간으로 받아 준다(틀린 코드는 그대로 401)
+  expect((await request.get('/api/sync?since=0', { headers: { authorization: `Bearer ${CODE_HUB_ONLY}` } })).status()).toBe(200);
+  expect((await request.get('/api/sync?since=0', { headers: { authorization: 'Bearer NOTHUB00-0000-0000' } })).status()).toBe(401);
+  const pc = await device(browser);
+  await login(pc, CODE_HUB_ONLY);
+  await put(pc, { categories: [category], schedules: [schedule('hub-only', '허브 코드로 쓴 일정')] });
+  await syncNow(pc);
+  const phone = await device(browser, 400);
+  await login(phone, CODE_HUB_ONLY.toLowerCase()); // 대소문자 무시: 같은 해시 → 같은 데이터 공간
+  await expect.poll(() => titles(phone), { timeout: 15000 }).toContain('허브 코드로 쓴 일정');
+  await pc.context().close(); await phone.context().close();
+});
