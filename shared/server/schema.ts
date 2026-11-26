@@ -57,6 +57,8 @@ const TABLES = [
   'CREATE TABLE IF NOT EXISTS minilog_ideas (user TEXT PRIMARY KEY, ideas TEXT NOT NULL, used_search INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL)',
   // 다른 곳에도 올리기: 사람이 '올렸어요'로 체크한 곳(instagram·threads·x)과 시각. 앱이 대신 올리지 않으므로 기록만 한다
   'CREATE TABLE IF NOT EXISTS minilog_shares (user TEXT NOT NULL, draft_id TEXT NOT NULL, channel TEXT NOT NULL, shared_at INTEGER NOT NULL, PRIMARY KEY (user, draft_id, channel))',
+  // 게시 시간표: 글을 올리는 요일(0=일~6=토, JSON 배열). 원고를 빈 게시일에 나눠 넣을 때만 쓰고 자동 게시는 하지 않는다
+  'CREATE TABLE IF NOT EXISTS minilog_rhythm (user TEXT PRIMARY KEY, days TEXT NOT NULL, updated_at INTEGER NOT NULL)',
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
 const COLUMNS: [table: string, column: string, type: string][] = [

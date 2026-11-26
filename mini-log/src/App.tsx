@@ -255,7 +255,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         }} />}
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
-        : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} />
+        : view === 'ideas' ? <IdeasView<Draft> onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />

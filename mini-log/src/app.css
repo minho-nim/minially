@@ -221,6 +221,11 @@ select.input { appearance: auto; }
 .trend-chips li { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: 0.86rem; font-weight: 700; }
 .trend-chips li.chip-best { background: var(--sig-soft); border-color: transparent; }
 .weekday-best { display: grid; gap: 6px; }
+.day-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.day-picks .btn { min-width: 44px; }
+.plan-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.plan-pick { font-weight: 400; align-items: baseline; }
+.plan-title { font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
 .watch-titles { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 올리기 보조 */
