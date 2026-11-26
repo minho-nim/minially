@@ -75,6 +75,7 @@ import { useScheduleReminders } from './hooks/useScheduleReminders';
 import { UndoToast } from './components/common/UndoToast';
 import { RegistrationNotice, type RegistrationNoticeData } from './components/common/RegistrationNotice';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { UpdateNotice } from './components/common/UpdateNotice';
 import { ConfirmDeleteDialog } from './components/modals/ConfirmDeleteDialog';
 import { CategoryLibraryModal } from './components/modals/CategoryLibraryModal';
 import { PresetLibraryModal } from './components/modals/PresetLibraryModal';
@@ -949,6 +950,7 @@ export default function App() {
       />
 
       {/* Undo Toast Notification */}
+      <UpdateNotice raised={!!undoNotice} />
       <UndoToast
         notice={undoNotice?.id===registrationUndoId || todaySchedulesOpen || categoryLibraryOpen || presetLibraryOpen || daySheetOpen || scheduleModalOpen || dateCopyModalOpen || moveModalOpen || searchModalOpen || settingsModalOpen || deleteTarget || taskDeleteTarget ? null : undoNotice}
         onUndo={handleUndo}

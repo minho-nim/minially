@@ -57,7 +57,9 @@ minially 프로젝트에도 아래 비밀값을 **minihub·mini-log와 같은 �
 | `GEMINI_KEY_C`, `GEMINI_KEY_D` | minihub와 같은 키 | minially 프로젝트 Secret |
 | `GEMINI_PHOTO_MODEL` | (선택) 기본 `gemini-2.5-flash-lite`가 안 될 때만 | minially 프로젝트 변수 |
 
-미니어리 코드가 미니허브 사용자 코드와 같아야 그 사람의 키로 읽습니다. 넣은 뒤 **Retry deployment**. 사진은 서버에 저장되지 않고, 사용량은 미니허브 AI 사용량에 '미니어리'로 잡힙니다.
+미니어리 코드가 미니허브 사용자 코드와 같아야 그 사람의 키로 읽습니다. 넣은 뒤 **Retry deployment**.
+
+**로그인 코드 기준은 미니허브(2026-11-26, 미니어리 0.1.20부터):** 미니허브의 `USER_CODE_HASHES`에 있는 코드면 미니허브·미니로그·미니어리 세 앱 모두 로그인됩니다. 미니어리는 예전 `SYNC_CODE_HASHES`(해시만)도 그대로 받으니 지우지 않아도 됩니다. 해시 규칙이 같아 같은 코드면 미니어리 데이터 공간도 그대로입니다(코드·해시를 바꿀 필요 없음). 새 사람을 붙일 때는 미니허브 줄에만 넣고, 같은 줄을 mini-log·minially 프로젝트에 복사합니다. 사진은 서버에 저장되지 않고, 사용량은 미니허브 AI 사용량에 '미니어리'로 잡힙니다.
 
 ## 5. USER_CODE_HASHES 만들기
 minihub가 배포되면 `https://minihub.pages.dev/code-hash.html`을 엽니다.

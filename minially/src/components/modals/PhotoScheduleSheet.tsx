@@ -8,8 +8,10 @@ import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { getTodayDateString } from '../../utils/dateHelpers';
 import { overlapping, PhotoReadError, readPhotoSchedule, readTextScheduleWithAi, shrinkForReading, type PhotoEvent } from '../../utils/photoSchedule';
 import { parseScheduleText, TEXT_LIMIT } from '../../utils/textSchedule';
+import { historyHint } from '../../utils/scheduleSuggest';
 
-interface Row extends PhotoEvent { key: string; picked: boolean; category: string }
+/** hint: 카테고리를 고른 이유, pastTitle: 예전에 쓴 비슷한 제목, original: 예전 제목으로 바꾸기 전 제목(되돌리기용) */
+interface Row extends PhotoEvent { key: string; picked: boolean; category: string; hint: string; pastTitle: string; original: string }
 interface Props {
   open: boolean; file?: Blob | null; text?: string | null; categories: CategoryItem[]; schedules: Schedule[];
   onClose: () => void; onAdd: (list: Schedule[]) => Promise<void>;
@@ -31,7 +33,14 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
   const close = () => { if (saving) return false; run.current += 1; onClose(); };
   useScheduleDialog(open, false, root, close, close);
 
-  const show = (events: PhotoEvent[]) => { setRows(events.map((e, i) => ({ ...e, key: `${i}-${e.date}-${e.title}`, picked: !e.uncertain, category: '' }))); setPhase('list'); };
+  // 내 예전 일정을 보고 카테고리를 정하고, 같은 제목을 두 번 이상 썼으면 그 제목으로 맞춘다(이 기기 안에서만)
+  const show = (events: PhotoEvent[]) => {
+    setRows(events.map((e, i) => {
+      const h = historyHint(e, schedules, categories);
+      return { ...e, key: `${i}-${e.date}-${e.title}`, picked: !e.uncertain, category: h.category, hint: h.reason, title: h.habit ? h.pastTitle : e.title, pastTitle: h.habit ? '' : h.pastTitle, original: h.habit ? e.title : '' };
+    }));
+    setPhase('list');
+  };
 
   async function ask(load: () => Promise<PhotoEvent[]>, what: string) {
     const id = ++run.current;
@@ -137,6 +146,9 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
                 {r.start && <label className="inline-flex items-center gap-1"><span className="text-xs text-app-muted">~</span><span className="sr-only">끝 시간</span><input type="time" className={field + ' h-9'} value={r.end ?? ''} onChange={e => set(r.key, { end: e.target.value || null })} /></label>}
                 <label className="inline-flex items-center"><span className="sr-only">카테고리</span><select className={field + ' h-9'} value={r.category} onChange={e => set(r.key, { category: e.target.value })}><option value="">미분류</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               </div>
+              {r.hint && r.category && <p className="text-xs text-app-muted">카테고리 추천: {r.hint}</p>}
+              {r.original && <p className="flex flex-wrap items-center gap-x-2 text-xs text-app-muted">예전에 쓰던 제목으로 맞췄어요<button type="button" className="min-h-8 font-semibold text-app-accent-ink underline underline-offset-2" onClick={() => set(r.key, { title: r.original, pastTitle: r.title, original: '' })}>원래대로</button></p>}
+              {r.pastTitle && <button type="button" className="min-h-8 rounded-lg bg-app-soft px-2.5 text-left text-xs text-app-ink" onClick={() => set(r.key, { title: r.pastTitle, original: r.title, pastTitle: '' })}>예전처럼 ‘{r.pastTitle}’로 쓰기</button>}
               {r.location && <p className="text-xs text-app-ink">장소: {r.location}</p>}
               {r.memo && <p className="text-xs text-app-ink">메모: {r.memo}</p>}
               {clash && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 시간에 ‘{clash.title}{clash.startTime ? ` ${clash.startTime}` : ''}’이 있어요</p>}

@@ -25,20 +25,20 @@ export function DateRangeNavigation({ start, end, onChange, label = '할 일 날
   };
   return <section aria-label={label} className="min-w-0 space-y-1.5">
     <div className="flex flex-wrap items-center gap-1">
-      <div role="group" aria-label="조회 방식" className="inline-flex rounded-lg bg-app-soft p-0.5 text-xs">
-        {(['하루', '기간'] as const).map((label, index) => <button key={label} type="button" aria-pressed={range === Boolean(index)} onClick={() => { setRange(Boolean(index)); if (!index) onChange(start, start); }} className={'min-h-11 md:min-h-8 rounded-md px-2.5 ' + (range === Boolean(index) ? 'bg-white font-semibold text-app-ink' : 'text-app-muted')}>{label}</button>)}
+      <div role="group" aria-label="조회 방식" className="inline-flex h-8 items-stretch rounded-lg bg-app-soft p-0.5 text-xs">
+        {(['하루', '기간'] as const).map((label, index) => <button key={label} type="button" aria-pressed={range === Boolean(index)} onClick={() => { setRange(Boolean(index)); if (!index) onChange(start, start); }} className={'relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[\'\'] md:after:hidden rounded-md px-2.5 ' + (range === Boolean(index) ? 'bg-white font-semibold text-app-ink' : 'text-app-muted')}>{label}</button>)}
       </div>
-      <button type="button" onClick={() => shortcut('week')} className="min-h-11 md:min-h-8 rounded-lg px-2 text-xs text-app-muted hover:bg-app-soft">이번 주</button>
-      <button type="button" onClick={() => shortcut('month')} className="min-h-11 md:min-h-8 rounded-lg px-2 text-xs text-app-muted hover:bg-app-soft">이번 달</button>
+      <button type="button" onClick={() => shortcut('week')} className="relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden h-8 rounded-lg px-2 text-xs text-app-muted hover:bg-app-soft">이번 주</button>
+      <button type="button" onClick={() => shortcut('month')} className="relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden h-8 rounded-lg px-2 text-xs text-app-muted hover:bg-app-soft">이번 달</button>
     </div>
-    <div role="group" aria-label={label + ' 탐색'} className="flex min-w-0 items-start gap-1">
-      <button type="button" aria-label={previousLabel} onClick={() => shift(-1)} className="flex min-h-11 min-w-11 md:min-h-9 md:min-w-0 shrink-0 items-center justify-center rounded-lg px-1 hover:bg-app-soft"><ChevronLeft aria-hidden="true" className="h-4 w-4"/></button>
+    <div role="group" aria-label={label + ' 탐색'} className="flex min-w-0 items-center gap-1">
+      <button type="button" aria-label={previousLabel} onClick={() => shift(-1)} className="relative after:absolute after:-inset-1.5 after:content-[''] md:after:hidden flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-app-soft"><ChevronLeft aria-hidden="true" className="h-4 w-4"/></button>
       <div className={"grid min-w-0 flex-1 gap-1.5 " + (range ? "grid-cols-2" : "grid-cols-1")}>
         <DatePicker compact={range} label={range ? '조회 시작일' : dateLabel} value={start} onChange={date => onChange(date, range && date <= end ? end : date)}/>
         {range && <DatePicker compact label="조회 종료일" value={end} onChange={date => onChange(date < start ? date : start, date)}/>}
       </div>
-      <button type="button" aria-label={nextLabel} onClick={() => shift(1)} className="flex min-h-11 min-w-11 md:min-h-9 md:min-w-0 shrink-0 items-center justify-center rounded-lg px-1 hover:bg-app-soft"><ChevronRight aria-hidden="true" className="h-4 w-4"/></button>
-      <button type="button" aria-pressed={start === today && end === today} onClick={() => { setRange(false); onChange(today, today); }} className="min-h-11 md:min-h-9 shrink-0 rounded-lg px-2 text-xs text-app-accent-ink hover:bg-app-soft">오늘</button>
+      <button type="button" aria-label={nextLabel} onClick={() => shift(1)} className="relative after:absolute after:-inset-1.5 after:content-[''] md:after:hidden flex h-8 w-8 shrink-0 items-center justify-center rounded-lg hover:bg-app-soft"><ChevronRight aria-hidden="true" className="h-4 w-4"/></button>
+      <button type="button" aria-pressed={start === today && end === today} onClick={() => { setRange(false); onChange(today, today); }} className="relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] md:after:hidden h-8 shrink-0 rounded-lg border border-app-line bg-white px-2.5 text-xs font-semibold text-app-accent-ink hover:bg-app-soft">오늘</button>
     </div>
   </section>;
 }

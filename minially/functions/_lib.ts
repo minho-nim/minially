@@ -10,7 +10,16 @@ export interface D1Database {
   prepare(sql: string): D1PreparedStatement;
   batch(statements: D1PreparedStatement[]): Promise<unknown[]>;
 }
-export interface Env { DB?: D1Database; SYNC_CODE_HASHES?: string }
+export interface Env { DB?: D1Database; SYNC_CODE_HASHES?: string; USER_CODE_HASHES?: string }
+
+/** 로그인 코드 기준은 미니허브: 허브의 USER_CODE_HASHES(C:해시,D:해시)에 있는 코드도 미니어리에 로그인된다.
+ *  예전 SYNC_CODE_HASHES(해시만)도 그대로 받는다. 해시는 같은 규칙이라 같은 코드면 데이터 공간도 그대로다. */
+export function allowedCodeHashes(env: Env) {
+  const sync = (env.SYNC_CODE_HASHES ?? '').split(/[\s,]+/);
+  const hub = (env.USER_CODE_HASHES ?? '').split(/[\s,]+/).map(part => part.split(':')[1] ?? '');
+  return [...sync, ...hub].map(h => h.trim().toLowerCase()).filter(h => /^[0-9a-f]{64}$/.test(h));
+}
+export const syncConfigured = (env: Env) => allowedCodeHashes(env).length > 0;
 export interface Context { request: Request; env: Env }
 
 export const json = (body: unknown, status = 200) =>
@@ -35,7 +44,7 @@ export async function spaceFor(request: Request, env: Env) {
   const code = bearer(request);
   if (code.length < 12) return null;
   const hash = await sha256Hex(code);
-  const allowed = (env.SYNC_CODE_HASHES ?? '').split(/[\s,]+/).map(h => h.trim().toLowerCase()).filter(Boolean);
+  const allowed = allowedCodeHashes(env);
   return allowed.includes(hash) ? hash.slice(0, 16) : null;
 }
 

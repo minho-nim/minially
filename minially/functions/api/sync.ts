@@ -3,10 +3,10 @@ import { validateNote, validateNoteFolder } from '../../src/utils/notes';
 import type { Note, NoteFolder, NotePhoto } from '../../src/types';
 import { validateNotePhoto } from '../../src/utils/notePhotos';
 // 기기 동기화 서버(Cloudflare Pages Functions + D1).
-// 코드 하나 = 데이터 공간 하나. 서버는 코드 원문을 모르고 SHA-256 해시만 비밀값(SYNC_CODE_HASHES)으로 가진다.
+// 코드 하나 = 데이터 공간 하나. 서버는 코드 원문을 모르고 SHA-256 해시만 비밀값으로 가진다(기준은 미니허브 USER_CODE_HASHES, 예전 SYNC_CODE_HASHES도 받음).
 // 항목마다 마지막으로 올린 값이 이긴다. seq는 공간별로 올라가는 번호로, 기기는 마지막으로 받은 seq 이후만 받는다.
 
-import { json, spaceFor, ensureSchema, blocked, recordFailure, tooManyResponse, type D1Database, type Context } from '../_lib';
+import { json, spaceFor, syncConfigured, ensureSchema, blocked, recordFailure, tooManyResponse, type D1Database, type Context } from '../_lib';
 
 const STORES = new Set(['schedules', 'presets', 'categories', 'recurrenceRules', 'recurrenceExceptions', 'tasks', 'appSettings', 'notes', 'noteFolders', 'notePhotos']);
 const MAX_CHANGES = 5000;
@@ -53,7 +53,7 @@ async function pull(db: D1Database, space: string, since: number) {
 }
 
 export const onRequest = async ({ request, env }: Context): Promise<Response> => {
-  if (!env.DB || !env.SYNC_CODE_HASHES) return json({ error: '서버 동기화가 아직 설정되지 않았습니다.' }, 503);
+  if (!env.DB || !syncConfigured(env)) return json({ error: '서버 동기화가 아직 설정되지 않았습니다.' }, 503);
   if (request.method !== 'GET' && request.method !== 'POST') return json({ error: '지원하지 않는 요청입니다.' }, 405);
   const db = env.DB;
   await ensureSchema(db);
