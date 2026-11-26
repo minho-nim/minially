@@ -35,6 +35,13 @@ interface Draft {
 }
 interface Photo { id: string; name: string; size: number; position: number; expires_at: number | null; note?: string }
 const STATUS_LABEL: Record<Status, string> = { draft: '작성 중', approved: '승인됨', published: '게시됨' };
+/** 주간 리듬: 이번 주(월~일, 한국 시간)에 게시한 원고 수. 몰아서 올리기보다 주 3~5편이 꾸준해요 */
+function WeekRhythm({ drafts }: { drafts: Draft[] }) {
+  const kst = new Date(Date.now() + 9 * 3600000);
+  const monday = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate() - ((kst.getUTCDay() + 6) % 7)) - 9 * 3600000;
+  const n = drafts.filter(d => d.status === 'published' && (d.published_at ?? 0) >= monday).length;
+  return <p className="muted small week-rhythm" aria-label="이번 주 게시">이번 주 게시 <b>{n}편</b> · 권장 3~5편{n > 5 ? ' (하루에 몰아 올리기보다 나눠 올려요)' : ''}</p>;
+}
 const dayLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(ms);
 
 async function uploadPhoto(draftId: string, file: File): Promise<Photo> {
@@ -209,6 +216,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             <p className="muted small" style={{ margin: 0 }}>아직 원고가 없어요. <b>새 원고</b>로 시작하세요.</p>
           </div>
         )}
+        {drafts && drafts.length > 0 && <WeekRhythm drafts={drafts} />}
         {drafts && drafts.length > 0 && (
           <nav className="list" aria-label="원고">
             {drafts.map(d => (
@@ -254,7 +262,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
-          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
+          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
@@ -631,8 +639,8 @@ type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status
 
 const isPostTypeKey = (v: string): v is PostType => v in POST_TYPES;
 
-function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack }: {
-  draft: Draft; gemini: boolean; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
+function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack, otherTitles }: {
+  draft: Draft; gemini: boolean; otherTitles: string[]; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
 }) {
   // 동시 수정 보호: 이 화면이 마지막으로 본 원고 수정 시각. 서버가 더 새것이면 덮어쓰지 않고 사본으로 남긴다.
   const baseUpdatedAt = useRef(draft.updated_at);
@@ -995,7 +1003,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
       </section>
 
       <DraftCheck draftId={draft.id} title={fields.title} body={fields.body} hashtags={fields.hashtags} photos={photos?.length ?? 0} postType={fields.post_type}
-        sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} />
+        sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} otherTitles={otherTitles} />
 
       <section className="card step" aria-labelledby="s4">
         <h2 id="s4" className="step-title"><span className="n">4</span>올리기·게시</h2>

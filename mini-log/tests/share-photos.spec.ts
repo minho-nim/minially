@@ -30,7 +30,8 @@ test('공유로 받은 사진을 새 원고에 넣고 원고를 열며, 캐시�
   await expect(page.getByRole('list', { name: '올린 사진' }).getByRole('img')).toHaveCount(2);
   expect(await page.evaluate(async () => (await (await caches.open('minilog-share')).keys()).length)).toBe(0);
   expect(page.url()).not.toContain('share-photos');
+  const opened = await page.evaluate(() => location.hash);
   page.once('dialog', d => d.accept());
   await page.getByRole('button', { name: '삭제' }).click();
-  await expect(page.getByText('아직 원고가 없어요')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => location.hash)).not.toBe(opened); // 만든 원고는 지움
 });

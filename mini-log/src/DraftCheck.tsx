@@ -99,6 +99,20 @@ export function factCheck(body: string, sources: string): string[] {
   return [...found].slice(0, 12);
 }
 
+/** 재탕 경고: 낱말(2글자 이상)이 70% 넘게 겹치는 다른 원고 제목. 같은 글을 또 쓰면 블로그 품질이 떨어진다 */
+export function similarTitle(title: string, others: string[]): string | null {
+  const words = (t: string) => new Set((t.toLowerCase().match(/[가-힣a-z0-9]{2,}/g) ?? []));
+  const mine = words(title);
+  if (mine.size < 2) return null;
+  for (const other of others) {
+    const theirs = words(other);
+    if (theirs.size < 2) continue;
+    const shared = [...mine].filter(w => theirs.has(w)).length;
+    if (shared / Math.min(mine.size, theirs.size) >= 0.7) return other;
+  }
+  return null;
+}
+
 /** 통과 비율을 도넛으로 */
 function Ring({ done, total }: { done: number; total: number }) {
   const r = 22, c = 2 * Math.PI * r, pct = total ? done / total : 0;
@@ -113,7 +127,7 @@ function Ring({ done, total }: { done: number; total: number }) {
   );
 }
 
-export function DraftCheck({ draftId, title, body, hashtags, photos, postType, sources }: { draftId: string; title: string; body: string; hashtags: string[]; photos: number; postType?: string; sources?: string }) {
+export function DraftCheck({ draftId, title, body, hashtags, photos, postType, sources, otherTitles = [] }: { draftId: string; title: string; body: string; hashtags: string[]; photos: number; postType?: string; sources?: string; otherTitles?: string[] }) {
   const [guide, setGuide] = useState<{ brand: string; guide: Guide } | null>(null);
   const [showAll, setShowAll] = useState(false);
   useEffect(() => {
@@ -125,7 +139,8 @@ export function DraftCheck({ draftId, title, body, hashtags, photos, postType, s
   }, [draftId]);
   const basic = checkDraft({ title, body, hashtags, photos }, guide?.guide ?? null);
   const quality = qualityCheck({ title, body, hashtags, photos, postType }, guide?.guide ?? null);
-  const items = [...basic, ...quality];
+  const twin = title.trim() ? similarTitle(title, otherTitles) : null;
+  const items = [...basic, ...quality, ...(title.trim() && otherTitles.length ? [{ label: '비슷한 제목의 다른 원고 없음(재탕 방지)', ok: !twin, hint: twin ? `‘${twin}’과 많이 겹쳐요. 다른 관점이나 새 정보로 바꿔 주세요` : '' }] : [])];
   const facts = sources !== undefined && body.trim() ? factCheck(body, sources) : [];
   const done = items.filter(i => i.ok).length;
   const shown = showAll ? items : items.filter(i => !i.ok);
