@@ -108,6 +108,8 @@ interface Overview {
   usage: (UsageRow & { user: string; model: string; task: string })[];
   errors: { app: string; error_code: string; count: number }[];
   minilog_published: { user: string; count: number }[];
+  /** 오늘(한국 시간) 사람·모델별 Gemini 호출 수와 한도 오류 수 */
+  today?: { user: string; model: string; calls: number; limited: number }[];
   revenue: {
     month: string;
     months: { month: string; total: number }[];
@@ -188,6 +190,28 @@ function OverviewPanel({ month }: { month: number }) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="card" aria-labelledby="today-title">
+        <h2 id="today-title" className="section-title">오늘 Gemini 사용(한국 시간 0시부터)</h2>
+        <p className="muted small" style={{ marginTop: 0 }}>무료 등급은 모델마다 하루 호출 수 한도가 있어요. 미니로그 초안과 미니어리 사진 읽기가 같은 사람의 키를 나눠 써요. 정확한 한도는 Google AI Studio에서 확인하세요.</p>
+        {(data.today ?? []).length === 0 ? <p className="muted small" style={{ margin: 0 }}>오늘은 아직 AI를 쓰지 않았어요.</p> : (
+          <div className="table-wrap">
+            <table className="usage" aria-label="오늘 사람·모델별 Gemini 사용">
+              <thead><tr><th scope="col">사람</th><th scope="col">모델</th><th scope="col">호출</th><th scope="col">한도 오류</th></tr></thead>
+              <tbody>
+                {(data.today ?? []).map(r => (
+                  <tr key={`${r.user}-${r.model}`}>
+                    <td>{nameOf(r.user)}</td>
+                    <td>{r.model}</td>
+                    <td>{formatNumber(r.calls)}</td>
+                    <td className={r.limited ? 'off' : ''}>{r.limited ? `${formatNumber(r.limited)}번 (한도에 걸림)` : '0'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="card" aria-labelledby="revenue-title">

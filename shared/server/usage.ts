@@ -43,3 +43,23 @@ export async function operationStats(db: D1Database, env: HubEnv, since: number)
     errors: errors.results,
   };
 }
+
+/** 오늘(한국 시간 0시부터)의 시작 밀리초 */
+export function kstDayStart(now = Date.now()) {
+  const kst = new Date(now + 9 * 3600000);
+  return Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate()) - 9 * 3600000;
+}
+
+export interface TodayRow { user: string; model: string; calls: number; limited: number }
+
+/**
+ * 오늘 사람·모델별 Gemini 호출 수와 한도 오류(rate_limited·quota_exceeded) 수.
+ * 무료 등급 한도는 모델마다 하루 단위로 걸려서, 미니로그 초안·미니어리 사진 읽기가 같은 키를 나눠 쓸 때 얼마나 썼는지 본다.
+ */
+export async function todayUsage(db: D1Database, since = kstDayStart()) {
+  const rows = await db.prepare(
+    "SELECT user, model, COUNT(*) AS calls, SUM(CASE WHEN error_code IN ('rate_limited', 'quota_exceeded') THEN 1 ELSE 0 END) AS limited " +
+      'FROM ai_usage WHERE created_at >= ? GROUP BY user, model ORDER BY user, calls DESC',
+  ).bind(since).all<TodayRow>();
+  return rows.results;
+}
