@@ -762,3 +762,11 @@ select.input { appearance: auto; }
 .fs-title { margin: 0; font-size: 1.05rem; }
 .fs-body { margin: 0; line-height: 1.6; }
 .fs-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* 어두운 화면: 밝은 주황(--app) 위 흰 글자·밝은 알림 위 주황 글자는 대비가 낮아 진한 글자로 */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .undo-btn { color: #9A4A06; }
+  :root:not([data-theme="light"]) .fs-dots li[aria-current="step"] button { color: #2B2233; }
+}
+:root[data-theme="dark"] .undo-btn { color: #9A4A06; }
+:root[data-theme="dark"] .fs-dots li[aria-current="step"] button { color: #2B2233; }
