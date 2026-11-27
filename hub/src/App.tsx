@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type MouseEvent } from 'react';
 import { NavIcon } from './NavIcon';
+import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { Skeleton } from './Skeleton';
 import { BarList, Columns, Donut } from './Charts';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
@@ -179,9 +180,10 @@ function OverviewPanel({ month }: { month: number }) {
   return (
     <>
       <div className="kpis">
-        <div className="card kpi"><span className="label">{month}월 전체 AI 호출</span><span className="value">{formatNumber(total.calls)}</span><span className="hint">{users.map(u => nameOf(u.user)).join('·')} 합계</span></div>
-        <div className="card kpi"><span className="label">{month}월 전체 토큰</span><span className="value">{formatNumber(total.tokens)}</span><span className="hint">모든 앱</span></div>
-        <div className="card kpi"><span className="label">{month}월 전체 오류</span><span className={`value${total.errors ? ' off' : ''}`}>{formatNumber(total.errors)}</span><span className="hint">호출 제한·키 오류 포함</span></div>
+        {/* 앞에는 글·돈(하는 일), AI 숫자는 한 칸으로(토큰·오류는 작은 글씨) */}
+        <div className="card kpi"><span className="label">{month}월 게시 글</span><span className="value">{formatNumber(sum(users, u => u.published))}개</span><span className="hint">이번 주 {formatNumber(sum(users, u => u.week))}편 · {users.map(u => nameOf(u.user)).join('·')} 합계</span></div>
+        <div className="card kpi"><span className="label">{month}월 받은 금액</span><span className="value">{won(sum(users, u => u.revenue))}</span><span className="hint">받을 금액 {won(sum(users, u => u.openTotal))}</span></div>
+        <div className="card kpi"><span className="label">{month}월 전체 AI 호출</span><span className="value">{formatNumber(total.calls)}</span><span className={`hint${total.errors ? ' off' : ''}`}>토큰 {formatNumber(total.tokens)} · 오류 {formatNumber(total.errors)}</span></div>
         <div className={`card kpi${connected === users.length ? ' sig' : ''}`}><span className="label">Gemini 연결</span><span className="value">{connected}/{users.length}</span><span className="hint">{users.filter(u => !u.gemini_connected).map(u => `${nameOf(u.user)} 연결 안 됨`).join(', ') || '모두 연결됨'}</span></div>
       </div>
 
@@ -353,13 +355,22 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
     : totals.calls > 0 ? `이번 달 AI랑 ${formatNumber(totals.calls)}번 같이 일했어요` : '이번 달은 아직 AI를 안 썼어요';
 
   // 메뉴 이동: 'AI 사용량'은 내 대시보드의 사용량 칸(통합 화면이면 잠깐 내 대시보드로 바꿔 보여 줌, 기본 보기 설정은 그대로)
-  const goNav = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
-    event.preventDefault();
+  const goNav = (event: MouseEvent<HTMLAnchorElement>, id: string) => { event.preventDefault(); goTo(id); };
+  const goTo = (id: string) => {
     if (id === 'usage') setScopeState('me');
     setActive(id);
     window.history.replaceState(null, '', `#${id}`);
     window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
+
+  // 빠른 찾기 목록: 화면 → 보는 범위 → 앱 열기
+  const commands: Command[] = [
+    ...NAV_MAIN.map(n => ({ id: `n-${n.id}`, label: n.label, group: '화면', run: () => goTo(n.id) })),
+    { id: 'n-settings', label: '설정', hint: '이름·테마·Gemini 키', group: '화면', run: () => goTo('settings') },
+    { id: 's-all', label: '두 사람 같이 보기', group: '보는 범위', run: () => { setScope('all'); goTo('overview'); } },
+    { id: 's-me', label: '나만 보기', group: '보는 범위', run: () => { setScope('me'); goTo('overview'); } },
+    ...APPS.map(app => ({ id: `a-${app.id}`, label: `${app.name} 열기`, group: '앱 열기', run: () => { window.location.assign(app.href); } })),
+  ];
 
   async function logout() {
     setBusy(true);
@@ -369,8 +380,10 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
 
   return (
     <div className="shell">
+      <CommandPalette commands={commands} />
       <aside className="side" aria-label="메뉴">
         <a className="brand" href="#overview" aria-label="미니허브 처음으로"><Signature kind="hub" word="hub" size={17} tomong={32} /></a>
+        <button type="button" className="side-search" onClick={openPalette}><span>빠른 찾기</span><kbd aria-hidden="true">Ctrl K</kbd></button>
         <nav className="nav-wrap" aria-label="미니허브 메뉴">
           {/* 미니로그 시안 A와 같은 모양: 묶음 이름은 위에 작게, 메뉴는 아이콘 + 이름, 지금 보는 칸은 띠로 */}
           <div className="nav-label">보기</div>

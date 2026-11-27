@@ -38,3 +38,20 @@ test('휴대폰: 아래 탭 4개와 톱니로 이동하고, 사람별 표는 사
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(over).toBeLessThanOrEqual(0);
 });
+
+test('빠른 찾기(Ctrl K): 글자로 화면을 찾아 Enter로 가고, 보는 범위도 바꾼다', async ({ page }) => {
+  await login(page);
+  await page.keyboard.press('Control+k');
+  const dialog = page.getByRole('dialog', { name: '빠른 찾기' });
+  await dialog.getByLabel('빠른 찾기 글자').fill('월간');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/#monthly$/);
+  await page.getByRole('button', { name: '빠른 찾기' }).click();
+  await dialog.getByLabel('빠른 찾기 글자').fill('나만');
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: '나만', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Control+k');
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await page.getByRole('button', { name: '두 사람 같이' }).click(); // 다른 시험은 '두 사람 같이'를 본다
+});

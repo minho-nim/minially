@@ -43,6 +43,7 @@
 .kpi .value { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; line-height: 1.15; }
 .kpi .value.off { color: var(--danger); }
 .kpi .hint { font-size: 0.8rem; color: var(--muted); }
+.kpi .hint.off { color: var(--danger); font-weight: 700; }
 /* 흰 글자를 얹으므로 서명 색을 조금 어둡게(작은 글자도 4.5:1 넘게: 밝은 화면 5.1, 어두운 화면 4.9) */
 .kpi.sig { --sig-ink: color-mix(in srgb, var(--sig) 82%, #000); background: var(--sig-ink); border-color: var(--sig-ink); }
 .kpi.sig .label, .kpi.sig .hint, .kpi.sig .value { color: #fff; }
@@ -260,3 +261,20 @@ table.usage td.off { color: var(--danger); font-weight: 700; }
   .people td[data-col="types"] { grid-column: 1 / -1; font-weight: 400; }
   .hello .scope { margin-left: 0; }
 }
+
+/* 빠른 찾기(Ctrl K) — 미니로그와 같은 모양 */
+.side-search { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); font: inherit; font-size: 0.875rem; cursor: pointer; }
+.side-search:hover { color: var(--text); background: var(--surface-2); }
+.side-search kbd, .palette kbd { font: inherit; font-size: 0.75rem; padding: 1px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+.palette-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; justify-items: center; align-items: start; padding: 12vh 16px 16px; background: rgba(43, 34, 51, 0.34); }
+.palette { width: min(560px, 100%); max-height: 70vh; display: flex; flex-direction: column; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 48px rgba(43, 34, 51, 0.28); overflow: hidden; }
+.palette-input { border: 0; border-bottom: 1px solid var(--line); padding: 16px 18px; font: inherit; font-size: 1rem; background: transparent; color: var(--text); outline: none; }
+.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.palette-group { padding: 8px 10px 4px; font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 9px; cursor: pointer; }
+.palette-item[aria-selected="true"] { background: var(--app-soft); box-shadow: inset 3px 0 0 var(--app); }
+.palette-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.palette-empty { padding: 12px 10px; }
+.palette-foot { margin: 0; padding: 8px 14px; border-top: 1px solid var(--line); }
+@media (max-width: 839px) { .side-search { display: none; } .palette-backdrop { padding-top: 8vh; } }
+

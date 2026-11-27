@@ -17,7 +17,7 @@ export interface ShortcutActions {
 
 export const SHORTCUTS: [string, string][] = [
   ['N', '새 일정 / 메모에서는 새 메모'],
-  ['Ctrl + F  또는  /', '일정 검색 / 메모에서는 메모 검색'],
+  ['Ctrl + F  ·  Ctrl + K  ·  /', '일정 검색 / 메모에서는 메모 검색(Ctrl + K는 미니로그·미니허브의 빠른 찾기와 같은 키)'],
   ['← / →', '이전 / 다음 달(주)'],
   ['T', '오늘로 이동'],
   ['M / W', '월간 / 주간 보기'],
@@ -41,9 +41,9 @@ export function useKeyboardShortcuts(actions: ShortcutActions) {
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.isComposing) return;
       const ctrl = e.ctrlKey || e.metaKey;
-      if (actions.isNotes && ctrl && !e.altKey && e.key.toLowerCase() === 'f' && !modalOpen()) { e.preventDefault(); click('notes-search'); return; }
+      if (actions.isNotes && ctrl && !e.altKey && ['f', 'k'].includes(e.key.toLowerCase()) && !modalOpen()) { e.preventDefault(); click('notes-search'); return; }
       if (typing(e.target)) return;
-      if (ctrl && !e.altKey && (e.key === 'f' || e.key === 'F')) { if (modalOpen()) return; e.preventDefault(); actions.search(); return; }
+      if (ctrl && !e.altKey && ['f', 'k'].includes(e.key.toLowerCase())) { if (modalOpen()) return; e.preventDefault(); actions.search(); return; }
       if (ctrl && e.key === ',') { e.preventDefault(); actions.settings(); return; }
       if (ctrl || e.altKey || modalOpen()) return;
       const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
