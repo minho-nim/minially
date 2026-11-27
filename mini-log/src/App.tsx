@@ -796,14 +796,17 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
   // 글 구조(기본·홈피드형)와 자주 쓴 글 종류는 계정 기반(서버): 어느 기기에서든 같고 미니허브에서도 보인다
   const [structure, setStructureState] = useState<Structure>('basic');
   const [typeUse, setTypeUse] = useState<{ type: string; count: number }[]>([]);
+  const structurePicked = useRef(false);
   useEffect(() => {
     let alive = true;
     api<{ structure: string; type_usage: { type: string; count: number }[] }>('/api/prefs')
-      .then(d => { if (!alive) return; setStructureState(isStructure(d.structure) ? d.structure : 'basic'); setTypeUse(d.type_usage); })
+      // 늦게 온 응답이 사람이 방금 고른 구조를 덮어쓰지 않게(느린 망에서 고른 값이 '기본'으로 돌아가던 문제)
+      .then(d => { if (!alive) return; if (!structurePicked.current) setStructureState(isStructure(d.structure) ? d.structure : 'basic'); setTypeUse(d.type_usage); })
       .catch(() => { /* 못 불러오면 기본 구조·기본 순서 */ });
     return () => { alive = false; };
   }, []);
   const setStructure = (next: Structure) => {
+    structurePicked.current = true;
     setStructureState(next);
     api('/api/prefs', { method: 'PUT', body: { structure: next } }).catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '글 구조를 저장하지 못했어요.' }));
   };
