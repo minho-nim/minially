@@ -21,6 +21,7 @@ import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
 import { DraftQuestions } from './DraftQuestions';
+import { OutlinePlanner, TitleIdeas, VersionHistory, type OutlineSection } from './Writing';
 import { SharedPhotos } from './SharedPhotos';
 import { SocialPosts } from './SocialPosts';
 import { ReviewCard } from './Review';
@@ -539,10 +540,11 @@ function StylesView({ onBack }: { onBack: () => void }) {
   const [newSource, setNewSource] = useState('');
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const [refineReady, setRefineReady] = useState(0);
+  const [habits, setHabits] = useState<Habits | null>(null);
 
   useEffect(() => {
-    api<{ styles: Style[]; refine_ready?: number }>('/api/styles')
-      .then(data => { setStyles(data.styles); setSelectedId(data.styles[0]?.id ?? null); setRefineReady(data.refine_ready ?? 0); })
+    api<{ styles: Style[]; refine_ready?: number; habits?: Habits }>('/api/styles')
+      .then(data => { setStyles(data.styles); setSelectedId(data.styles[0]?.id ?? null); setRefineReady(data.refine_ready ?? 0); setHabits(data.habits ?? null); })
       .catch(error => setMessage({ kind: 'error', text: error instanceof Error ? error.message : '불러오지 못했어요.' }));
   }, []);
 
@@ -592,7 +594,7 @@ function StylesView({ onBack }: { onBack: () => void }) {
           <div className="ai-row"><button className="btn primary" type="submit">추가</button><button className="btn ghost" type="button" onClick={() => setAdding(false)}>취소</button></div>
         </form>
       )}
-      {selected && <StyleEditor key={selected.id} style={selected} refineReady={refineReady} onChange={replace} onDeleted={remove} />}
+      {selected && <StyleEditor key={selected.id} style={selected} refineReady={refineReady} habits={habits} onChange={replace} onDeleted={remove} />}
     </article>
   );
 }
@@ -646,7 +648,8 @@ function RefineStyle({ ready, onApplied }: { ready: number; onApplied: (s: Style
   );
 }
 
-function StyleEditor({ style, refineReady, onChange, onDeleted }: { style: Style; refineReady: number; onChange: (s: Style) => void; onDeleted: (id: string) => void }) {
+interface Habits { removed: string[]; endings: string[]; pairs: number }
+function StyleEditor({ style, refineReady, habits, onChange, onDeleted }: { style: Style; refineReady: number; habits: Habits | null; onChange: (s: Style) => void; onDeleted: (id: string) => void }) {
   const [samples, setSamples] = useState<string[]>(style.samples.length ? style.samples : ['']);
   const [name, setName] = useState(style.name);
   const [source, setSource] = useState(style.source);
@@ -711,6 +714,16 @@ function StyleEditor({ style, refineReady, onChange, onDeleted }: { style: Style
           <div className="profile">
             <Tomong kind="minilog" size={56} />
             <p className="muted small" style={{ margin: 0 }}>아직 정리하지 않았어요. 아래에 글을 붙여 넣고 <b>문체 분석하기</b>를 눌러 주세요.</p>
+          </div>
+        )}
+        {mine && habits && (
+          <div className="habits" aria-label="고친 원고에서 배운 버릇">
+            <b className="small">고친 원고에서 저절로 배운 버릇</b>
+            {habits.removed.length || habits.endings.length ? <>
+              {habits.removed.length > 0 && <p className="chips" aria-label="자주 지운 표현"><span className="muted small">자주 지운 표현</span>{habits.removed.map(x => <span key={x} className="chip warn">{x}</span>)}</p>}
+              {habits.endings.length > 0 && <p className="chips" aria-label="즐겨 쓰는 끝맺음"><span className="muted small">즐겨 쓰는 끝맺음</span>{habits.endings.map(x => <span key={x} className="chip">…{x}</span>)}</p>}
+              <p className="muted small" style={{ margin: 0 }}>누르지 않아도 다음 AI 초안부터 반영돼요(승인·게시한 원고 {habits.pairs}개 기준).</p>
+            </> : <p className="muted small" style={{ margin: 0 }}>AI 초안을 고쳐서 승인·게시한 원고가 쌓이면, 자주 지운 표현과 즐겨 쓰는 끝맺음을 저절로 배워 다음 초안에 반영해요(지금 {habits.pairs}개).</p>}
           </div>
         )}
         {mine && profile && <RefineStyle ready={refineReady} onApplied={saved => { onChange(saved); setMessage({ kind: 'info', text: '내 문체를 고친 원고에 맞춰 다듬었어요. 다음 AI 초안부터 반영돼요.' }); }} />}
@@ -968,7 +981,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
   }, [flush]);
 
   /** experienceOverride: '먼저 질문 받기'에서 답을 붙인 경험 글(경험 칸도 그 글로 바뀜) */
-  async function generate(experienceOverride?: string) {
+  async function generate(experienceOverride?: string, outline?: OutlineSection[]) {
     const experience = typeof experienceOverride === 'string' ? experienceOverride : fields.experience;
     if (experience.trim().length < 10) { setMessage({ kind: 'error', text: '실제 방문·사용 경험을 10자 이상 적어 주세요.' }); return; }
     if (fields.body.trim() && !window.confirm('지금 본문을 AI 초안으로 바꿀까요? 바꾼 뒤 이 화면에서 \'AI 초안 되돌리기\'로 지금 내용을 다시 불러올 수 있어요.')) return;
@@ -976,12 +989,12 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
     const before = { title: fields.title, body: fields.body, hashtags: fields.hashtags };
     setAiBusy(true); setMessage(null);
     try {
-      const { draft: made } = await api<{ draft: Draft }>(`/api/drafts/${draft.id}/generate`, { body: { experience, post_type: fields.post_type, structure } });
+      const { draft: made, guide } = await api<{ draft: Draft; guide?: string | null }>(`/api/drafts/${draft.id}/generate`, { body: { experience, post_type: fields.post_type, structure, ...(outline ? { outline } : {}) } });
       setBeforeAi(before.title.trim() || before.body.trim() || before.hashtags.length ? { ...before, aiBody: made.body } : null);
       setFields({ title: made.title, body: made.body, experience: made.experience, hashtags: made.hashtags, status: made.status, style_id: made.style_id, post_type: made.post_type ?? 'none', planned_on: made.planned_on });
       setTagText(made.hashtags.map(t => `#${t}`).join(' '));
       onSaved(made);
-      setMessage({ kind: 'info', text: `AI 초안을 넣었어요${photos?.length ? `(사진 ${Math.min(photos.length, 8)}장 분석)` : ''}. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.` });
+      setMessage({ kind: 'info', text: `AI 초안을 넣었어요${photos?.length ? `(사진 ${Math.min(photos.length, 8)}장 분석)` : ''}${outline ? ' · 고친 개요대로' : ''}${guide ? ` · ${guide} 협찬 가이드(필수 키워드·해시태그·광고 표시) 반영` : ''}. [작성자 확인 필요] 표시가 있으면 꼭 고쳐 주세요.` });
     } catch (error) {
       setMessage({ kind: 'error', text: error instanceof Error ? error.message : 'AI 초안을 만들지 못했어요.' });
     } finally { setAiBusy(false); }
@@ -1143,12 +1156,14 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
         {emptyOutline(fields.experience).length > 0 && (
           <p className="muted small" data-empty-outline style={{ margin: 0 }}>아직 비어 있는 항목: {emptyOutline(fields.experience).join(' · ')} — 비워 두면 AI가 [작성자 확인 필요]로 남겨요.</p>
         )}
-        {photos && <PhotoNotes photos={photos} onSaved={(id, note) => setPhotos(list => list?.map(p => (p.id === id ? { ...p, note } : p)) ?? null)} onError={text => setMessage({ kind: 'error', text })} />}
+        {photos && <PhotoNotes photos={photos} draftId={draft.id} canAi={gemini} onSaved={(id, note) => setPhotos(list => list?.map(p => (p.id === id ? { ...p, note } : p)) ?? null)} onError={text => setMessage({ kind: 'error', text })} />}
         <div className="ai-row">
           <button className={`btn${stage === 'write' ? ' primary' : ''}`} onClick={() => { void generate(); }} disabled={aiBusy || !gemini}>
             {aiBusy ? 'AI가 쓰는 중…' : 'AI로 초안 만들기'}
           </button>
           {beforeAi && !aiBusy && <button type="button" className="btn ghost" onClick={undoAi}>AI 초안 되돌리기</button>}
+          {gemini && !aiBusy && <OutlinePlanner draftId={draft.id} experience={fields.experience} postType={fields.post_type} structure={structure} disabled={aiBusy}
+            onWrite={sections => { void generate(undefined, sections); }} onError={text => setMessage({ kind: 'error', text })} />}
           {aiBusy && <span className="ai-busy" role="status"><Tomong kind="minilog" size={36} bounce /><span className="hand">토몽이가 열심히 쓰고 있어요</span></span>}
           <button type="button" className="btn ghost ai-more" aria-expanded={aiMore} onClick={() => setAiMore(v => !v)}>자세히 설정 {aiMore ? '▴' : '▾'}</button>
         </div>
@@ -1182,10 +1197,12 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
         <div className="field">
           <label htmlFor="title">제목</label>
           <input id="title" className="input title-input" value={fields.title} maxLength={200} onChange={e => change({ title: e.target.value })} />
+          {gemini && <TitleIdeas draftId={draft.id} body={fields.body} title={fields.title} disabled={aiBusy} onPick={title => change({ title })} onError={text => setMessage({ kind: 'error', text })} />}
         </div>
         <div className="field">
           <label htmlFor="body">본문</label>
-          <BodyEditor value={fields.body} onChange={body => change({ body })} sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} />
+          <BodyEditor value={fields.body} onChange={body => change({ body })} sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')}
+            draftId={draft.id} canAi={gemini} onError={text => setMessage({ kind: 'error', text })} />
         </div>
         <div className="field">
           <label htmlFor="tags">해시태그</label>
@@ -1196,6 +1213,11 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
           <TagSets tags={fields.hashtags} onApply={next => { setTagText(next.map(t => `#${t}`).join(' ')); change({ hashtags: next }); }} />
         </div>
         <Lessons draftId={draft.id} />
+        <VersionHistory draftId={draft.id} onError={text => setMessage({ kind: 'error', text })} onRestore={v => {
+          const prev = { title: fields.title, body: fields.body };
+          change({ title: v.title, body: v.body });
+          showUndo('예전 판으로 되돌렸어요', async () => { change(prev); });
+        }} />
       </section>
 
       </div>

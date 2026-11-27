@@ -173,3 +173,12 @@ export async function revenueSummary(db: D1Database, user: UserName, today: stri
     upcoming,
   };
 }
+
+/** 원고에 연결된 협찬 가운데 가이드가 있는 것(가장 최근 것 하나). 초안에 가이드를 반영할 때 쓴다 */
+export async function guideForDraft(db: D1Database, user: UserName, draftId: string): Promise<{ brand: string; guide: Guide } | null> {
+  const row = await db.prepare('SELECT brand, guide FROM minilog_campaigns WHERE user = ? AND draft_id = ? AND guide IS NOT NULL ORDER BY updated_at DESC LIMIT 1').bind(user, draftId).first<{ brand: string; guide: string }>();
+  if (!row) return null;
+  let guide: Guide | null = null;
+  try { guide = cleanGuide(JSON.parse(row.guide)); } catch { guide = null; }
+  return guide ? { brand: row.brand, guide } : null;
+}
