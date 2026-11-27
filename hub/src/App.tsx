@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Skeleton } from './Skeleton';
 import { BarList, Columns, Donut } from './Charts';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { api, ApiError, APP_LABELS, APP_LINKS, formatNumber, type UsageRow } from '../../shared/client/api';
@@ -35,7 +36,7 @@ export default function App() {
 
   useEffect(() => { void load(); }, [load]);
 
-  if (state.kind === 'loading') return <main className="page"><p className="muted" role="status">불러오는 중…</p></main>;
+  if (state.kind === 'loading') return <main className="page"><Skeleton rows={2} /></main>;
   if (state.kind === 'login') return <Login onDone={load} />;
   if (state.kind === 'error') {
     return (

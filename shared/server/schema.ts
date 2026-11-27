@@ -73,6 +73,8 @@ const TABLES = [
   "CREATE TABLE IF NOT EXISTS minilog_tag_sets (id TEXT PRIMARY KEY, user TEXT NOT NULL, name TEXT NOT NULL, tags TEXT NOT NULL, created_at INTEGER NOT NULL)",
   // 글쓰기 설정(계정 기반): 원고 글 구조(기본·홈피드형). 자주 쓴 글 종류는 따로 저장하지 않고 원고에서 센다
   "CREATE TABLE IF NOT EXISTS minilog_prefs (user TEXT PRIMARY KEY, structure TEXT NOT NULL DEFAULT 'basic', updated_at INTEGER NOT NULL)",
+  // 휴지통: 지운 원고·사진을 10분 동안 되돌릴 수 있게 행 내용을 JSON으로 둔다(사진 파일은 10분 뒤 지움)
+  "CREATE TABLE IF NOT EXISTS minilog_trash (user TEXT NOT NULL, id TEXT NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL, deleted_at INTEGER NOT NULL, PRIMARY KEY (user, id))",
   // 게시 7일 뒤 돌아보기: 사람이 고른 평가(good·ok·low)와 메모(300자), 그때 조회수
   "CREATE TABLE IF NOT EXISTS minilog_reviews (user TEXT NOT NULL, draft_id TEXT NOT NULL, verdict TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', views INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, draft_id))",
 ];

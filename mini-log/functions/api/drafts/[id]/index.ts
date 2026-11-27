@@ -1,7 +1,7 @@
 import { json, readJson, type HubContext } from '../../../../../shared/server/d1';
 import { requireSession } from '../../../../../shared/server/auth';
-import { deleteDraft, getDraft, readPatch, saveConflictCopy, updateDraft } from '../../../_drafts';
-import { deleteDraftPhotos } from '../../../_photos';
+import { getDraft, readPatch, saveConflictCopy, updateDraft } from '../../../_drafts';
+import { purgeTrash, trashDraft } from '../../../_trash';
 
 const idOf = (ctx: HubContext) => {
   const id = ctx.params?.id;
@@ -49,7 +49,8 @@ export const onRequestDelete = async (ctx: HubContext) => {
   if (auth instanceof Response) return auth;
   const id = idOf(ctx);
   if (!id) return notFound();
-  await deleteDraftPhotos(auth.db, ctx.env.MINILOG_PHOTOS, auth.session.user, id);
-  await deleteDraft(auth.db, auth.session.user, id);
-  return json({ ok: true });
+  // 바로 지우지 않고 10분 휴지통으로(그동안 '되돌리기' 가능, 지나면 사진 파일까지 지움)
+  await trashDraft(auth.db, auth.session.user, id);
+  await purgeTrash(auth.db, ctx.env.MINILOG_PHOTOS, auth.session.user);
+  return json({ ok: true, undo_ms: 10 * 60 * 1000 });
 };

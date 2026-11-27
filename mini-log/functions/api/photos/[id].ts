@@ -1,6 +1,7 @@
 import { json, readJson, type HubContext } from '../../../../shared/server/d1';
 import { requireSession } from '../../../../shared/server/auth';
-import { cleanNote, deletePhotos, getPhoto, setPhotoNote } from '../../_photos';
+import { cleanNote, getPhoto, setPhotoNote } from '../../_photos';
+import { trashPhoto } from '../../_trash';
 
 // 사진 파일 보기(본인 것만) · 메모 저장 · 지우기
 const idOf = (ctx: HubContext) => (typeof ctx.params?.id === 'string' && /^[0-9a-f-]{36}$/.test(ctx.params.id) ? ctx.params.id : null);
@@ -43,6 +44,6 @@ export const onRequestDelete = async (ctx: HubContext) => {
   const id = idOf(ctx);
   const photo = id ? await getPhoto(auth.db, auth.session.user, id) : null;
   if (!photo) return notFound();
-  await deletePhotos(auth.db, ctx.env.MINILOG_PHOTOS, [photo], auth.session.user);
+  await trashPhoto(auth.db, auth.session.user, photo.id); // 10분 휴지통(되돌리기 가능)
   return json({ ok: true });
 };

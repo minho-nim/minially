@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Skeleton } from './Skeleton';
 import { api } from '../../shared/client/api';
+import { EmptyState } from './EmptyState';
 
 // 게시 7일 뒤 돌아보기: 올린 지 7일 지난 글을 하나씩 보고 잘 됨·보통·아쉬움과 메모를 남긴다(AI 안 씀).
 // 다음 글을 쓸 때 참고하도록 최근 평가 5개를 아래에 모아 둔다.
@@ -46,7 +48,7 @@ function DueItem({ item, onSaved }: { item: Due; onSaved: (s: State) => void }) 
       <textarea id={`${id}-n`} className="textarea" rows={2} maxLength={300} value={note} onChange={e => setNote(e.target.value)} placeholder="잘 된 점, 다음에 바꿀 점(예: 제목에 지역 이름 넣기)" />
       <div className="row-between">
         <span className="muted small">{note.length}/300자</span>
-        <button type="button" className="btn primary small" disabled={!verdict || busy} onClick={() => { void save(); }}>{busy ? '저장 중…' : '돌아보기 저장'}</button>
+        <button type="button" className="btn primary small" aria-busy={busy} disabled={!verdict || busy} onClick={() => { void save(); }}>{busy ? '저장 중…' : '돌아보기 저장'}</button>
       </div>
       {error && <p className="error small" role="alert">{error}</p>}
     </li>
@@ -61,9 +63,10 @@ export function ReviewCard() {
     <section className="card step review-card" aria-labelledby="d-review">
       <h2 id="d-review" className="step-title">게시 7일 뒤 돌아보기<span className="step-sub">{state ? `돌아볼 글 ${state.due.length}개` : ''}</span></h2>
       {error && <p className="error small" role="alert">{error}</p>}
-      {!state && !error && <p className="muted small" role="status">불러오는 중…</p>}
+      {!state && !error && <Skeleton rows={2} />}
       {state && (state.due.length === 0
-        ? <p className="muted small" style={{ margin: 0 }}>게시하고 7일이 지난 글이 생기면 여기서 하나씩 돌아봐요.</p>
+        ? <EmptyState title="아직 돌아볼 글이 없어요" desc="게시하고 7일이 지난 글이 생기면 여기서 하나씩 잘 된 점·바꿀 점을 남겨요."
+            example={<div className="review-item"><b>연남동 브런치 카페 솔직 후기</b><span className="small">조회 1,240 · <b className="up">내 평소의 1.6배</b></span><span className="small muted">메모: 제목에 지역 이름을 앞에 넣으니 잘 됐다</span></div>} />
         : <ul className="review-list">{state.due.map(item => <DueItem key={item.draft_id} item={item} onSaved={setState} />)}</ul>)}
       {state && state.recent.length > 0 && (
         <>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Skeleton } from './Skeleton';
 import { api, formatNumber } from '../../shared/client/api';
 import { diffKind, diffText, KIND_LABEL, monthLabel, shiftMonth, shortMonth, thisMonthKst, type History, type MonthlyReport, type MonthSummary } from '../../shared/client/report';
 import { Columns } from './Charts';
@@ -64,7 +65,7 @@ export function ReportView({ user, onBack }: { user: string; onBack: () => void 
       </section>
 
       {error && <p className="error" role="alert">{error}</p>}
-      {!report && !error && <p className="muted small" role="status">불러오는 중…</p>}
+      {!report && !error && <Skeleton rows={3} />}
       {report && s && p && (
         <>
           <header className="card report-head">

@@ -100,6 +100,19 @@ a, button, input, select, textarea, label, [role=tab] { touch-action: manipulati
 .btn.primary { background: var(--ink); color: var(--ink-text); border-color: transparent; }
 .btn.primary:hover { filter: brightness(1.05); }
 .btn.ghost { border-color: transparent; background: transparent; }
+/* 버튼 상태 통일(M3 상태 층): 올림·누름·키보드 초점·사용 못 함·진행 중·켜짐 */
+.btn { transition: background-color 0.12s, transform 0.08s, filter 0.12s; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--focus, var(--ink)); outline-offset: 2px; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; filter: grayscale(0.3); }
+.btn:disabled:hover { background: var(--surface); }
+.btn.primary:disabled:hover { background: var(--ink); filter: grayscale(0.3); }
+.btn.ghost:disabled:hover { background: transparent; }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn[aria-busy="true"]::before { content: ''; width: 0.9em; height: 0.9em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: btn-spin 0.7s linear infinite; }
+.btn[aria-pressed="true"] { background: var(--app-soft, var(--surface-2)); border-color: var(--ink); }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:active:not(:disabled) { transform: none; } .btn[aria-busy="true"]::before { animation: none; } }
 .field { display: grid; gap: 6px; }
 .field label { font-weight: 600; font-size: 0.9rem; }
 .input, .textarea {
@@ -164,3 +177,12 @@ table.usage th:first-child, table.usage td:first-child { text-align: left; }
 @media (max-width: 520px) { .barlist li { grid-template-columns: minmax(0, 1fr) auto; } .bl-track { grid-column: 1 / -1; grid-row: 2; } }
 /* 표는 접어 두고 필요할 때만 */
 .more-table > summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+
+/* 불러오는 동안 화면 윤곽(Skeleton) */
+.skel { display: grid; gap: 8px; }
+.skel-row { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.skel.compact .skel-row { padding: 8px 10px; }
+.skel-bar { display: block; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--surface-2) 0%, color-mix(in srgb, var(--surface-2) 45%, var(--surface)) 50%, var(--surface-2) 100%); background-size: 200% 100%; animation: skel 1.4s ease-in-out infinite; }
+.skel-bar.thin { height: 8px; }
+@keyframes skel { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel-bar { animation: none; } }
