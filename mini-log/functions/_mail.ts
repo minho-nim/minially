@@ -3,8 +3,8 @@
 import type { D1Database, HubEnv } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 import { AiError, LIGHT_MODEL, callGemini } from '../../shared/server/ai';
-import { createCampaign, listCampaigns, updateCampaign } from './_campaigns';
-import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readReplies, replyPrompt, sameBrand, str, type Judgement, type Mail, type MailKind } from './_mailRules';
+import { createCampaign, listCampaigns, suggestStatus, updateCampaign } from './_campaigns';
+import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readOptions, readReplies, replyPrompt, sameBrand, str, type Judgement, type Mail, type MailKind, type ReplyOption } from './_mailRules';
 export type { Mail } from './_mailRules';
 import { buildMail, parseMail } from './_mime';
 import { docFromText, docToHtml, docToText, readMailDoc, type MailDoc } from './_mailDoc';
@@ -13,22 +13,23 @@ import { MailError, PROVIDER_LABEL, fetchNew, mailAccountOf, mailAccounts, sendM
 async function linkCampaign(db: D1Database, user: UserName, j: Judgement, subject: string): Promise<string | null> {
   if (!['offer', 'notice', 'pitch_reply'].includes(j.kind) || !j.brand) return null;
   const open = (await listCampaigns(db, user)).campaigns.filter(c => c.status !== 'cancelled' && c.status !== 'paid' && sameBrand(c.brand, j.brand));
+  // 단계는 AI가 직접 바꾸지 않고 '옮길까요?' 제안만 남긴다(사람이 협찬 화면에서 '옮기기'). 답장 기록·마감일 같은 사실은 바로 적는다
   if (j.kind === 'pitch_reply') {
     const c = open.find(x => x.pitch) ?? open[0];
     if (!c) return null;
     if (c.pitch && j.answer !== 'unknown') await updateCampaign(db, user, c.id, { pitch: { ...c.pitch, reply: j.answer } });
+    if (c.status === 'proposed' && j.answer !== 'unknown') await suggestStatus(db, user, c.id, j.answer === 'yes' ? { status: 'in_progress', reason: `좋다고 답장이 왔어요: ${subject}` } : { status: 'cancelled', reason: `거절 답장이 왔어요: ${subject}` });
     return c.id;
   }
   const existing = open[0];
   if (existing) {
-    const patch: Parameters<typeof updateCampaign>[3] = {};
-    if (!existing.deadline && j.deadline) patch.deadline = j.deadline;
-    if (j.kind === 'notice' && ['interested', 'applied', 'proposed'].includes(existing.status)) patch.status = 'in_progress';
-    if (Object.keys(patch).length) await updateCampaign(db, user, existing.id, patch);
+    if (!existing.deadline && j.deadline) await updateCampaign(db, user, existing.id, { deadline: j.deadline });
+    if (j.kind === 'notice' && ['interested', 'applied', 'proposed'].includes(existing.status)) await suggestStatus(db, user, existing.id, { status: 'in_progress', reason: `선정·진행 안내 메일이 왔어요: ${subject}` });
     return existing.id;
   }
   const made = await createCampaign(db, user, {
-    kind: 'sponsor', brand: j.brand, title: j.title, amount: j.amount, deadline: j.deadline, status: j.kind === 'notice' ? 'in_progress' : 'proposed',
+    kind: 'sponsor', brand: j.brand, title: j.title, amount: j.amount, deadline: j.deadline, status: j.kind === 'notice' ? 'applied' : 'proposed',
+    suggest: j.kind === 'notice' ? { status: 'in_progress', reason: `선정·진행 안내 메일이 왔어요: ${subject}` } : null,
     memo: `메일에서 담음: ${subject}`.slice(0, 1000),
     guide: j.visit_on ? { keywords: [], hashtags: [], min_photos: null, min_chars: null, links: [], visit_on: j.visit_on, notes: '' } : null,
   });
@@ -48,7 +49,7 @@ export async function draftReplies(db: D1Database, env: HubEnv, user: UserName, 
   const replies = readReplies(text, mails.map(m => m.id));
   for (const r of replies) {
     const subject = r.subject || `Re: ${mails.find(m => m.id === r.id)?.subject ?? ''}`;
-    await db.prepare("UPDATE minilog_mails SET reply_subject = ?, reply_body = ?, reply_doc = ?, status = CASE WHEN status = 'new' THEN 'drafted' ELSE status END WHERE user = ? AND id = ? AND status != 'sent'").bind(subject, r.body, JSON.stringify(docFromText(r.body)), user, r.id).run();
+    await db.prepare("UPDATE minilog_mails SET reply_subject = ?, reply_body = ?, reply_doc = ?, reply_options = ?, status = CASE WHEN status = 'new' THEN 'drafted' ELSE status END WHERE user = ? AND id = ? AND status != 'sent'").bind(subject, r.body, JSON.stringify(docFromText(r.body)), JSON.stringify(r.options), user, r.id).run();
   }
   return replies.length;
 }
@@ -134,15 +135,15 @@ export async function listMails(db: D1Database, user: UserName) {
   return { mails, synced_at: state?.synced_at ?? null, error: state?.error ?? '', waiting: mails.filter(m => m.needs_reply && m.kind !== 'other' && (m.status === 'new' || m.status === 'drafted')).length };
 }
 
-export type FullMail = Mail & { message_id: string; refs: string; body_html: string; reply_doc: MailDoc | null };
+export type FullMail = Mail & { message_id: string; refs: string; body_html: string; reply_doc: MailDoc | null; reply_options: ReplyOption[] };
 /** 메일 한 통(받은 HTML 원문·서식 답장 포함) */
 export async function getMail(db: D1Database, user: UserName, id: string): Promise<FullMail | null> {
-  const row = await db.prepare(`SELECT ${COLUMNS}, message_id, refs, COALESCE(body_html, '') AS body_html, COALESCE(reply_doc, '') AS reply_doc FROM minilog_mails WHERE user = ? AND id = ?`).bind(user, id)
-    .first<Mail & { message_id: string; refs: string; body_html: string; reply_doc: string }>();
+  const row = await db.prepare(`SELECT ${COLUMNS}, message_id, refs, COALESCE(body_html, '') AS body_html, COALESCE(reply_doc, '') AS reply_doc, COALESCE(reply_options, '') AS reply_options FROM minilog_mails WHERE user = ? AND id = ?`).bind(user, id)
+    .first<Mail & { message_id: string; refs: string; body_html: string; reply_doc: string; reply_options: string }>();
   if (!row) return null;
   let doc: MailDoc | null = null;
   try { doc = row.reply_doc ? readMailDoc(JSON.parse(row.reply_doc)) : null; } catch { doc = null; }
-  return { ...row, reply_doc: doc };
+  return { ...row, reply_doc: doc, reply_options: readOptions(row.reply_options) };
 }
 
 /** 서식 답장 저장: 문서를 검사하고 글만 버전도 함께 둔다 */

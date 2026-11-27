@@ -13,7 +13,9 @@ export interface MailItem {
   kind: Kind; brand: string; summary: string; deadline: string | null; needs_reply: number;
   reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null; account?: string;
 }
-type FullMail = MailItem & { body_html: string; reply_doc: MailDoc | null };
+type ReplyStyle = 'short' | 'polite' | 'terms';
+type FullMail = MailItem & { body_html: string; reply_doc: MailDoc | null; reply_options?: { style: ReplyStyle; body: string }[] };
+const STYLE_LABEL: Record<ReplyStyle, string> = { short: '짧게', polite: '정중하게', terms: '조건 협의' };
 type Provider = 'naver' | 'gmail';
 interface MailData { connected: boolean; address: string; accounts?: { provider: Provider; address: string }[]; mails: MailItem[]; synced_at: number | null; error: string; waiting: number }
 const ACCOUNT: Record<Provider, string> = { naver: '네이버', gmail: 'Gmail' };
@@ -33,7 +35,7 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
   const [folder, setFolder] = useState<Folder>('sponsor');
   const [open, setOpen] = useState<FullMail | null>(null);
   const [compose, setCompose] = useState<{ to: string; subject: string; doc: MailDoc; from?: Provider } | null>(null);
-  const [reply, setReply] = useState<{ subject: string; doc: MailDoc; dirty: boolean } | null>(null);
+  const [reply, setReply] = useState<{ subject: string; doc: MailDoc; dirty: boolean; style?: ReplyStyle } | null>(null);
   const [plain, setPlain] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,7 +54,9 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
   });
   const show = (mail: FullMail) => {
     setOpen(mail); setCompose(null); setConfirm(false); setPlain(false);
-    setReply({ subject: mail.reply_subject || `Re: ${mail.subject}`, doc: mail.reply_doc ?? (mail.reply_body ? docFromText(mail.reply_body) : empty()), dirty: false });
+    // 지금 답장 글이 어느 안과 같은지(처음엔 AI가 고른 '정중' 안)
+    const style = mail.reply_options?.find(o => o.body.trim() === mail.reply_body.trim())?.style;
+    setReply({ subject: mail.reply_subject || `Re: ${mail.subject}`, doc: mail.reply_doc ?? (mail.reply_body ? docFromText(mail.reply_body) : empty()), dirty: false, style });
   };
 
   async function select(id: string) {
@@ -217,6 +221,19 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
                     <h3 className="step-title" style={{ margin: 0, fontSize: '1rem' }}>답장</h3>
                     <Help short={'AI 초안은 그대로 보내지 말고 읽고 고친 뒤 보내 주세요.'}>[확인 필요]로 남긴 곳은 사실을 확인해 고쳐 주세요. 보내기는 '보내기 → 보내기 확정'을 눌러야만 되고, 이 메일을 받은 계정(네이버·Gmail)으로 발송돼요.</Help>
                   </div>
+                  {(open.reply_options?.length ?? 0) > 1 && (
+                    <div className="reply-tabs" role="tablist" aria-label="답장 안">
+                      {open.reply_options!.map(o => (
+                        <button key={o.style} type="button" role="tab" aria-selected={reply.style === o.style} className={`chip-btn${reply.style === o.style ? ' on' : ''}`} disabled={busy !== null}
+                          onClick={() => {
+                            if (reply.style === o.style) return;
+                            if (reply.dirty && !window.confirm('고친 답장 대신 다른 안으로 바꿀까요? 고친 내용은 사라져요.')) return;
+                            setReply(r => r && { ...r, doc: docFromText(o.body), dirty: true, style: o.style });
+                          }}>{STYLE_LABEL[o.style]}</button>
+                      ))}
+                      <span className="muted small">미리 써 둔 {open.reply_options!.length}안 · 골라서 아래에서 고쳐요</span>
+                    </div>
+                  )}
                   <label className="small" htmlFor="reply-subject">답장 제목</label>
                   <input id="reply-subject" className="input" maxLength={200} value={reply.subject} onChange={e => setReply(r => r && { ...r, subject: e.target.value, dirty: true })} />
                   <MailEditor label="답장 내용" doc={reply.doc} onChange={doc => setReply(r => r && { ...r, doc, dirty: true })} disabled={busy !== null} />

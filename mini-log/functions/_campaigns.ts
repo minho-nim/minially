@@ -16,10 +16,22 @@ export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
   deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string;
   guide: Guide | null; pitch: Pitch | null; source_url: string; apply_by: string | null; created_at: number; updated_at: number;
+  /** 메일을 보고 AI가 낸 단계 이동 제안(사람이 '옮기기'를 눌러야 바뀜). 단계를 바꾸면 지워진다 */
+  suggest: Suggest | null;
 }
-const COLUMNS = "id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, COALESCE(source_url, '') AS source_url, apply_by, created_at, updated_at";
-type Row = Omit<Campaign, 'guide' | 'pitch'> & { guide: string | null; pitch: string | null };
-const toCampaign = (r: Row): Campaign => ({ ...r, guide: r.guide ? cleanGuide(JSON.parse(r.guide)) : null, pitch: r.pitch ? cleanPitch(JSON.parse(r.pitch)) : null });
+export interface Suggest { status: Status; reason: string }
+export function cleanSuggest(v: unknown): Suggest | null {
+  const s = (v ?? {}) as Record<string, unknown>;
+  return STATUSES.includes(s.status as Status) && typeof s.reason === 'string' ? { status: s.status as Status, reason: s.reason.replace(/[\u0000-\u001f]/g, ' ').slice(0, 200) } : null;
+}
+/** 단계 이동 제안 남기기(지금 단계와 같으면 남기지 않음) */
+export async function suggestStatus(db: D1Database, user: UserName, id: string, s: Suggest) {
+  await db.prepare('UPDATE minilog_campaigns SET suggest = ? WHERE user = ? AND id = ? AND status != ?').bind(JSON.stringify(s), user, id, s.status).run();
+}
+const COLUMNS = "id, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, COALESCE(source_url, '') AS source_url, apply_by, created_at, updated_at, suggest";
+type Row = Omit<Campaign, 'guide' | 'pitch' | 'suggest'> & { guide: string | null; pitch: string | null; suggest: string | null };
+const parse = (s: string | null) => { try { return s ? JSON.parse(s) : null; } catch { return null; } };
+const toCampaign = (r: Row): Campaign => ({ ...r, guide: r.guide ? cleanGuide(JSON.parse(r.guide)) : null, pitch: r.pitch ? cleanPitch(JSON.parse(r.pitch)) : null, suggest: r.suggest ? cleanSuggest(parse(r.suggest)) : null });
 /** 제안 기록 값 검사. 틀리면 null */
 export function cleanPitch(v: unknown): Pitch | null {
   if (!v || typeof v !== 'object') return null;
@@ -93,6 +105,10 @@ export function readCampaign(body: Record<string, unknown>): Patch | string {
     if (body.pitch === null) patch.pitch = null;
     else { const pitch = cleanPitch(body.pitch); if (!pitch) return '제안 기록이 올바르지 않아요.'; patch.pitch = pitch; }
   }
+  if (body.suggest !== undefined) {
+    if (body.suggest !== null) return '제안은 지우기만 할 수 있어요.'; // 제안은 서버(메일 분류)만 만든다
+    patch.suggest = null;
+  }
   if (body.draft_id !== undefined) {
     if (body.draft_id === null || body.draft_id === '') patch.draft_id = null;
     else if (typeof body.draft_id === 'string' && /^[0-9a-f-]{36}$/.test(body.draft_id)) patch.draft_id = body.draft_id;
@@ -127,13 +143,13 @@ function normalize(next: Omit<Campaign, 'id' | 'created_at' | 'updated_at'>) {
 }
 
 export async function createCampaign(db: D1Database, user: UserName, patch: Patch): Promise<Campaign | string> {
-  const base = normalize({ kind: 'sponsor', brand: '', title: '', provided: '', amount: 0, deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null, ...patch });
+  const base = normalize({ kind: 'sponsor', brand: '', title: '', provided: '', amount: 0, deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null, suggest: null, ...patch });
   if (!base.brand) return '업체 이름을 적어 주세요.';
   if (!(await ownsDraft(db, user, base.draft_id))) return '연결할 원고를 찾을 수 없어요.';
   const id = crypto.randomUUID();
   const now = Date.now();
-  await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, source_url, apply_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, user, base.kind, base.brand, base.title, base.provided, base.amount, base.deadline, base.status, base.paid_on, base.draft_id, base.memo, base.guide ? JSON.stringify(base.guide) : null, base.pitch ? JSON.stringify(base.pitch) : null, base.source_url, base.apply_by, now, now).run();
+  await db.prepare('INSERT INTO minilog_campaigns (id, user, kind, brand, title, provided, amount, deadline, status, paid_on, draft_id, memo, guide, pitch, source_url, apply_by, suggest, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .bind(id, user, base.kind, base.brand, base.title, base.provided, base.amount, base.deadline, base.status, base.paid_on, base.draft_id, base.memo, base.guide ? JSON.stringify(base.guide) : null, base.pitch ? JSON.stringify(base.pitch) : null, base.source_url, base.apply_by, base.suggest && base.suggest.status !== base.status ? JSON.stringify(base.suggest) : null, now, now).run();
   return (await getCampaign(db, user, id))!;
 }
 
@@ -143,8 +159,10 @@ export async function updateCampaign(db: D1Database, user: UserName, id: string,
   const next = normalize({ ...current, ...patch });
   if (!next.brand) return '업체 이름을 적어 주세요.';
   if (!(await ownsDraft(db, user, next.draft_id))) return '연결할 원고를 찾을 수 없어요.';
-  await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, guide = ?, pitch = ?, source_url = ?, apply_by = ?, updated_at = ? WHERE user = ? AND id = ?')
-    .bind(next.kind, next.brand, next.title, next.provided, next.amount, next.deadline, next.status, next.paid_on, next.draft_id, next.memo, next.guide ? JSON.stringify(next.guide) : null, next.pitch ? JSON.stringify(next.pitch) : null, next.source_url, next.apply_by, Date.now(), user, id).run();
+  // 사람이 단계를 바꾸면(제안을 따랐든 아니든) 단계 이동 제안은 지운다
+  const suggest = next.status !== current.status ? null : next.suggest;
+  await db.prepare('UPDATE minilog_campaigns SET kind = ?, brand = ?, title = ?, provided = ?, amount = ?, deadline = ?, status = ?, paid_on = ?, draft_id = ?, memo = ?, guide = ?, pitch = ?, source_url = ?, apply_by = ?, suggest = ?, updated_at = ? WHERE user = ? AND id = ?')
+    .bind(next.kind, next.brand, next.title, next.provided, next.amount, next.deadline, next.status, next.paid_on, next.draft_id, next.memo, next.guide ? JSON.stringify(next.guide) : null, next.pitch ? JSON.stringify(next.pitch) : null, next.source_url, next.apply_by, suggest ? JSON.stringify(suggest) : null, Date.now(), user, id).run();
   return getCampaign(db, user, id);
 }
 
