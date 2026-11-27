@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { findIssues, type Issue } from './bodyIssues';
+import { loadUiPrefs, saveUiPrefs } from './uiPrefs';
 
 // 본문 칸 + 문제 위치 표시(글쓰기 도구의 밑줄처럼): 본문 뒤에 같은 글을 겹쳐 그려 문제 있는 곳에 물결 밑줄을 긋는다.
 // 글은 React 글자로만 그린다(HTML로 넣지 않음). '다음 문제'를 누르면 그 부분을 골라 바로 고칠 수 있다.
@@ -10,7 +11,11 @@ export function BodyEditor({ value, onChange, sources }: { value: string; onChan
   const mirror = useRef<HTMLDivElement>(null);
   const [on, setOn] = useState(() => { try { return localStorage.getItem('minilog.marks') !== '0'; } catch { return true; } });
   const [at, setAt] = useState(-1);
+  // 밑줄 켬/끔은 계정에 기억(다른 기기에서도 같음). 서버 값이 늦게 와도 방금 누른 것을 덮어쓰지 않는다
+  const touched = useRef(false);
+  useEffect(() => { loadUiPrefs().then(p => { if (!touched.current) setOn(!p.marks_off); }).catch(() => { /* 기기 값 그대로 */ }); }, []);
   useEffect(() => { try { localStorage.setItem('minilog.marks', on ? '1' : '0'); } catch { /* 기억 못 해도 됨 */ } }, [on]);
+  const toggle = () => { touched.current = true; const next = !on; setOn(next); setAt(-1); saveUiPrefs({ marks_off: !next }).catch(() => { /* 다음에 다시 저장 */ }); };
   const issues = useMemo(() => (on ? findIssues(value, sources) : []), [value, sources, on]);
   const cur = at >= 0 && at < issues.length ? issues[at] : null;
   const sync = () => { if (mirror.current && ta.current) { mirror.current.scrollTop = ta.current.scrollTop; mirror.current.scrollLeft = ta.current.scrollLeft; } };
@@ -52,7 +57,7 @@ export function BodyEditor({ value, onChange, sources }: { value: string; onChan
               <button type="button" className="btn small" onClick={() => go(1)} aria-label="다음 문제">다음 ›</button>
             </>
           : <span className="muted small">{on ? (value.trim() ? '본문에 표시할 문제가 없어요' : '') : '밑줄 표시를 껐어요'}</span>}
-        <button type="button" className="btn small ghost issue-toggle" aria-pressed={on} onClick={() => { setOn(v => !v); setAt(-1); }}>{on ? '밑줄 끄기' : '밑줄 켜기'}</button>
+        <button type="button" className="btn small ghost issue-toggle" aria-pressed={on} onClick={toggle}>{on ? '밑줄 끄기' : '밑줄 켜기'}</button>
       </div>
       {cur && <p className={`issue-reason small issue-${cur.kind}`}><b>{KIND_LABEL[cur.kind]}</b> {cur.reason}</p>}
       <div className="body-wrap">
