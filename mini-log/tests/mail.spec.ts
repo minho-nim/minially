@@ -36,7 +36,11 @@ test('AI 분류 답 검사와 업체 이름 맞추기', async () => {
     { id: 'zz', kind: 'offer' }, { id: 'm2', kind: 'spam' },
   ] }), ['m1', 'm2']);
   expect(got).toEqual([{ id: 'm1', kind: 'offer', brand: '빵집', title: '', amount: 0, deadline: null, visit_on: null, answer: 'unknown', summary: '', needs_reply: true }]);
-  expect(readReplies('설명 {"replies":[{"id":"m1","subject":"Re: a","body":" 본문 "},{"id":"m9","body":"x"}]}', ['m1'])).toEqual([{ id: 'm1', subject: 'Re: a', body: '본문' }]);
+  expect(readReplies('설명 {"replies":[{"id":"m1","subject":"Re: a","body":" 본문 "},{"id":"m9","body":"x"}]}', ['m1'])).toEqual([{ id: 'm1', subject: 'Re: a', body: '본문', options: [{ style: 'polite', body: '본문' }] }]);
+  // 세 안: 순서는 짧게·정중·조건 협의, 모르는 종류·같은 종류 두 번은 뺌, 처음 보여 줄 글은 정중 안
+  const three = readReplies(JSON.stringify({ replies: [{ id: 'm1', options: [{ style: 'terms', body: 'T' }, { style: 'rude', body: 'X' }, { style: 'short', body: 'S' }, { style: 'polite', body: 'P' }, { style: 'polite', body: 'P2' }] }] }), ['m1']);
+  expect(three[0].options.map(o => o.style)).toEqual(['short', 'polite', 'terms']);
+  expect(three[0].body).toBe('P');
   expect(sameBrand('(주)성수 빵집', '성수빵집')).toBe(true);
   expect(sameBrand('빵', '빵집')).toBe(false);
 });
@@ -74,13 +78,27 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   expect(bySubject('답장드립니다')).toMatchObject({ kind: 'pitch_reply', campaign_id: pitched });
   expect(bySubject('이번 주 소식')).toMatchObject({ kind: 'other' }); // 뉴스레터는 AI로 보내지 않는다
   expect(data.waiting).toBe(2);
-  const campaigns = (await page.evaluate(async () => (await fetch('/api/campaigns')).json())).campaigns as { id: string; brand: string; deadline: string | null; status: string; pitch: { reply: string } | null; guide: { visit_on: string | null } | null }[];
+  const campaigns = (await page.evaluate(async () => (await fetch('/api/campaigns')).json())).campaigns as { id: string; brand: string; deadline: string | null; status: string; pitch: { reply: string } | null; guide: { visit_on: string | null } | null; suggest: { status: string; reason: string } | null }[];
   expect(campaigns.find(c => c.brand === '메일빵집')).toMatchObject({ deadline: '2026-12-20', status: 'proposed' });
-  expect(campaigns.find(c => c.brand === '메일구름카페')).toMatchObject({ status: 'in_progress', guide: { visit_on: '2026-12-05' } });
-  expect(campaigns.find(c => c.id === pitched)?.pitch?.reply).toBe('yes');
+  // 단계는 AI가 바꾸지 않고 '옮길까요?' 제안만(선정 안내 → 신청함으로 담고 진행 중 제안, 좋다는 답장 → 진행 중 제안)
+  expect(campaigns.find(c => c.brand === '메일구름카페')).toMatchObject({ status: 'applied', guide: { visit_on: '2026-12-05' }, suggest: { status: 'in_progress' } });
+  expect(campaigns.find(c => c.id === pitched)).toMatchObject({ status: 'proposed', pitch: { reply: 'yes' }, suggest: { status: 'in_progress' } });
+  // 제안은 사람만 지울 수 있고, 만들 수는 없다
+  expect(await page.evaluate(async id => (await fetch(`/api/campaigns/${id}`, { method: 'PUT', body: JSON.stringify({ suggest: { status: 'paid', reason: 'x' } }) })).status, pitched)).toBe(400);
+  // 협찬 화면: '옮기기'를 누르면 바뀌고 제안이 사라진다, '아니에요'는 단계 그대로
+  await page.goto('/#campaigns');
+  const cloud = page.getByRole('group', { name: '메일구름카페 단계 제안' });
+  await expect(cloud).toContainText('선정·진행 안내 메일이 왔어요');
+  await cloud.getByRole('button', { name: '진행 중(으)로 옮기기' }).click();
+  await expect(cloud).toHaveCount(0);
+  await page.getByRole('group', { name: '메일달빛상점 단계 제안' }).getByRole('button', { name: '아니에요' }).click();
+  await expect(page.getByRole('group', { name: '메일달빛상점 단계 제안' })).toHaveCount(0);
+  const after = (await page.evaluate(async () => (await fetch('/api/campaigns')).json())).campaigns as { brand: string; status: string; suggest: unknown }[];
+  expect(after.find(c => c.brand === '메일구름카페')).toMatchObject({ status: 'in_progress', suggest: null });
+  expect(after.find(c => c.brand === '메일달빛상점')).toMatchObject({ status: 'proposed', suggest: null });
 
   // 화면: 메뉴 숫자, 메일 앱처럼 목록 → 읽기, 서식 있는 답장을 고쳐 보내기(확인 한 번 더)
-  await page.reload();
+  await page.goto('/');
   await expect(page.getByRole('button', { name: /^메일/ })).toContainText('2');
   await page.getByRole('button', { name: /^메일/ }).click();
   const rows = page.getByRole('complementary', { name: '메일 목록' });
@@ -92,6 +110,12 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   await expect(reader).toContainText('AI 요약');
   const editor = reader.getByRole('textbox', { name: '답장 내용' });
   await expect(editor).toContainText('가짜 AI 답장 초안');
+  // 미리 써 둔 세 안: 처음엔 '정중하게', 다른 안을 누르면 그 글로 바뀐다(아직 안 보냄)
+  const tabs = reader.getByRole('tablist', { name: '답장 안' });
+  await expect(tabs.getByRole('tab')).toHaveText(['짧게', '정중하게', '조건 협의']);
+  await expect(tabs.getByRole('tab', { name: '정중하게' })).toHaveAttribute('aria-selected', 'true');
+  await tabs.getByRole('tab', { name: '조건 협의' }).click();
+  await expect(editor).toContainText('가짜 조건 협의 안');
   await editor.click();
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.type('안녕하세요, 제안 감사합니다.');

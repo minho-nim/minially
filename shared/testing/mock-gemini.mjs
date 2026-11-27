@@ -63,7 +63,9 @@ createServer((req, res) => {
     }
     if (prompt.includes('블로거 대신 메일 답장 초안을')) {
       const sign = prompt.match(/끝에 서명: (.*)/)?.[1] ?? '';
-      const replies = [...prompt.matchAll(/<메일 id="([^"]+)" 종류="[^"]+">\n보낸 사람: .*\n제목: (.*)\n/g)].map(m => ({ id: m[1], subject: `Re: ${m[2]}`, body: `안녕하세요, 가짜 AI 답장 초안이에요.\n방문 일정은 [확인 필요]\n${sign}` }));
+      const replies = [...prompt.matchAll(/<메일 id="([^"]+)" 종류="[^"]+">\n보낸 사람: .*\n제목: (.*)\n/g)].map(m => ({ id: m[1], subject: `Re: ${m[2]}`,
+        // 세 안(짧게·정중·조건 협의). 모르는 종류·같은 종류 두 번은 서버가 빼야 한다
+        options: [{ style: 'terms', body: `원고료와 일정 조건을 여쭤봐요. 가짜 조건 협의 안.\n${sign}` }, { style: 'short', body: `감사합니다. 가짜 짧은 안.\n${sign}` }, { style: 'polite', body: `안녕하세요, 가짜 AI 답장 초안이에요.\n방문 일정은 [확인 필요]\n${sign}` }, { style: 'polite', body: '두 번째 정중 안(뺌)' }, { style: 'rude', body: '모르는 종류(뺌)' }] }));
       return ok({ replies });
     }
     if (prompt.includes('블로그 체험단 가이드를 정리하는')) {

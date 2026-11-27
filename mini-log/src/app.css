@@ -821,3 +821,9 @@ select.input { appearance: auto; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .acct-naver { color: #6fe0a0; } :root:not([data-theme="light"]) .acct-gmail { color: #ff9c92; } }
 :root[data-theme="dark"] .acct-naver { color: #6fe0a0; }
 :root[data-theme="dark"] .acct-gmail { color: #ff9c92; }
+.reply-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.reply-tabs .chip-btn.on, .reply-tabs .chip-btn[aria-selected="true"] { background: var(--ink); color: var(--ink-text); border-color: var(--ink); }
+.suggest { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 10px; background: var(--app-soft); }
+.suggest .small { flex: 1 1 220px; overflow-wrap: anywhere; }
+.campaigns li:has(.suggest) { flex-wrap: wrap; }
+.campaigns li:has(.suggest) > .campaign { flex: 1 1 60%; }

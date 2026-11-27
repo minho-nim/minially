@@ -16,7 +16,7 @@ export type Kind = 'sponsor' | 'ad' | 'other';
 export type Status = 'interested' | 'applied' | 'proposed' | 'in_progress' | 'posted' | 'paid' | 'cancelled';
 export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
-  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null; pitch: PitchLog | null;
+  deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null; pitch: PitchLog | null; suggest?: { status: Status; reason: string } | null;
   source_url: string; apply_by: string | null; created_at: number; updated_at: number;
 }
 /** 먼저 제안한 기록(제안 화면의 '보낸 걸로 기록') */
@@ -70,7 +70,8 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
       .catch(e => setMessage({ kind: 'error', text: e instanceof Error ? e.message : '불러오지 못했어요.' }));
   }, []);
 
-  const shown = useMemo(() => (items ?? []).filter(c => filter === 'all' || (filter === 'open' ? OPEN.includes(c.status) : filter === 'wish' ? WISH.includes(c.status) : c.status === filter)), [items, filter]);
+  // 단계 이동 제안이 있는 협찬은 어느 목록에서든 보이게(놓치지 않게)
+  const shown = useMemo(() => (items ?? []).filter(c => filter === 'all' || !!c.suggest || (filter === 'open' ? OPEN.includes(c.status) : filter === 'wish' ? WISH.includes(c.status) : c.status === filter)), [items, filter]);
   // 업체별: 같은 업체와 한 일을 모아 건수·받은 금액·마지막 날
   const brands = useMemo(() => {
     const map = new Map<string, { brand: string; count: number; paid: number; open: number; last: string }>();
@@ -144,6 +145,16 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
       const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status: next[0] } });
       setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
       setMessage({ kind: 'info', text: next[0] === 'in_progress' ? `${c.brand}: 선정! 진행 중으로 옮겼어요. 리뷰 마감일을 적어 두세요.` : `${c.brand}: 신청함으로 바꿨어요.` });
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
+  }
+
+  /** 메일로 본 단계 이동 제안: '옮기기'면 그 단계로, '아니에요'면 제안만 지운다 */
+  async function decide(c: Campaign, accept: boolean) {
+    if (!c.suggest) return;
+    try {
+      const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: accept ? { status: c.suggest.status } : { suggest: null } });
+      setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
+      setMessage({ kind: 'info', text: accept ? `${c.brand}: ${STATUS_LABEL[c.suggest.status]}(으)로 옮겼어요.` : `${c.brand}: 제안을 지웠어요. 단계는 그대로예요.` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
@@ -350,6 +361,13 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
                   </span>
                   <span className="c-amount">{c.amount ? won(c.amount) : '—'}</span>
                 </button>
+                {c.suggest && (
+                  <div className="suggest" role="group" aria-label={`${c.brand} 단계 제안`}>
+                    <span className="small">📩 {c.suggest.reason}</span>
+                    <button type="button" className="btn small primary" onClick={() => { void decide(c, true); }}>{STATUS_LABEL[c.suggest.status]}(으)로 옮기기</button>
+                    <button type="button" className="btn small ghost" onClick={() => { void decide(c, false); }}>아니에요</button>
+                  </div>
+                )}
                 {NEXT[c.status] && <button className="btn small" onClick={() => { void advance(c); }}>{NEXT[c.status]![1]}</button>}
                 {c.source_url && /^https:\/\//.test(c.source_url) && <a className="btn ghost small" href={c.source_url} target="_blank" rel="noopener noreferrer">공고 열기</a>}
                 {c.draft_id && <button className="btn ghost small" onClick={() => onOpenDraft(c.draft_id!)}>원고 열기</button>}
