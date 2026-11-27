@@ -76,3 +76,11 @@ test('12/3~12/5 여행은 여러 날 일정 하나로',()=>{
  const [e]=parseScheduleText('12/3~12/5 제주 여행',T);
  assert.deepEqual([e.title,e.date,e.until],['제주 여행','2026-12-03','2026-12-05']);
 });
+test('일정이 여러 개면 "장소:" 줄은 바로 위 일정에만 붙고, 일정이 하나면 어디 있든 쓴다',()=>{
+ const two=parseScheduleText('[밝은미소치과] 12월 9일 오후 3시 교정 상담 예약되었습니다.\n장소: 본관 2층\n내일 14:00~15:00 팀 회의',T);
+ assert.deepEqual(two.map(e=>[e.title,e.location]),[['밝은미소치과 교정 상담','본관 2층'],['팀 회의','']]);
+ const each=parseScheduleText('12/5 저녁 7시 송년회\n장소: 강남역 OO식당\n\n12/6 오전 10시 등산\n장소: 북한산 입구',T);
+ assert.deepEqual(each.map(e=>e.location),['강남역 OO식당','북한산 입구']);
+ const top=parseScheduleText('장소: 본관 3층 강당\n학부모 설명회\n일시: 2026.12.03(목) 14:00',T);
+ assert.equal(top[0].location,'본관 3층 강당');
+});

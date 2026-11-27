@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../shared/client/api';
+import { showUndo } from './UndoToast';
 
 // 해시태그 묶음: 저장해 둔 태그 모음을 눌러 지금 원고 태그에 더한다(겹치는 태그는 한 번만, 30개까지).
 // 지금 원고의 태그를 이름 붙여 묶음으로 저장할 수도 있다. 같은 이름이면 태그를 바꾼다.
@@ -19,9 +20,15 @@ export function TagSets({ tags, onApply }: { tags: string[]; onApply: (tags: str
     try { const r = await api<{ sets: TagSet[] }>('/api/tagsets', { body: { name, tags } }); setSets(r.sets); setMessage({ kind: 'ok', text: `'${name.trim()}' 묶음으로 저장했어요.` }); setName(''); setOpen(false); }
     catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '저장하지 못했어요.' }); }
   };
+  // 지우기: 바로 지우고 '되돌리기' 알림(원고에 넣은 태그는 그대로)
   const remove = async (set: TagSet) => {
-    if (!window.confirm(`'${set.name}' 묶음을 지울까요? 원고에 넣은 태그는 그대로예요.`)) return;
-    try { setSets((await api<{ sets: TagSet[] }>(`/api/tagsets/${set.id}`, { method: 'DELETE' })).sets); }
+    try {
+      setSets((await api<{ sets: TagSet[] }>(`/api/tagsets/${set.id}`, { method: 'DELETE' })).sets);
+      showUndo(`'${set.name.slice(0, 20)}' 묶음을 지웠어요`, async () => {
+        await api(`/api/trash/${set.id}/restore`, { method: 'POST', body: {} });
+        setSets((await api<{ sets: TagSet[] }>('/api/tagsets')).sets);
+      });
+    }
     catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '지우지 못했어요.' }); }
   };
   const apply = (set: TagSet) => {

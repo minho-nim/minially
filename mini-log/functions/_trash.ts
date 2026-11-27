@@ -44,13 +44,33 @@ export async function trashPhoto(db: D1Database, user: UserName, id: string, now
   return true;
 }
 
+/** 한 줄짜리(협찬 기록·해시태그 묶음)를 휴지통으로. 표 이름은 정해 둔 것만 */
+const ROW_TABLES = { campaign: 'minilog_campaigns', tagset: 'minilog_tag_sets' } as const;
+export type RowKind = keyof typeof ROW_TABLES;
+export async function trashRow(db: D1Database, user: UserName, kind: RowKind, id: string, now = Date.now()) {
+  const table = ROW_TABLES[kind];
+  const row = (await all(db, `SELECT * FROM ${table} WHERE user = ? AND id = ?`, user, id))[0];
+  if (!row) return false;
+  await db.batch([
+    db.prepare('INSERT OR REPLACE INTO minilog_trash (user, id, kind, data, deleted_at) VALUES (?, ?, ?, ?, ?)').bind(user, id, kind, JSON.stringify({ row }), now),
+    db.prepare(`DELETE FROM ${table} WHERE user = ? AND id = ?`).bind(user, id),
+  ]);
+  return true;
+}
+
 /** 되돌리기: 10분 안이면 담아 둔 행을 다시 넣는다. 사진은 그 원고가 아직 있을 때만 */
-export async function restoreTrash(db: D1Database, user: UserName, id: string, now = Date.now()): Promise<'draft' | 'photo' | 'expired' | 'missing'> {
+export async function restoreTrash(db: D1Database, user: UserName, id: string, now = Date.now()): Promise<'draft' | 'photo' | RowKind | 'expired' | 'missing'> {
   const t = await db.prepare('SELECT kind, data, deleted_at FROM minilog_trash WHERE user = ? AND id = ?').bind(user, id).first<{ kind: string; data: string; deleted_at: number }>();
   if (!t) return 'missing';
   if (t.deleted_at < now - TRASH_MS) return 'expired';
-  const data = JSON.parse(t.data) as { draft?: Row; photos?: Row[]; shares?: Row[]; reviews?: Row[]; photo?: Row };
+  const data = JSON.parse(t.data) as { draft?: Row; photos?: Row[]; shares?: Row[]; reviews?: Row[]; photo?: Row; row?: Row };
   const own = (r: Row) => r.user === user; // 다른 사람 행이 섞이지 않게 한 번 더
+  if (t.kind in ROW_TABLES) {
+    const kind = t.kind as RowKind;
+    if (!data.row || !own(data.row)) return 'missing';
+    await db.batch([insert(db, ROW_TABLES[kind], data.row), db.prepare('DELETE FROM minilog_trash WHERE user = ? AND id = ?').bind(user, id)]);
+    return kind;
+  }
   if (t.kind === 'photo') {
     if (!data.photo || !own(data.photo)) return 'missing';
     if (!(await db.prepare('SELECT 1 AS ok FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, data.photo.draft_id).first())) return 'missing';

@@ -233,8 +233,12 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
   const labelOnly = /^[\s가-힣■●▶▷◆◇○•·※*\-]{0,10}(?:일자|일시|날짜|기간|시간|때|일)\s*[:：]/;
   const out: PhotoEvent[] = [];
   const seen = new Set<string>();
-  const push = (e: PhotoEvent) => { const key = `${e.date}|${e.start}|${e.title}`; if (seen.has(key) || out.length >= MAX_EVENTS) return; seen.add(key); out.push(e); };
+  // 어느 줄에서 나온 일정인지(여러 일정이 섞인 글에서 '장소:' 줄을 제 일정에만 붙이려고)
+  const lineOf = new Map<PhotoEvent, number>();
+  let current = -1;
+  const push = (e: PhotoEvent) => { const key = `${e.date}|${e.start}|${e.title}`; if (seen.has(key) || out.length >= MAX_EVENTS) return; seen.add(key); out.push(e); lineOf.set(e, current); };
   lines.forEach((line, i) => {
+    current = i;
     const place = placeIn(line);
     const location = labelled || place?.place || '';
     const plain = place ? line.replace(place.raw, ' ') : line; // 장소는 제목에서 뺀다
@@ -292,5 +296,27 @@ export function parseScheduleText(input: string, today: string): PhotoEvent[] {
       push({ title: clean(titleFrom(place ? lines[i].replace(place.raw, ' ') : lines[i]) || named || '일정', 60), date: today, start: times[0], end: times[1] && times[1] > times[0] ? times[1] : null, location: labelled || place?.place || '', memo: '날짜가 없어 오늘로 넣었어요', source: clean(lines[i], 120), uncertain: true, ...(guessed ? { guessed } : {}) });
     }
   }
+  assignLabelledPlaces(out, lineOf, lines, labelled);
   return out.slice(0, MAX_EVENTS);
+}
+
+const PLACE_LABEL = /(?:장\s*소|위\s*치|주\s*소|오시는\s*곳)\s*[:：]\s*([^\n]+)/;
+/**
+ * 일정이 둘 이상이면 '장소:' 줄은 바로 위 일정에만 붙인다(위에 일정이 없으면 첫 일정). 목록 바로 아래 한 줄뿐이면 모두에.
+ * 일정이 하나뿐이면 글 어디에 있든 그 장소를 쓴다(공지 맨 아래 '장소:' 줄). 줄에서 직접 찾은 장소(@강남역 등)는 그대로 둔다.
+ */
+function assignLabelledPlaces(out: PhotoEvent[], lineOf: Map<PhotoEvent, number>, lines: string[], labelled: string) {
+  if (!labelled) return;
+  const eventLines = [...new Set(out.map(e => lineOf.get(e) ?? -1))].sort((a, b) => a - b);
+  if (eventLines.length < 2) return;
+  const labels = lines.map((l, i) => ({ i, m: l.match(PLACE_LABEL) })).filter(x => x.m).map(x => ({ i: x.i, place: clean(x.m![1].replace(/\d{2,4}-\d{3,4}-\d{4}/g, ''), 80) }));
+  // 일정 목록 바로 아래 '장소:' 한 줄(사이에 빈 줄 없음)은 모두가 함께 쓰는 장소(■ 1차 면접 / ■ 2차 면접 / 장소: 본사 5층)
+  if (labels.length === 1 && labels[0].i > eventLines[eventLines.length - 1] && !lines.slice(eventLines[0], labels[0].i).some(l => !l.trim())) return;
+  // 장소 줄의 주인: 바로 위의 일정 줄, 위에 일정이 없으면 첫 일정
+  const owner = (i: number) => [...eventLines].reverse().find(l => l <= i) ?? eventLines[0];
+  for (const e of out) {
+    if (e.location !== labelled) continue; // 줄에서 찾은 장소는 그대로
+    const at = lineOf.get(e) ?? -1;
+    e.location = labels.find(l => owner(l.i) === at)?.place ?? '';
+  }
 }
