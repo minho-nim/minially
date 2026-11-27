@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Skeleton } from './Skeleton';
 import { Help } from './Help';
 import { MoreMenu } from './MoreMenu';
+import { EmptyState } from './EmptyState';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
@@ -292,7 +294,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
           </div>
         </div>
         {filter === 'wish' && <Finder />}
-        {items === null && !message && <p className="muted small" role="status">불러오는 중…</p>}
+        {items === null && !message && <Skeleton rows={4} />}
         {items && filter === 'brand' && (brands.length === 0
           ? <p className="muted small" style={{ margin: 0 }}>협찬 기록이 생기면 업체별로 모아 보여요.</p>
           : (
@@ -311,7 +313,10 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
             </ul>
           ))}
         {items && filter !== 'brand' && shown.length === 0 && (
-          <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>{filter === 'open' ? '진행 중인 협찬이 없어요. 새 협찬을 적어 보세요.' : filter === 'wish' ? '관심 있는 체험단 공고를 새 협찬으로 담고 상태를 관심으로 두세요. 공고 주소와 신청 마감일을 적으면 달력에도 떠요.' : '기록이 없어요.'}</p></div>
+          filter === 'open' ? <EmptyState title="진행 중인 협찬이 없어요" desc="받은 제안·마감·금액을 한곳에서 챙겨요. 마감일은 캘린더에도 떠요." action={{ label: '첫 협찬 적기', onClick: () => startNew('sponsor') }}
+            example={<div className="campaign-example"><b>성수과일당 · 겨울 타르트 체험단</b><span className="muted small">제안 받음 · 마감 12/20 · 50,000원</span></div>} />
+          : filter === 'wish' ? <EmptyState title="관심 있는 체험단이 없어요" desc="공고를 새 협찬으로 담고 상태를 '관심'으로 두면, 신청 마감일이 달력에도 떠요." action={{ label: '첫 협찬 적기', onClick: () => startNew('sponsor') }} />
+          : <EmptyState title="기록이 없어요" />
         )}
         {moreHidden && <p className="muted small" style={{ margin: 0 }}>협찬이 많아 끝난 것 중 오래된 일부는 목록과 CSV에서 빠졌어요(대시보드 합계·월간 보고는 전체 기준).</p>}
         {filter !== 'brand' && shown.length > 0 && (

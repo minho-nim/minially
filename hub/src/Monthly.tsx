@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Skeleton } from './Skeleton';
 import { api, formatNumber } from '../../shared/client/api';
 import { diffKind, diffText, monthLabel, shiftMonth, sumSummaries, thisMonthKst, type MonthlyReport, type MonthSummary } from '../../shared/client/report';
 import { Signature } from './Tomong';
@@ -61,7 +62,7 @@ export function Monthly({ compare = false }: { compare?: boolean }) {
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
-      {!reports && !error && <p className="muted small" role="status">불러오는 중…</p>}
+      {!reports && !error && <Skeleton rows={3} />}
       {reports && total && totalPrev && (
         <>
           <div className="print-only report-print-head">

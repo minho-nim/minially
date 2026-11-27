@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Help } from './Help';
+import { EmptyState } from './EmptyState';
 import { api } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { blogInfo } from './Blog';
@@ -139,7 +140,8 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
             </div>
           )}
         </form>
-        {saved.length === 0 ? <p className="muted small" style={{ margin: 0 }}>떠오른 글감을 적어 두면 여기 모이고, 원고나 아래 한 달 계획으로 바로 쓸 수 있어요.</p> : (
+        {saved.length === 0 ? <EmptyState title="담아 둔 글감이 없어요" desc="떠오른 글감을 적어 두면 여기 모이고, 원고나 아래 한 달 계획으로 바로 쓸 수 있어요." action={{ label: '글감 적기', onClick: () => document.getElementById('keep-text')?.focus() }}
+          example={<ul className="keep-list"><li><span className="keep-main"><b>동네 붕어빵 가게 5곳 가격 지도</b><span className="muted small">팥·슈크림 둘 다, 현금만 받는 곳 표시</span></span></li></ul>} /> : (
           <ul className="keep-list" aria-label="담아 둔 글감">
             {saved.map(item => (
               <li key={item.id}>
@@ -183,7 +185,7 @@ export function IdeasView<D extends PlannedDraft>({ onBack, onUse, onPlanned }: 
             ))}
           </ul>
         ) : data && busy !== 'ideas' && (
-          <div className="profile"><Tomong kind="minilog" size={44} /><p className="muted small" style={{ margin: 0 }}>아직 받은 글감이 없어요. 위 버튼을 눌러 보세요.</p></div>
+          <EmptyState title="아직 받은 글감이 없어요" desc="시기·참고 블로그·내 블로그를 보고 AI가 글감을 골라 줘요. 위 버튼을 눌러 보세요." />
         )}
       </section>
 

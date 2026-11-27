@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Skeleton } from './Skeleton';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { blogInfo } from './Blog';
@@ -138,7 +139,7 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
         </div>
       </div>
       {message && <p className={`no-print ${message.kind === 'error' ? 'error' : 'muted small'}`} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
-      {!form && !message && <p className="muted small" role="status">불러오는 중…</p>}
+      {!form && !message && <Skeleton rows={3} />}
 
       {form && stats && (
         <div className="pitch-layout">

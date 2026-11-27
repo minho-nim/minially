@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 // '⋯ 더보기' 메뉴(힉의 법칙: 가끔 쓰는 버튼은 숨기고 메인 버튼 하나만 보이게).
-// 안의 버튼을 누르면 메뉴가 닫힌다. 바깥을 누르거나 Esc로도 닫힌다.
+// 휴대폰(600px 이하)에서는 아래에서 올라오는 시트로 연다(엄지가 닿게). 안의 버튼을 누르면 메뉴가 닫힌다. 바깥을 누르거나 Esc로도 닫힌다.
 export function MoreMenu({ label, children, align = 'right' }: { label: string; children: ReactNode; align?: 'left' | 'right' }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -16,6 +16,7 @@ export function MoreMenu({ label, children, align = 'right' }: { label: string; 
   return (
     <div className="more-menu" ref={box}>
       <button type="button" className="btn ghost more-toggle" aria-label={label} aria-expanded={open} aria-haspopup="true" onClick={() => setOpen(v => !v)}>⋯</button>
+      {open && <div className="more-backdrop" aria-hidden="true" onClick={() => setOpen(false)} />}
       {open && (
         <div className={`more-items ${align}`} role="group" aria-label={label} onClick={e => { if ((e.target as HTMLElement).closest('button')) setOpen(false); }}>
           {children}

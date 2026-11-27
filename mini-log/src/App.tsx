@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Skeleton } from './Skeleton';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
@@ -23,6 +24,7 @@ import { SocialPosts } from './SocialPosts';
 import { CalendarView } from './Calendar';
 import { ReviewCard } from './Review';
 import { MoreMenu } from './MoreMenu';
+import { showUndo, UndoToast } from './UndoToast';
 import { TagSets } from './TagSets';
 import { Lessons } from './Lessons';
 import { IdeasView, type Idea } from './Ideas';
@@ -81,7 +83,7 @@ export default function App() {
   }, []);
   useEffect(() => { void load(); }, [load]);
 
-  if (state.kind === 'loading') return <main className="page"><p className="muted" role="status">불러오는 중…</p></main>;
+  if (state.kind === 'loading') return <main className="page"><Skeleton rows={2} /></main>;
   if (state.kind === 'login') return <Login onDone={load} />;
   if (state.kind === 'error') {
     return (
@@ -211,6 +213,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
 
   return (
     <div className={`shell${selected || view !== 'drafts' ? ' editing' : ''}`}>
+      <UndoToast />
       <aside className="side" aria-label="원고 목록">
         <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
         <nav className="views" aria-label="미니로그 메뉴">
@@ -228,7 +231,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         </nav>
         <button className="btn primary" onClick={() => { void create(); }} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
-        {drafts === null && !listError && <p className="muted small" role="status">불러오는 중…</p>}
+        {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
           <div className="list-empty">
             <Tomong kind="minilog" size={44} />
@@ -283,7 +286,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
-          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onBack={() => setSelectedId(null)} />
+          ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (
             <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
@@ -342,7 +345,7 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
         </div>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      {!data && !error && <p className="muted small" role="status">불러오는 중…</p>}
+      {!data && !error && <Skeleton rows={3} />}
       {data && (
         <>
           <div className="kpis">
@@ -494,7 +497,7 @@ function StylesView({ onBack }: { onBack: () => void }) {
         </div>
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
-      {styles === null && !message && <p className="muted small" role="status">불러오는 중…</p>}
+      {styles === null && !message && <Skeleton rows={3} />}
       {styles && (
         <div className="style-tabs" role="tablist" aria-label="문체 고르기">
           {styles.map(style => (
@@ -679,8 +682,8 @@ type Fields = Pick<Draft, 'title' | 'body' | 'experience' | 'hashtags' | 'status
 
 const isPostTypeKey = (v: string): v is PostType => v in POST_TYPES;
 
-function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onBack, otherTitles }: {
-  draft: Draft; gemini: boolean; otherTitles: string[]; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onBack: () => void;
+function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onRestored, onBack, otherTitles }: {
+  draft: Draft; gemini: boolean; otherTitles: string[]; onSaved: (d: Draft) => void; onCopied: (d: Draft) => void; onPhotoCount: (n: number) => void; onDeleted: (id: string) => void; onRestored: (draft: Draft) => void; onBack: () => void;
 }) {
   // 동시 수정 보호: 이 화면이 마지막으로 본 원고 수정 시각. 서버가 더 새것이면 덮어쓰지 않고 사본으로 남긴다.
   const baseUpdatedAt = useRef(draft.updated_at);
@@ -734,12 +737,18 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
   }
 
   async function removePhoto(photo: Photo, index: number) {
-    if (!photos || !window.confirm(`사진 ${index + 1}을 지울까요? 본문의 [사진 ${index + 1}] 표시도 함께 지워요.`)) return;
+    if (!photos) return;
+    const before = photos, body = fields.body;
     try {
       await api(`/api/photos/${photo.id}`, { method: 'DELETE' });
       const next = photos.filter(p => p.id !== photo.id);
       syncMarkers(photos, next);
       setPhotos(next);
+      // 사진과 본문의 [사진 n] 표시를 함께 되돌린다
+      showUndo(`사진 ${index + 1}을 지웠어요(본문 표시도 함께)`, async () => {
+        await api(`/api/trash/${photo.id}/restore`, { method: 'POST', body: {} });
+        setPhotos(before); change({ body });
+      });
     } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '사진을 지우지 못했어요.' }); }
   }
 
@@ -950,12 +959,19 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onB
     finally { setDownloading(false); }
   }
 
+  // 지우기: 확인 창 대신 바로 지우고 '되돌리기' 알림(서버 휴지통에 10분)
   async function remove() {
-    if (!window.confirm('이 원고를 지울까요? 되돌릴 수 없어요.')) return;
     window.clearTimeout(timer.current);
     pending.current = null;
-    try { await api(`/api/drafts/${draft.id}`, { method: 'DELETE' }); onDeleted(draft.id); }
-    catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '지우지 못했어요.' }); }
+    const id = draft.id, title = fields.title.trim() || '제목 없는 원고';
+    try {
+      await api(`/api/drafts/${id}`, { method: 'DELETE' });
+      onDeleted(id);
+      showUndo(`'${title.slice(0, 20)}' 원고를 지웠어요`, async () => {
+        const r = await api<{ draft: Draft }>(`/api/trash/${id}/restore`, { method: 'POST', body: {} });
+        onRestored(r.draft);
+      });
+    } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '지우지 못했어요.' }); }
   }
 
   const saveLabel = { saved: '저장됨', dirty: '저장 대기', saving: '저장 중…', failed: '저장 실패' }[save];
