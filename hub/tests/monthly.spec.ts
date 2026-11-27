@@ -105,9 +105,9 @@ test('월별 비교: 사람별 12개월·누적 합계가 각자 월간 보고�
   await expect(box.getByRole('button', { name: '받은 금액' })).toHaveAttribute('aria-pressed', 'true');
   await expect(box.getByRole('img', { name: /사람별 월별 받은 금액/ })).toBeVisible();
   // 사람별 비교는 통합 대시보드에서만(내 대시보드에는 없음)
-  await page.getByRole('button', { name: '내 대시보드' }).click();
+  await page.getByRole('button', { name: '나만', exact: true }).click();
   await expect(page.getByRole('region', { name: /월별 비교/ })).toHaveCount(0);
-  await page.getByRole('button', { name: '통합 대시보드' }).click();
+  await page.getByRole('button', { name: '두 사람 같이' }).click();
 });
 
 test('월별 비교 API: 로그인 필요', async ({ request }) => {

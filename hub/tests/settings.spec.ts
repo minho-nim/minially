@@ -49,7 +49,7 @@ test('설정: 이름 바꾸기·화면 테마·처음 볼 대시보드, 잘못�
   // 처음 볼 대시보드(이 기기)
   await page.locator('.settings-card').getByRole('button', { name: '내 것만' }).click();
   await page.reload();
-  await expect(page.getByRole('button', { name: '내 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '나만', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.locator('.settings-card').getByRole('button', { name: '통합' }).click();
 
   // 다른 시험에 영향이 없게 이름을 되돌린다
@@ -83,10 +83,10 @@ test("왼쪽 메뉴 'AI 사용량'은 내 AI 사용량 칸으로 가고, 처음 
   await page.goto('/');
   await page.getByLabel('로그인 코드').fill(CODE_C);
   await page.getByRole('button', { name: '로그인' }).click();
-  await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '두 사람 같이' })).toHaveAttribute('aria-pressed', 'true');
   await page.getByRole('navigation', { name: '미니허브 메뉴' }).getByRole('link', { name: 'AI 사용량' }).click();
   await expect(page.locator('#usage')).toBeInViewport();
-  await expect(page.getByRole('button', { name: '내 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '나만', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '두 사람 같이' })).toHaveAttribute('aria-pressed', 'true');
 });

@@ -12,7 +12,7 @@ test('로그인 후 대시보드에 본인 정보만 보이고 로그아웃된�
   await page.getByLabel('로그인 코드').fill(CODE_D);
   await page.getByRole('button', { name: '로그인' }).click();
   await expect(page.getByRole('heading', { name: 'D님, 오늘도 반가워요' })).toBeVisible();
-  await page.getByRole('button', { name: '내 대시보드' }).click();
+  await page.getByRole('button', { name: '나만', exact: true }).click();
   // D는 키가 없어서 연결 안 됨 + 연결 방법 안내
   await expect(page.locator('.kpi .value.off')).toHaveText('연결 안 됨');
   await expect(page.getByText('GEMINI_KEY_D').first()).toBeVisible();
@@ -28,7 +28,7 @@ test('사용자 C는 Gemini 연결됨으로 보인다', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('로그인 코드').fill(CODE_C);
   await page.getByRole('button', { name: '로그인' }).click();
-  await page.getByRole('button', { name: '내 대시보드' }).click();
+  await page.getByRole('button', { name: '나만', exact: true }).click();
   await expect(page.locator('.kpi .value.ok')).toHaveText('연결됨');
 });
 
@@ -55,16 +55,20 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   db.prepare("INSERT INTO minilog_shares (user, draft_id, channel, shared_at) VALUES ('D', 'w1', 'threads', ?), ('D', 'w1', 'x', ?)").run(now, now);
   db.close();
   await page.reload();
-  await expect(page.getByRole('button', { name: '통합 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '두 사람 같이' })).toHaveAttribute('aria-pressed', 'true');
   const kpi = (label: RegExp) => page.locator('.kpi').filter({ hasText: label }).locator('.value');
   await expect(kpi(/전체 AI 호출/)).toHaveText('3');
   await expect(kpi(/전체 토큰/)).toHaveText('4,700');
   await expect(kpi(/Gemini 연결/)).toHaveText('1/2');
   const rowD = page.locator('.user-row').filter({ hasText: '사용자 D' });
-  await expect(rowD.locator('dd').nth(0)).toHaveText('2');
-  await expect(rowD.locator('dd').nth(2)).toHaveText('1');
-  await expect(rowD.locator('dd').nth(4)).toHaveText('1편'); // 이번 주 게시
-  await expect(rowD.locator('dd').nth(5)).toHaveText('2'); // 다른 곳 공유(스레드·X)
+  const col = (name: string) => rowD.locator(`td[data-col="${name}"]`);
+  await expect(col('calls')).toHaveText('2');
+  await expect(col('errors')).toHaveText('1');
+  await expect(col('week')).toHaveText('1편'); // 이번 주 게시
+  await expect(col('shares')).toHaveText('2'); // 다른 곳 공유(스레드·X)
+  // 손볼 것: D는 키가 없고 이번 달 오류가 1번
+  await expect(page.getByRole('status', { name: '손볼 것' })).toContainText('사용자 D Gemini 연결 안 됨');
+  await expect(page.getByRole('status', { name: '손볼 것' })).toContainText('사용자 D 이번 달 AI 오류 1번');
   await expect(page.getByLabel('오류 종류')).toContainText('호출 제한 1');
   await expect(page.getByRole('list', { name: '작업별 토큰' })).toContainText('문체 분석'); // 표는 접어 두고 그래프로
   await expect(page.getByRole('img', { name: /^사용자별 토큰: .*1,200, .*3,500$/ })).toBeVisible();
@@ -81,10 +85,10 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   await expect(revenue.locator('.upcoming')).toContainText('D-3');
   await expect(revenue.getByRole('img', { name: /^사용자별 이번 달 받은 금액: .*10만원/ })).toBeVisible();
   // 내 대시보드: C 것만, 새로고침해도 선택 유지
-  await page.getByRole('button', { name: '내 대시보드' }).click();
+  await page.getByRole('button', { name: '나만', exact: true }).click();
   await expect(page.locator('.kpi').filter({ hasText: /AI 호출/ }).locator('.value')).toHaveText('1');
   await page.reload();
-  await expect(page.getByRole('button', { name: '내 대시보드' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: '나만', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(async () => (await fetch('/api/overview')).status)).toBe(200);
   const anon = await page.context().browser()!.newContext();
   expect((await anon.request.get(page.url().replace(/\/$/, '') + '/api/overview')).status()).toBe(401);
