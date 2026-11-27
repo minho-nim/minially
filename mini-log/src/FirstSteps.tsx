@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { loadUiPrefs, saveUiPrefs } from './uiPrefs';
+import { useState } from 'react';
+import { saveUiPrefs, uiPrefs } from './uiPrefs';
 
 // 첫 안내 3단계(Page Flows의 첫 사용 흐름처럼): 원고가 하나도 없을 때 가운데 칸에만 보이고, 화면을 막지 않는다.
 // '다 봤어요'·'건너뛰기'는 계정에 기억해 어느 기기에서든 다시 보이지 않는다(원고를 하나 만들어도 사라진다).
@@ -12,8 +12,7 @@ const STEPS = [
 
 export function FirstSteps({ onNew }: { onNew: () => void }) {
   const [step, setStep] = useState(0);
-  const [hidden, setHidden] = useState(() => { try { return localStorage.getItem(KEY) === 'done'; } catch { return false; } });
-  useEffect(() => { if (!hidden) loadUiPrefs().then(p => { if (p.steps_done) setHidden(true); }).catch(() => { /* 기기 값 그대로 */ }); }, [hidden]);
+  const [hidden, setHidden] = useState(() => { const p = uiPrefs(); if (p) return p.steps_done; try { return localStorage.getItem(KEY) === 'done'; } catch { return false; } });
   if (hidden) return null;
   const done = () => { try { localStorage.setItem(KEY, 'done'); } catch { /* 기억 못 해도 됨 */ } setHidden(true); saveUiPrefs({ steps_done: true }).catch(() => { /* 다음에 다시 */ }); };
   const s = STEPS[step];
