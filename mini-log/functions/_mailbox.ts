@@ -1,26 +1,45 @@
-// 네이버 메일 연결: IMAP(받기)·SMTP(보내기)를 Cloudflare TCP 소켓으로 직접 쓴다(유료 API 없음).
-// 계정은 Cloudflare 비밀값 NAVER_MAIL_C·NAVER_MAIL_D = "아이디@naver.com:애플리케이션 비밀번호"에만 둔다(D1·로그·화면에 넣지 않음).
-// 시험에서는 MAIL_TEST_SERVER="127.0.0.1:포트"(IMAP=포트, SMTP=포트+1, 암호화 없음)로 가짜 서버에 붙는다.
+// 메일 연결(네이버·Gmail): IMAP(받기)·SMTP(보내기)를 Cloudflare TCP 소켓으로 직접 쓴다(유료 API·OAuth 없음).
+// 계정은 Cloudflare 비밀값에만 둔다(D1·로그·화면에 넣지 않음):
+//   NAVER_MAIL_C·D = "아이디@naver.com:애플리케이션 비밀번호", GMAIL_MAIL_C·D = "주소@gmail.com:앱 비밀번호"(2단계 인증 필요)
+// 시험에서는 MAIL_TEST_SERVER(네이버)·MAIL_TEST_SERVER_GMAIL(Gmail)="127.0.0.1:포트"(IMAP=포트, SMTP=포트+1, 암호화 없음)로 가짜 서버에 붙는다.
 import { connect } from 'cloudflare:sockets';
 import type { HubEnv } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 
-export interface MailAccount { address: string; password: string }
+export type Provider = 'naver' | 'gmail';
+export const PROVIDERS: Provider[] = ['naver', 'gmail'];
+export const PROVIDER_LABEL: Record<Provider, string> = { naver: '네이버', gmail: 'Gmail' };
+export interface MailAccount { provider: Provider; address: string; password: string }
 export class MailError extends Error {}
 
-export function mailAccount(env: HubEnv, user: UserName): MailAccount | null {
-  const raw = env[`NAVER_MAIL_${user}` as keyof HubEnv];
+const SECRET: Record<Provider, string> = { naver: 'NAVER_MAIL', gmail: 'GMAIL_MAIL' };
+const HOSTS: Record<Provider, { imap: string; smtp: string }> = { naver: { imap: 'imap.naver.com', smtp: 'smtp.naver.com' }, gmail: { imap: 'imap.gmail.com', smtp: 'smtp.gmail.com' } };
+const TEST_VAR: Record<Provider, string> = { naver: 'MAIL_TEST_SERVER', gmail: 'MAIL_TEST_SERVER_GMAIL' };
+
+export function mailAccountOf(env: HubEnv, user: UserName, provider: Provider): MailAccount | null {
+  const raw = env[`${SECRET[provider]}_${user}`];
   if (typeof raw !== 'string') return null;
   const i = raw.indexOf(':');
-  const address = raw.slice(0, i).trim().toLowerCase(), password = raw.slice(i + 1);
+  // Gmail 앱 비밀번호는 4자씩 띄어 보여 주므로 빈칸은 지운다
+  const address = raw.slice(0, i).trim().toLowerCase(), password = provider === 'gmail' ? raw.slice(i + 1).replace(/\s+/g, '') : raw.slice(i + 1);
   if (i <= 0 || !/^[^\s@:]+@[^\s@:]+$/.test(address) || !password) return null;
-  return { address, password };
+  return { provider, address, password };
 }
 
-function servers(env: HubEnv) {
-  const test = typeof env.MAIL_TEST_SERVER === 'string' ? env.MAIL_TEST_SERVER.match(/^127\.0\.0\.1:(\d+)$/) : null;
+/** 이 사람의 연결된 메일 계정(네이버 → Gmail 순) */
+export const mailAccounts = (env: HubEnv, user: UserName) => PROVIDERS.map(p => mailAccountOf(env, user, p)).filter((a): a is MailAccount => !!a);
+
+/** 화면에 보낼 연결 정보: 주소는 앞 두 글자만(비밀번호는 절대 넣지 않음) */
+export function accountInfo(env: HubEnv, user: UserName) {
+  const accounts = mailAccounts(env, user).map(a => ({ provider: a.provider, address: a.address.replace(/^(.{2})[^@]*/, '$1***') }));
+  return { connected: accounts.length > 0, address: accounts.map(a => a.address).join(' · '), accounts };
+}
+
+function servers(env: HubEnv, provider: Provider) {
+  const v = env[TEST_VAR[provider]];
+  const test = typeof v === 'string' ? v.match(/^127\.0\.0\.1:(\d+)$/) : null;
   if (test) { const port = Number(test[1]); return { imap: { hostname: '127.0.0.1', port }, smtp: { hostname: '127.0.0.1', port: port + 1 }, tls: false }; }
-  return { imap: { hostname: 'imap.naver.com', port: 993 }, smtp: { hostname: 'smtp.naver.com', port: 465 }, tls: true };
+  return { imap: { hostname: HOSTS[provider].imap, port: 993 }, smtp: { hostname: HOSTS[provider].smtp, port: 465 }, tls: true };
 }
 
 const enc = new TextEncoder();
@@ -77,7 +96,7 @@ export interface Fetched { uid: number; raw: string }
 
 /** 받은편지함에서 lastUid 다음 메일을 최대 limit개(새것부터). 처음이면 최근 14일만 본다 */
 export async function fetchNew(env: HubEnv, account: MailAccount, lastUid: number, limit = 20): Promise<{ uidValidity: number; mails: Fetched[] }> {
-  const s = servers(env);
+  const s = servers(env, account.provider);
   const c = new Conn(connect(s.imap, { secureTransport: s.tls ? 'on' : 'off' }), Date.now() + 25000);
   try {
     if (!/^\* (OK|PREAUTH)/.test(await c.line())) throw new MailError('메일 서버가 응답하지 않아요.');
@@ -106,7 +125,7 @@ async function reply(c: Conn, want: string) {
 
 /** SMTP로 메일 한 통 보내기(사람이 '보내기'를 눌렀을 때만 부른다) */
 export async function sendMail(env: HubEnv, account: MailAccount, to: string, raw: string) {
-  const s = servers(env);
+  const s = servers(env, account.provider);
   const c = new Conn(connect(s.smtp, { secureTransport: s.tls ? 'on' : 'off' }), Date.now() + 25000);
   try {
     await reply(c, '220');

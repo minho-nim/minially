@@ -80,6 +80,8 @@ const TABLES = [
   // 원고 판 기록: AI 초안 직전·AI 초안·고친 글(10분마다 한 줄)·승인/게시 때 최종. 원고마다 30개까지(mini-log/functions/_writing.ts)
   "CREATE TABLE IF NOT EXISTS minilog_versions (id TEXT PRIMARY KEY, user TEXT NOT NULL, draft_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
   'CREATE INDEX IF NOT EXISTS minilog_versions_draft ON minilog_versions (user, draft_id, created_at)',
+  // 메일 계정(네이버·Gmail)마다 어디까지 받았는지. 네이버는 처음에 minilog_mail_state 값을 이어받는다
+  'CREATE TABLE IF NOT EXISTS minilog_mail_cursor (user TEXT NOT NULL, account TEXT NOT NULL, uid_validity INTEGER NOT NULL DEFAULT 0, last_uid INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user, account))',
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
 const COLUMNS: [table: string, column: string, type: string][] = [
@@ -94,6 +96,7 @@ const COLUMNS: [table: string, column: string, type: string][] = [
   ['minilog_mails', 'body_html', 'TEXT'], // 받은 메일 HTML 원문(300KB까지, 화면이 허용한 모양으로만 다시 그림)
   ['minilog_mails', 'reply_doc', 'TEXT'], // 서식 있는 답장(JSON 문서, _mailDoc.ts)
   ['minilog_mails', 'to_addr', 'TEXT'], // 내가 새로 쓴 메일의 받는 사람
+  ['minilog_mails', 'account', 'TEXT'], // 받은·보낸 계정(naver·gmail, 비어 있으면 naver)
   ['minilog_prefs', 'marks_off', 'INTEGER'], // 원고 본문 밑줄 끄기(1이면 끔, 계정 기반)
   ['minilog_prefs', 'steps_done', 'INTEGER'], // 첫 안내 3단계를 다 봄(1, 계정 기반)
 ];

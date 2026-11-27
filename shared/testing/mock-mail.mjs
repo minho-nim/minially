@@ -76,7 +76,7 @@ http.createServer((req, res) => {
     const send = (code, data) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
     if (req.url === '/health') return send(200, { ok: true });
     if (req.url === '/reset' && req.method === 'POST') { inbox = []; sent = []; return send(200, { ok: true }); }
-    if (req.url === '/inbox' && req.method === 'POST') { const uid = nextUid++; inbox.push({ uid, raw: JSON.parse(body).raw }); return send(200, { uid }); }
+    if (req.url === '/inbox' && req.method === 'POST') { const b = JSON.parse(body); const uid = Number.isInteger(b.uid) && b.uid >= nextUid ? b.uid : nextUid; nextUid = uid + 1; inbox.push({ uid, raw: b.raw }); return send(200, { uid }); } // uid를 주면 그 번호로(서버마다 같은 번호 시험)
     if (req.url === '/sent') return send(200, sent);
     send(404, {});
   });

@@ -10,9 +10,9 @@ export const LOCK_MS = 120_000;
 export interface Mail {
   id: string; from_name: string; from_addr: string; subject: string; received_at: number; snippet: string;
   kind: MailKind; brand: string; summary: string; deadline: string | null; needs_reply: number;
-  reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null; to_addr: string;
+  reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null; to_addr: string; account: string;
 }
-export const COLUMNS = "id, from_name, from_addr, subject, received_at, snippet, kind, brand, summary, deadline, needs_reply, reply_subject, reply_body, status, campaign_id, sent_at, COALESCE(to_addr, '') AS to_addr";
+export const COLUMNS = "id, from_name, from_addr, subject, received_at, snippet, kind, brand, summary, deadline, needs_reply, reply_subject, reply_body, status, campaign_id, sent_at, COALESCE(to_addr, '') AS to_addr, COALESCE(account, 'naver') AS account";
 
 export interface Judgement { id: string; kind: MailKind; brand: string; title: string; amount: number; deadline: string | null; visit_on: string | null; answer: 'yes' | 'no' | 'unknown'; summary: string; needs_reply: boolean }
 

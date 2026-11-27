@@ -813,3 +813,11 @@ select.input { appearance: auto; }
 .version-body p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9rem; }
 .habits { display: grid; gap: 6px; margin-top: 10px; padding: 10px; border-radius: 10px; background: var(--surface-2); }
 .habits .chips { align-items: center; }
+
+/* 메일 계정 표시(네이버·Gmail을 한 메일함에) */
+.acct { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.acct-naver { background: color-mix(in srgb, #03c75a 16%, transparent); color: #05703a; }
+.acct-gmail { background: color-mix(in srgb, #d93025 14%, transparent); color: #a3271d; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .acct-naver { color: #6fe0a0; } :root:not([data-theme="light"]) .acct-gmail { color: #ff9c92; } }
+:root[data-theme="dark"] .acct-naver { color: #6fe0a0; }
+:root[data-theme="dark"] .acct-gmail { color: #ff9c92; }
