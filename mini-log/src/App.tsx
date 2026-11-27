@@ -1,8 +1,11 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Skeleton } from './Skeleton';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
+import { NavIcon } from './NavIcon';
+import { FirstSteps } from './FirstSteps';
+import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { BodyEditor } from './BodyEditor';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
@@ -190,6 +193,9 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
     finally { setCreating(false); }
   }
 
+  // 메뉴 이동: 원고가 아닌 화면으로 가면 열린 원고를 닫는다
+  const go = (key: Exclude<View, 'proposal'>) => { setView(key); if (key !== 'drafts') setSelectedId(null); };
+
   // 글감으로 원고 만들기: 제목·해시태그를 채운 새 원고를 열고, 경험 칸은 사용자가 직접 쓴다
   async function draftFromIdea(idea: Idea, plannedOn: string | null) {
     const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: { title: idea.title || idea.topic, hashtags: idea.hashtags, ...(plannedOn ? { planned_on: plannedOn } : {}) } });
@@ -204,6 +210,15 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   }
 
   const selected = drafts?.find(d => d.id === selectedId) ?? null;
+  const group = groupOf(view);
+  // 빠른 찾기 목록: 할 일 → 화면 → 원고 제목(최근 순)
+  const commands = useMemo<Command[]>(() => [
+    { id: 'new', label: '새 원고 만들기', group: '할 일', run: () => { void create(); } },
+    ...GROUPS.flatMap(g => g.keys.map(key => ({ id: `v-${key}`, label: VIEW_LABEL[key], hint: g.label, group: '화면', run: () => go(key) }))),
+    { id: 'v-structure', label: '블로그 구조', hint: '분석', group: '화면', run: () => go('structure') },
+    { id: 'v-settings', label: '설정', hint: '계정·백업', group: '화면', run: () => go('settings') },
+    ...(drafts ?? []).map(d => ({ id: `d-${d.id}`, label: d.title.trim() || '제목 없는 원고', hint: STATUS_LABEL[d.status], group: '원고', run: () => { setSelectedId(d.id); setView('drafts'); } })),
+  ], [drafts]); // 화면 이동·새 원고는 상태를 바꾸는 함수만 써서 원고 목록이 바뀔 때만 다시 만든다
   const onSaved = useCallback((draft: Draft) => setDrafts(list => list?.map(d => (d.id === draft.id ? { ...draft, photo_count: draft.photo_count ?? d.photo_count } : d)).sort((a, b) => b.updated_at - a.updated_at) ?? null), []);
   const onPhotoCount = useCallback((n: number) => setDrafts(list => {
     if (!list || !selectedId) return list;
@@ -215,22 +230,26 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   return (
     <div className={`shell${selected || view !== 'drafts' ? ' editing' : ''}`}>
       <UndoToast />
+      <CommandPalette commands={commands} />
       <aside className="side" aria-label="원고 목록">
         <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
+        <button className="btn primary new-draft" onClick={() => { void create(); }} disabled={creating} aria-busy={creating}><NavIcon name="plus" size={16} />{creating ? '만드는 중…' : '새 원고'}</button>
+        <button type="button" className="side-search" onClick={openPalette}><span>빠른 찾기</span><kbd aria-hidden="true">Ctrl K</kbd></button>
         <nav className="views" aria-label="미니로그 메뉴">
-          {/* 메뉴 묶음(Buffer의 만들기·올리기·분석처럼): 만들기 · 일정 · 협찬 · 분석, 설정은 따로 */}
-          {MENU.map(([group, keys]) => (
-            <div key={group} className="view-group" role="group" aria-label={group}>
-              <span className="view-group-label" aria-hidden="true">{keys.length === 1 && VIEW_LABEL[keys[0]] === group ? '' : group}</span>
-              <div className="view-group-items">
-                {keys.map(key => (
-                  <button key={key} aria-current={view === key && (key !== 'drafts' || !selected)} onClick={() => { setView(key); if (key !== 'drafts') setSelectedId(null); }}>{VIEW_LABEL[key]}{key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}</button>
-                ))}
-              </div>
+          {/* 시안 A: 묶음 이름은 위에 작게, 메뉴는 한 줄에 하나(아이콘 + 이름), 지금 화면은 주황 띠 */}
+          {SIDE_SECTIONS.map(section => (
+            <div key={section.label} className="view-group" role="group" aria-label={section.label}>
+              <span className="view-group-label" aria-hidden="true">{section.label}</span>
+              {section.keys.map(key => (
+                <button key={key} type="button" aria-current={menuKeyOf(view) === key && (key !== 'drafts' || !selected)} onClick={() => go(key)}>
+                  <NavIcon name={key} />{VIEW_LABEL[key]}
+                  {key === 'drafts' && drafts && drafts.length > 0 && <span className="nav-count" aria-hidden="true">{drafts.length}</span>}
+                  {key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}
+                </button>
+              ))}
             </div>
           ))}
         </nav>
-        <button className="btn primary" onClick={() => { void create(); }} disabled={creating}>{creating ? '만드는 중…' : '새 원고'}</button>
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
@@ -261,6 +280,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             finally { setLoadingOlder(false); }
           }}>{loadingOlder ? '불러오는 중…' : '이전 원고 더 보기'}</button>
         )}
+        <button type="button" className="side-settings" aria-current={view === 'settings'} onClick={() => go('settings')}><NavIcon name="settings" />설정</button>
         <div className="side-foot">
           <a className="btn ghost small" href={APP_LINKS.hub}>hub</a>
           <span className="small muted side-name">{me.name}</span>
@@ -280,6 +300,14 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'mail' ? <MailView onBack={() => setView('drafts')} onCampaigns={() => setView('campaigns')} onWaiting={setMailWaiting} />
         : view === 'ideas' ? <IdeasView<Draft> onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
+        : null}
+        {(view === 'blog' || view === 'structure') && (
+          <div className="seg blog-switch" role="group" aria-label="블로그 화면 고르기">
+            <button type="button" className="btn small" aria-pressed={view === 'blog'} onClick={() => go('blog')}>내 블로그 글</button>
+            <button type="button" className="btn small" aria-pressed={view === 'structure'} onClick={() => go('structure')}>블로그 구조</button>
+          </div>
+        )}
+        {view === 'proposal' || view === 'report' || view === 'mail' || view === 'ideas' || view === 'style' ? null
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} onSaved={list => list.forEach(onSaved)} />
@@ -295,9 +323,30 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
               {!me.gemini.connected && <p className="error">Gemini 키가 아직 연결되지 않아 AI 초안은 만들 수 없어요. 원고 저장은 할 수 있어요.</p>}
+              {drafts?.length === 0 && <FirstSteps onNew={() => { void create(); }} />}
             </div>
           )}
       </main>
+      {/* 휴대폰(839px 이하): 아래 탭 4개 + 묶음 안 메뉴는 위 칩 + '새 원고' 둥근 버튼. 원고를 쓰는 동안은 쓰기 막대에 자리를 내준다 */}
+      {!(view === 'drafts' && selected) && (
+        <>
+          {group && group.keys.length > 1 && (
+            <nav className="m-chips" aria-label={`${group.label} 메뉴`}>
+              {group.keys.map(key => <button key={key} type="button" aria-current={menuKeyOf(view) === key} onClick={() => go(key)}>{VIEW_LABEL[key]}</button>)}
+              <button type="button" className="m-gear" aria-label="설정" onClick={() => go('settings')}><NavIcon name="settings" size={20} /></button>
+            </nav>
+          )}
+          {(!group || group.keys.length === 1) && <button type="button" className="m-gear m-gear-alone" aria-label="설정" onClick={() => go('settings')}><NavIcon name="settings" size={20} /></button>}
+          {view === 'drafts' && <button type="button" className="m-fab" aria-label="새 원고" disabled={creating} onClick={() => { void create(); }}><NavIcon name="plus" size={24} /></button>}
+          <nav className="m-tabs" aria-label="미니로그 묶음">
+            {GROUPS.map(g => (
+              <button key={g.id} type="button" aria-label={`${g.label} 묶음`} aria-current={group?.id === g.id} onClick={() => go(g.keys[0])}>
+                <span className="m-tab-icon"><NavIcon name={g.keys[0]} size={20} />{g.id === 'deal' && mailWaiting > 0 && <span className="m-tab-dot" aria-hidden="true" />}</span>{g.label}
+              </button>
+            ))}
+          </nav>
+        </>
+      )}
     </div>
   );
 }
@@ -313,8 +362,24 @@ const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (
 
 type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style' | 'mail' | 'settings';
 const VIEW_LABEL: Record<Exclude<View, 'proposal'>, string> = { drafts: '원고', ideas: '글감', style: '문체', calendar: '캘린더', campaigns: '협찬', mail: '메일', dashboard: '대시보드', report: '월간보고', blog: '블로그', structure: '구조', settings: '설정' };
-const MENU: [string, Exclude<View, 'proposal'>[]][] = [['만들기', ['drafts', 'ideas', 'style']], ['일정', ['calendar']], ['협찬', ['campaigns', 'mail']], ['분석', ['dashboard', 'report', 'blog', 'structure']], ['설정', ['settings']]];
-const VIEWS = MENU.flatMap(([, keys]) => keys);
+type MenuView = Exclude<View, 'proposal' | 'structure' | 'settings'>;
+// 메뉴 묶음 4개(휴대폰 아래 탭과 같음). 구조는 '블로그' 안에서 바꿔 보고, 설정은 맨 아래 따로
+const GROUPS: { id: string; label: string; keys: MenuView[] }[] = [
+  { id: 'make', label: '만들기', keys: ['drafts', 'ideas', 'style'] },
+  { id: 'plan', label: '일정', keys: ['calendar'] },
+  { id: 'deal', label: '협찬', keys: ['campaigns', 'mail'] },
+  { id: 'stats', label: '분석', keys: ['dashboard', 'report', 'blog'] },
+];
+// 넓은 화면 옆 메뉴는 묶음 이름 3개(일정·협찬은 메뉴가 적어 한 묶음으로 보임)
+const SIDE_SECTIONS: { label: string; keys: MenuView[] }[] = [
+  { label: '만들기', keys: GROUPS[0].keys },
+  { label: '일정 · 협찬', keys: [...GROUPS[1].keys, ...GROUPS[2].keys] },
+  { label: '분석', keys: GROUPS[3].keys },
+];
+/** 지금 화면이 어느 메뉴 칸에 불이 들어오는지(구조→블로그, 제안서→협찬) */
+const menuKeyOf = (v: View): MenuView | 'settings' => (v === 'structure' ? 'blog' : v === 'proposal' ? 'campaigns' : v);
+const groupOf = (v: View) => GROUPS.find(g => (g.keys as string[]).includes(menuKeyOf(v))) ?? null;
+const VIEWS: Exclude<View, 'proposal'>[] = [...GROUPS.flatMap(g => g.keys), 'structure', 'settings'];
 
 interface Dashboard {
   since: string; gemini: { connected: boolean };
