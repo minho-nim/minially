@@ -34,12 +34,19 @@ test('원고 본문에 밑줄이 그어지고, 다음 문제를 누르면 그 �
   // 고치면 밑줄이 사라진다
   await body.fill('첫 문장이에요.\n둘째 줄은 직접 겪은 이야기예요.');
   await expect(page.getByText('본문에 표시할 문제가 없어요')).toBeVisible();
-  // 밑줄 끄기는 기억된다
+  // 밑줄 끄기는 계정에 기억된다: 새로고침해도, 다른 기기(새 브라우저)에서도 꺼져 있다
   await page.getByRole('button', { name: '밑줄 끄기' }).click();
   await expect(page.locator('.body-mirror')).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole('button', { name: '밑줄 켜기' })).toBeVisible();
+  const other = await page.context().browser()!.newContext();
+  const phone = await other.newPage();
+  await login(phone, CODE_D);
+  await phone.getByRole('button', { name: '새 원고' }).click();
+  await expect(phone.getByRole('button', { name: '밑줄 켜기' })).toBeVisible();
+  await other.close();
   await page.getByRole('button', { name: '밑줄 켜기' }).click();
+  await expect.poll(async () => page.evaluate(async () => (await (await fetch('/api/prefs')).json()).marks_off)).toBe(false);
 });
 
 test('겹쳐 그린 글이 본문 칸과 같은 자리에 놓인다(밑줄이 글자 아래에 맞음)', async ({ page }) => {

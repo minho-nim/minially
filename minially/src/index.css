@@ -96,6 +96,9 @@
 }
 @media (max-width: 839px) {
   .task-view button { min-height: 36px; }
+  /* 두세 개짜리 고르기 칸(하루·기간, 모두·미완료·완료)은 칸 전체를 옆 버튼과 같은 36px로, 안쪽 버튼은 칸 높이를 그대로 따른다(선택한 흰 칸이 아래로 삐져나오지 않게) */
+  .task-view [role="group"].bg-app-soft { height: 36px; }
+  .task-view [role="group"].bg-app-soft > button { min-height: 0; }
 }
 [data-sort-over='true'] { outline: 2px dashed #BD7F98; outline-offset: 2px; }
 [data-sort-dragging='true'] { opacity: 0.5; }

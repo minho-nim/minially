@@ -34,3 +34,17 @@ export async function setStructure(db: D1Database, user: UserName, structure: Wr
   await db.prepare('INSERT INTO minilog_prefs (user, structure, updated_at) VALUES (?, ?, ?) ON CONFLICT(user) DO UPDATE SET structure = excluded.structure, updated_at = excluded.updated_at')
     .bind(user, structure, Date.now()).run();
 }
+
+/** 화면 설정(계정 기반): 원고 밑줄 끄기·첫 안내 다 봄. 행이 없으면 기본값(밑줄 켬·안내 안 봄) */
+export interface UiPrefs { marks_off: boolean; steps_done: boolean }
+export async function getUiPrefs(db: D1Database, user: UserName): Promise<UiPrefs> {
+  const row = await db.prepare('SELECT marks_off, steps_done FROM minilog_prefs WHERE user = ?').bind(user).first<{ marks_off: number | null; steps_done: number | null }>();
+  return { marks_off: row?.marks_off === 1, steps_done: row?.steps_done === 1 };
+}
+export async function setUiPrefs(db: D1Database, user: UserName, next: Partial<UiPrefs>) {
+  const cur = await getUiPrefs(db, user);
+  const v = { ...cur, ...next };
+  await db.prepare("INSERT INTO minilog_prefs (user, structure, marks_off, steps_done, updated_at) VALUES (?, 'basic', ?, ?, ?) ON CONFLICT(user) DO UPDATE SET marks_off = excluded.marks_off, steps_done = excluded.steps_done, updated_at = excluded.updated_at")
+    .bind(user, v.marks_off ? 1 : 0, v.steps_done ? 1 : 0, Date.now()).run();
+  return v;
+}

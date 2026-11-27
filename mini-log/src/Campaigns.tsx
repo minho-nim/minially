@@ -3,6 +3,7 @@ import { Skeleton } from './Skeleton';
 import { Help } from './Help';
 import { MoreMenu } from './MoreMenu';
 import { EmptyState } from './EmptyState';
+import { showUndo } from './UndoToast';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { GuideChips, GuideFill, type Guide, type GuideResult } from './GuideFill';
@@ -146,12 +147,19 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
+  // 지우기: 확인 창 대신 바로 지우고 '되돌리기' 알림(서버 휴지통에 10분)
   async function remove() {
-    if (!editing?.id || !window.confirm('이 기록을 지울까요? 되돌릴 수 없어요.')) return;
+    if (!editing?.id) return;
+    const id = editing.id, name = editing.form.brand.trim() || '협찬';
     try {
-      await api(`/api/campaigns/${editing.id}`, { method: 'DELETE' });
-      setItems(list => (list ?? []).filter(c => c.id !== editing.id));
+      await api(`/api/campaigns/${id}`, { method: 'DELETE' });
+      setItems(list => (list ?? []).filter(c => c.id !== id));
       setEditing(null);
+      showUndo(`'${name.slice(0, 20)}' 기록을 지웠어요`, async () => {
+        await api(`/api/trash/${id}/restore`, { method: 'POST', body: {} });
+        const d = await api<{ campaigns: Campaign[] }>('/api/campaigns');
+        setItems(d.campaigns);
+      });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '지우지 못했어요.' }); }
   }
 

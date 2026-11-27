@@ -1,6 +1,7 @@
 import { json, readJson, type HubContext } from '../../../../shared/server/d1';
 import { requireSession } from '../../../../shared/server/auth';
-import { deleteCampaign, getCampaign, readCampaign, updateCampaign } from '../../_campaigns';
+import { getCampaign, readCampaign, updateCampaign } from '../../_campaigns';
+import { trashRow, TRASH_MS } from '../../_trash';
 
 // PUT: 고치기 · DELETE: 지우기 (본인 것만)
 const idOf = (ctx: HubContext) => (typeof ctx.params?.id === 'string' && /^[0-9a-f-]{36}$/.test(ctx.params.id) ? ctx.params.id : null);
@@ -25,6 +26,6 @@ export const onRequestDelete = async (ctx: HubContext) => {
   if (auth instanceof Response) return auth;
   const id = idOf(ctx);
   if (!id || !(await getCampaign(auth.db, auth.session.user, id))) return notFound();
-  await deleteCampaign(auth.db, auth.session.user, id);
-  return json({ ok: true });
+  await trashRow(auth.db, auth.session.user, 'campaign', id); // 10분 동안 되돌릴 수 있게 휴지통으로
+  return json({ ok: true, undo_ms: TRASH_MS });
 };

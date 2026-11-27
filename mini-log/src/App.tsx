@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Skeleton } from './Skeleton';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
@@ -10,36 +10,39 @@ import { BodyEditor } from './BodyEditor';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
 import { GoalBar } from './GoalBar';
-import { ThumbnailMaker } from './Thumbnail';
-import { StructureView } from './Structure';
 import { CategoryPick } from './CategoryPick';
 import { isStructure, outlineText, POST_TYPES, STRUCTURES, type PostType, type Structure } from '../functions/_postTypes';
 import { api, ApiError, APP_LINKS, formatNumber } from '../../shared/client/api';
 import { Tomong, Signature } from './Tomong';
 import { renumberMarkers } from './photoMarkers';
 import { fullText, instaCheck, instagramText, photoFileName } from './publishKit';
-import { CardNews } from './CardNews';
 import { emptyOutline, PhotoNotes } from './PhotoNotes';
 import { readShare } from './campaignFinder';
 import { PostPreview } from './PostPreview';
 import { DraftQuestions } from './DraftQuestions';
 import { SharedPhotos } from './SharedPhotos';
 import { SocialPosts } from './SocialPosts';
-import { CalendarView } from './Calendar';
 import { ReviewCard } from './Review';
 import { MoreMenu } from './MoreMenu';
 import { showUndo, UndoToast } from './UndoToast';
 import { TagSets } from './TagSets';
 import { Lessons } from './Lessons';
-import { IdeasView, type Idea } from './Ideas';
-import { ReportView } from './Report';
-import { ProposalView } from './Proposal';
+import type { Idea } from './Ideas';
 import { BackupCard } from './Backup';
 import { AccountsCard } from './Accounts';
-import { MailView } from './Mail';
 import { applyTheme, type Theme } from '../../shared/client/theme';
-import { BlogView } from './Blog';
 import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
+// 처음 화면에 안 쓰는 큰 화면은 열 때 불러온다(첫 화면 파일을 가볍게)
+const ThumbnailMaker = lazy(() => import('./Thumbnail').then(m => ({ default: m.ThumbnailMaker })));
+const CardNews = lazy(() => import('./CardNews').then(m => ({ default: m.CardNews })));
+const StructureView = lazy(() => import('./Structure').then(m => ({ default: m.StructureView })));
+const CalendarView = lazy(() => import('./Calendar').then(m => ({ default: m.CalendarView<Draft> })));
+const IdeasView = lazy(() => import('./Ideas').then(m => ({ default: m.IdeasView<Draft> })));
+const ReportView = lazy(() => import('./Report').then(m => ({ default: m.ReportView })));
+const ProposalView = lazy(() => import('./Proposal').then(m => ({ default: m.ProposalView })));
+const MailView = lazy(() => import('./Mail').then(m => ({ default: m.MailView })));
+const BlogView = lazy(() => import('./Blog').then(m => ({ default: m.BlogView })));
+
 
 type Status = 'draft' | 'approved' | 'published';
 interface Draft {
@@ -295,10 +298,11 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
           for (let i = 0; i < files.length; i++) { await uploadPhoto(id, files[i]); progress(i + 1); }
           await refresh(); setSelectedId(id); setView('drafts');
         }} />}
+        <Suspense fallback={<Skeleton rows={4} label="화면을 불러오는 중…" />}>
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
         : view === 'mail' ? <MailView onBack={() => setView('drafts')} onCampaigns={() => setView('campaigns')} onWaiting={setMailWaiting} />
-        : view === 'ideas' ? <IdeasView<Draft> onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
+        : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : null}
         {(view === 'blog' || view === 'structure') && (
@@ -326,6 +330,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
               {drafts?.length === 0 && <FirstSteps onNew={() => { void create(); }} />}
             </div>
           )}
+        </Suspense>
       </main>
       {/* 휴대폰(839px 이하): 아래 탭 4개 + 묶음 안 메뉴는 위 칩 + '새 원고' 둥근 버튼. 원고를 쓰는 동안은 쓰기 막대에 자리를 내준다 */}
       {!(view === 'drafts' && selected) && (
@@ -895,6 +900,9 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
   const pending = useRef<Fields | null>(null);
   const timer = useRef<number | undefined>(undefined);
+  // 지금 화면의 칸 값(다른 곳에서 setFields로 바꾼 것도 따라감). change()가 여러 번 잇달아 불려도 앞의 입력을 잃지 않게
+  const latestFields = useRef(fields);
+  useEffect(() => { latestFields.current = fields; }, [fields]);
 
   // leaving=true: 창을 닫거나 다른 앱으로 갈 때. 브라우저가 요청을 끊지 않게 keepalive(64KB 이하일 때만 가능)
   const flush = useCallback(async (leaving = false) => {
@@ -930,12 +938,13 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
   }, [draft.id, onSaved, onCopied]);
 
   // 자동 저장: 입력을 멈추고 0.8초 뒤. 화면을 떠날 때도 남은 것을 저장한다.
+  // 저장할 내용은 입력한 그 순간에 정한다. 화면 상태 함수 안에서 정하면 바쁜 컴퓨터에서 다시 그리기가 0.8초보다 늦을 때
+  // 타이머가 빈 내용으로 먼저 돌아 '저장 대기'에 멈추고 고친 내용이 서버에 안 올라갔다
   function change(patch: Partial<Fields>) {
-    setFields(current => {
-      const next = { ...current, ...patch };
-      pending.current = next;
-      return next;
-    });
+    const next = { ...(pending.current ?? latestFields.current), ...patch };
+    pending.current = next;
+    latestFields.current = next;
+    setFields(next);
     setSave('dirty');
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => { void flush(); }, 800);
@@ -1235,7 +1244,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
                   <button className="btn small" aria-expanded={thumbOpen} onClick={() => setThumbOpen(v => !v)} disabled={!photos?.length}>{thumbOpen ? '썸네일 닫기' : '썸네일 만들기'}</button>
                   <span className="muted small">{photos?.length ? '사진 위에 제목을 얹어 대표 이미지(1:1·4:3)로' : '사진을 올리면 만들 수 있어요.'}</span>
                 </div>
-                {thumbOpen && photos && photos.length > 0 && <ThumbnailMaker photos={photos} title={fields.title} onMessage={setMessage} />}
+                {thumbOpen && photos && photos.length > 0 && <Suspense fallback={<Skeleton rows={2} />}><ThumbnailMaker photos={photos} title={fields.title} onMessage={setMessage} /></Suspense>}
               </li>
               <li>
                 <span className="kit-label">사진 받기</span>
@@ -1288,7 +1297,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
                   <button className="btn small" onClick={() => setCardOpen(v => !v)} aria-expanded={cardOpen}>{cardOpen ? '카드뉴스 닫기' : '카드뉴스 7장 만들기'}</button>
                   <span className="muted small">원고에서 장마다 글을 뽑아 4:5 카드로 그려요. 첫 장은 첫 사진을 써요.</span>
                 </div>
-                {cardOpen && <CardNews title={fields.title} body={fields.body} photoId={photos?.[0]?.id ?? null} onMessage={setMessage} />}
+                {cardOpen && <Suspense fallback={<Skeleton rows={2} />}><CardNews title={fields.title} body={fields.body} photoId={photos?.[0]?.id ?? null} onMessage={setMessage} /></Suspense>}
               </li>
               <li className="kit-wide">
                 <span className="kit-label">스레드·X</span>

@@ -58,7 +58,10 @@ test('통합 대시보드에 C·D 합계와 사용자별 숫자가 보이고, �
   await expect(page.getByRole('button', { name: '두 사람 같이' })).toHaveAttribute('aria-pressed', 'true');
   const kpi = (label: RegExp) => page.locator('.kpi').filter({ hasText: label }).locator('.value');
   await expect(kpi(/전체 AI 호출/)).toHaveText('3');
-  await expect(kpi(/전체 토큰/)).toHaveText('4,700');
+  await expect(page.locator('.kpi').filter({ hasText: /전체 AI 호출/ }).locator('.hint')).toHaveText('토큰 4,700 · 오류 1');
+  const top = (label: RegExp) => page.locator('#overview .kpi').filter({ hasText: label }).locator('.value');
+  await expect(top(/게시 글/)).toHaveText('1개'); // D가 이번 달 게시 1개
+  await expect(top(/받은 금액/)).toHaveText('100,000원'); // C가 정산 완료 10만 원
   await expect(kpi(/Gemini 연결/)).toHaveText('1/2');
   const rowD = page.locator('.user-row').filter({ hasText: '사용자 D' });
   const col = (name: string) => rowD.locator(`td[data-col="${name}"]`);
