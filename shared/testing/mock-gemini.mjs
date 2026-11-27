@@ -5,12 +5,17 @@ import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8899);
 const overloadedOnce = new Set(); // 'OVERLOAD-ONCE' 글은 처음 한 번만 503
+const pushLog = [];
 createServer((req, res) => {
   let raw = '';
   req.on('data', chunk => { raw += chunk; });
   req.on('end', () => {
     const send = (status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (req.url === '/health') return send(200, { ok: true });
+    // 웹 푸시 흉내: /push/<이름>에 온 요청(머리만)을 기록, /push/gone-*은 410(구독 끝남), GET /push-log로 본다
+    const push = (req.url ?? '').match(/^\/push\/([\w-]+)$/);
+    if (push && req.method === 'POST') { pushLog.push({ id: push[1], authorization: req.headers.authorization ?? '', ttl: req.headers.ttl ?? '', length: raw.length }); return send(push[1].startsWith('gone') ? 410 : 201, {}); }
+    if (req.url === '/push-log') return send(200, pushLog);
     // 티스토리 RSS 흉내: /rss/tistory/{이름}/rss (태그는 <category>로)
     const tistory = (req.url ?? '').match(/^\/rss\/tistory\/([^/]+)\/rss$/);
     if (tistory) {
