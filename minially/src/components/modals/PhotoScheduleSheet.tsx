@@ -6,7 +6,7 @@ import { AlertTriangle, CalendarDays, Clock, ImagePlus, Repeat2, Sparkles, TextS
 import type { CategoryItem, RecurrenceRule, Schedule } from '../../types';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { getTodayDateString } from '../../utils/dateHelpers';
-import { overlapping, PhotoReadError, readPhotoSchedule, readTextScheduleWithAi, shrinkForReading, type PhotoEvent } from '../../utils/photoSchedule';
+import { checkPhotoConnection, overlapping, PhotoReadError, readPhotoSchedule, readTextScheduleWithAi, shrinkForReading, type AiCheck, type PhotoEvent } from '../../utils/photoSchedule';
 import { parseScheduleText, TEXT_LIMIT } from '../../utils/textSchedule';
 import { historyHint, rejectKey, type HistoryHint } from '../../utils/scheduleSuggest';
 import { readMarks, type MarkKind } from '../../utils/readMarks';
@@ -46,6 +46,8 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
   const [pasted, setPasted] = useState('');
   const [source, setSource] = useState<'photo' | 'text'>('photo');
   const [aiTried, setAiTried] = useState(false);
+  const [check, setCheck] = useState<AiCheck | null>(null);
+  const [checking, setChecking] = useState(false);
   const run = useRef(0);
   const close = () => { if (saving) return false; run.current += 1; onClose(); };
   useScheduleDialog(open, false, root, close, close);
@@ -128,6 +130,12 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
     } catch (e) { setSaving(false); setError({ text: e instanceof Error ? e.message : '등록하지 못했어요.', code: 'save' }); }
   }
 
+  const runCheck = async () => { setChecking(true); setCheck(null); try { setCheck(await checkPhotoConnection()); } finally { setChecking(false); } };
+  // 연결 확인: 사진 읽기가 안 될 때 어디서 막혔는지(코드·키·구글 AI) 한 번에 보여 준다
+  const checkBox = <div className="space-y-1.5">
+    <button type="button" className="min-h-9 text-xs font-semibold text-app-accent-ink underline underline-offset-4" disabled={checking} aria-busy={checking} onClick={() => { void runCheck(); }}>{checking ? 'AI 연결 확인 중…' : 'AI 연결 확인'}</button>
+    {check && <p role="status" aria-label="AI 연결 확인 결과" className={`rounded-lg px-2.5 py-2 text-xs ${check.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>{check.ok ? '✓ ' : '! '}{check.message}</p>}
+  </div>;
   const pickButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => input.current?.click()}><ImagePlus className="mr-1 inline h-4 w-4" aria-hidden="true" />{phase === 'pick' ? '사진 고르기' : '다른 사진'}</button>;
   const editTextButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => { run.current += 1; setError(null); setPhase('pick'); }}>글 고치기</button>;
   const againButton = source === 'text' ? editTextButton : pickButton;
@@ -156,6 +164,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
           <p className="text-sm text-app-ink">예약 문자·공지·포스터 사진을 고르면(3장까지) 날짜와 시간을 찾아 일정 후보로 보여 줘요. 고른 것만 등록돼요.</p>
           {pickButton}
           <p className="rounded-xl bg-app-soft p-3 text-xs text-app-ink">사진은 구글 무료 AI(Gemini)로 읽어요. 무료 AI에 보낸 내용은 구글 서비스 개선에 쓰일 수 있어요. 개인정보가 있는 문자는 사진 대신 글을 복사해 위에 붙여넣어 주세요.</p>
+          {checkBox}
         </div>}
         {phase === 'reading' && <div className="space-y-3" role="status">
           <p className="flex items-center gap-2 font-semibold text-app-ink"><span className="h-5 w-5 animate-spin rounded-full border-2 border-app-line border-t-app-accent-hover motion-reduce:animate-none" aria-hidden="true" />{source === 'text' ? '글에서 날짜와 시간을 AI로 찾고 있어요' : '사진에서 날짜와 시간을 찾고 있어요'}</p>
@@ -165,8 +174,9 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
         </div>}
         {phase === 'error' && error && <div className="space-y-3" role="alert">
           <p className="text-sm font-semibold text-app-ink">{error.code === 'no_key' ? 'AI 읽기가 아직 연결되지 않았어요' : error.code === 'offline' || error.code === 'no_login' ? '지금은 쓸 수 없어요' : error.code === 'quota_exceeded' ? '오늘 AI 읽기 한도를 다 썼어요' : source === 'text' ? '글을 읽지 못했어요' : '사진을 읽지 못했어요'}</p>
-          <p className="text-sm text-app-muted">{error.text}</p>
+          <p className="text-sm text-app-muted">{error.text} <span className="text-xs">(오류 이름: {error.code})</span></p>
           {againButton}
+          {checkBox}
         </div>}
         {phase === 'list' && rows.length === 0 && (source === 'text' ? <div className="space-y-3">
           <p className="text-sm font-semibold text-app-ink">글에서 일정을 못 찾았어요</p>

@@ -50,6 +50,19 @@ async function askServer(payload: { image: string; today: string } | { text: str
   return Array.isArray(body.events) ? body.events : [];
 }
 
+/** 연결 확인: 코드→미니허브 사용자→Gemini 키→구글 AI가 답하는지 단계별로(키 값은 오지 않음) */
+export interface AiCheck { ok: boolean; step: string; message: string; model?: string; code?: string }
+export async function checkPhotoConnection(): Promise<AiCheck> {
+  const code = syncEngine.code;
+  if (!code) return { ok: false, step: 'login', message: '동기화 코드로 로그인하면 확인할 수 있어요.' };
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/photo-schedule`, { method: 'GET', cache: 'no-store', headers: { authorization: `Bearer ${code}` } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, step: 'http', message: body?.error ?? `서버 오류(${res.status})` };
+    return { ok: !!body.ok, step: String(body.step ?? ''), message: String(body.message ?? ''), model: body.model, code: body.code };
+  } catch { return { ok: false, step: 'offline', message: '인터넷에 연결되면 확인할 수 있어요.' }; }
+}
+
 /** 같은 날 시간이 겹치는 기존 일정(시간 없는 후보·일정은 겹침으로 보지 않음, 끝 시간이 없으면 1시간으로 봄) */
 export function overlapping(candidate: { date: string; start: string | null; end: string | null }, schedules: Schedule[]) {
   if (!candidate.start) return null;

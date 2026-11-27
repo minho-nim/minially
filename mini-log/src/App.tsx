@@ -5,6 +5,7 @@ import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
 import { FirstSteps } from './FirstSteps';
+import { setUiPrefs, type UiPrefs } from './uiPrefs';
 import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { BodyEditor } from './BodyEditor';
 import { Help } from './Help';
@@ -74,7 +75,7 @@ async function uploadPhoto(draftId: string, file: File): Promise<Photo> {
   if (!response.ok) throw new ApiError((data as { error?: string }).error ?? '사진을 올리지 못했어요.', response.status);
   return (data as { photo: Photo }).photo;
 }
-interface Me { user: 'C' | 'D'; name: string; theme: Theme; gemini: { connected: boolean } }
+interface Me { user: 'C' | 'D'; name: string; theme: Theme; gemini: { connected: boolean }; ui?: UiPrefs }
 type State = { kind: 'loading' } | { kind: 'login' } | { kind: 'error'; message: string } | { kind: 'ready'; me: Me };
 
 export default function App() {
@@ -83,6 +84,7 @@ export default function App() {
     try {
       const me = await api<Me | { user: null }>('/api/me');
       if (me.user) applyTheme((me as Me).theme); // hub 설정에서 고른 테마
+      setUiPrefs(me.user ? (me as Me).ui : null); // 계정의 화면 설정(밑줄·첫 안내)
       setState(me.user ? { kind: 'ready', me: me as Me } : { kind: 'login' });
     } catch (error) {
       setState({ kind: 'error', message: error instanceof Error ? error.message : '불러오지 못했어요.' });

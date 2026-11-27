@@ -65,9 +65,31 @@ function classify(status: number, text: string): AiErrorCode {
   return 'upstream_error';
 }
 
-/** Gemini를 부르고 결과와 관계없이 ai_usage에 한 줄 남긴다. 실패하면 AiError를 던진다. */
+/**
+ * 구글이 모델을 내렸거나(404) 새 키에 열어 주지 않을 때(2.5 모델은 예전에 쓴 사람만) 한 번 바꿔 부를 모델.
+ * 구글 공식 안내(Gemini deprecations, 2026-11)의 권장 대체 모델. 지금 잘 되는 키는 원래 모델을 그대로 쓴다.
+ */
+export const MODEL_FALLBACK: Record<string, string> = {
+  'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
+  'gemini-2.5-flash': 'gemini-3.5-flash-lite',
+  'gemini-2.5-pro': 'gemini-3.8-flash',
+};
+const modelGone = (status: number, text: string) => status === 404 && /model|NOT_FOUND|no longer available/i.test(text);
+
+/** Gemini를 부르고 결과와 관계없이 ai_usage에 한 줄 남긴다. 실패하면 AiError를 던진다. 모델이 없어졌으면 권장 대체 모델로 한 번 더 */
 export async function callGemini(req: GeminiRequest): Promise<GeminiResult> {
-  const model = req.model || (typeof req.env.GEMINI_MODEL === 'string' && req.env.GEMINI_MODEL) || DEFAULT_MODEL;
+  const first = req.model || (typeof req.env.GEMINI_MODEL === 'string' && req.env.GEMINI_MODEL) || DEFAULT_MODEL;
+  try { return await callModel(req, first); }
+  catch (error) {
+    const next = MODEL_FALLBACK[first];
+    if (error instanceof ModelGone && next) { console.error(`gemini ${req.app}/${req.task} 모델 ${first} 사용 불가 → ${next}로 다시`); return callModel(req, next); }
+    if (error instanceof ModelGone) throw error.ai;
+    throw error;
+  }
+}
+class ModelGone extends Error { constructor(public ai: AiError) { super(ai.message); } }
+
+async function callModel(req: GeminiRequest, model: string): Promise<GeminiResult> {
   const base = (typeof req.env.GEMINI_API_BASE === 'string' && req.env.GEMINI_API_BASE) || DEFAULT_BASE;
   const fail = async (code: AiErrorCode, status = 502): Promise<never> => {
     await record(req.db, { user: req.user, app: req.app, model, task: req.task, input: 0, output: 0, status: 'error', error: code });
@@ -103,7 +125,11 @@ export async function callGemini(req: GeminiRequest): Promise<GeminiResult> {
     const detail = await response.text().catch(() => '');
     const code = classify(response.status, detail);
     // 원인 확인용(키는 요청 머리에만 있고 응답에는 없다): Cloudflare 로그에 상태와 구글 메시지 앞부분만
-    console.error(`gemini ${req.app}/${req.task} ${response.status} ${code}: ${detail.replace(/AIza[0-9A-Za-z_-]{20,}/g, '[키 가림]').replace(/\s+/g, ' ').slice(0, 300)}`);
+    console.error(`gemini ${req.app}/${req.task} ${model} ${response.status} ${code}: ${detail.replace(/AIza[0-9A-Za-z_-]{20,}/g, '[키 가림]').replace(/\s+/g, ' ').slice(0, 300)}`);
+    if (modelGone(response.status, detail)) {
+      await record(req.db, { user: req.user, app: req.app, model, task: req.task, input: 0, output: 0, status: 'error', error: 'model_gone' });
+      throw new ModelGone(new AiError('bad_request', 502));
+    }
     return fail(code, code === 'rate_limited' || code === 'quota_exceeded' ? 429 : code === 'overloaded' ? 503 : 502);
   }
   let data: { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; promptFeedback?: { blockReason?: string }; usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number } };

@@ -21,6 +21,13 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
     window.addEventListener('minihub-palette', onOpen);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('minihub-palette', onOpen); };
   }, []);
+  // 창이 열려 있으면 입력칸에 초점이 오기 전이라도 Esc로 닫힌다
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); setOpen(false); } };
+    window.addEventListener('keydown', esc);
+    return () => window.removeEventListener('keydown', esc);
+  }, [open]);
   useEffect(() => {
     if (open) { back.current = document.activeElement as HTMLElement | null; setQ(''); setAt(0); requestAnimationFrame(() => input.current?.focus()); }
     else back.current?.focus?.();
@@ -36,7 +43,6 @@ export function CommandPalette({ commands }: { commands: Command[] }) {
     if (e.key === 'ArrowDown') { e.preventDefault(); setAt(i => Math.min(i + 1, shown.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setAt(i => Math.max(i - 1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); pick(shown[at]); }
-    else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); }
     else if (e.key === 'Tab') e.preventDefault(); // 창 안에 머문다(목록은 화살표로)
   };
   let lastGroup = '';
