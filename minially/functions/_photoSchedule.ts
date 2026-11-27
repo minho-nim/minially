@@ -8,7 +8,8 @@ export const PHOTO_MODEL = 'gemini-2.5-flash-lite';
 
 import { parseScheduleText } from '../src/utils/textSchedule';
 
-export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean; until?: string }
+export interface PhotoRepeat { frequency: 'daily' | 'weekly' | 'monthly'; interval: number; weekdays?: number[]; label: string }
+export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean; until?: string; repeat?: PhotoRepeat; guessed?: boolean }
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -74,6 +75,8 @@ export function readTranscript(raw: unknown) {
  * AI 답을 글자 규칙으로 한 번 더 확인한다(사진 속 글·붙여넣은 글 기준).
  * - 규칙이 찾은 날짜에 없는 AI 일정은 '확인 필요'(잘못 읽었거나 지어냈을 수 있음)
  * - 같은 날짜면 AI가 비운 시간을 규칙이 찾은 시간으로 채우고, 규칙이 '확인 필요'로 본 날(요일 다름 등)은 따라간다
+ * - 같은 날짜인데 AI 시간과 규칙 시간이 다르면 '확인 필요'(둘 중 하나가 잘못 읽음)
+ * - 규칙이 찾은 반복(매주 화·목)·장소(@강남역)는 AI가 비웠으면 채운다
  * - AI가 빠뜨린 날짜는 규칙이 찾은 후보로 더한다(최대 10개)
  */
 export function crossCheck(ai: PhotoEvent[], transcript: string, today: string): PhotoEvent[] {
@@ -83,11 +86,12 @@ export function crossCheck(ai: PhotoEvent[], transcript: string, today: string):
     const same = rules.filter(r => r.date === e.date);
     if (!same.length) return { ...e, uncertain: true };
     const r = same.find(x => x.start === e.start) ?? same[0];
-    return { ...e, start: e.start ?? r.start, end: e.start ? e.end : r.end, uncertain: e.uncertain || r.uncertain, ...(r.until && !e.until ? { until: r.until } : {}) };
+    const differ = Boolean(e.start && r.start && e.start !== r.start && !same.some(x => x.start === e.start));
+    return { ...e, start: e.start ?? r.start, end: e.start ? e.end : r.end, location: e.location || r.location, uncertain: e.uncertain || r.uncertain || differ, ...(r.until && !e.until ? { until: r.until } : {}), ...(r.repeat ? { repeat: r.repeat } : {}), ...(r.guessed && !e.start ? { guessed: true } : {}) };
   });
   for (const r of rules) {
     if (out.length >= PHOTO_LIMITS.events) break;
-    if (!out.some(e => e.date === r.date)) out.push({ title: r.title.slice(0, PHOTO_LIMITS.title), date: r.date, start: r.start, end: r.end, location: r.location, memo: r.memo, source: r.source, uncertain: r.uncertain, ...(r.until ? { until: r.until } : {}) });
+    if (!out.some(e => e.date === r.date)) out.push({ title: r.title.slice(0, PHOTO_LIMITS.title), date: r.date, start: r.start, end: r.end, location: r.location, memo: r.memo, source: r.source, uncertain: r.uncertain, ...(r.until ? { until: r.until } : {}), ...(r.repeat ? { repeat: r.repeat } : {}), ...(r.guessed ? { guessed: true } : {}) });
   }
   return out;
 }

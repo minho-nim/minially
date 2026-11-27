@@ -2,20 +2,25 @@
 // 글은 이 기기 안에서 규칙으로 읽고, 못 찾았을 때 사람이 누를 때만 AI로 보낸다. 사진은 AI로 읽되 저장하지 않는다.
 // 등록은 App이 한 번에 하고 되돌리기도 한 번에 된다.
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, Clock, ImagePlus, Sparkles, TextSearch, X } from 'lucide-react';
-import type { CategoryItem, Schedule } from '../../types';
+import { AlertTriangle, CalendarDays, Clock, ImagePlus, Repeat2, Sparkles, TextSearch, X } from 'lucide-react';
+import type { CategoryItem, RecurrenceRule, Schedule } from '../../types';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { getTodayDateString } from '../../utils/dateHelpers';
 import { overlapping, PhotoReadError, readPhotoSchedule, readTextScheduleWithAi, shrinkForReading, type PhotoEvent } from '../../utils/photoSchedule';
 import { parseScheduleText, TEXT_LIMIT } from '../../utils/textSchedule';
-import { historyHint } from '../../utils/scheduleSuggest';
+import { historyHint, rejectKey, type HistoryHint } from '../../utils/scheduleSuggest';
 
-/** hint: 카테고리를 고른 이유, pastTitle: 예전에 쓴 비슷한 제목, original: 예전 제목으로 바꾸기 전 제목(되돌리기용) */
-interface Row extends PhotoEvent { key: string; picked: boolean; category: string; hint: string; pastTitle: string; original: string }
+/** hint: 카테고리를 고른 이유, pastTitle: 예전에 쓴 비슷한 제목, original: 예전 제목으로 바꾸기 전 제목(되돌리기용),
+ *  borrowed: 예전 같은 일정에서 채운 칸, duplicate: 같은 날 이미 있는 일정, cadence: 예전 반복 간격(반복 제안), repeatOn: 반복으로 등록 */
+interface Row extends PhotoEvent { key: string; picked: boolean; category: string; hint: string; pastTitle: string; original: string; borrowed: string[]; reminderMinutes?: number | null; duplicate: string; cadence?: HistoryHint['cadence']; repeatOn: boolean }
 interface Props {
   open: boolean; file?: Blob | null; text?: string | null; categories: CategoryItem[]; schedules: Schedule[];
-  onClose: () => void; onAdd: (list: Schedule[]) => Promise<void>;
+  /** 사람이 '원래대로'로 되돌린 제목 바꾸기(계정 설정에 기억, 다음부터 자동으로 바꾸지 않음) */
+  rejected?: string[]; onReject?: (key: string) => void;
+  onClose: () => void; onAdd: (list: Schedule[], rules: RecurrenceRule[]) => Promise<void>;
 }
+const DAY_NAMES = '일월화수목금토';
+const MAX_PHOTOS = 3;
 
 const field = 'min-w-0 rounded-lg border border-app-line bg-white px-2 text-sm text-app-ink';
 /** 시작일~끝날(포함) 날짜 목록. 끝날이 없거나 앞서면 하루, 최대 14일 */
@@ -30,7 +35,7 @@ export function daysOf(start: string, until?: string) {
   return out;
 }
 
-export function PhotoScheduleSheet({ open, file, text, categories, schedules, onClose, onAdd }: Props) {
+export function PhotoScheduleSheet({ open, file, text, categories, schedules, rejected = [], onReject, onClose, onAdd }: Props) {
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const [phase, setPhase] = useState<'pick' | 'reading' | 'list' | 'error'>('pick');
@@ -44,11 +49,19 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
   const close = () => { if (saving) return false; run.current += 1; onClose(); };
   useScheduleDialog(open, false, root, close, close);
 
-  // 내 예전 일정을 보고 카테고리를 정하고, 같은 제목을 두 번 이상 썼으면 그 제목으로 맞춘다(이 기기 안에서만)
+  // 내 예전 일정을 보고 카테고리를 정하고, 같은 일정이면 예전 제목·시간·장소·알림을 채운다(이 기기 안에서만).
+  // 비슷하기만 한 일정(교정 상담 ↔ 정기검진)은 제목·시간을 바꾸지 않는다. 같은 날 이미 있으면 체크를 꺼 둔다.
   const show = (events: PhotoEvent[]) => {
     setRows(events.map((e, i) => {
-      const h = historyHint(e, schedules, categories);
-      return { ...e, key: `${i}-${e.date}-${e.title}`, picked: !e.uncertain, category: h.category, hint: h.reason, title: h.habit ? h.pastTitle : e.title, pastTitle: h.habit ? '' : h.pastTitle, original: h.habit ? e.title : '' };
+      const h = historyHint(e, schedules, categories, { rejected });
+      const b = h.match === 'same' ? h.borrow ?? {} : {};
+      const borrowed: string[] = [];
+      let { start, end, location } = e;
+      if (!start && b.start) { start = b.start; borrowed.push('시작 시각'); }
+      if (start && !end && b.end) { end = b.end; borrowed.push('끝 시각'); }
+      if (!location && b.location) { location = b.location; borrowed.push('장소'); }
+      if (b.reminderMinutes !== undefined) borrowed.push('알림');
+      return { ...e, start, end, location, key: `${i}-${e.date}-${e.title}`, picked: !e.uncertain && !h.duplicate, category: h.category, hint: h.reason, title: h.habit ? h.pastTitle : e.title, pastTitle: h.habit ? '' : h.pastTitle, original: h.habit ? e.title : '', borrowed, ...(b.reminderMinutes !== undefined ? { reminderMinutes: b.reminderMinutes } : {}), duplicate: h.duplicate ?? '', cadence: e.repeat ? undefined : h.cadence, repeatOn: Boolean(e.repeat) };
     }));
     setPhase('list');
   };
@@ -65,7 +78,13 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
       setPhase('error');
     }
   }
-  const read = (blob: Blob) => { setSource('photo'); return ask(async () => readPhotoSchedule(await shrinkForReading(blob), getTodayDateString()), '사진'); };
+  /** 사진 여러 장(3장까지)을 차례로 읽어 후보를 합친다(같은 날·시간·제목은 한 번만) */
+  const read = (blobs: Blob[]) => { setSource('photo'); return ask(async () => {
+    const all: PhotoEvent[] = [];
+    for (const blob of blobs.slice(0, MAX_PHOTOS)) all.push(...await readPhotoSchedule(await shrinkForReading(blob), getTodayDateString()));
+    const seen = new Set<string>();
+    return all.filter(e => { const k = `${e.date}|${e.start}|${e.title}`; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 10);
+  }, '사진'); };
   /** 글은 이 기기 안에서 규칙으로만 읽는다(서버·AI로 보내지 않음) */
   const findInText = (value = pasted) => { run.current += 1; setSource('text'); setAiTried(false); setError(null); show(parseScheduleText(value, getTodayDateString())); };
   const askAi = () => { setAiTried(true); void ask(() => readTextScheduleWithAi(pasted.trim(), getTodayDateString()), '글'); };
@@ -74,7 +93,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
     if (!open) return;
     setRows([]); setError(null); setSaving(false); setAiTried(false);
     setPasted(text ?? '');
-    if (file) void read(file); else if (text?.trim()) findInText(text); else { setSource('photo'); setPhase('pick'); }
+    if (file) void read([file]); else if (text?.trim()) findInText(text); else { setSource('photo'); setPhase('pick'); }
     return () => { run.current += 1; };
   }, [open, file, text]);
 
@@ -86,11 +105,23 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
     if (!picked.length) return;
     setSaving(true);
     try {
-      // 여러 날 일정(until)은 날마다 같은 일정을 만든다(달력이 이어진 한 줄로 그림, 최대 14일)
-      await onAdd(picked.flatMap(r => daysOf(r.date, r.until).map(date => ({
+      // 여러 날 일정(until)은 날마다 같은 일정을 만든다(달력이 이어진 한 줄로 그림, 최대 14일).
+      // 반복 일정(매주 화·목·격주·매일·매달)은 첫 날 일정 하나와 반복 규칙으로 넣는다
+      const rules: RecurrenceRule[] = [];
+      const make = (r: Row, date: string, extra: Partial<Schedule> = {}) => ({
         id: crypto.randomUUID(), title: r.title.trim(), date, ...(r.start ? { startTime: r.start } : {}), ...(r.start && r.end ? { endTime: r.end } : {}),
         category: r.category, completed: false, ...(r.location || r.memo ? { memo: [r.location && `장소: ${r.location}`, r.memo].filter(Boolean).join('\n') } : {}),
-      } as Schedule))));
+        ...(r.reminderMinutes !== undefined ? { reminderMinutes: r.reminderMinutes } : {}), ...extra,
+      } as Schedule);
+      await onAdd(picked.flatMap(r => {
+        if (r.repeat && r.repeatOn) {
+          const s = make(r, r.date);
+          const rule: RecurrenceRule = { id: crypto.randomUUID(), scheduleId: s.id, frequency: r.repeat.frequency, interval: r.repeat.interval, ...(r.repeat.weekdays ? { weekdays: r.repeat.weekdays } : {}), startDate: r.date };
+          rules.push(rule);
+          return [{ ...s, recurrenceRuleId: rule.id }];
+        }
+        return daysOf(r.date, r.until).map(date => make(r, date));
+      }), rules);
       setSaving(false);
       onClose();
     } catch (e) { setSaving(false); setError({ text: e instanceof Error ? e.message : '등록하지 못했어요.', code: 'save' }); }
@@ -111,7 +142,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
         </div>
         <button type="button" aria-label="사진으로 일정 넣기 닫기" onClick={close} className="flex h-11 w-11 items-center justify-center rounded-lg text-app-muted hover:bg-app-soft"><X className="h-5 w-5" /></button>
       </header>
-      <input ref={input} type="file" accept="image/*" className="hidden" aria-label="일정이 적힌 사진" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void read(f); }} />
+      <input ref={input} type="file" accept="image/*" multiple className="hidden" aria-label="일정이 적힌 사진" onChange={e => { const fs = [...(e.target.files ?? [])]; e.target.value = ''; if (fs.length) void read(fs); }} />
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {phase === 'pick' && <div className="space-y-3">
           <form className="space-y-2" onSubmit={e => { e.preventDefault(); if (pasted.trim()) findInText(); }}>
@@ -121,7 +152,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
             <p className="text-xs text-app-muted">글은 이 기기 안에서만 읽고, 어디로도 보내지 않아요.</p>
           </form>
           <div className="flex items-center gap-2 text-xs text-app-muted" aria-hidden="true"><span className="h-px flex-1 bg-app-line" />또는<span className="h-px flex-1 bg-app-line" /></div>
-          <p className="text-sm text-app-ink">예약 문자·공지·포스터 사진을 고르면 날짜와 시간을 찾아 일정 후보로 보여 줘요. 고른 것만 등록돼요.</p>
+          <p className="text-sm text-app-ink">예약 문자·공지·포스터 사진을 고르면(3장까지) 날짜와 시간을 찾아 일정 후보로 보여 줘요. 고른 것만 등록돼요.</p>
           {pickButton}
           <p className="rounded-xl bg-app-soft p-3 text-xs text-app-ink">사진은 구글 무료 AI(Gemini)로 읽어요. 무료 AI에 보낸 내용은 구글 서비스 개선에 쓰일 수 있어요. 개인정보가 있는 문자는 사진 대신 글을 복사해 위에 붙여넣어 주세요.</p>
         </div>}
@@ -160,12 +191,17 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, on
                 <label className="inline-flex items-center"><span className="sr-only">카테고리</span><select className={field + ' h-9'} value={r.category} onChange={e => set(r.key, { category: e.target.value })}><option value="">미분류</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
               </div>
               {r.hint && r.category && <p className="text-xs text-app-muted">카테고리 추천: {r.hint}</p>}
-              {r.original && <p className="flex flex-wrap items-center gap-x-2 text-xs text-app-muted">예전에 쓰던 제목으로 맞췄어요<button type="button" className="min-h-8 font-semibold text-app-accent-ink underline underline-offset-2" onClick={() => set(r.key, { title: r.original, pastTitle: r.title, original: '' })}>원래대로</button></p>}
+              {r.original && <p className="flex flex-wrap items-center gap-x-2 text-xs text-app-muted">예전에 쓰던 제목으로 맞췄어요<button type="button" className="min-h-8 font-semibold text-app-accent-ink underline underline-offset-2" onClick={() => { onReject?.(rejectKey(r.original, r.title)); set(r.key, { title: r.original, pastTitle: r.title, original: '' }); }}>원래대로</button></p>}
               {r.pastTitle && <button type="button" className="min-h-8 rounded-lg bg-app-soft px-2.5 text-left text-xs text-app-ink" onClick={() => set(r.key, { title: r.pastTitle, original: r.title, pastTitle: '' })}>예전처럼 ‘{r.pastTitle}’로 쓰기</button>}
+              {r.repeat && <label className="flex flex-wrap items-center gap-2 text-xs text-app-ink"><input type="checkbox" className="h-4 w-4 accent-[#9E5873]" checked={r.repeatOn} onChange={e => set(r.key, { repeatOn: e.target.checked })} aria-label={`${r.title} 반복으로 등록`} /><Repeat2 className="h-3.5 w-3.5 text-app-accent-ink" aria-hidden="true" />반복: {r.repeat.label}{r.repeatOn ? ' (첫 날부터 이어서)' : ' — 끄면 이 날 하루만'}</label>}
+              {r.cadence && <button type="button" className="min-h-8 rounded-lg bg-app-soft px-2.5 text-left text-xs text-app-ink" onClick={() => set(r.key, { repeat: { frequency: 'weekly', interval: r.cadence!.days / 7, weekdays: [new Date(`${r.date}T00:00:00Z`).getUTCDay()], label: `${r.cadence!.label} ${DAY_NAMES[new Date(`${r.date}T00:00:00Z`).getUTCDay()]}` }, repeatOn: true, cadence: undefined })}>예전처럼 {r.cadence.label} 반복으로 넣기</button>}
+              {r.borrowed.length > 0 && <p className="text-xs text-app-muted">예전 같은 일정 기준으로 채웠어요: {r.borrowed.join('·')}</p>}
+              {r.duplicate && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 날 ‘{r.duplicate}’이 이미 있어요(체크를 꺼 뒀어요)</p>}
               {r.location && <p className="text-xs text-app-ink">장소: {r.location}</p>}
               {r.memo && <p className="text-xs text-app-ink">메모: {r.memo}</p>}
               {clash && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 시간에 ‘{clash.title}{clash.startTime ? ` ${clash.startTime}` : ''}’이 있어요</p>}
-              {r.uncertain && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 날짜를 짐작했어요(연도·요일을 확인해 주세요)</p>}
+              {r.guessed && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 오전·오후가 없어 오후로 짐작했어요</p>}
+              {r.uncertain && !r.guessed && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 날짜를 짐작했어요(연도·요일·'몇 주 뒤'를 확인해 주세요)</p>}
               {r.source && <p className="break-words text-xs text-app-muted">{source === 'text' ? '붙여넣은 글' : '사진 속 글'}: “{r.source}”</p>}
             </div>
           </article>;
