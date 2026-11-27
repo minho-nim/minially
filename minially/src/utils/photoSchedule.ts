@@ -50,6 +50,24 @@ async function askServer(payload: { image: string; today: string } | { text: str
   return Array.isArray(body.events) ? body.events : [];
 }
 
+/** 구글 캘린더 'iCal 형식의 비공개 주소'에서 다가오는 일정 후보(서버가 그 주소만 읽음, 저장 안 함) */
+export async function readGoogleCalendar(url: string, today: string): Promise<PhotoEvent[]> {
+  const code = syncEngine.code;
+  if (!code) throw new PhotoReadError('동기화 코드로 로그인하면 쓸 수 있어요.', 'no_login');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw new PhotoReadError('인터넷에 연결되면 쓸 수 있어요.', 'offline');
+  let res: Response;
+  try {
+    res = await fetch(`${import.meta.env.BASE_URL}api/google-calendar`, { method: 'POST', cache: 'no-store', headers: { authorization: `Bearer ${code}`, 'content-type': 'application/json' }, body: JSON.stringify({ url, today }) });
+  } catch { throw new PhotoReadError('인터넷에 연결되면 쓸 수 있어요.', 'offline'); }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new PhotoReadError(body?.error ?? `서버 오류(${res.status})`, body?.code ?? String(res.status));
+  return Array.isArray(body.events) ? body.events : [];
+}
+/** 구글 캘린더 주소는 이 기기에만 기억한다(서버·동기화로 보내지 않음) */
+const GOOGLE_KEY = 'minially.googleIcs';
+export const savedGoogleUrl = () => { try { return localStorage.getItem(GOOGLE_KEY) ?? ''; } catch { return ''; } };
+export const saveGoogleUrl = (url: string) => { try { if (url) localStorage.setItem(GOOGLE_KEY, url); else localStorage.removeItem(GOOGLE_KEY); } catch { /* 기억 못 해도 됨 */ } };
+
 /** 연결 확인: 코드→미니허브 사용자→Gemini 키→구글 AI가 답하는지 단계별로(키 값은 오지 않음) */
 export interface AiCheck { ok: boolean; step: string; message: string; model?: string; code?: string }
 export async function checkPhotoConnection(): Promise<AiCheck> {

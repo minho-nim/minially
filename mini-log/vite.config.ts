@@ -54,7 +54,7 @@ export default defineConfig({
           options: { cacheName: 'fonts', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 365 } },
         }],
         navigateFallbackDenylist: [/^\/api\//, /^\/code-hash\.html$/, /^\/version\.json$/],
-        importScripts: ['/share-target-sw.js'],
+        importScripts: ['/share-target-sw.js', '/push-sw.js'],
         cleanupOutdatedCaches: true,
       },
     }),

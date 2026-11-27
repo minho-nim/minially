@@ -5,6 +5,7 @@ import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
 import { FirstSteps } from './FirstSteps';
+import { BriefCard, PushCard, usePhone } from './Brief';
 import { setUiPrefs, type UiPrefs } from './uiPrefs';
 import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { BodyEditor } from './BodyEditor';
@@ -201,6 +202,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
 
   // 메뉴 이동: 원고가 아닌 화면으로 가면 열린 원고를 닫는다
   const go = (key: Exclude<View, 'proposal'>) => { setView(key); if (key !== 'drafts') setSelectedId(null); };
+  const phone = usePhone(); // 휴대폰은 첫 화면이 원고 목록이라 브리핑 카드를 목록 위에
 
   // 글감으로 원고 만들기: 제목·해시태그를 채운 새 원고를 열고, 경험 칸은 사용자가 직접 쓴다
   async function draftFromIdea(idea: Idea, plannedOn: string | null) {
@@ -256,6 +258,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
             </div>
           ))}
         </nav>
+        {phone && view === 'drafts' && !selected && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} />}
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
@@ -324,6 +327,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (
+            <div className="stack">
+            {!phone && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} />}
             <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
@@ -331,6 +336,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
               {!me.gemini.connected && <p className="error">Gemini 키가 아직 연결되지 않아 AI 초안은 만들 수 없어요. 원고 저장은 할 수 있어요.</p>}
               {drafts?.length === 0 && <FirstSteps onNew={() => { void create(); }} />}
+            </div>
             </div>
           )}
         </Suspense>
@@ -521,6 +527,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <h1 id="settings-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>설정</h1>
         </div>
       </div>
+      <PushCard />
       <AccountsCard />
       <BackupCard />
     </article>

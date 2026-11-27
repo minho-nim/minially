@@ -28,7 +28,7 @@ export default defineConfig({
   webServer: [
     { command: `node ../shared/testing/mock-gemini.mjs ${MOCK}`, url: `http://127.0.0.1:${MOCK}/health`, reuseExistingServer: false },
     {
-      command: `rm -rf .wrangler/test-state && npm run build && npx wrangler pages dev dist --ip 127.0.0.1 --port ${PORT} --d1 DB=minially-test --persist-to .wrangler/test-state --binding SYNC_CODE_HASHES=${hash(CODE_A)},${hash(CODE_B)},${hash(CODE_NOTES)},${hash(CODE_CONFLICT)} USER_CODE_HASHES=C:${hash(CODE_A)},D:${hash(CODE_HUB_ONLY)} GEMINI_KEY_C=test-key GEMINI_API_BASE=http://127.0.0.1:${MOCK}`,
+      command: `rm -rf .wrangler/test-state && npm run build && npx wrangler pages dev dist --ip 127.0.0.1 --port ${PORT} --d1 DB=minially-test --persist-to .wrangler/test-state --binding SYNC_CODE_HASHES=${hash(CODE_A)},${hash(CODE_B)},${hash(CODE_NOTES)},${hash(CODE_CONFLICT)} USER_CODE_HASHES=C:${hash(CODE_A)},D:${hash(CODE_HUB_ONLY)} GEMINI_KEY_C=test-key GEMINI_API_BASE=http://127.0.0.1:${MOCK} GOOGLE_ICS_TEST_ORIGIN=http://127.0.0.1:${MOCK}`,
       url: `http://127.0.0.1:${PORT}/version.json`,
       reuseExistingServer: false,
       timeout: 120000,

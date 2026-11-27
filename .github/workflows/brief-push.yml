@@ -1,0 +1,29 @@
+name: 미니로그 아침 알림
+
+# 매일 아침 8시 31분(한국 시간)에 미니로그 아침 알림 주소를 부른다(숫자만 돌려받음). 토큰이 없으면 아무것도 하지 않는다.
+# 같은 날 두 번 불러도 서버가 한 번만 보낸다. 알림에는 내용을 싣지 않는다(휴대폰이 로그인된 상태로 직접 읽음).
+on:
+  schedule:
+    - cron: '31 23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brief-push
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TOKEN: ${{ secrets.MAIL_CRON_TOKEN }}
+    steps:
+      - name: 아침 알림 보내기
+        if: env.TOKEN != ''
+        run: |
+          code=$(curl -sS -o result.json -w '%{http_code}' --max-time 90 -X POST https://mini-log.pages.dev/api/brief/cron -H "authorization: Bearer $TOKEN")
+          cat result.json; echo
+          test "$code" = 200

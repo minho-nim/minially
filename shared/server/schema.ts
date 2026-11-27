@@ -81,6 +81,9 @@ const TABLES = [
   "CREATE TABLE IF NOT EXISTS minilog_versions (id TEXT PRIMARY KEY, user TEXT NOT NULL, draft_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
   'CREATE INDEX IF NOT EXISTS minilog_versions_draft ON minilog_versions (user, draft_id, created_at)',
   // 메일 계정(네이버·Gmail)마다 어디까지 받았는지. 네이버는 처음에 minilog_mail_state 값을 이어받는다
+  // 아침 알림(웹 푸시) 구독: 기기(브라우저)마다 한 줄. 알림에 내용은 싣지 않는다. 같은 기기를 다른 사람이 쓰면 그 사람으로 바뀐다
+  'CREATE TABLE IF NOT EXISTS minilog_push (endpoint TEXT PRIMARY KEY, user TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, last_sent_on TEXT, created_at INTEGER NOT NULL)',
+  'CREATE INDEX IF NOT EXISTS minilog_push_user ON minilog_push (user)',
   'CREATE TABLE IF NOT EXISTS minilog_mail_cursor (user TEXT NOT NULL, account TEXT NOT NULL, uid_validity INTEGER NOT NULL DEFAULT 0, last_uid INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user, account))',
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.

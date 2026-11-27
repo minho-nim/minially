@@ -827,3 +827,24 @@ select.input { appearance: auto; }
 .suggest .small { flex: 1 1 220px; overflow-wrap: anywhere; }
 .campaigns li:has(.suggest) { flex-wrap: wrap; }
 .campaigns li:has(.suggest) > .campaign { flex: 1 1 60%; }
+
+/* 아침 브리핑(첫 화면)·아침 알림(설정) */
+.brief { display: grid; gap: 10px; }
+.brief-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brief-head h2 { margin: 0; font-size: 1.3rem; letter-spacing: -0.02em; }
+.brief-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
+.brief-today { background: var(--ink); color: var(--ink-text); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; align-content: start; }
+.brief-today h3 { margin: 0; font-size: 1.05rem; }
+.brief-today ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.brief-today li { display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 8px 10px; }
+.brief-n { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--app); color: #2B2233; font-weight: 800; display: grid; place-items: center; font-size: 0.85rem; }
+.brief-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.brief-t small { display: block; opacity: 0.8; }
+.brief-today .btn { color: var(--text); background: var(--surface); flex: none; }
+.brief-more { margin: 0; opacity: 0.8; }
+.brief-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: start; }
+.brief-kpis > div { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; }
+.brief-kpis b { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.push-keys { display: grid; gap: 4px; }
+.push-keys .input { font-family: ui-monospace, monospace; font-size: 12px; }
+@media (max-width: 839px) { .brief-grid { grid-template-columns: minmax(0, 1fr); } }

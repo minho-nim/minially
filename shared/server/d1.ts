@@ -42,6 +42,11 @@ export interface HubEnv {
   /** Gmail 연결: "주소@gmail.com:앱 비밀번호"(Cloudflare 비밀값에만, 2단계 인증 필요) */
   GMAIL_MAIL_C?: string;
   GMAIL_MAIL_D?: string;
+  /** 아침 알림(웹 푸시) VAPID 키: 공개 키(65바이트)·비밀 키(32바이트) base64url. Cloudflare 비밀값에만 */
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  /** 시험용: 이 출처의 푸시 주소를 받는다(운영에는 넣지 않음) */
+  PUSH_TEST_ORIGIN?: string;
   /** 메일 자동 받기 예약 작업(GitHub Actions)이 보내는 토큰 */
   MAIL_CRON_TOKEN?: string;
   /** 시험용: 가짜 메일 서버 "127.0.0.1:포트"(IMAP=포트, SMTP=포트+1) */
