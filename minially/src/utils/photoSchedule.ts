@@ -1,10 +1,12 @@
-// 사진으로 일정 넣기(클라이언트): 사진을 긴 변 2048px JPEG로 줄여(작은 글자도 읽히게)(위치·촬영 정보도 빠짐) 서버에 보내고, 일정 후보를 받는다.
+// 사진으로 일정 넣기(클라이언트): 사진을 긴 변 2048px JPEG로 줄이고 대비를 살짝 올려(작은 글자도 읽히게)(위치·촬영 정보도 빠짐) 서버에 보내고, 일정 후보를 받는다.
 // 저장은 하지 않는다. 사람이 고른 후보만 App이 일정으로 저장한다.
 import { syncEngine } from '../sync/syncEngine';
 import type { Schedule } from '../types';
 
-/** until: 여러 날 일정의 마지막 날(YYYY-MM-DD, 없으면 하루짜리) */
-export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean; until?: string }
+/** 글에서 찾은 반복(매주 화·목, 격주, 매일, 매달 5일). label은 화면에 보여 줄 말 */
+export interface PhotoRepeat { frequency: 'daily' | 'weekly' | 'monthly'; interval: number; weekdays?: number[]; label: string }
+/** until: 여러 날 일정의 마지막 날(YYYY-MM-DD, 없으면 하루짜리). repeat: 반복 일정이면 규칙(date는 첫 날). guessed: 오전·오후를 짐작한 시간 */
+export interface PhotoEvent { title: string; date: string; start: string | null; end: string | null; location: string; memo: string; source: string; uncertain: boolean; until?: string; repeat?: PhotoRepeat; guessed?: boolean }
 
 const MAX_SIDE = 2048;
 const MAX_DATA_URL = 4_000_000;
@@ -18,7 +20,10 @@ export async function shrinkForReading(file: Blob): Promise<string> {
     const canvas = document.createElement('canvas');
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height); ctx.drawImage(bitmap, 0, 0, width, height);
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);
+    ctx.filter = 'contrast(1.12)'; // 흐린 캡처·어두운 사진의 글자를 조금 또렷하게(색은 그대로, 지원하지 않는 브라우저는 그냥 그림)
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    ctx.filter = 'none';
     const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
     if (dataUrl.length <= MAX_DATA_URL) { bitmap.close(); return dataUrl; }
   }

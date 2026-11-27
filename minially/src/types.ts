@@ -183,6 +183,8 @@ export interface ReminderSettings {
 export interface NoteDefaults {fontFamily:string;fontSize:number;lineHeight:number;color:string;highlight:string}
 
 export interface AppSettings {
+  /** 사진·글 일정에서 사람이 '원래대로'로 되돌린 제목 바꾸기(새 제목 낱말→예전 제목). 다음부터 자동으로 바꾸지 않는다. 계정 설정이라 기기끼리 맞춘다 */
+  titleRejects?: string[];
   noteDefaults?: NoteDefaults;
   reminder?: ReminderSettings;
   share?: ShareSettings;

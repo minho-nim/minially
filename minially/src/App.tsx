@@ -294,12 +294,12 @@ export default function App() {
   };
 
   /** 사진에서 고른 일정을 한 번에 등록(되돌리기도 한 번에) */
-  const handleAddPhotoSchedules = async (list: Schedule[]) => {
+  const handleAddPhotoSchedules = async (list: Schedule[], rules: RecurrenceRule[] = []) => {
     if (!list.length) return;
     setRegistrationNotice(null);
-    // 여러 날 일정은 날마다 한 개씩 들어가서, 알림에는 '일정 N개(M일)'로 보여 준다
+    // 여러 날 일정은 날마다 한 개씩 들어가서, 알림에는 '일정 N개(M일)'로 보여 준다. 반복 일정은 규칙과 함께(되돌리기도 한 번에)
     const titles = [...new Set(list.map(s => s.title))];
-    const notice = await recordOccurrenceHistory('CREATE', `사진·글에서 일정 ${titles.length}개 추가됨`, [], list, recurrenceExceptions);
+    const notice = await recordOccurrenceHistory('CREATE', `사진·글에서 일정 ${titles.length}개 추가됨`, [], list, recurrenceExceptions, rules.length ? { before: [], after: rules } : undefined);
     setUndoNotice(notice);
     await reloadData();
     setSelectedDate(list[0].date);
@@ -868,7 +868,7 @@ export default function App() {
         onSettings={handleUpdateSettings} onSavePreset={handleSavePreset} onDeletePreset={handleDeletePreset} onReorderPresets={handleReorderPresets} onUsePreset={handleUsePreset}
         onSaveCategory={handleSaveCategory} onDeleteCategory={handleDeleteCategory} onReorderCategories={handleReorderCategories}
       />
-      <PhotoScheduleSheet open={!!photoSheet} file={photoSheet?.file} text={photoSheet?.text} categories={categories} schedules={expandedSchedules} onClose={() => setPhotoSheet(null)} onAdd={handleAddPhotoSchedules} />
+      <PhotoScheduleSheet open={!!photoSheet} file={photoSheet?.file} text={photoSheet?.text} categories={categories} schedules={expandedSchedules} rejected={settings.titleRejects ?? []} onReject={key => { void handleUpdateSettings({ ...settings, titleRejects: [...new Set([...(settings.titleRejects ?? []), key])].slice(-200) }); }} onClose={() => setPhotoSheet(null)} onAdd={handleAddPhotoSchedules} />
       {/* Schedule Modal (Planit Fast Registration, Preset Chips, Overlap Alert, Enter to Save) */}
       <ScheduleModal
         onOpenNote={openConnectedNote}
