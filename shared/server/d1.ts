@@ -39,6 +39,9 @@ export interface HubEnv {
   /** 네이버 메일 연결: "아이디@naver.com:애플리케이션 비밀번호"(Cloudflare 비밀값에만) */
   NAVER_MAIL_C?: string;
   NAVER_MAIL_D?: string;
+  /** Gmail 연결: "주소@gmail.com:앱 비밀번호"(Cloudflare 비밀값에만, 2단계 인증 필요) */
+  GMAIL_MAIL_C?: string;
+  GMAIL_MAIL_D?: string;
   /** 메일 자동 받기 예약 작업(GitHub Actions)이 보내는 토큰 */
   MAIL_CRON_TOKEN?: string;
   /** 시험용: 가짜 메일 서버 "127.0.0.1:포트"(IMAP=포트, SMTP=포트+1) */

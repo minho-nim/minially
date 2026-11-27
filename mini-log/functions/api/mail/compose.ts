@@ -3,7 +3,7 @@ import { requireSession } from '../../../../shared/server/auth';
 import { sendNew } from '../../_mail';
 import { readMailDoc } from '../../_mailDoc';
 
-// POST { to, subject, doc }: 새 메일 보내기(협찬 제안 등). 사람이 '보내기 확정'을 눌렀을 때만 화면이 부른다
+// POST { to, subject, doc, from? }: 새 메일 보내기(from: naver·gmail, 없으면 먼저 연결된 계정)(협찬 제안 등). 사람이 '보내기 확정'을 눌렀을 때만 화면이 부른다
 export const onRequestPost = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');
   if (auth instanceof Response) return auth;
@@ -14,7 +14,8 @@ export const onRequestPost = async (ctx: HubContext) => {
   if (!subject || subject.length > 200) return json({ error: '제목을 200자 안으로 적어 주세요.' }, 400);
   const doc = readMailDoc(body.doc);
   if (!doc) return json({ error: '내용이 너무 길거나 형식이 올바르지 않아요.' }, 400);
-  const sent = await sendNew(auth.db, ctx.env, auth.session.user, to, subject, doc);
+  if (body.from !== undefined && body.from !== 'naver' && body.from !== 'gmail') return json({ error: '보내는 계정을 다시 골라 주세요.' }, 400);
+  const sent = await sendNew(auth.db, ctx.env, auth.session.user, to, subject, doc, body.from as 'naver' | 'gmail' | undefined);
   if (typeof sent === 'string') return json({ error: sent }, 409);
   return json({ mail: sent }, 201);
 };

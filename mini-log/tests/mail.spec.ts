@@ -3,6 +3,7 @@ import { CODE_C, CODE_D } from '../playwright.config';
 import { login } from './helpers';
 
 const MAIL = 'http://127.0.0.1:8905';
+const GMAIL = 'http://127.0.0.1:8915';
 const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 const raw = (o: { from: string; subject: string; body: string; id: string; extra?: string }) => [
   `From: ${o.from}`, 'To: c-test@naver.com', `Subject: =?UTF-8?B?${b64(o.subject)}?=`, 'Date: Thu, 26 Nov 2026 10:00:00 +0900', `Message-ID: ${o.id}`,
@@ -47,6 +48,7 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   expect((await request.post('/api/mail/cron', { headers: { authorization: 'Bearer wrong' } })).status()).toBe(401);
 
   await request.post(`${MAIL}/reset`);
+  await request.post(`${GMAIL}/reset`);
   for (const m of [
     { from: '메일빵집 <offer@bread.kr>', subject: '[협찬 제안] 겨울 신메뉴 체험', body: '안녕하세요. 겨울 신메뉴 체험을 제안드려요. 원고료 5만 원, 12월 20일까지 게시.', id: '<o1@bread.kr>' },
     { from: '구름카페 <notice@cloud.kr>', subject: '체험단 선정 안내', body: '선정되셨습니다. 12월 5일 방문해 주세요.', id: '<n1@cloud.kr>' },
@@ -64,7 +66,7 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
 
   const data = await page.evaluate(async () => (await fetch('/api/mail')).json());
   expect(data.connected).toBe(true);
-  expect(data.address).toBe('c-***@naver.com'); // 주소는 앞부분만
+  expect(data.address).toBe('c-***@naver.com · c-***@gmail.com'); // 주소는 앞부분만, 연결된 계정 모두
   const bySubject = (s: string) => data.mails.find((m: { subject: string }) => m.subject.includes(s));
   expect(bySubject('협찬 제안')).toMatchObject({ kind: 'offer', brand: '메일빵집', deadline: '2026-12-20', needs_reply: 1, status: 'drafted' });
   expect(bySubject('협찬 제안').reply_body).toContain('가짜 AI 답장 초안');
@@ -128,7 +130,7 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
     send: (await fetch(`/api/mail/${id}/send`, { method: 'POST', body: '{}' })).status,
     edit: (await fetch(`/api/mail/${id}`, { method: 'PUT', body: JSON.stringify({ reply_body: 'x' }) })).status,
   }), bySubject('답장드립니다').id);
-  expect(d).toMatchObject({ list: { connected: false, mails: [], waiting: 0 }, sync: 409, send: 409, edit: 404 });
+  expect(d).toMatchObject({ list: { connected: false, mails: [], waiting: 0 }, sync: 409, send: 404, edit: 404 }); // 남의 메일은 '없음'
   await other.close();
 
   // 다른 시험(협찬 합계 등)에 영향이 없게 만든 협찬을 지운다
@@ -202,4 +204,56 @@ test('받은 HTML 메일은 원래 모양으로 보되 스크립트·바깥 이�
     (await fetch('/api/mail/compose', { method: 'POST', body: JSON.stringify({ to: 'a@b.kr', subject: 'x', doc: [{ type: 'script' }] }) })).status,
   ]);
   expect(bad).toEqual([400, 400]);
+});
+
+test('네이버·Gmail을 한 메일함에: 같은 번호도 겹치지 않고, 계정 표시, 답장은 받은 계정으로, 새 메일은 고른 계정으로', async ({ page, request }) => {
+  await request.post(`${MAIL}/reset`);
+  await request.post(`${GMAIL}/reset`);
+  // 두 계정에 같은 번호(UID)의 메일을 넣는다(실제로도 계정마다 번호를 따로 센다)
+  const n = await (await request.post(`${MAIL}/inbox`, { data: { uid: 5000, raw: raw({ from: '네이버빵집 <hi@nbread.kr>', subject: '[협찬 제안] 네이버로 온 제안', body: '체험 제안드려요.', id: '<nv1@nbread.kr>' }) } })).json();
+  const g = await (await request.post(`${GMAIL}/inbox`, { data: { uid: 5000, raw: raw({ from: '지메일카페 <hi@gcafe.kr>', subject: '[협찬 제안] Gmail로 온 제안', body: '체험 제안드려요.', id: '<gm1@gcafe.kr>' }) } })).json();
+  expect([n.uid, g.uid]).toEqual([5000, 5000]);
+
+  await login(page, CODE_C);
+  const synced = await page.evaluate(async () => (await fetch('/api/mail/sync', { method: 'POST', body: '{}' })).json());
+  expect(synced.error).toBeFalsy();
+  const bySubject = (s: string) => synced.mails.find((m: { subject: string }) => m.subject.includes(s));
+  expect(bySubject('네이버로 온')).toMatchObject({ account: 'naver', kind: 'offer' });
+  expect(bySubject('Gmail로 온')).toMatchObject({ account: 'gmail', kind: 'offer' });
+  expect(synced.accounts).toEqual([{ provider: 'naver', address: 'c-***@naver.com' }, { provider: 'gmail', address: 'c-***@gmail.com' }]);
+
+  // 화면: 계정 표시, Gmail로 받은 메일의 답장은 Gmail로 나간다
+  await page.getByRole('button', { name: /^메일/ }).click();
+  const rows = page.getByRole('complementary', { name: '메일 목록' });
+  await expect(rows.getByRole('button', { name: /Gmail로 온 제안/ })).toContainText('Gmail');
+  await expect(rows.getByRole('button', { name: /네이버로 온 제안/ })).toContainText('네이버');
+  await rows.getByRole('button', { name: /Gmail로 온 제안/ }).click();
+  const reader = page.getByRole('region', { name: '메일 읽기' });
+  await expect(reader).toContainText('Gmail로 받음');
+  await reader.getByRole('button', { name: '보내기', exact: true }).click();
+  await expect(reader.getByRole('group', { name: '보내기 확인' })).toContainText('Gmail으로');
+  await reader.getByRole('button', { name: '보내기 확정' }).click();
+  await expect(reader).toContainText('답장을 보냈어요');
+  expect(await (await request.get(`${GMAIL}/sent`)).json()).toEqual([expect.objectContaining({ from: 'c-test@gmail.com', to: 'hi@gcafe.kr' })]);
+  expect(await (await request.get(`${MAIL}/sent`)).json()).toEqual([]);
+
+  // 새 메일: 보내는 계정을 Gmail로 고르면 Gmail로, 이상한 계정 값은 거절
+  await page.getByRole('button', { name: '새 메일' }).click();
+  const compose = page.getByRole('region', { name: '새 메일 쓰기' });
+  await compose.getByRole('group', { name: '보내는 계정' }).getByRole('button', { name: /Gmail/ }).click();
+  await compose.getByLabel('받는 사람').fill('brand@gshop.kr');
+  await compose.getByLabel('제목').fill('Gmail로 보내는 제안');
+  await compose.getByRole('textbox', { name: '메일 내용' }).click();
+  await page.keyboard.type('안녕하세요.');
+  await compose.getByRole('button', { name: '보내기', exact: true }).click();
+  await compose.getByRole('button', { name: '보내기 확정' }).click();
+  await expect(page.getByRole('tab', { name: '보낸 메일' })).toHaveAttribute('aria-selected', 'true');
+  expect((await (await request.get(`${GMAIL}/sent`)).json()).at(-1)).toMatchObject({ from: 'c-test@gmail.com', to: 'brand@gshop.kr' });
+  expect(await page.evaluate(async () => (await fetch('/api/mail/compose', { method: 'POST', body: JSON.stringify({ to: 'a@b.kr', subject: 'x', doc: [{ type: 'p', runs: [{ text: 'x' }] }], from: 'daum' }) })).status)).toBe(400);
+
+  // 다시 받아도 겹치지 않는다(계정마다 받은 위치를 따로 기억)
+  const again = await page.evaluate(async () => (await fetch('/api/mail/sync', { method: 'POST', body: '{}' })).json());
+  expect(again.added).toBe(0);
+
+  await page.evaluate(async () => { for (const c of (await (await fetch('/api/campaigns')).json()).campaigns) if (/네이버로 온|Gmail로 온/.test(c.memo)) await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' }); });
 });

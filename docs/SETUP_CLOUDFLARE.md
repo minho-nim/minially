@@ -68,6 +68,9 @@ minially 프로젝트에도 아래 비밀값을 **minihub·mini-log와 같은 �
 3. mini-log 프로젝트 비밀값(Secret):
    - `NAVER_MAIL_C` = `아이디@naver.com:애플리케이션비밀번호`
    - `NAVER_MAIL_D` = 같은 형식(D가 쓸 때만)
+   - `GMAIL_MAIL_C` = `주소@gmail.com:앱비밀번호` (Gmail, 선택. 구글 계정 2단계 인증 → 보안 → 앱 비밀번호. 빈칸은 지워도 되고 서버가 지움)
+   - `GMAIL_MAIL_D` = 같은 형식(D가 쓸 때만). 네이버·Gmail을 둘 다 넣으면 한 메일함에 모이고, 답장은 받은 계정으로 나간다
+   - 권장: 블로그·협찬 전용 Gmail을 새로 만들어 쓰기(앱 비밀번호가 새도 협찬 메일만 영향), Gemini 키용 구글 계정과는 따로
    - `MAIL_CRON_TOKEN` = 아무도 모르는 긴 글자(예: `openssl rand -hex 32`로 만든 값)
 4. GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret: `MAIL_CRON_TOKEN` = 3번과 **같은 값**. 그러면 `mail-sync.yml`이 15분마다 받는다. 토큰이 없으면 예약 작업은 아무것도 안 한다.
 5. 다시 배포(비밀값은 배포 뒤 적용) → 미니로그 '메일' 화면에서 '지금 받기'로 한 번 확인.

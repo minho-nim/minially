@@ -5,16 +5,19 @@ import { SafeMailHtml } from './MailHtml';
 import { MailEditor } from './MailEditor';
 import { docFromText, docToHtml, docToText, type MailDoc } from '../functions/_mailDoc';
 
-// 메일: 네이버 메일에서 15분마다 받은 메일을 메일 앱처럼(왼쪽 목록·오른쪽 읽기) 보고, 서식 있는 답장·새 메일을 쓴다.
+// 메일: 네이버·Gmail에서 15분마다 받은 메일을 한 메일함에 모아 메일 앱처럼(왼쪽 목록·오른쪽 읽기) 보고, 서식 있는 답장·새 메일을 쓴다.
 // AI가 협찬 관련을 골라 협찬·캘린더에 담고 답장 초안을 써 두지만, 보내기는 사람이 '보내기 → 보내기 확정'을 눌러야만 된다.
 type Kind = 'offer' | 'notice' | 'pitch_reply' | 'other' | 'unknown' | 'outgoing';
 export interface MailItem {
   id: string; from_name: string; from_addr: string; to_addr: string; subject: string; received_at: number; snippet: string;
   kind: Kind; brand: string; summary: string; deadline: string | null; needs_reply: number;
-  reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null;
+  reply_subject: string; reply_body: string; status: 'new' | 'drafted' | 'sent' | 'done'; campaign_id: string | null; sent_at: number | null; account?: string;
 }
 type FullMail = MailItem & { body_html: string; reply_doc: MailDoc | null };
-interface MailData { connected: boolean; address: string; mails: MailItem[]; synced_at: number | null; error: string; waiting: number }
+type Provider = 'naver' | 'gmail';
+interface MailData { connected: boolean; address: string; accounts?: { provider: Provider; address: string }[]; mails: MailItem[]; synced_at: number | null; error: string; waiting: number }
+const ACCOUNT: Record<Provider, string> = { naver: '네이버', gmail: 'Gmail' };
+const accountOf = (m: { account?: string }): Provider => (m.account === 'gmail' ? 'gmail' : 'naver');
 type Folder = 'sponsor' | 'waiting' | 'sent' | 'all';
 
 const KIND: Record<Kind, string> = { offer: '협찬 제안', notice: '진행 안내', pitch_reply: '내 제안에 온 답장', other: '기타', unknown: '분류 전', outgoing: '보낸 메일' };
@@ -29,7 +32,7 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
   const [data, setData] = useState<MailData | null>(null);
   const [folder, setFolder] = useState<Folder>('sponsor');
   const [open, setOpen] = useState<FullMail | null>(null);
-  const [compose, setCompose] = useState<{ to: string; subject: string; doc: MailDoc } | null>(null);
+  const [compose, setCompose] = useState<{ to: string; subject: string; doc: MailDoc; from?: Provider } | null>(null);
   const [reply, setReply] = useState<{ subject: string; doc: MailDoc; dirty: boolean } | null>(null);
   const [plain, setPlain] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -95,6 +98,8 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
   }
 
   const list = (data?.mails ?? []).filter(m => inFolder(m, folder));
+  // 계정이 둘 이상이면 메일마다 어느 계정인지 표시한다
+  const multi = (data?.accounts?.length ?? 0) > 1;
   const reading = !!open || !!compose;
   const canReply = open && open.kind !== 'outgoing' && open.kind !== 'other' && open.status !== 'sent';
   return (
@@ -107,19 +112,19 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
         {data?.connected && (
           <div className="publish-row" style={{ alignItems: 'center' }}>
             <button className="btn" onClick={() => { void sync(); }} disabled={busy !== null}>{busy === 'sync' ? '받는 중…' : '지금 받기'}</button>
-            <button className="btn primary" onClick={() => { setOpen(null); setReply(null); setConfirm(false); setCompose({ to: '', subject: '', doc: empty() }); }} disabled={busy !== null}>새 메일</button>
+            <button className="btn primary" onClick={() => { setOpen(null); setReply(null); setConfirm(false); setCompose({ to: '', subject: '', doc: empty(), from: data?.accounts?.[0]?.provider }); }} disabled={busy !== null}>새 메일</button>
           </div>
         )}
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
       {data && !data.connected && (
         <section className="card step" aria-labelledby="mail-conn">
-          <h2 id="mail-conn" className="step-title">네이버 메일 연결</h2>
-          <p className="small" style={{ margin: 0 }}>연결하면 15분마다 새 메일을 받아 협찬 관련 메일을 고르고 답장 초안을 써 둬요.</p>
+          <h2 id="mail-conn" className="step-title">메일 연결(네이버·Gmail)</h2>
+          <p className="small" style={{ margin: 0 }}>연결하면 15분마다 새 메일을 받아 한 메일함에 모으고, 협찬 관련 메일을 골라 답장 초안을 써 둬요. 둘 다 연결해도 돼요.</p>
           <ol className="small" style={{ margin: 0, paddingLeft: 20 }}>
-            <li>네이버 메일 → 환경설정 → POP3/IMAP 설정에서 IMAP 사용을 켜요.</li>
-            <li>네이버 2단계 인증을 켜고 메일용 애플리케이션 비밀번호를 만들어요(진짜 비밀번호는 쓰지 않아요).</li>
-            <li>관리자가 Cloudflare 비밀값에 넣어요. 채팅에는 붙여 넣지 마세요.</li>
+            <li>네이버: 메일 → 환경설정 → POP3/IMAP 설정에서 IMAP을 켜고, 2단계 인증 뒤 애플리케이션 비밀번호를 만들어요.</li>
+            <li>Gmail: 구글 계정 2단계 인증을 켜고 보안 → 앱 비밀번호를 만들어요(진짜 비밀번호는 쓰지 않아요).</li>
+            <li>관리자가 Cloudflare 비밀값(NAVER_MAIL_·GMAIL_MAIL_)에 넣어요. 채팅에는 붙여 넣지 마세요.</li>
           </ol>
         </section>
       )}
@@ -133,7 +138,7 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
               return <button key={key} role="tab" aria-selected={folder === key} className={folder === key ? 'on' : ''} onClick={() => setFolder(key)}>{label}{n > 0 && <span className="count">{n}</span>}</button>;
             })}
           </div>
-          {data?.connected && <p className="muted small" style={{ margin: '0 4px' }}>{data.address} · {data.synced_at ? `${when(data.synced_at)}에 받음` : '아직 받지 않음'} · 15분마다 자동</p>}
+          {data?.connected && <p className="muted small" style={{ margin: '0 4px' }}>{data.accounts?.length ? data.accounts.map(a => `${ACCOUNT[a.provider]} ${a.address}`).join(' · ') : data.address} · {data.synced_at ? `${when(data.synced_at)}에 받음` : '아직 받지 않음'} · 15분마다 자동</p>}
           <ul className="mail-rows">
             {list.map(m => (
               <li key={m.id}>
@@ -141,6 +146,7 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
                   <span className="mail-row-top"><b>{m.kind === 'outgoing' ? `받는 사람: ${m.to_addr}` : (m.from_name || m.from_addr)}</b><span className="muted small">{when(m.sent_at ?? m.received_at)}</span></span>
                   <span className="mail-row-subject">{m.subject || '(제목 없음)'}</span>
                   <span className="mail-row-meta">
+                    {multi && <span className={`acct acct-${accountOf(m)}`}>{ACCOUNT[accountOf(m)]}</span>}
                     <span className={`src${m.kind === 'offer' || m.kind === 'pitch_reply' ? ' s-season' : ''}`}>{KIND[m.kind]}</span>
                     {isWaiting(m) && <span className="small mail-flag">답장 필요</span>}
                     {m.status === 'sent' && m.kind !== 'outgoing' && <span className="small muted">답장함</span>}
@@ -160,6 +166,12 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
           {compose && (
             <div className="stack">
               <h2 className="step-title" style={{ margin: 0 }}>새 메일</h2>
+              {multi && (
+                <div className="field" role="group" aria-label="보내는 계정">
+                  <span className="small">보내는 계정</span>
+                  <div className="type-pick">{data!.accounts!.map(a => <button key={a.provider} type="button" className="chip-btn" aria-pressed={compose.from === a.provider} onClick={() => setCompose(c => c && { ...c, from: a.provider })}>{ACCOUNT[a.provider]} {a.address}</button>)}</div>
+                </div>
+              )}
               <label className="small" htmlFor="compose-to">받는 사람</label>
               <input id="compose-to" className="input" type="email" value={compose.to} placeholder="brand@example.com" onChange={e => setCompose(c => c && { ...c, to: e.target.value })} />
               <label className="small" htmlFor="compose-subject">제목</label>
@@ -167,7 +179,7 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
               <MailEditor label="메일 내용" doc={compose.doc} onChange={doc => setCompose(c => c && { ...c, doc })} disabled={busy !== null} />
               {confirm ? (
                 <div className="publish-row" role="group" aria-label="보내기 확인">
-                  <span className="small" style={{ flex: '1 1 200px' }}><b>{compose.to}</b>에게 이 메일을 보낼까요?</span>
+                  <span className="small" style={{ flex: '1 1 200px' }}><b>{compose.to}</b>에게 {multi && compose.from ? `${ACCOUNT[compose.from]}으로 ` : ''}이 메일을 보낼까요?</span>
                   <button className="btn primary" onClick={() => { void sendNew(); }} disabled={busy !== null}>{busy === 'compose' ? '보내는 중…' : '보내기 확정'}</button>
                   <button className="btn ghost" onClick={() => setConfirm(false)} disabled={busy !== null}>취소</button>
                 </div>
@@ -186,6 +198,7 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
                 <h2 className="mail-read-subject">{open.subject || '(제목 없음)'}</h2>
                 <span className="small">{open.kind === 'outgoing' ? <>받는 사람 <b>{open.to_addr}</b></> : <><b>{open.from_name || open.from_addr}</b>{open.from_name && <span className="muted"> &lt;{open.from_addr}&gt;</span>}</>}<span className="muted"> · {when(open.sent_at ?? open.received_at)}</span></span>
                 <span className="mail-row-meta">
+                  {multi && <span className={`acct acct-${accountOf(open)}`}>{ACCOUNT[accountOf(open)]}{open.kind === 'outgoing' ? '에서 보냄' : '로 받음'}</span>}
                   <span className={`src${open.kind === 'offer' || open.kind === 'pitch_reply' ? ' s-season' : ''}`}>{KIND[open.kind]}</span>
                   {open.campaign_id && <button type="button" className="link-btn small" onClick={onCampaigns}>협찬에 담음{open.brand ? `: ${open.brand}` : ''}</button>}
                   {open.deadline && <span className="muted small">날짜 {shortDay(open.deadline)}(캘린더에 표시)</span>}
@@ -202,14 +215,14 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
                 <div className="mail-reply">
                   <div className="row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <h3 className="step-title" style={{ margin: 0, fontSize: '1rem' }}>답장</h3>
-                    <Help short={'AI 초안은 그대로 보내지 말고 읽고 고친 뒤 보내 주세요.'}>[확인 필요]로 남긴 곳은 사실을 확인해 고쳐 주세요. 보내기는 '보내기 → 보내기 확정'을 눌러야만 되고, 내 네이버 메일로 발송돼요.</Help>
+                    <Help short={'AI 초안은 그대로 보내지 말고 읽고 고친 뒤 보내 주세요.'}>[확인 필요]로 남긴 곳은 사실을 확인해 고쳐 주세요. 보내기는 '보내기 → 보내기 확정'을 눌러야만 되고, 이 메일을 받은 계정(네이버·Gmail)으로 발송돼요.</Help>
                   </div>
                   <label className="small" htmlFor="reply-subject">답장 제목</label>
                   <input id="reply-subject" className="input" maxLength={200} value={reply.subject} onChange={e => setReply(r => r && { ...r, subject: e.target.value, dirty: true })} />
                   <MailEditor label="답장 내용" doc={reply.doc} onChange={doc => setReply(r => r && { ...r, doc, dirty: true })} disabled={busy !== null} />
                   {confirm ? (
                     <div className="publish-row" role="group" aria-label="보내기 확인">
-                      <span className="small" style={{ flex: '1 1 200px' }}><b>{open.from_addr}</b>에게 이 답장을 보낼까요?</span>
+                      <span className="small" style={{ flex: '1 1 200px' }}><b>{open.from_addr}</b>에게 {multi ? `${ACCOUNT[accountOf(open)]}으로 ` : ''}이 답장을 보낼까요?</span>
                       <button className="btn primary" onClick={() => { void act('send'); }} disabled={busy !== null}>{busy === 'send' ? '보내는 중…' : '보내기 확정'}</button>
                       <button className="btn ghost" onClick={() => setConfirm(false)} disabled={busy !== null}>취소</button>
                     </div>
