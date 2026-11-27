@@ -18,7 +18,7 @@ test('통합 대시보드: 사람마다 자주 쓰는 글 종류(미니로그 �
     .forEach(([id, user, type]) => add.run(id, user, type, now, now));
   db.close();
   await page.reload();
-  await page.getByRole('button', { name: '통합 대시보드' }).click();
+  await page.getByRole('button', { name: '두 사람 같이' }).click();
   await expect(page.getByLabel('사용자 C 자주 쓰는 글 종류')).toHaveText(/카페 2\s*맛집 1/);
   const d = page.getByLabel('사용자 D 자주 쓰는 글 종류');
   await expect(d).toContainText('뷰티 2');

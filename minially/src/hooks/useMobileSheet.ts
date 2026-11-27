@@ -8,12 +8,12 @@ function savedHeight(key:string,fallback:number) {
 export function useMobileSheet<T extends HTMLElement = HTMLDivElement>(open: boolean, initialRatio = .62, kind = 'day') {
  const storageKey='minially:sheet-height:'+kind;
  const surfaceRef = useRef<T>(null);
- const [mobile,setMobile] = useState(()=>matchMedia('(max-width: 639px)').matches);
+ const [mobile,setMobile] = useState(()=>matchMedia('(max-width: 599px)').matches);
  const [ratio,setRatio] = useState(()=>savedHeight(storageKey,initialRatio));
  const drag = useRef<{y:number;height:number;available:number}|null>(null), moved = useRef(false);
- useEffect(()=>{const media=matchMedia('(max-width: 639px)'),change=()=>setMobile(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
+ useEffect(()=>{const media=matchMedia('(max-width: 599px)'),change=()=>setMobile(media.matches);media.addEventListener('change',change);return()=>media.removeEventListener('change',change);},[]);
  useLayoutEffect(()=>{if(open){setRatio(savedHeight(storageKey,initialRatio));drag.current=null;moved.current=false;}},[open,initialRatio,storageKey]);
- const expand = useCallback(()=>{if(matchMedia('(max-width: 639px)').matches)setRatio(.92);},[]);
+ const expand = useCallback(()=>{if(matchMedia('(max-width: 599px)').matches)setRatio(.92);},[]);
  const clamp = (value:number)=>Math.max(.45,Math.min(.92,value));
  const resize = (value:number)=>{const next=clamp(value);setRatio(next);try{localStorage.setItem(storageKey,String(next));}catch{/* Resizing still works when storage is unavailable. */}};
  const handleProps = {

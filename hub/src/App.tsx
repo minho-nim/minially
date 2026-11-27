@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type MouseEvent } from 'react';
+import { NavIcon } from './NavIcon';
 import { Skeleton } from './Skeleton';
 import { BarList, Columns, Donut } from './Charts';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
@@ -133,6 +134,9 @@ function dDay(deadline: string) {
   return diff === 0 ? 'D-day' : `D-${diff}`;
 }
 type Scope = 'all' | 'me';
+// 메뉴 4개(넓은 화면 옆 메뉴 '보기·관리'와 휴대폰 아래 탭이 같음)
+const NAV_MAIN = [{ id: 'overview', label: '대시보드' }, { id: 'monthly', label: '월간 보고' }, { id: 'apps', label: '앱 연결' }, { id: 'usage', label: 'AI 사용량' }];
+const NAV_IDS = [...NAV_MAIN.map(n => n.id), 'settings'];
 const SCOPE_KEY = 'minihub.scope';
 function savedScope(): Scope {
   try { return localStorage.getItem(SCOPE_KEY) === 'me' ? 'me' : 'all'; } catch { return 'all'; }
@@ -167,8 +171,11 @@ function OverviewPanel({ month }: { month: number }) {
   const errorCodes = new Map<string, number>();
   for (const e of data.errors) errorCodes.set(e.error_code, (errorCodes.get(e.error_code) ?? 0) + e.count);
   const total = { calls: sum(users, u => u.calls), tokens: sum(users, u => u.tokens), errors: sum(users, u => u.errors) };
-  const maxUser = Math.max(1, ...users.map(u => u.tokens));
   const connected = users.filter(u => u.gemini_connected).length;
+  const fixes = [
+    ...users.filter(u => !u.gemini_connected).map(u => ({ text: `${nameOf(u.user)} Gemini 연결 안 됨`, href: '#settings', link: '연결 방법' })),
+    ...users.filter(u => u.errors > 0).map(u => ({ text: `${nameOf(u.user)} 이번 달 AI 오류 ${formatNumber(u.errors)}번`, href: '', link: '' })),
+  ];
   return (
     <>
       <div className="kpis">
@@ -178,30 +185,35 @@ function OverviewPanel({ month }: { month: number }) {
         <div className={`card kpi${connected === users.length ? ' sig' : ''}`}><span className="label">Gemini 연결</span><span className="value">{connected}/{users.length}</span><span className="hint">{users.filter(u => !u.gemini_connected).map(u => `${nameOf(u.user)} 연결 안 됨`).join(', ') || '모두 연결됨'}</span></div>
       </div>
 
+      {/* 손볼 것: 연결 안 된 키·이번 달 오류를 맨 위에(없으면 한 줄로 괜찮다고) */}
+      <div className={`card fixit${fixes.length ? '' : ' fine'}`} role="status" aria-label="손볼 것">
+        <b>{fixes.length ? `손볼 것 ${fixes.length}개` : '손볼 것 없음'}</b>
+        {fixes.length ? <ul>{fixes.map(f => <li key={f.text}>{f.text}{f.href && <> · <a href={f.href}>{f.link}</a></>}</li>)}</ul> : <span className="muted small">두 사람 모두 연결돼 있고 이번 달 오류가 없어요.</span>}
+      </div>
+
       <section className="card" aria-labelledby="users-title">
         <h2 id="users-title" className="section-title">{month}월 사용자별</h2>
         {total.tokens > 0 && <Donut label="사용자별 토큰" sub="토큰" size={96} slices={users.map((u, i) => ({ label: nameOf(u.user), value: u.tokens, color: USER_COLORS[i % USER_COLORS.length] }))} />}
-        <div className="user-rows">
-          {users.map((u, i) => (
-            <div className="user-row" key={u.user}>
-              <span className="avatar" aria-hidden="true">{u.user}</span>
-              <div className="user-main">
-                <div className="row"><b>{nameOf(u.user)}</b><span className={`badge ${u.gemini_connected ? 'ok' : 'off'}`}>{u.gemini_connected ? 'Gemini 연결됨' : '연결 안 됨'}</span></div>
-                <div className="bar-track" role="img" aria-label={`토큰 ${formatNumber(u.tokens)}`}><span className="bar-in" style={{ width: `${(u.tokens / maxUser) * 100}%`, background: USER_COLORS[i % USER_COLORS.length] }} /></div>
-              </div>
-              <dl className="user-nums">
-                <div><dt>호출</dt><dd>{formatNumber(u.calls)}</dd></div>
-                <div><dt>토큰</dt><dd>{formatNumber(u.tokens)}</dd></div>
-                <div><dt>오류</dt><dd>{formatNumber(u.errors)}</dd></div>
-                <div><dt>게시 글</dt><dd>{formatNumber(u.published)}</dd></div>
-                <div><dt>이번 주</dt><dd title="이번 주 게시 글(권장 3~5편)">{formatNumber(u.week)}편</dd></div>
-                <div><dt>다른 곳 공유</dt><dd title="이번 달 인스타·스레드·X에 올렸다고 체크한 수">{formatNumber(u.shares)}</dd></div>
-              </dl>
-              <p className="user-types small" aria-label={`${nameOf(u.user)} 자주 쓰는 글 종류`}>
-                <span className="muted">자주 쓰는 글 종류</span> {u.types.length ? u.types.map(t => <span key={t.type} className="type-chip">{t.label} {formatNumber(t.count)}</span>) : <span className="muted">아직 없음</span>}
-              </p>
-            </div>
-          ))}
+        {/* 한 줄 비교 표: 숫자가 줄바꿈되지 않게 사람마다 한 줄, 휴대폰에서는 사람마다 카드 */}
+        <div className="table-wrap">
+          <table className="people" aria-label={`${month}월 사람별 숫자`}>
+            <thead><tr><th scope="col">사람</th><th scope="col">게시 글</th><th scope="col">이번 주</th><th scope="col">다른 곳 공유</th><th scope="col">받은 금액</th><th scope="col">AI 호출</th><th scope="col">토큰</th><th scope="col">오류</th><th scope="col">자주 쓰는 글</th></tr></thead>
+            <tbody>
+              {users.map(u => (
+                <tr className="user-row" key={u.user}>
+                  <th scope="row"><span className="who-cell"><span className="avatar" aria-hidden="true">{u.user}</span><b>{nameOf(u.user)}</b><span className={`badge ${u.gemini_connected ? 'ok' : 'off'}`}>{u.gemini_connected ? 'Gemini 연결됨' : '연결 안 됨'}</span></span></th>
+                  <td data-col="published" data-label="게시 글">{formatNumber(u.published)}</td>
+                  <td data-col="week" data-label="이번 주" title="이번 주 게시 글(권장 3~5편)">{formatNumber(u.week)}편</td>
+                  <td data-col="shares" data-label="다른 곳 공유" title="이번 달 인스타·스레드·X에 올렸다고 체크한 수">{formatNumber(u.shares)}</td>
+                  <td data-col="revenue" data-label="받은 금액">{won(u.revenue)}</td>
+                  <td data-col="calls" data-label="AI 호출">{formatNumber(u.calls)}</td>
+                  <td data-col="tokens" data-label="토큰">{formatNumber(u.tokens)}</td>
+                  <td data-col="errors" data-label="오류" className={u.errors ? 'off' : undefined}>{formatNumber(u.errors)}</td>
+                  <td data-col="types" data-label="자주 쓰는 글"><span className="user-types small" aria-label={`${nameOf(u.user)} 자주 쓰는 글 종류`}>{u.types.length ? u.types.map(t => <span key={t.type} className="type-chip">{t.label} {formatNumber(t.count)}</span>) : <span className="muted">아직 없음</span>}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -315,6 +327,18 @@ const APPS = [
 function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (next: Partial<Pick<Me, 'name' | 'theme'>>) => void }) {
   const [busy, setBusy] = useState(false);
   const [scope, setScopeState] = useState<Scope>(savedScope);
+  // 지금 보는 칸(화면 위쪽 3분의 1에 들어온 칸)에 메뉴 띠를 둔다
+  const [active, setActive] = useState('overview');
+  useEffect(() => {
+    const seen = new Map<string, boolean>();
+    const io = new IntersectionObserver(entries => {
+      for (const e of entries) seen.set(e.target.id, e.isIntersecting);
+      const first = NAV_IDS.find(id => seen.get(id));
+      if (first) setActive(first);
+    }, { rootMargin: '0px 0px -66% 0px' });
+    for (const id of NAV_IDS) { const el = document.getElementById(id); if (el) io.observe(el); }
+    return () => io.disconnect();
+  }, [scope]);
   const setScope = (next: Scope) => { setScopeState(next); try { localStorage.setItem(SCOPE_KEY, next); } catch { /* 저장 못 해도 화면은 바뀜 */ } };
   const byApp = new Map(me.usage.apps.map(row => [row.app, row]));
   const totals = me.usage.apps.reduce(
@@ -328,6 +352,15 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
     ? 'Gemini를 연결하면 같이 일할 수 있어요'
     : totals.calls > 0 ? `이번 달 AI랑 ${formatNumber(totals.calls)}번 같이 일했어요` : '이번 달은 아직 AI를 안 썼어요';
 
+  // 메뉴 이동: 'AI 사용량'은 내 대시보드의 사용량 칸(통합 화면이면 잠깐 내 대시보드로 바꿔 보여 줌, 기본 보기 설정은 그대로)
+  const goNav = (event: MouseEvent<HTMLAnchorElement>, id: string) => {
+    event.preventDefault();
+    if (id === 'usage') setScopeState('me');
+    setActive(id);
+    window.history.replaceState(null, '', `#${id}`);
+    window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
   async function logout() {
     setBusy(true);
     try { await api('/api/logout', { method: 'POST', body: {} }); } catch { /* 서버가 안 받아도 화면은 로그아웃 */ }
@@ -339,21 +372,23 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
       <aside className="side" aria-label="메뉴">
         <a className="brand" href="#overview" aria-label="미니허브 처음으로"><Signature kind="hub" word="hub" size={17} tomong={32} /></a>
         <nav className="nav-wrap" aria-label="미니허브 메뉴">
+          {/* 미니로그 시안 A와 같은 모양: 묶음 이름은 위에 작게, 메뉴는 아이콘 + 이름, 지금 보는 칸은 띠로 */}
+          <div className="nav-label">보기</div>
           <div className="nav">
-            <a href="#overview">대시보드</a>
-            <a href="#monthly">월간 보고</a>
-            <a href="#apps">앱</a>
-            {/* 'AI 사용량'은 내 대시보드의 사용량 칸으로(통합 화면이면 잠깐 내 대시보드로 바꿔 보여 줌, 기본 보기 설정은 그대로) */}
-            <a href="#usage" onClick={event => { event.preventDefault(); setScopeState('me'); window.setTimeout(() => document.getElementById('usage')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); }}>AI 사용량</a>
-            <a href="#settings">설정</a>
+            {NAV_MAIN.slice(0, 2).map(item => <a key={item.id} href={`#${item.id}`} aria-current={active === item.id ? 'true' : undefined} onClick={event => goNav(event, item.id)}><NavIcon name={item.id} />{item.label}</a>)}
           </div>
-          <div className="nav-label">바로 가기</div>
+          <div className="nav-label">관리</div>
+          <div className="nav">
+            {NAV_MAIN.slice(2).map(item => <a key={item.id} href={`#${item.id}`} aria-current={active === item.id ? 'true' : undefined} onClick={event => goNav(event, item.id)}><NavIcon name={item.id} />{item.label}</a>)}
+          </div>
+          <div className="nav-label">앱 열기</div>
           <div className="nav">
             {APPS.map(app => (
               <a key={app.id} href={app.href}><span className="nav-app"><Tomong kind={app.kind} size={20} />{app.name}</span><span className="ext" aria-hidden="true">↗</span></a>
             ))}
           </div>
         </nav>
+        <a className="side-settings" href="#settings" aria-current={active === 'settings' ? 'true' : undefined} onClick={event => goNav(event, 'settings')}><NavIcon name="settings" />설정</a>
         <div className="side-foot">
           <div className="who">
             <span className="avatar" aria-hidden="true">{me.user}</span>
@@ -371,11 +406,12 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
               <h1 id="hello-title">{me.name === `사용자 ${me.user}` ? me.user : me.name}님, 오늘도 반가워요</h1>
               <p className="hello-line"><span className="hand">{line}</span><span className="muted small"> · {today}</span></p>
             </div>
+            <div className="scope" role="group" aria-label="대시보드 보기">
+              <button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>두 사람 같이</button>
+              <button aria-pressed={scope === 'me'} onClick={() => setScope('me')}>나만</button>
+            </div>
           </div>
-          <div className="scope" role="group" aria-label="대시보드 보기">
-            <button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>통합 대시보드</button>
-            <button aria-pressed={scope === 'me'} onClick={() => setScope('me')}>내 대시보드</button>
-          </div>
+
           {scope === 'all' ? <OverviewPanel month={month} /> : (
           <div className="kpis">
             <div className="card kpi">
@@ -406,7 +442,7 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
         {scope === 'all' && <AccountsPanel />}
 
         <section id="apps" aria-labelledby="apps-title">
-          <h2 id="apps-title" className="section-title">앱</h2>
+          <h2 id="apps-title" className="section-title">앱 연결</h2>
           <div className="apps">
             {APPS.map(app => {
               const row = byApp.get(app.id);
@@ -494,6 +530,15 @@ function Home({ me, onLogout, onMe }: { me: Me; onLogout: () => void; onMe: (nex
           </div>
         </section>
       </main>
+      {/* 휴대폰(839px 이하): 아래 탭 4개, 설정은 오른쪽 위 톱니 */}
+      <nav className="m-tabs" aria-label="미니허브 아래 탭">
+        {NAV_MAIN.map(item => (
+          <a key={item.id} href={`#${item.id}`} aria-label={`${item.label} 탭`} aria-current={active === item.id ? 'true' : undefined} onClick={event => goNav(event, item.id)}>
+            <span className="m-tab-icon"><NavIcon name={item.id} size={20} /></span>{item.label}
+          </a>
+        ))}
+      </nav>
+      <a className="m-gear" href="#settings" aria-label="설정 열기" onClick={event => goNav(event, 'settings')}><NavIcon name="settings" size={20} /></a>
     </div>
   );
 }

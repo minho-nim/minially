@@ -126,9 +126,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // 같은 일정이 며칠 이어지면 달력에서 한 줄로 이어 그린다
   const runOf = useMemo(() => buildRuns(visibleSchedules), [visibleSchedules]);
-  // 휴대폰 폭(640px 미만)인지: 휴대폰용·PC용 일정 줄 중 하나만 그린다
-  const [narrow, setNarrow] = useState(() => matchMedia('(max-width: 639px)').matches);
-  useEffect(() => { const m = matchMedia('(max-width: 639px)'); const on = () => setNarrow(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, []);
+  // 휴대폰 폭(600px 미만)인지: 휴대폰용·PC용 일정 줄 중 하나만 그린다
+  const [narrow, setNarrow] = useState(() => matchMedia('(max-width: 599px)').matches);
+  useEffect(() => { const m = matchMedia('(max-width: 599px)'); const on = () => setNarrow(m.matches); m.addEventListener('change', on); return () => m.removeEventListener('change', on); }, []);
 
   // 달력 한 장의 이름(달 보기는 'YYYY-MM', 주 보기는 그 주 첫날): 넘긴 뒤 같은 장은 새로 만들지 않고 옮겨 쓴다
   const pageId = (d: string) => viewMode + (viewMode === 'month' ? d.slice(0, 7) : calendarPageDays(d, 'week', settings.startDayOfWeek, todayStr)[0].dateStr);
