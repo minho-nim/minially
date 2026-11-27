@@ -135,12 +135,33 @@ createServer((req, res) => {
     if (prompt.includes('문체를 분석')) {
       return ok({ summary: '친근한 존댓말로 짧게 끊어 쓰는 문체예요. 감탄과 솔직한 후기가 많아요.', tone: '친근한 존댓말', sentence: '짧은 문장 위주', structure: '방문 계기 → 메뉴 → 총평', expressions: ['진짜', '완전 추천'], emoji: 'ㅎㅎ를 가끔 씀', hashtags: '지역+가게 이름' });
     }
+    if (prompt.includes('개요(목차)를 먼저 짜는')) {
+      // 개요 먼저: 없는 사진 번호(99)와 빈 소제목은 서버가 걸러야 한다. 협찬 가이드가 자료로 들어갔는지 소제목에 적는다
+      const guided = prompt.includes('<협찬 가이드>\n') ? ' · 가이드' : '';
+      return ok({ sections: [{ heading: `방문 계기${guided}`, points: '친구랑 주말에 감', photos: [1] }, { heading: '메뉴와 맛', points: '가격은 [작성자 확인 필요]', photos: [2, 99] }, { heading: '', points: '빈 소제목' }, { heading: '총평', points: '다시 갈 곳', photos: [] }] });
+    }
+    if (prompt.includes('블로그 원고의 일부만 고치는 도우미')) {
+      // 고른 부분 다시 쓰기: 고칠 부분에 DROP-MARK가 있으면 [사진] 표시를 빼먹은 답(서버가 거절해야 함)
+      const part = prompt.match(/<고칠 부분>\n([\s\S]*?)\n<\/고칠 부분>/)?.[1] ?? '';
+      const mode = prompt.includes('더 짧고 간결하게') ? '짧게' : prompt.includes('정보(무엇') ? '정보' : prompt.includes('<문체>') ? '내 말투' : '생생';
+      return ok({ text: part.includes('DROP-MARK') ? '표시를 뺀 글' : `(${mode}) ${part}` });
+    }
+    if (prompt.includes('네이버 블로그 제목 후보를 만드는')) {
+      const top = prompt.includes('<내 인기 제목>') ? ' · 인기 제목 참고' : '';
+      return ok({ titles: [{ title: '성수 소금빵 맛집 솔직 후기', reason: `핵심어가 앞에${top}` }, { title: '역대급 충격 빵집 다녀옴', reason: '과장 예시' }, { title: '성수 소금빵 맛집 솔직 후기', reason: '같은 제목(서버가 뺌)' }, { title: '주말 아침 성수동 빵집 산책, 소금빵 세 개', reason: '긴 제목' }] });
+    }
+    if (prompt.includes('블로그 사진마다 "무엇이 찍혔는지"')) {
+      return ok({ notes: [...Array.from({ length: images }, (_, i) => ({ photo: i + 1, note: `시험 사진 ${i + 1}: 빵과 커피` })), { photo: 99, note: '없는 사진' }] });
+    }
+    const outlined = prompt.match(/<개요>\n1\. ([^\n(]+)/)?.[1]?.trim(); // 사람이 고친 개요가 들어갔는지
+    const guideIn = prompt.includes('<협찬 가이드>\n') ? '\n(가이드 반영)' : '';
+    const habitIn = prompt.includes('작성자가 자주 지운 표현') ? '\n(버릇 반영)' : '';
     const postType = prompt.match(/\[글 종류: ([^\]]+)\]/)?.[1]; // 글 종류 안내가 들어갔는지 시험에서 볼 수 있게
     const photoLines = images ? Array.from({ length: images }, (_, i) => `[사진 ${i + 1}]`).join('\n') : '[사진]';
     const avoided = prompt.includes('피하는 표현(') ? ' · 피하는 표현' : ''; // '더 내 스타일로'로 생긴 피하는 표현이 초안 프롬프트에 들어갔는지
     const styled = !prompt.includes('<문체>') ? '' : prompt.includes('다른 블로거의 쓰는 방식') ? (prompt.includes('남의표현') ? ' · 표현 샘' : ' · 참고 문체') : ' · 내 문체';
     const memo = prompt.match(/<사진 메모>\n([\s\S]*?)\n<\/사진 메모>/)?.[1]; // 사진 메모가 자료로 들어갔는지 시험에서 볼 수 있게
-    const draft = { title: (images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목') + styled + avoided, body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]${postType ? `\n(글 종류: ${postType})` : ''}${prompt.includes('[글 구조: 홈피드형]') ? '\n(글 구조: 홈피드형)' : ''}${memo ? `\n(메모 반영: ${memo.split('\n')[0]})\n가격은 9,900원이었어요.` : ''}`, hashtags: ['#시험', '미니로그', '시험'] };
+    const draft = { title: (images ? `가짜 Gemini가 쓴 제목(사진 ${images}장)` : '가짜 Gemini가 쓴 제목') + styled + avoided, body: `첫 문단입니다.\n${photoLines}\n두 번째 문단입니다. [작성자 확인 필요]${postType ? `\n(글 종류: ${postType})` : ''}${prompt.includes('[글 구조: 홈피드형]') ? '\n(글 구조: 홈피드형)' : ''}${outlined ? `\n(개요 반영: ${outlined})` : ''}${guideIn}${habitIn}${memo ? `\n(메모 반영: ${memo.split('\n')[0]})\n가격은 9,900원이었어요.` : ''}`, hashtags: ['#시험', '미니로그', '시험'] };
     send(200, {
       candidates: [{ content: { parts: [{ text: JSON.stringify(draft) }] }, finishReason: 'STOP' }],
       usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 },

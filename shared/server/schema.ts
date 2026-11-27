@@ -77,6 +77,9 @@ const TABLES = [
   "CREATE TABLE IF NOT EXISTS minilog_trash (user TEXT NOT NULL, id TEXT NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL, deleted_at INTEGER NOT NULL, PRIMARY KEY (user, id))",
   // 게시 7일 뒤 돌아보기: 사람이 고른 평가(good·ok·low)와 메모(300자), 그때 조회수
   "CREATE TABLE IF NOT EXISTS minilog_reviews (user TEXT NOT NULL, draft_id TEXT NOT NULL, verdict TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', views INTEGER, created_at INTEGER NOT NULL, PRIMARY KEY (user, draft_id))",
+  // 원고 판 기록: AI 초안 직전·AI 초안·고친 글(10분마다 한 줄)·승인/게시 때 최종. 원고마다 30개까지(mini-log/functions/_writing.ts)
+  "CREATE TABLE IF NOT EXISTS minilog_versions (id TEXT PRIMARY KEY, user TEXT NOT NULL, draft_id TEXT NOT NULL, kind TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', body TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL)",
+  'CREATE INDEX IF NOT EXISTS minilog_versions_draft ON minilog_versions (user, draft_id, created_at)',
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
 const COLUMNS: [table: string, column: string, type: string][] = [

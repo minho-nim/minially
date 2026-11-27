@@ -2,6 +2,7 @@ import { json, readJson, type HubContext } from '../../../../../shared/server/d1
 import { requireSession } from '../../../../../shared/server/auth';
 import { getDraft, readPatch, saveConflictCopy, updateDraft } from '../../../_drafts';
 import { purgeTrash, trashDraft } from '../../../_trash';
+import { saveVersion } from '../../../_writing';
 
 const idOf = (ctx: HubContext) => {
   const id = ctx.params?.id;
@@ -39,9 +40,15 @@ export const onRequestPut = async (ctx: HubContext) => {
       return json({ error: '다른 기기에서 먼저 고친 원고예요. 이 기기에서 고친 내용은 사본 원고로 남겼어요.', code: 'conflict', draft: current, copy: { ...copy, photo_count: 0 } }, 409);
     }
   }
+  const before = patch.status ? await getDraft(auth.db, auth.session.user, id) : null;
   const draft = await updateDraft(auth.db, auth.session.user, id, patch);
   if (typeof draft === 'string') return json({ error: draft }, 400);
-  return draft ? json({ draft }) : notFound();
+  if (!draft) return notFound();
+  // 판 기록: 글을 고치면 10분에 한 줄('고친 글'), 승인·게시로 바꾸면 그때 글을 '최종'으로
+  const finished = (draft.status === 'approved' || draft.status === 'published') && before && before.status !== draft.status;
+  if (finished) await saveVersion(auth.db, auth.session.user, id, 'final', draft.title, draft.body);
+  else if (patch.body !== undefined || patch.title !== undefined) await saveVersion(auth.db, auth.session.user, id, 'edit', draft.title, draft.body);
+  return json({ draft });
 };
 
 export const onRequestDelete = async (ctx: HubContext) => {

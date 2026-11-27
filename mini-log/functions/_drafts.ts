@@ -160,5 +160,6 @@ export async function deleteDraft(db: D1Database, user: UserName, id: string) {
     db.prepare('DELETE FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, id),
     db.prepare('DELETE FROM minilog_shares WHERE user = ? AND draft_id = ?').bind(user, id), // '다른 곳에도 올렸어요' 기록도 같이
     db.prepare('DELETE FROM minilog_reviews WHERE user = ? AND draft_id = ?').bind(user, id), // 7일 뒤 돌아보기도 같이
+    db.prepare('DELETE FROM minilog_versions WHERE user = ? AND draft_id = ?').bind(user, id), // 판 기록도 같이
   ]);
 }

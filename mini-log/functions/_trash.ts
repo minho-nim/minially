@@ -18,17 +18,19 @@ function insert(db: D1Database, table: string, row: Row) {
 export async function trashDraft(db: D1Database, user: UserName, id: string, now = Date.now()) {
   const draft = (await all(db, 'SELECT * FROM minilog_drafts WHERE user = ? AND id = ?', user, id))[0];
   if (!draft) return false;
-  const [photos, shares, reviews] = await Promise.all([
+  const [photos, shares, reviews, versions] = await Promise.all([
     all(db, 'SELECT * FROM minilog_photos WHERE user = ? AND draft_id = ?', user, id),
     all(db, 'SELECT * FROM minilog_shares WHERE user = ? AND draft_id = ?', user, id),
     all(db, 'SELECT * FROM minilog_reviews WHERE user = ? AND draft_id = ?', user, id),
+    all(db, 'SELECT * FROM minilog_versions WHERE user = ? AND draft_id = ?', user, id),
   ]);
   await db.batch([
-    db.prepare('INSERT OR REPLACE INTO minilog_trash (user, id, kind, data, deleted_at) VALUES (?, ?, ?, ?, ?)').bind(user, id, 'draft', JSON.stringify({ draft, photos, shares, reviews }), now),
+    db.prepare('INSERT OR REPLACE INTO minilog_trash (user, id, kind, data, deleted_at) VALUES (?, ?, ?, ?, ?)').bind(user, id, 'draft', JSON.stringify({ draft, photos, shares, reviews, versions }), now),
     db.prepare('DELETE FROM minilog_photos WHERE user = ? AND draft_id = ?').bind(user, id),
     db.prepare('DELETE FROM minilog_drafts WHERE user = ? AND id = ?').bind(user, id),
     db.prepare('DELETE FROM minilog_shares WHERE user = ? AND draft_id = ?').bind(user, id),
     db.prepare('DELETE FROM minilog_reviews WHERE user = ? AND draft_id = ?').bind(user, id),
+    db.prepare('DELETE FROM minilog_versions WHERE user = ? AND draft_id = ?').bind(user, id),
   ]);
   return true;
 }
@@ -63,7 +65,7 @@ export async function restoreTrash(db: D1Database, user: UserName, id: string, n
   const t = await db.prepare('SELECT kind, data, deleted_at FROM minilog_trash WHERE user = ? AND id = ?').bind(user, id).first<{ kind: string; data: string; deleted_at: number }>();
   if (!t) return 'missing';
   if (t.deleted_at < now - TRASH_MS) return 'expired';
-  const data = JSON.parse(t.data) as { draft?: Row; photos?: Row[]; shares?: Row[]; reviews?: Row[]; photo?: Row; row?: Row };
+  const data = JSON.parse(t.data) as { draft?: Row; photos?: Row[]; shares?: Row[]; reviews?: Row[]; versions?: Row[]; photo?: Row; row?: Row };
   const own = (r: Row) => r.user === user; // 다른 사람 행이 섞이지 않게 한 번 더
   if (t.kind in ROW_TABLES) {
     const kind = t.kind as RowKind;
@@ -83,6 +85,7 @@ export async function restoreTrash(db: D1Database, user: UserName, id: string, n
     ...(data.photos ?? []).filter(own).map(r => insert(db, 'minilog_photos', r)),
     ...(data.shares ?? []).filter(own).map(r => insert(db, 'minilog_shares', r)),
     ...(data.reviews ?? []).filter(own).map(r => insert(db, 'minilog_reviews', r)),
+    ...(data.versions ?? []).filter(own).map(r => insert(db, 'minilog_versions', r)),
     db.prepare('DELETE FROM minilog_trash WHERE user = ? AND id = ?').bind(user, id),
   ]);
   return 'draft';
