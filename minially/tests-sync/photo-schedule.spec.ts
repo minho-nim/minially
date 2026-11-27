@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
 import { readdirSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { CODE_A, CODE_B } from '../playwright.sync.config';
+import { CODE_A, CODE_B, CODE_HUB_ONLY } from '../playwright.sync.config';
 import { device, login, put, category, schedule } from './helpers';
 
 // 시험용 흰 PNG(브라우저가 열 수 있는 진짜 이미지, 외부 파일 없이 만든다)
@@ -83,4 +83,24 @@ test('구글이 2.5 모델을 이 키에 열어 주지 않으면(404) 권장 대
   const rows = db.prepare("SELECT model, status, error_code FROM ai_usage WHERE task = 'text_schedule' ORDER BY created_at DESC LIMIT 2").all() as { model: string; status: string; error_code: string | null }[];
   db.close();
   expect(rows).toEqual([{ model: 'gemini-3.5-flash-lite', status: 'ok', error_code: null }, { model: 'gemini-2.5-flash-lite', status: 'error', error_code: 'model_gone' }]);
+});
+
+test('AI 연결 확인: 코드·키·구글 AI 중 어디서 막혔는지 단계별로 알려 주고, 키 값은 돌려주지 않는다', async ({ request, browser }) => {
+  expect((await request.get('/api/photo-schedule')).status()).toBe(401);
+  const okRes = await request.get('/api/photo-schedule', { headers: { authorization: `Bearer ${CODE_A}` } });
+  const ok = await okRes.json();
+  expect(ok).toMatchObject({ ok: true, step: 'done', user: 'C', model: 'gemini-2.5-flash-lite' });
+  expect(JSON.stringify(ok)).not.toContain('test-key');
+  // 동기화 코드는 맞지만 미니허브 사용자가 아닌 코드 → USER_CODE_HASHES 안내
+  expect(await (await request.get('/api/photo-schedule', { headers: { authorization: `Bearer ${CODE_B}` } })).json()).toMatchObject({ ok: false, step: 'user' });
+  // 미니허브 사용자 D지만 이 서버에 D의 키가 없음 → GEMINI_KEY_D 안내
+  expect(await (await request.get('/api/photo-schedule', { headers: { authorization: `Bearer ${CODE_HUB_ONLY}` } })).json()).toMatchObject({ ok: false, step: 'key', user: 'D' });
+  // 화면: 사진 넣기 창의 'AI 연결 확인'
+  const page = await device(browser, 400);
+  await login(page, CODE_A);
+  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await sheet.getByRole('button', { name: 'AI 연결 확인' }).click();
+  await expect(sheet.getByRole('status', { name: 'AI 연결 확인 결과' })).toContainText('연결돼 있어요. 사용자 C의 키로 gemini-2.5-flash-lite 모델이 답했어요.');
 });
