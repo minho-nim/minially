@@ -44,7 +44,7 @@ Settings → Bindings → Add → D1 database
 | `GEMINI_KEY_C` | 사용자 C의 Gemini API 키 | ✅ | ✅ |
 | `GEMINI_KEY_D` | 사용자 D의 Gemini API 키 | ✅ | ✅ |
 | `STATS_API_TOKEN` | 아무도 못 맞힐 긴 무작위 글자(Minoffia 통계용) | ✅ | |
-| `GEMINI_MODEL` | (선택) 기본 `gemini-2.5-flash`가 안 될 때만 | 선택 | 선택 |
+| `GEMINI_MODEL` | (선택) 기본 `gemini-3.5-flash-lite`(사용자 C·D 같음)가 안 될 때만 | 선택 | 선택 |
 
 비밀값을 넣거나 바꾼 뒤에는 Deployments에서 **Retry deployment**를 한 번 해야 반영됩니다.
 
@@ -55,7 +55,7 @@ minially 프로젝트에도 아래 비밀값을 **minihub·mini-log와 같은 �
 |---|---|---|
 | `USER_CODE_HASHES` | minihub와 같은 값(`C:<해시>,D:<해시>`) | minially 프로젝트 Secret |
 | `GEMINI_KEY_C`, `GEMINI_KEY_D` | minihub와 같은 키 | minially 프로젝트 Secret |
-| `GEMINI_PHOTO_MODEL` | (선택) 기본 `gemini-2.5-flash-lite`가 안 될 때만 | minially 프로젝트 변수 |
+| `GEMINI_PHOTO_MODEL` | (선택) 기본 `gemini-3.5-flash-lite`가 안 될 때만 | minially 프로젝트 변수 |
 
 미니어리 코드가 미니허브 사용자 코드와 같아야 그 사람의 키로 읽습니다. 넣은 뒤 **Retry deployment**.
 

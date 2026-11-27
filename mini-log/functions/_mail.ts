@@ -2,7 +2,7 @@
 // 협찬(→ 캘린더·휴대폰 달력)에 담고, 답장이 필요한 메일엔 초안을 써 둔다. 보내기는 사람이 누를 때만(SMTP).
 import type { D1Database, HubEnv } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
-import { AiError, callGemini } from '../../shared/server/ai';
+import { AiError, LIGHT_MODEL, callGemini } from '../../shared/server/ai';
 import { createCampaign, listCampaigns, updateCampaign } from './_campaigns';
 import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readReplies, replyPrompt, sameBrand, str, type Judgement, type Mail, type MailKind } from './_mailRules';
 export type { Mail } from './_mailRules';
@@ -86,7 +86,7 @@ export async function syncMail(db: D1Database, env: HubEnv, user: UserName): Pro
     const judge = fresh.filter(m => !m.bulk);
     if (judge.length) {
       try {
-        const { text } = await callGemini({ env, db, user, app: 'minilog', task: 'mail_classify', json: true, model: 'gemini-2.5-flash-lite',
+        const { text } = await callGemini({ env, db, user, app: 'minilog', task: 'mail_classify', json: true, model: LIGHT_MODEL,
           prompt: classifyPrompt(kstDate(now), judge.map(m => ({ id: m.id, from: `${m.from_name} <${m.from_addr}>`, subject: m.subject, date: kstDate(m.received_at), text: m.snippet }))) });
         const toDraft: Mail[] = [];
         for (const j of readJudgements(text, judge.map(m => m.id))) {
