@@ -4,7 +4,10 @@ import type { AppName, UserName } from './auth';
 // Gemini 호출은 서버에서만 한다. 키는 Cloudflare 비밀값 GEMINI_KEY_C·GEMINI_KEY_D에만 있고
 // 브라우저·로그·D1에는 남기지 않는다. 사용자는 자기 키만 쓴다(세션의 user로 고름).
 // shortcut: 기본 모델 이름은 Google이 자주 바꾼다. 안 맞으면 GEMINI_MODEL 비밀값으로 바꾼다.
-export const DEFAULT_MODEL = 'gemini-2.5-flash';
+// 2.5 모델은 새 키(C)에 열리지 않아 매번 404 뒤 대체 모델로 다시 불렀다. 사용자 C·D 모두 같은 모델을 처음부터 쓴다(소유자 결정 2026-11-27).
+export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+/** 가벼운 일(질문 만들기·메일 분류·사진 읽기)에 쓰는 모델. 지금은 기본 모델과 같다. */
+export const LIGHT_MODEL = 'gemini-3.5-flash-lite';
 const DEFAULT_BASE = 'https://generativelanguage.googleapis.com';
 const TIMEOUT_MS = 60000;
 const RETRIES = [1000, 2500]; // 다시 부르기 전 기다리는 시간(ms)
@@ -73,6 +76,7 @@ export const MODEL_FALLBACK: Record<string, string> = {
   'gemini-2.5-flash-lite': 'gemini-3.5-flash-lite',
   'gemini-2.5-flash': 'gemini-3.5-flash-lite',
   'gemini-2.5-pro': 'gemini-3.8-flash',
+  'gemini-3.5-flash-lite': 'gemini-3.8-flash',
 };
 const modelGone = (status: number, text: string) => status === 404 && /model|NOT_FOUND|no longer available/i.test(text);
 

@@ -1,13 +1,13 @@
 import { json, readJson, type HubContext } from '../../../../../shared/server/d1';
 import { requireSession } from '../../../../../shared/server/auth';
-import { AiError, callGemini } from '../../../../../shared/server/ai';
+import { AiError, LIGHT_MODEL, callGemini } from '../../../../../shared/server/ai';
 import { getDraft, LIMITS } from '../../../_drafts';
 import { listPhotos, photoNotesBlock } from '../../../_photos';
 import { questionPrompt, readQuestions, ruleQuestions } from '../../../_questions';
 
 // POST /api/drafts/:id/questions { experience, post_type } → { questions: [{q, why}], source: 'ai' | 'rule' }
 // 초안 전에 빠진 사실을 묻는다. 가벼운 모델(사진 없이 글만)로 묻고, AI를 못 쓰면 규칙 질문으로 대신한다.
-const QUESTION_MODEL = 'gemini-2.5-flash-lite';
+const QUESTION_MODEL = LIGHT_MODEL;
 
 export const onRequestPost = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');

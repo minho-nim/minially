@@ -3,8 +3,8 @@
 // 사진은 서버에 저장하지 않는다. 사진 속 글은 자료로만 보고, AI 답은 칸마다 다시 검사한다.
 
 export const PHOTO_LIMITS = { base64: 6_000_000, text: 4000, events: 10, title: 60, location: 80, memo: 200, source: 120 };
-/** 사진 읽기 모델: 블로그(Flash)와 한도를 나누지 않게 가벼운 모델을 기본으로. GEMINI_PHOTO_MODEL로 바꿀 수 있다. */
-export const PHOTO_MODEL = 'gemini-2.5-flash-lite';
+/** 사진 읽기 모델: 가벼운 모델(shared/server/ai.ts LIGHT_MODEL과 같게). GEMINI_PHOTO_MODEL로 바꿀 수 있다. */
+export const PHOTO_MODEL = 'gemini-3.5-flash-lite';
 
 import { parseScheduleText } from '../src/utils/textSchedule';
 

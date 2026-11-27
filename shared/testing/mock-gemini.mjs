@@ -45,7 +45,7 @@ createServer((req, res) => {
     if (prompt.includes('OVERLOAD-ALWAYS')) return send(503, { error: { code: 503, message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } });
     if (prompt.includes('OVERLOAD-ONCE') && !overloadedOnce.has(prompt)) { overloadedOnce.add(prompt); return send(503, { error: { code: 503, message: 'The model is overloaded.', status: 'UNAVAILABLE' } }); }
     // 구글이 2.5 모델을 새 키에 열어 주지 않는 경우(404): 대체 모델(3.x)로는 답한다
-    if (prompt.includes('OLD-MODEL-GONE') && /gemini-2\.5/.test(req.url ?? '')) return send(404, { error: { code: 404, message: 'models/gemini-2.5-flash-lite is no longer available to new users.', status: 'NOT_FOUND' } });
+    if (prompt.includes('OLD-MODEL-GONE') && /gemini-2\.5|gemini-3\.5-flash-lite/.test(req.url ?? '')) return send(404, { error: { code: 404, message: 'models/gemini-2.5-flash-lite is no longer available to new users.', status: 'NOT_FOUND' } });
     if (prompt.includes('BAD-REQUEST')) return send(400, { error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } });
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
