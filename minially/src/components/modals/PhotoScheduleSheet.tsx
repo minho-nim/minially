@@ -6,7 +6,7 @@ import { AlertTriangle, CalendarDays, Clock, ImagePlus, Repeat2, Sparkles, TextS
 import type { CategoryItem, RecurrenceRule, Schedule } from '../../types';
 import { useScheduleDialog } from '../../hooks/useScheduleDialog';
 import { getTodayDateString } from '../../utils/dateHelpers';
-import { checkPhotoConnection, overlapping, PhotoReadError, readPhotoSchedule, readTextScheduleWithAi, shrinkForReading, type AiCheck, type PhotoEvent } from '../../utils/photoSchedule';
+import { checkPhotoConnection, overlapping, PhotoReadError, readGoogleCalendar, readPhotoSchedule, readTextScheduleWithAi, savedGoogleUrl, saveGoogleUrl, shrinkForReading, type AiCheck, type PhotoEvent } from '../../utils/photoSchedule';
 import { parseScheduleText, TEXT_LIMIT } from '../../utils/textSchedule';
 import { historyHint, rejectKey, type HistoryHint } from '../../utils/scheduleSuggest';
 import { readMarks, type MarkKind } from '../../utils/readMarks';
@@ -44,7 +44,8 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
   const [error, setError] = useState<{ text: string; code: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [pasted, setPasted] = useState('');
-  const [source, setSource] = useState<'photo' | 'text'>('photo');
+  const [source, setSource] = useState<'photo' | 'text' | 'google'>('photo');
+  const [googleUrl, setGoogleUrl] = useState(savedGoogleUrl);
   const [aiTried, setAiTried] = useState(false);
   const [check, setCheck] = useState<AiCheck | null>(null);
   const [checking, setChecking] = useState(false);
@@ -91,6 +92,8 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
   /** 글은 이 기기 안에서 규칙으로만 읽는다(서버·AI로 보내지 않음) */
   const findInText = (value = pasted) => { run.current += 1; setSource('text'); setAiTried(false); setError(null); show(parseScheduleText(value, getTodayDateString())); };
   const askAi = () => { setAiTried(true); void ask(() => readTextScheduleWithAi(pasted.trim(), getTodayDateString()), '글'); };
+  /** 구글 캘린더(iCal 비공개 주소)에서 다가오는 일정을 후보로. 주소는 이 기기에만 기억한다 */
+  const readGoogle = () => { const url = googleUrl.trim(); if (!url) return; saveGoogleUrl(url); setSource('google'); void ask(() => readGoogleCalendar(url, getTodayDateString()), '구글 캘린더'); };
 
   useEffect(() => {
     if (!open) return;
@@ -137,8 +140,8 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
     {check && <p role="status" aria-label="AI 연결 확인 결과" className={`rounded-lg px-2.5 py-2 text-xs ${check.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-50 text-amber-900'}`}>{check.ok ? '✓ ' : '! '}{check.message}</p>}
   </div>;
   const pickButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => input.current?.click()}><ImagePlus className="mr-1 inline h-4 w-4" aria-hidden="true" />{phase === 'pick' ? '사진 고르기' : '다른 사진'}</button>;
-  const editTextButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => { run.current += 1; setError(null); setPhase('pick'); }}>글 고치기</button>;
-  const againButton = source === 'text' ? editTextButton : pickButton;
+  const editTextButton = <button type="button" className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink" onClick={() => { run.current += 1; setError(null); setPhase('pick'); }}>{source === 'google' ? '주소 고치기' : '글 고치기'}</button>;
+  const againButton = source === 'photo' ? pickButton : editTextButton;
   const aiButton = <button type="button" className="min-h-11 rounded-xl border border-app-line bg-white px-4 text-sm font-semibold text-app-ink" onClick={askAi}><Sparkles className="mr-1 inline h-4 w-4 text-app-accent-ink" aria-hidden="true" />AI로 다시 읽기</button>;
   const aiNote = <p className="text-xs text-app-muted">AI로 읽으면 이 글이 구글 무료 AI(Gemini)로 가요. 무료 AI에 보낸 내용은 구글 서비스 개선에 쓰일 수 있어요.</p>;
 
@@ -163,22 +166,35 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
           <div className="flex items-center gap-2 text-xs text-app-muted" aria-hidden="true"><span className="h-px flex-1 bg-app-line" />또는<span className="h-px flex-1 bg-app-line" /></div>
           <p className="text-sm text-app-ink">예약 문자·공지·포스터 사진을 고르면(3장까지) 날짜와 시간을 찾아 일정 후보로 보여 줘요. 고른 것만 등록돼요.</p>
           {pickButton}
+          <div className="flex items-center gap-2 text-xs text-app-muted" aria-hidden="true"><span className="h-px flex-1 bg-app-line" />또는<span className="h-px flex-1 bg-app-line" /></div>
+          <form className="space-y-2" onSubmit={e => { e.preventDefault(); readGoogle(); }}>
+            <label htmlFor="google-ics" className="block text-sm font-semibold text-app-ink"><CalendarDays className="mr-1 inline h-4 w-4" aria-hidden="true" />구글 캘린더에서 가져오기</label>
+            <input id="google-ics" type="url" inputMode="url" autoComplete="off" spellCheck={false} value={googleUrl} onChange={e => setGoogleUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="min-h-11 w-full rounded-xl border border-app-line bg-white px-3 text-base text-app-ink placeholder:text-app-muted sm:text-sm" />
+            <button type="submit" disabled={!googleUrl.trim()} className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink disabled:opacity-50">다가오는 일정 가져오기</button>
+            <p className="text-xs text-app-muted">구글 캘린더 → 설정 → 내 캘린더 → 캘린더 통합의 ‘iCal 형식의 비공개 주소’를 붙여 넣어요. 앞으로 90일 일정만 읽고, 고른 것만 등록돼요. 주소는 이 기기에만 기억하고(남에게 알려 주지 마세요) 서버에 저장하지 않아요.</p>
+          </form>
           <p className="rounded-xl bg-app-soft p-3 text-xs text-app-ink">사진은 구글 무료 AI(Gemini)로 읽어요. 무료 AI에 보낸 내용은 구글 서비스 개선에 쓰일 수 있어요. 개인정보가 있는 문자는 사진 대신 글을 복사해 위에 붙여넣어 주세요.</p>
           {checkBox}
         </div>}
         {phase === 'reading' && <div className="space-y-3" role="status">
-          <p className="flex items-center gap-2 font-semibold text-app-ink"><span className="h-5 w-5 animate-spin rounded-full border-2 border-app-line border-t-app-accent-hover motion-reduce:animate-none" aria-hidden="true" />{source === 'text' ? '글에서 날짜와 시간을 AI로 찾고 있어요' : '사진에서 날짜와 시간을 찾고 있어요'}</p>
-          <ul className="list-disc space-y-1 rounded-xl bg-app-soft py-2 pl-7 pr-3 text-xs text-app-ink">{source === 'text'
+          <p className="flex items-center gap-2 font-semibold text-app-ink"><span className="h-5 w-5 animate-spin rounded-full border-2 border-app-line border-t-app-accent-hover motion-reduce:animate-none" aria-hidden="true" />{source === 'google' ? '구글 캘린더에서 다가오는 일정을 읽고 있어요' : source === 'text' ? '글에서 날짜와 시간을 AI로 찾고 있어요' : '사진에서 날짜와 시간을 찾고 있어요'}</p>
+          <ul className="list-disc space-y-1 rounded-xl bg-app-soft py-2 pl-7 pr-3 text-xs text-app-ink">{source === 'google'
+            ? <><li>구글 캘린더는 읽기만 하고 바꾸지 않아요</li><li>찾은 일정은 바로 들어가지 않아요. 다음 화면에서 골라 주세요</li></>
+            : source === 'text'
             ? <><li>글은 저장하지 않아요</li><li>찾은 일정은 바로 들어가지 않아요. 다음 화면에서 골라 주세요</li></>
             : <><li>사진은 저장하지 않고, 읽은 뒤 바로 지워요</li><li>위치·촬영 정보는 보내기 전에 지웠어요</li><li>찾은 일정은 바로 들어가지 않아요. 다음 화면에서 골라 주세요</li></>}</ul>
         </div>}
         {phase === 'error' && error && <div className="space-y-3" role="alert">
-          <p className="text-sm font-semibold text-app-ink">{error.code === 'no_key' ? 'AI 읽기가 아직 연결되지 않았어요' : error.code === 'offline' || error.code === 'no_login' ? '지금은 쓸 수 없어요' : error.code === 'quota_exceeded' ? '오늘 AI 읽기 한도를 다 썼어요' : source === 'text' ? '글을 읽지 못했어요' : '사진을 읽지 못했어요'}</p>
+          <p className="text-sm font-semibold text-app-ink">{error.code === 'no_key' ? 'AI 읽기가 아직 연결되지 않았어요' : error.code === 'offline' || error.code === 'no_login' ? '지금은 쓸 수 없어요' : error.code === 'quota_exceeded' ? '오늘 AI 읽기 한도를 다 썼어요' : source === 'google' ? '구글 캘린더를 읽지 못했어요' : source === 'text' ? '글을 읽지 못했어요' : '사진을 읽지 못했어요'}</p>
           <p className="text-sm text-app-muted">{error.text} <span className="text-xs">(오류 이름: {error.code})</span></p>
           {againButton}
           {checkBox}
         </div>}
-        {phase === 'list' && rows.length === 0 && (source === 'text' ? <div className="space-y-3">
+        {phase === 'list' && rows.length === 0 && (source === 'google' ? <div className="space-y-3">
+          <p className="text-sm font-semibold text-app-ink">앞으로 90일 동안 가져올 일정이 없어요</p>
+          <p className="text-sm text-app-muted">구글 캘린더에 일정이 있는데 안 보이면, 주소가 그 캘린더의 ‘비공개 주소’인지 확인해 주세요.</p>
+          {editTextButton}
+        </div> : source === 'text' ? <div className="space-y-3">
           <p className="text-sm font-semibold text-app-ink">글에서 일정을 못 찾았어요</p>
           <p className="text-sm text-app-muted">‘11월 28일 오후 2시’, ‘12/3(수) 14:00’, ‘내일 3시’처럼 날짜가 들어간 글인지 확인해 주세요.</p>
           <div className="flex flex-wrap gap-2">{editTextButton}{!aiTried && aiButton}</div>
@@ -213,7 +229,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
               {clash && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 시간에 ‘{clash.title}{clash.startTime ? ` ${clash.startTime}` : ''}’이 있어요</p>}
               {r.guessed && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 오전·오후가 없어 오후로 짐작했어요</p>}
               {r.uncertain && !r.guessed && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 날짜를 짐작했어요(연도·요일·'몇 주 뒤'를 확인해 주세요)</p>}
-              {r.source && <ReadSource source={r.source} title={r.original || r.title} location={r.location} label={source === 'text' ? '붙여넣은 글' : '사진 속 글'} />}
+              {r.source && source !== 'google' && <ReadSource source={r.source} title={r.original || r.title} location={r.location} label={source === 'text' ? '붙여넣은 글' : '사진 속 글'} />}
             </div>
           </article>;
         })}

@@ -16,6 +16,16 @@ createServer((req, res) => {
     const push = (req.url ?? '').match(/^\/push\/([\w-]+)$/);
     if (push && req.method === 'POST') { pushLog.push({ id: push[1], authorization: req.headers.authorization ?? '', ttl: req.headers.ttl ?? '', length: raw.length }); return send(push[1].startsWith('gone') ? 410 : 201, {}); }
     if (req.url === '/push-log') return send(200, pushLog);
+    // 구글 캘린더 iCal 흉내(미니어리 '구글 캘린더에서 가져오기' 시험): 다가오는 일정 2개(하나는 반복)와 지난 일정 하나
+    if (req.url === '/ics/basic.ics') {
+      const d = days => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10).replace(/-/g, '');
+      res.writeHead(200, { 'content-type': 'text/calendar; charset=utf-8' });
+      return res.end(['BEGIN:VCALENDAR', 'VERSION:2.0',
+        'BEGIN:VEVENT', 'UID:g1@google.com', `DTSTART;TZID=Asia/Seoul:${d(3)}T150000`, `DTEND;TZID=Asia/Seoul:${d(3)}T160000`, 'SUMMARY:구글 치과 예약', 'LOCATION:밝은미소치과', 'END:VEVENT',
+        'BEGIN:VEVENT', 'UID:g2@google.com', `DTSTART;TZID=Asia/Seoul:${d(1)}T070000`, 'RRULE:FREQ=WEEKLY;BYDAY=MO,WE', 'SUMMARY:구글 아침 수영', 'END:VEVENT',
+        'BEGIN:VEVENT', 'UID:g3@google.com', `DTSTART;TZID=Asia/Seoul:${d(-10)}T090000`, 'SUMMARY:지난 구글 일정', 'END:VEVENT',
+        'END:VCALENDAR', ''].join('\r\n'));
+    }
     // 티스토리 RSS 흉내: /rss/tistory/{이름}/rss (태그는 <category>로)
     const tistory = (req.url ?? '').match(/^\/rss\/tistory\/([^/]+)\/rss$/);
     if (tistory) {
