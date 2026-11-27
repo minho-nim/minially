@@ -30,7 +30,7 @@ function secureWindow(win){
 function webPreferences(quick=false){return{zoomFactor:preferences.get().zoomFactor,preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,sandbox:true,nodeIntegration:false,webSecurity:true,backgroundThrottling:false,additionalArguments:quick?['--minially-quick']:[]};}
 function createMain(){
  if(mainWindow&&!mainWindow.isDestroyed()){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.show();mainWindow.focus();return mainWindow;}
- mainWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width:1280,height:850,minWidth:820,minHeight:600,title:`미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/desktop-icon.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
+ mainWindow=new BrowserWindow({frame:false,roundedCorners:true,backgroundColor:'#FFF8FA',width:1280,height:850,minWidth:840,minHeight:600,title:`미니어리 V.${app.getVersion()}`,icon:path.join(__dirname,'renderer/desktop-icon.png'),alwaysOnTop:preferences.get().alwaysOnTop,webPreferences:webPreferences()});
  secureWindow(mainWindow);mainWindow.on('close',event=>{if(quitAllowed)return;event.preventDefault();if(preferences.get().closeToTray&&tray)mainWindow.hide();else void finishApp(false);});mainWindow.on('closed',()=>{mainWindow=null;});void mainWindow.loadURL(ORIGIN+(testMode?'/demo':'/'));return mainWindow;
 }
 function createQuick(){
