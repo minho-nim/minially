@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { deflateSync } from 'node:zlib';
+import { readdirSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { CODE_A, CODE_B } from '../playwright.sync.config';
 import { device, login, put, category, schedule } from './helpers';
 
@@ -67,4 +69,18 @@ test('글로 넣기 AI 다시 읽기 API: 글 길이를 서버에서 검사하�
   expect(ok.status()).toBe(200);
   const { events } = await ok.json();
   expect(events).toEqual([expect.objectContaining({ title: '돌잔치', date: '2026-12-20', start: '12:00', source: '토요일 낮 12시 조카 돌잔치' })]);
+});
+
+test('구글이 2.5 모델을 이 키에 열어 주지 않으면(404) 권장 대체 모델(3.5 Flash-Lite)로 다시 불러 읽는다', async ({ request }) => {
+  const auth = { authorization: `Bearer ${CODE_A}` };
+  const res = await request.post('/api/photo-schedule', { headers: auth, data: { text: '토요일 낮 12시 조카 돌잔치 OLD-MODEL-GONE', today: '2026-11-26' } });
+  expect(res.status()).toBe(200);
+  expect((await res.json()).events.length).toBeGreaterThan(0);
+  // 사용 기록: 2.5는 '모델 바뀜'으로, 대체 모델은 성공으로 남는다(미니허브 오류 칸에서 원인을 알 수 있게)
+  const dir = '.wrangler/test-state/v3/d1/miniflare-D1DatabaseObject';
+  const file = readdirSync(dir).find(f => f.endsWith('.sqlite') && f !== 'metadata.sqlite');
+  const db = new DatabaseSync(`${dir}/${file}`);
+  const rows = db.prepare("SELECT model, status, error_code FROM ai_usage WHERE task = 'text_schedule' ORDER BY created_at DESC LIMIT 2").all() as { model: string; status: string; error_code: string | null }[];
+  db.close();
+  expect(rows).toEqual([{ model: 'gemini-3.5-flash-lite', status: 'ok', error_code: null }, { model: 'gemini-2.5-flash-lite', status: 'error', error_code: 'model_gone' }]);
 });
