@@ -36,6 +36,11 @@ test('월간 보고: C·D 합계, 사람별 비교(지난달 대비), 각자 요
   await expect(row('게시한 글').locator('td').nth(1)).toContainText('1개');
   await expect(row('조회수 합계').locator('td').nth(0)).toContainText('+600 (▲150%)');
   await expect(row('받은 금액').locator('td').nth(1)).toContainText('70,000원');
+  // 칸 색: 늘면 좋음, 비슷하면 보통, AI 줄은 색 없음 + 범례
+  await expect(row('조회수 합계').locator('td').nth(0)).toHaveClass(/tone-good/);
+  await expect(row('받은 금액').locator('td').nth(0)).toHaveClass(/tone-mid/); // C는 지난달·이번 달 모두 0
+  await expect(row('AI 호출').locator('td').nth(0)).not.toHaveClass(/tone-/);
+  await expect(monthly.getByLabel('칸 색 설명')).toContainText('살펴보기');
   const personC = monthly.locator('.person', { hasText: '사용자 C' });
   await expect(personC).toContainText("가장 많이 본 글은 'C 이번 달 인기 글'(900회)예요.");
   await expect(personC).toContainText('#카페 글을 2개로 가장 많이 썼어요.');

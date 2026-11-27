@@ -219,3 +219,14 @@ table.usage td.off { color: var(--danger); font-weight: 700; }
 /* 사람별 자주 쓰는 글 종류(미니로그 원고 기준) */
 .user-types { grid-column: 1 / -1; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .type-chip { display: inline-block; padding: 1px 9px; border-radius: 999px; background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+
+/* 사람별 비교 표 칸 색(좋음·보통·살펴보기). 글자 대비를 지키려고 옅은 바탕만 칠한다 */
+.compare td.tone-good { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.compare td.tone-look { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.tone-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0 0; color: var(--text); }
+.tone-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.tone-legend i { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); }
+.tone-legend i.tone-good { background: color-mix(in srgb, var(--ok) 25%, var(--surface)); }
+.tone-legend i.tone-mid { background: var(--surface); }
+.tone-legend i.tone-look { background: color-mix(in srgb, var(--danger) 22%, var(--surface)); }
+@media print { .compare td.tone-good, .compare td.tone-look { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }

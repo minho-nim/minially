@@ -688,3 +688,23 @@ select.input { appearance: auto; }
 }
 @keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .more-items { animation: none; } }
+
+/* 본문 문제 위치 표시: 본문 뒤에 같은 글을 겹쳐 그리고(글자는 투명) 문제 있는 곳에만 밑줄·옅은 색 */
+.body-wrap { position: relative; }
+.body-wrap .body-input { scrollbar-gutter: stable; }
+.body-wrap textarea.body-input { position: relative; z-index: 1; background: transparent; }
+.body-mirror { position: absolute; inset: 0; z-index: 0; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; color: transparent; background: var(--surface); border-color: transparent; pointer-events: none; resize: none; min-height: 0; }
+.body-mirror mark { color: transparent; background: transparent; border-radius: 2px; text-decoration-line: underline; text-decoration-style: wavy; text-decoration-thickness: 1.5px; text-underline-offset: 3px; text-decoration-skip-ink: none; }
+.body-mirror .issue-unsure, .body-mirror .issue-money { background: color-mix(in srgb, var(--danger) 14%, transparent); text-decoration-color: var(--danger); }
+.body-mirror .issue-fact { background: color-mix(in srgb, #E4A11B 18%, transparent); text-decoration-color: #B7791F; }
+.body-mirror .issue-cliche { text-decoration-color: #7C8CE0; }
+.body-mirror .issue-long, .body-mirror .issue-para { text-decoration-color: #B7791F; text-decoration-style: dotted; }
+.body-mirror mark.current { outline: 2px solid var(--app); outline-offset: 1px; }
+.issue-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 32px; }
+.issue-count { font-size: 0.875rem; }
+.issue-pos { font-size: 0.875rem; font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: center; }
+.issue-toggle { margin-left: auto; }
+.issue-reason { margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); border-left: 3px solid #B7791F; }
+.issue-reason.issue-unsure, .issue-reason.issue-money { border-left-color: var(--danger); }
+.issue-reason.issue-cliche { border-left-color: #7C8CE0; }
+@media (max-width: 600px) { .issue-bar .issue-count { flex-basis: 100%; } }

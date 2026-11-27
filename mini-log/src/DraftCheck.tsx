@@ -31,9 +31,9 @@ export function checkDraft(d: { title: string; body: string; hashtags: string[];
 }
 
 // AI 글에 흔한 상투 표현(내 말투가 아닌 티가 나는 곳). 두 개 넘게 나오면 알려 준다.
-const CLICHES = ['결론적으로', '다양한', '소중한 시간', '특별한 경험', '완벽한', '에 대해 알아보', '마무리하며', '도움이 되셨', '많은 분들', '한마디로', '그야말로', '매력적인', '잊지 못할', '꼭 한번', '강력 추천'];
+export const CLICHES = ['결론적으로', '다양한', '소중한 시간', '특별한 경험', '완벽한', '에 대해 알아보', '마무리하며', '도움이 되셨', '많은 분들', '한마디로', '그야말로', '매력적인', '잊지 못할', '꼭 한번', '강력 추천'];
 const AD_WORDS = /제공받|협찬|광고|원고료|소정의|지원받/;
-const MONEY_PROMISE = /수익\s*보장|원금\s*보장|무조건\s*(수익|돈)|100%\s*수익|확정\s*수익|손실\s*없/;
+export const MONEY_PROMISE = /수익\s*보장|원금\s*보장|무조건\s*(수익|돈)|100%\s*수익|확정\s*수익|손실\s*없/;
 const count = (text: string, word: string) => (word ? text.split(word).length - 1 : 0);
 
 /**

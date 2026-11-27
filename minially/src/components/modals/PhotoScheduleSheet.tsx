@@ -9,6 +9,7 @@ import { getTodayDateString } from '../../utils/dateHelpers';
 import { overlapping, PhotoReadError, readPhotoSchedule, readTextScheduleWithAi, shrinkForReading, type PhotoEvent } from '../../utils/photoSchedule';
 import { parseScheduleText, TEXT_LIMIT } from '../../utils/textSchedule';
 import { historyHint, rejectKey, type HistoryHint } from '../../utils/scheduleSuggest';
+import { readMarks, type MarkKind } from '../../utils/readMarks';
 
 /** hint: 카테고리를 고른 이유, pastTitle: 예전에 쓴 비슷한 제목, original: 예전 제목으로 바꾸기 전 제목(되돌리기용),
  *  borrowed: 예전 같은 일정에서 채운 칸, duplicate: 같은 날 이미 있는 일정, cadence: 예전 반복 간격(반복 제안), repeatOn: 반복으로 등록 */
@@ -202,7 +203,7 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
               {clash && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />같은 시간에 ‘{clash.title}{clash.startTime ? ` ${clash.startTime}` : ''}’이 있어요</p>}
               {r.guessed && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 오전·오후가 없어 오후로 짐작했어요</p>}
               {r.uncertain && !r.guessed && <p className="flex items-center gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-900"><AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />확인 필요: 날짜를 짐작했어요(연도·요일·'몇 주 뒤'를 확인해 주세요)</p>}
-              {r.source && <p className="break-words text-xs text-app-muted">{source === 'text' ? '붙여넣은 글' : '사진 속 글'}: “{r.source}”</p>}
+              {r.source && <ReadSource source={r.source} title={r.original || r.title} location={r.location} label={source === 'text' ? '붙여넣은 글' : '사진 속 글'} />}
             </div>
           </article>;
         })}
@@ -218,5 +219,28 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
         <button type="button" className="min-h-11 rounded-xl bg-[#9E5873] px-5 text-sm font-bold text-white disabled:bg-[#C9B8BF]" disabled={!picked.length || saving} onClick={() => { void register(); }}>{saving ? '등록하는 중…' : picked.length ? `${picked.length}개 등록` : '고른 일정 없음'}</button>
       </footer>}
     </div>
+  </div>;
+}
+
+// 원문을 어떻게 읽었는지(알고리즘 시각화 도구처럼 지금 읽은 곳을 색으로): 날짜·시간·장소·제목에 색, 누르면 고치는 칸으로.
+const MARK: Record<MarkKind, { label: string; as: string; cls: string; field?: string }> = {
+  date: { label: '날짜', as: '날짜로', cls: 'bg-sky-100 text-sky-900 decoration-sky-500', field: 'input[type=date]' },
+  time: { label: '시간', as: '시간으로', cls: 'bg-amber-100 text-amber-900 decoration-amber-500', field: 'input[type=time]' },
+  place: { label: '장소', as: '장소로', cls: 'bg-emerald-100 text-emerald-900 decoration-emerald-500' },
+  title: { label: '제목', as: '제목으로', cls: 'bg-pink-100 text-pink-900 decoration-pink-500', field: 'input[aria-label="일정 제목"]' },
+};
+function ReadSource({ source, title, location, label }: { source: string; title: string; location?: string; label: string }) {
+  const parts = readMarks(source, { title, location });
+  const used = [...new Set(parts.map(p => p.kind).filter((k): k is MarkKind => !!k))];
+  const focus = (el: HTMLElement, sel?: string) => { const input = sel ? el.closest('article')?.querySelector<HTMLInputElement>(sel) : null; input?.focus(); };
+  return <div className="space-y-1" data-read-source>
+    <p className="break-words text-xs leading-6 text-app-muted"><span>{label}: “</span>{parts.map((p, i) => {
+      if (!p.kind) return <span key={i}>{p.text}</span>;
+      const m = MARK[p.kind];
+      return m.field
+        ? <button key={i} type="button" data-mark={p.kind} className={`rounded px-0.5 font-semibold underline decoration-2 underline-offset-2 ${m.cls}`} title={`${m.as} 읽었어요 · 눌러서 고치기`} aria-label={`${m.as} 읽은 ‘${p.text}’ 고치기`} onClick={e => focus(e.currentTarget, m.field)}>{p.text}</button>
+        : <mark key={i} data-mark={p.kind} className={`rounded px-0.5 font-semibold underline decoration-2 underline-offset-2 ${m.cls}`} title={`${m.as} 읽었어요`}>{p.text}</mark>;
+    })}<span>”</span></p>
+    {used.length > 0 && <p className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-app-muted" aria-label="색 설명">{used.map(k => <span key={k} className="inline-flex items-center gap-1"><i className={`inline-block h-2.5 w-2.5 rounded-sm ring-1 ring-inset ring-black/15 ${MARK[k].cls}`} aria-hidden="true" />{MARK[k].label}</span>)}<span>· 색 글자를 누르면 고치는 칸으로</span></p>}
   </div>;
 }

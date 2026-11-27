@@ -20,8 +20,15 @@ const ROWS: Row[] = [
 ];
 
 /** 사람 칸에는 그 줄에서 가장 큰 값 대비 막대를 함께 그린다(누가 더 많은지 한눈에) */
-function Cell({ now, before, unit = '', max, color }: { now: number; before: number; unit?: string; max?: number; color?: string }) {
-  return <td><b>{formatNumber(now)}{unit}</b>{max !== undefined && <span className="cell-bar" aria-hidden="true"><span style={{ width: `${max ? (now / max) * 100 : 0}%`, background: color }} /></span>}<span className={`diff ${diffKind(now, before)}`}>{diffText(now, before)}</span></td>;
+// 칸 색(Big-O Cheat Sheet처럼): 지난달보다 10% 넘게 늘면 좋음, 10% 넘게 줄면 살펴보기, 그 사이는 보통.
+// AI 호출·토큰은 많고 적음이 좋고 나쁨이 아니라 색을 칠하지 않는다. 색만이 아니라 ▲▼ 글자로도 보인다.
+export function tone(now: number, before: number): 'good' | 'mid' | 'look' {
+  if (before === 0) return now > 0 ? 'good' : 'mid';
+  const r = (now - before) / before;
+  return r > 0.1 ? 'good' : r < -0.1 ? 'look' : 'mid';
+}
+function Cell({ now, before, unit = '', max, color, neutral = false }: { now: number; before: number; unit?: string; max?: number; color?: string; neutral?: boolean }) {
+  return <td className={neutral ? undefined : `tone-${tone(now, before)}`}><b>{formatNumber(now)}{unit}</b>{max !== undefined && <span className="cell-bar" aria-hidden="true"><span style={{ width: `${max ? (now / max) * 100 : 0}%`, background: color }} /></span>}<span className={`diff ${diffKind(now, before)}`}>{diffText(now, before)}</span></td>;
 }
 const PERSON_COLORS = ['var(--sig)', '#7C8CE0', '#3FAE8B'];
 
@@ -95,13 +102,14 @@ export function Monthly({ compare = false }: { compare?: boolean }) {
                   {ROWS.map(row => (
                     <tr key={row.label} className={row.money ? 'pdf-revenue' : row.ai ? 'pdf-ai' : undefined}>
                       <th scope="row">{row.label}</th>
-                      {reports.map((r, i) => <Cell key={r.user} now={row.pick(r.summary)} before={row.pick(r.prev)} unit={row.unit} max={Math.max(...reports.map(x => row.pick(x.summary)))} color={PERSON_COLORS[i % PERSON_COLORS.length]} />)}
-                      <Cell now={row.pick(total)} before={row.pick(totalPrev)} unit={row.unit} />
+                      {reports.map((r, i) => <Cell key={r.user} now={row.pick(r.summary)} before={row.pick(r.prev)} unit={row.unit} max={Math.max(...reports.map(x => row.pick(x.summary)))} color={PERSON_COLORS[i % PERSON_COLORS.length]} neutral={row.ai} />)}
+                      <Cell now={row.pick(total)} before={row.pick(totalPrev)} unit={row.unit} neutral={row.ai} />
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+            <p className="tone-legend small" aria-label="칸 색 설명"><span><i className="tone-good" />지난달보다 10% 넘게 늚</span><span><i className="tone-mid" />비슷함</span><span><i className="tone-look" />10% 넘게 줄어 살펴보기</span><span className="muted">· AI 줄은 색 없음</span></p>
           </div>
 
           <div className="person-grid">
