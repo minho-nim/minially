@@ -168,3 +168,21 @@ test('글로 넣기: 12.3(목)~12.4(금) 같은 기간은 끝 날짜를 보여 �
   expect(days).toEqual(['12-03', '12-04']);
   await expect(page.getByRole('status', { name: '등록 완료 알림' })).toContainText('일정 1개(2일)를 넣었어요');
 });
+
+test('글로 넣기: 원문에서 날짜·시간·제목으로 읽은 곳에 색을 칠하고, 색 글자를 누르면 그 칸을 고칠 수 있다', async ({ page }) => {
+  await page.goto('/'); await page.getByRole('button', { name: '일정 등록', exact: true }).waitFor();
+  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
+  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
+  const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
+  await sheet.getByLabel('문자·메일 붙여넣기').fill('[밝은미소치과] 12월 9일 오후 3시 교정 상담 예약되었습니다.');
+  await sheet.getByRole('button', { name: '글에서 찾기' }).click();
+  const row = sheet.locator('[data-photo-event]').first();
+  await expect(row.locator('[data-mark="date"]')).toHaveText('12월 9일');
+  await expect(row.locator('[data-mark="time"]')).toHaveText('오후 3시');
+  await expect(row.locator('[data-mark="title"]').first()).toBeVisible();
+  await expect(row.getByLabel('색 설명')).toContainText('날짜');
+  // 원문 글자는 그대로(빠지거나 바뀐 글자 없음)
+  await expect(row.locator('[data-read-source] p').first()).toContainText('[밝은미소치과] 12월 9일 오후 3시 교정 상담 예약되었습니다.');
+  await row.getByRole('button', { name: /시간으로 읽은 ‘오후 3시’ 고치기/ }).click();
+  await expect(row.getByLabel('시작 시간')).toBeFocused();
+});

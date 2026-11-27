@@ -3,6 +3,7 @@ import { Skeleton } from './Skeleton';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
+import { BodyEditor } from './BodyEditor';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
 import { GoalBar } from './GoalBar';
@@ -1108,7 +1109,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
         </div>
         <div className="field">
           <label htmlFor="body">본문</label>
-          <textarea id="body" className="textarea body-input" value={fields.body} maxLength={50000} onChange={e => change({ body: e.target.value })} />
+          <BodyEditor value={fields.body} onChange={body => change({ body })} sources={[fields.experience, ...(photos ?? []).map(p => p.note ?? '')].join('\n')} />
         </div>
         <div className="field">
           <label htmlFor="tags">해시태그</label>
