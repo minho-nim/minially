@@ -1,9 +1,11 @@
-import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Skeleton } from './Skeleton';
 import { AI_ERROR_LABEL, AI_TASK_LABEL } from '../../shared/client/aiLabels';
 import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
+import { FirstSteps } from './FirstSteps';
+import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { BodyEditor } from './BodyEditor';
 import { Help } from './Help';
 import { BarList, Columns, Donut } from './Charts';
@@ -209,6 +211,14 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
 
   const selected = drafts?.find(d => d.id === selectedId) ?? null;
   const group = groupOf(view);
+  // 빠른 찾기 목록: 할 일 → 화면 → 원고 제목(최근 순)
+  const commands = useMemo<Command[]>(() => [
+    { id: 'new', label: '새 원고 만들기', group: '할 일', run: () => { void create(); } },
+    ...GROUPS.flatMap(g => g.keys.map(key => ({ id: `v-${key}`, label: VIEW_LABEL[key], hint: g.label, group: '화면', run: () => go(key) }))),
+    { id: 'v-structure', label: '블로그 구조', hint: '분석', group: '화면', run: () => go('structure') },
+    { id: 'v-settings', label: '설정', hint: '계정·백업', group: '화면', run: () => go('settings') },
+    ...(drafts ?? []).map(d => ({ id: `d-${d.id}`, label: d.title.trim() || '제목 없는 원고', hint: STATUS_LABEL[d.status], group: '원고', run: () => { setSelectedId(d.id); setView('drafts'); } })),
+  ], [drafts]); // 화면 이동·새 원고는 상태를 바꾸는 함수만 써서 원고 목록이 바뀔 때만 다시 만든다
   const onSaved = useCallback((draft: Draft) => setDrafts(list => list?.map(d => (d.id === draft.id ? { ...draft, photo_count: draft.photo_count ?? d.photo_count } : d)).sort((a, b) => b.updated_at - a.updated_at) ?? null), []);
   const onPhotoCount = useCallback((n: number) => setDrafts(list => {
     if (!list || !selectedId) return list;
@@ -220,9 +230,11 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
   return (
     <div className={`shell${selected || view !== 'drafts' ? ' editing' : ''}`}>
       <UndoToast />
+      <CommandPalette commands={commands} />
       <aside className="side" aria-label="원고 목록">
         <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
         <button className="btn primary new-draft" onClick={() => { void create(); }} disabled={creating} aria-busy={creating}><NavIcon name="plus" size={16} />{creating ? '만드는 중…' : '새 원고'}</button>
+        <button type="button" className="side-search" onClick={openPalette}><span>빠른 찾기</span><kbd aria-hidden="true">Ctrl K</kbd></button>
         <nav className="views" aria-label="미니로그 메뉴">
           {/* 시안 A: 묶음 이름은 위에 작게, 메뉴는 한 줄에 하나(아이콘 + 이름), 지금 화면은 주황 띠 */}
           {SIDE_SECTIONS.map(section => (
@@ -311,6 +323,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
               <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
               {!me.gemini.connected && <p className="error">Gemini 키가 아직 연결되지 않아 AI 초안은 만들 수 없어요. 원고 저장은 할 수 있어요.</p>}
+              {drafts?.length === 0 && <FirstSteps onNew={() => { void create(); }} />}
             </div>
           )}
       </main>

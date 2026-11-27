@@ -737,3 +737,28 @@ select.input { appearance: auto; }
 .issue-reason.issue-unsure, .issue-reason.issue-money { border-left-color: var(--danger); }
 .issue-reason.issue-cliche { border-left-color: #7C8CE0; }
 @media (max-width: 599px) { .issue-bar .issue-count { flex-basis: 100%; } }
+
+/* 빠른 찾기(Ctrl K) */
+.side-search { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); font: inherit; font-size: 0.875rem; cursor: pointer; }
+.side-search:hover { color: var(--text); background: var(--surface-2); }
+.side-search kbd, .palette kbd { font: inherit; font-size: 0.75rem; padding: 1px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); }
+.palette-backdrop { position: fixed; inset: 0; z-index: 60; display: grid; justify-items: center; align-items: start; padding: 12vh 16px 16px; background: rgba(43, 34, 51, 0.34); }
+.palette { width: min(560px, 100%); max-height: 70vh; display: flex; flex-direction: column; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 18px 48px rgba(43, 34, 51, 0.28); overflow: hidden; }
+.palette-input { border: 0; border-bottom: 1px solid var(--line); padding: 16px 18px; font: inherit; font-size: 1rem; background: transparent; color: var(--text); outline: none; }
+.palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; }
+.palette-group { padding: 8px 10px 4px; font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+.palette-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 9px; cursor: pointer; }
+.palette-item[aria-selected="true"] { background: var(--app-soft); box-shadow: inset 3px 0 0 var(--app); }
+.palette-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.palette-empty { padding: 12px 10px; }
+.palette-foot { margin: 0; padding: 8px 14px; border-top: 1px solid var(--line); }
+@media (max-width: 839px) { .side-search { display: none; } .palette-backdrop { padding-top: 8vh; } }
+
+/* 첫 안내 3단계(원고가 없을 때 가운데 칸 안에만) */
+.first-steps { width: 100%; max-width: 460px; margin-top: 8px; padding: 16px; border-radius: 14px; background: var(--surface-2); text-align: left; display: grid; gap: 8px; }
+.fs-dots { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.fs-dots button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer; }
+.fs-dots li[aria-current="step"] button { background: var(--app); border-color: var(--app); color: #fff; }
+.fs-title { margin: 0; font-size: 1.05rem; }
+.fs-body { margin: 0; line-height: 1.6; }
+.fs-actions { display: flex; flex-wrap: wrap; gap: 6px; }
