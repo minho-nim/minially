@@ -21,6 +21,8 @@ test('새 일정 머리줄과 날짜 시트 빠른 입력에서 사진으로 일
   await page.getByRole('dialog', { name: '날짜별 일정' }).getByRole('button', { name: '일정 등록하기', exact: true }).click();
   const quick = page.getByRole('button', { name: '사진으로 일정 넣기' });
   await expect(quick).toBeVisible();
+  // 입력창이 올라오는 움직임(translateY)이 끝난 뒤에 잰다(움직이는 중에는 소수점 오차가 남)
+  await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'));
   const box = (await quick.boundingBox())!;
   expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
   await quick.click();
