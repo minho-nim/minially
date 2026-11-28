@@ -39,6 +39,10 @@ export interface HubEnv {
   /** 네이버 메일 연결: "아이디@naver.com:애플리케이션 비밀번호"(Cloudflare 비밀값에만) */
   NAVER_MAIL_C?: string;
   NAVER_MAIL_D?: string;
+  /** 네이버 캘린더(CalDAV) 계정 "아이디:애플리케이션 비밀번호". 없으면 NAVER_MAIL_C·D를 같이 쓴다 */
+  NAVER_CAL_C?: string;
+  NAVER_CAL_D?: string;
+  NAVER_CALDAV_TEST_BASE?: string;
   /** Gmail 연결: "주소@gmail.com:앱 비밀번호"(Cloudflare 비밀값에만, 2단계 인증 필요) */
   GMAIL_MAIL_C?: string;
   GMAIL_MAIL_D?: string;

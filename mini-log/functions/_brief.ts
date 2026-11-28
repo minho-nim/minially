@@ -4,10 +4,11 @@
 // VAPID 키는 Cloudflare 비밀값 VAPID_PUBLIC_KEY·VAPID_PRIVATE_KEY에만 둔다(설정 화면에서 기기 안에서 만들어 복사).
 import type { D1Database, HubEnv } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
+import { todayExternal } from './_extCal';
 
-export type BriefKind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post';
+export type BriefKind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post' | 'event';
 export interface BriefItem { kind: BriefKind; title: string; sub: string; target: string; rank: number }
-export interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number } }
+export interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events: number } }
 
 const DAY = 86400000;
 export const kstToday = (now = Date.now()) => new Date(now + 9 * 3600000).toISOString().slice(0, 10);
@@ -16,7 +17,8 @@ const dday = (n: number) => (n < 0 ? `${-n}일 지남` : n === 0 ? '오늘' : `D
 const cut = (s: string, n = 30) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /** 오늘 할 일: 급한 순(지난 마감 → 오늘 → 3일 안 → 답장 → 단계 확인 → 오늘 올릴 원고). 화면은 앞 3개를 크게 보여 준다 */
-export async function buildBrief(db: D1Database, user: UserName, now = Date.now()): Promise<Brief> {
+/** env를 주면 오늘 구글·네이버 일정(읽기만)도 한 줄로 넣는다 */
+export async function buildBrief(db: D1Database, user: UserName, now = Date.now(), env?: HubEnv): Promise<Brief> {
   const today = kstToday(now);
   const items: BriefItem[] = [];
   const camps = (await db.prepare("SELECT id, brand, title, status, deadline, apply_by, amount, suggest FROM minilog_campaigns WHERE user = ? AND status NOT IN ('paid', 'cancelled') LIMIT 500")
@@ -45,11 +47,16 @@ export async function buildBrief(db: D1Database, user: UserName, now = Date.now(
   }
   const posts = (await db.prepare("SELECT title FROM minilog_drafts WHERE user = ? AND planned_on = ? AND status != 'published' LIMIT 5").bind(user, today).all<{ title: string }>()).results;
   for (const p of posts) items.push({ kind: 'post', title: `'${cut(p.title || '제목 없는 원고', 24)}' 올리기`, sub: '오늘 게시 예정', target: 'drafts', rank: 20 });
+  const events = env ? await todayExternal(env, db, user, today).catch(() => []) : [];
+  if (events.length) {
+    const first = events.slice(0, 2).map(e => `${e.start ?? '종일'} ${cut(e.title, 14)}`).join(' · ');
+    items.push({ kind: 'event', title: `오늘 일정 ${events.length}개`, sub: cut(`${first}${events.length > 2 ? ` 외 ${events.length - 2}개` : ''}`, 40), target: 'calendar', rank: 15 });
+  }
   items.sort((a, b) => a.rank - b.rank);
 
   const week = await db.prepare("SELECT COUNT(*) AS n FROM minilog_drafts WHERE user = ? AND status = 'published' AND published_at >= ?").bind(user, now - 7 * DAY).first<{ n: number }>();
   const receivable = camps.filter(c => ['in_progress', 'posted'].includes(c.status)).reduce((s, c) => s + (c.amount || 0), 0);
-  return { today, items: items.slice(0, 10), counts: { posted_week: week?.n ?? 0, receivable, waiting: mails.length, suggest: camps.filter(c => c.suggest).length } };
+  return { today, items: items.slice(0, 10), counts: { posted_week: week?.n ?? 0, receivable, waiting: mails.length, suggest: camps.filter(c => c.suggest).length, events: events.length } };
 }
 
 /* ───────── 웹 푸시(빈 알림 + VAPID) ───────── */
@@ -110,7 +117,7 @@ export async function morningPush(db: D1Database, env: HubEnv, users: readonly U
     const r = { sent: 0, gone: 0, failed: 0, items: 0 };
     result[user] = r;
     if (!subs.length) continue;
-    r.items = (await buildBrief(db, user, now)).items.length;
+    r.items = (await buildBrief(db, user, now, env)).items.length;
     if (!r.items) continue; // 할 일이 없으면 깨우지 않는다
     for (const s of subs) {
       const got = await sendPush(s.endpoint, keys);

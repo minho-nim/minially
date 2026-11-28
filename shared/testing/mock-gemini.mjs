@@ -26,6 +26,24 @@ createServer((req, res) => {
         'BEGIN:VEVENT', 'UID:g3@google.com', `DTSTART;TZID=Asia/Seoul:${d(-10)}T090000`, 'SUMMARY:지난 구글 일정', 'END:VEVENT',
         'END:VCALENDAR', ''].join('\r\n'));
     }
+    // 네이버 캘린더 CalDAV 흉내(/caldav): 아이디 c-test·비밀번호 app-pass만 통과. 캘린더 '내 캘린더'·'가족'
+    if ((req.url ?? '').startsWith('/caldav')) {
+      if (req.headers.authorization !== `Basic ${Buffer.from('c-test:app-pass').toString('base64')}`) { res.writeHead(401); return res.end(); }
+      const d = days => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10).replace(/-/g, '');
+      const xml = body => { res.writeHead(207, { 'content-type': 'application/xml; charset=utf-8' }); res.end(`<?xml version="1.0" encoding="UTF-8"?><D:multistatus xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">${body}</D:multistatus>`); };
+      const ev = (uid, lines) => `<D:response><D:href>/caldav/c-test/calendar/${uid}.ics</D:href><D:propstat><D:prop><C:calendar-data>${['BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', `UID:${uid}`, ...lines, 'END:VEVENT', 'END:VCALENDAR'].join('&#13;\n').replace(/&(?!#13;)/g, '&amp;')}</C:calendar-data></D:prop></D:propstat></D:response>`;
+      const u = req.url;
+      if (req.method === 'PROPFIND' && u === '/caldav/') return xml('<D:response><D:href>/caldav/</D:href><D:propstat><D:prop><D:current-user-principal><D:href>/caldav/c-test/</D:href></D:current-user-principal></D:prop></D:propstat></D:response>');
+      if (req.method === 'PROPFIND' && u === '/caldav/c-test/' && raw.includes('calendar-home-set')) return xml('<D:response><D:href>/caldav/c-test/</D:href><D:propstat><D:prop><C:calendar-home-set><D:href>/caldav/c-test/calendar/</D:href></C:calendar-home-set></D:prop></D:propstat></D:response>');
+      if (req.method === 'PROPFIND' && u === '/caldav/c-test/calendar/') return xml([
+        '<D:response><D:href>/caldav/c-test/calendar/</D:href><D:propstat><D:prop><D:resourcetype><D:collection/></D:resourcetype></D:prop></D:propstat></D:response>',
+        '<D:response><D:href>/caldav/c-test/calendar/main/</D:href><D:propstat><D:prop><D:displayname>내 캘린더</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype></D:prop></D:propstat></D:response>',
+        '<D:response><D:href>/caldav/c-test/calendar/family/</D:href><D:propstat><D:prop><D:displayname>가족 &amp; 친척</D:displayname><D:resourcetype><D:collection/><C:calendar/></D:resourcetype></D:prop></D:propstat></D:response>',
+      ].join(''));
+      if (req.method === 'REPORT' && u === '/caldav/c-test/calendar/main/') return xml(ev('n1', [`DTSTART;TZID=Asia/Seoul:${d(0)}T140000`, `DTEND;TZID=Asia/Seoul:${d(0)}T150000`, 'SUMMARY:네이버 체험단 방문', 'LOCATION:성수동 구름카페']) + ev('n2', [`DTSTART;TZID=Asia/Seoul:${d(4)}T100000`, 'SUMMARY:네이버 촬영 & 미팅']));
+      if (req.method === 'REPORT' && u === '/caldav/c-test/calendar/family/') return xml(ev('f1', [`DTSTART;VALUE=DATE:${d(5)}`, `DTEND;VALUE=DATE:${d(6)}`, 'SUMMARY:네이버 가족 생일']));
+      res.writeHead(404); return res.end();
+    }
     // 티스토리 RSS 흉내: /rss/tistory/{이름}/rss (태그는 <category>로)
     const tistory = (req.url ?? '').match(/^\/rss\/tistory\/([^/]+)\/rss$/);
     if (tistory) {

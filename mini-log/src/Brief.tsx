@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../../shared/client/api';
 
 // 아침 브리핑 카드(첫 화면)와 아침 알림 켜기(설정). 할 일은 서버가 규칙으로 고른다(AI 없음).
-type Kind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post';
-interface BriefItem { kind: Kind; title: string; sub: string; target: 'campaigns' | 'mail' | 'drafts' }
-interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number } }
+type Kind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post' | 'event';
+interface BriefItem { kind: Kind; title: string; sub: string; target: 'campaigns' | 'mail' | 'drafts' | 'calendar' }
+interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events?: number } }
 const won = (n: number) => (n >= 10000 ? `${Math.round(n / 1000) / 10}만` : n.toLocaleString('ko-KR'));
 const dayLabel = (d: string) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
 
@@ -108,7 +108,7 @@ export function PushCard() {
   return (
     <section className="card step" aria-labelledby="push-title">
       <h2 id="push-title" className="step-title">아침 알림</h2>
-      <p className="small" style={{ margin: 0 }}>매일 아침 8시 30분쯤, 할 일(마감·답장·오늘 올릴 원고)이 있으면 이 기기로 한 번 알려요. 알림에는 할 일 제목만 보이고 메일 내용·금액은 넣지 않아요.</p>
+      <p className="small" style={{ margin: 0 }}>매일 아침 8시 30분쯤, 할 일(마감·답장·오늘 올릴 원고·오늘 일정)이 있으면 이 기기로 한 번 알려요. 알림에는 할 일 제목만 보이고 메일 내용·금액은 넣지 않아요.</p>
       {!supported ? <p className="muted small" style={{ margin: 0 }}>이 브라우저는 알림을 받을 수 없어요. 아이폰은 사파리에서 '홈 화면에 추가'로 미니로그를 설치한 뒤 그 앱에서 켜 주세요.</p>
         : info && !info.public_key ? (
           <div className="stack" style={{ gap: 6 }}>

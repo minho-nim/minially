@@ -190,6 +190,13 @@ select.input { appearance: auto; }
 .k-deadline { background: #C8322A; }
 .k-google { background: #8A8F98; }
 .cal-chip.k-google { background: color-mix(in srgb, #8A8F98 18%, transparent); color: var(--text); }
+.k-naver { background: #03A94F; }
+.cal-chip.k-naver { background: color-mix(in srgb, #03A94F 18%, transparent); color: var(--text); }
+.cal-toggle { display: inline-flex; align-items: center; border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; min-height: 30px; }
+.cal-toggle.off { opacity: 0.45; text-decoration: line-through; }
+.ncal-list { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.ncal-list legend { padding: 0; margin-bottom: 4px; font-weight: 700; }
+.ncal-list label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
 .cal { padding: 8px; display: grid; gap: 4px; }
 .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal-head span { text-align: center; font-size: 0.8125rem; font-weight: 700; color: var(--muted); padding: 4px 0; }
