@@ -108,7 +108,8 @@ const COLUMNS: [table: string, column: string, type: string][] = [
   ['minilog_mails', 'reply_options', 'TEXT'], // 답장 세 안(짧게·정중·조건 협의, JSON). 사람이 하나 골라 고쳐 보낸다
   ['minilog_mails', 'account', 'TEXT'], // 받은·보낸 계정(naver·gmail, 비어 있으면 naver)
   ['minilog_prefs', 'marks_off', 'INTEGER'], // 원고 본문 밑줄 끄기(1이면 끔, 계정 기반)
-  ['minilog_prefs', 'steps_done', 'INTEGER'], // 첫 안내 3단계를 다 봄(1, 계정 기반)
+  ['minilog_prefs', 'steps_done', 'INTEGER'],
+  ['minilog_prefs', 'post_types', 'TEXT'], // 글 종류 설정(JSON: 순서·숨김·기본 뼈대 고침·새 글 종류) // 첫 안내 3단계를 다 봄(1, 계정 기반)
 ];
 
 /** 표 정의 전체의 지문(FNV-1a). 두 앱(hub·mini-log)이 같은 코드를 쓰므로 같은 값이 나온다 */
