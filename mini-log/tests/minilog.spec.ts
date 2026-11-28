@@ -18,9 +18,9 @@ test('틀린 코드는 거절하고, 맞는 코드로 로그인·로그아웃한
   errors.length = 0; // 틀린 코드의 401은 일부러 낸 것
   await page.getByLabel('로그인 코드').fill(CODE_C.toLowerCase());
   await page.getByRole('button', { name: '로그인' }).click();
-  await expect(page.getByText('사용자 C')).toBeVisible();
+  await expect(page.getByText('사용자 C', { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText('사용자 C')).toBeVisible();
+  await expect(page.getByText('사용자 C', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '로그아웃' }).click();
   await expect(page.getByLabel('로그인 코드')).toBeVisible();
   await page.reload();

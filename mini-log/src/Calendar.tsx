@@ -7,7 +7,15 @@ import { STATUS_LABEL as CAMPAIGN_STATUS, todayKst, type Campaign } from './Camp
 
 // 콘텐츠 캘린더: 게시 예정 원고·게시 완료 원고·협찬 마감을 한 달 달력에(모두 본인 것, 날짜는 한국 시간)
 export interface CalendarDraft { id: string; title: string; status: 'draft' | 'approved' | 'published'; planned_on: string | null; published_at: number | null }
-type Item = { kind: 'planned' | 'published' | 'deadline'; id: string; label: string; sub?: string; draftId?: string };
+type Kind = 'planned' | 'published' | 'deadline' | 'google' | 'naver';
+type Item = { kind: Kind; id: string; label: string; sub?: string; draftId?: string };
+interface GoogleEvent { day: string; title: string; start: string | null; end: string | null; location: string }
+interface GoogleCal { connected: boolean; masked?: string; events: GoogleEvent[]; error?: string }
+interface NaverCal { available: boolean; connected: boolean; account?: string; calendars?: { href: string; name: string; hidden: boolean }[]; events: (GoogleEvent & { calendar?: string })[]; error?: string }
+const KIND_LABEL: Record<Kind, string> = { planned: '게시 예정', published: '게시 완료', deadline: '협찬 마감', google: '구글 일정', naver: '네이버 일정' };
+// 보이기 토글은 이 기기에만 기억한다(못 읽어도 다 보임)
+const HIDE_KEY = 'minilog.calendar.hidden';
+const readHidden = (): Kind[] => { try { const v = JSON.parse(localStorage.getItem(HIDE_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((k): k is Kind => k in KIND_LABEL) : []; } catch { return []; } };
 
 const kstDate = (ms: number) => new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
 const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
@@ -35,6 +43,20 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
   const [rhythm, setRhythm] = useState<number[]>([]);
   const [dropDay, setDropDay] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  // 구글 캘린더 겹쳐 보기(읽기만, 계정마다 주소 하나): 캘린더를 열 때마다 서버가 읽어 온다
+  const [gcal, setGcal] = useState<GoogleCal | null>(null);
+  const loadGcal = () => api<GoogleCal>('/api/calendar/google').then(setGcal).catch(() => setGcal({ connected: false, events: [], error: '구글 캘린더를 불러오지 못했어요.' }));
+  useEffect(() => { void loadGcal(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 네이버 캘린더 겹쳐 보기(읽기만, CalDAV): 관리자가 계정을 넣어 둔 사람만 켤 수 있다
+  const [ncal, setNcal] = useState<NaverCal | null>(null);
+  const loadNcal = () => api<NaverCal>('/api/calendar/naver').then(setNcal).catch(() => setNcal({ available: false, connected: false, events: [], error: '네이버 캘린더를 불러오지 못했어요.' }));
+  useEffect(() => { void loadNcal(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [hidden, setHidden] = useState<Kind[]>(readHidden);
+  const toggleKind = (k: Kind) => setHidden(h => {
+    const next = h.includes(k) ? h.filter(x => x !== k) : [...h, k];
+    try { localStorage.setItem(HIDE_KEY, JSON.stringify(next)); } catch { /* 기억만 못 함 */ }
+    return next;
+  });
 
   useEffect(() => {
     api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setCampaigns(d.campaigns)).catch(e => setError(e instanceof Error ? e.message : '협찬 마감을 불러오지 못했어요.'));
@@ -54,7 +76,7 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
 
   const byDay = useMemo(() => {
     const map = new Map<string, Item[]>();
-    const add = (day: string, item: Item) => map.set(day, [...(map.get(day) ?? []), item]);
+    const add = (day: string, item: Item) => { if (!hidden.includes(item.kind)) map.set(day, [...(map.get(day) ?? []), item]); };
     for (const d of drafts) {
       const title = d.title.trim() || '제목 없는 원고';
       if (d.status === 'published' && d.published_at) add(kstDate(d.published_at), { kind: 'published', id: `p${d.id}`, label: title, sub: '게시 완료', draftId: d.id });
@@ -66,8 +88,11 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
       }
       if (c.apply_by && c.status === 'interested') add(c.apply_by, { kind: 'deadline', id: `a${c.id}`, label: `${c.brand}${c.title ? ` · ${c.title}` : ''}`, sub: '체험단 신청 마감' });
     }
+    (gcal?.events ?? []).forEach((e, i) => add(e.day, { kind: 'google', id: `g${i}`, label: e.title, sub: ['구글 캘린더', e.start ? `${e.start}${e.end ? `~${e.end}` : ''}` : '종일', e.location].filter(Boolean).join(' · ') }));
+    (ncal?.events ?? []).forEach((e, i) => add(e.day, { kind: 'naver', id: `n${i}`, label: e.title, sub: [`네이버 캘린더${e.calendar ? `(${e.calendar})` : ''}`, e.start ? `${e.start}${e.end ? `~${e.end}` : ''}` : '종일', e.location].filter(Boolean).join(' · ') }));
     return map;
-  }, [drafts, campaigns]);
+  }, [drafts, campaigns, gcal, ncal, hidden]);
+  const kinds: Kind[] = ['planned', 'published', 'deadline', ...(gcal?.connected ? ['google' as const] : []), ...(ncal?.connected ? ['naver' as const] : [])];
 
   const days = monthDays(month);
   const items = byDay.get(selected) ?? [];
@@ -91,7 +116,9 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       <ul className="cal-legend" aria-label="표시">
-        <li><i className="k-planned" />게시 예정</li><li><i className="k-published" />게시 완료</li><li><i className="k-deadline" />협찬 마감</li>
+        {kinds.map(k => (
+          <li key={k}><button type="button" className={`cal-toggle${hidden.includes(k) ? ' off' : ''}`} aria-pressed={!hidden.includes(k)} onClick={() => toggleKind(k)} title={hidden.includes(k) ? '누르면 보여요' : '누르면 숨겨요'}><i className={`k-${k}`} />{KIND_LABEL[k]}</button></li>
+        ))}
       </ul>
 
       {notice && <p className="muted small" role="status" style={{ margin: 0 }}>{notice}</p>}
@@ -165,7 +192,93 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
       </div>
       <div className="cal-side"><InstaGrid drafts={drafts} today={today} onSaved={onSaved} rhythm={rhythm} /></div>
       </div>
+      <GoogleCalendarCard gcal={gcal} onChanged={loadGcal} />
+      {ncal?.available && <NaverCalendarCard ncal={ncal} onChanged={loadNcal} />}
       <CalendarFeed />
     </article>
+  );
+}
+
+/** 구글 캘린더 연결(읽기만): 'iCal 형식의 비공개 주소'를 계정에 저장. 미니로그는 구글 캘린더를 바꾸지 않는다 */
+function GoogleCalendarCard({ gcal, onChanged }: { gcal: GoogleCal | null; onChanged: () => Promise<void> }) {
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  async function connect() {
+    setBusy(true); setMsg(null);
+    try { await api('/api/calendar/google', { method: 'PUT', body: { url } }); setUrl(''); await onChanged(); setMsg({ kind: 'info', text: '연결했어요. 구글 일정이 달력에 회색으로 겹쳐 보여요.' }); }
+    catch (e) { setMsg({ kind: 'error', text: e instanceof Error ? e.message : '연결하지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+  async function disconnect() {
+    setBusy(true); setMsg(null);
+    try { await api('/api/calendar/google', { method: 'DELETE' }); await onChanged(); setMsg({ kind: 'info', text: '구글 캘린더 연결을 끊었어요.' }); }
+    catch (e) { setMsg({ kind: 'error', text: e instanceof Error ? e.message : '끊지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+  return (
+    <section className="card step" aria-labelledby="gcal-title">
+      <h2 id="gcal-title" className="step-title">구글 일정 겹쳐 보기{gcal?.connected && <span className="step-sub">일정 {gcal.events.length}개</span>}</h2>
+      {gcal?.connected ? (
+        <div className="ai-row">
+          <span className="small" style={{ overflowWrap: 'anywhere' }}>연결됨 · {gcal.masked}</span>
+          <button type="button" className="btn small ghost" onClick={() => { void disconnect(); }} disabled={busy}>연결 끊기</button>
+        </div>
+      ) : (
+        <form className="stack" style={{ gap: 6 }} onSubmit={e => { e.preventDefault(); void connect(); }}>
+          <label htmlFor="gcal-url" className="small">구글 캘린더 → 설정 → 내 캘린더 → 캘린더 통합의 ‘iCal 형식의 비공개 주소’</label>
+          <div className="ai-row">
+            <input id="gcal-url" className="input" type="url" inputMode="url" autoComplete="off" spellCheck={false} value={url} onChange={e => setUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" style={{ flex: '1 1 260px' }} />
+            <button type="submit" className="btn" disabled={busy || !url.trim()}>{busy ? '확인하는 중…' : '연결'}</button>
+          </div>
+        </form>
+      )}
+      {gcal?.error && <p className="error small" role="alert" style={{ margin: 0 }}>{gcal.error}</p>}
+      {msg && <p className={msg.kind === 'error' ? 'error small' : 'muted small'} role={msg.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{msg.text}</p>}
+      <p className="muted small" style={{ margin: 0 }}>읽기만 해요(구글 캘린더는 바꾸지 않아요). 지난 한 달~앞으로 90일 일정을 볼 때마다 새로 읽고 저장하지 않아요. 비공개 주소는 남에게 알려 주지 마세요. 새어 나갔다면 구글에서 주소를 다시 만들고 여기서 다시 연결해 주세요.</p>
+    </section>
+  );
+}
+
+/** 네이버 캘린더 연결(읽기만, CalDAV): 켜기/끄기와 보일 캘린더 고르기. 계정·비밀번호는 Cloudflare 비밀값에만 있다 */
+function NaverCalendarCard({ ncal, onChanged }: { ncal: NaverCal; onChanged: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  async function save(body: { enabled?: boolean; hidden?: string[] }, done: string) {
+    setBusy(true); setMsg(null);
+    try { await api('/api/calendar/naver', { method: 'PUT', body }); await onChanged(); setMsg({ kind: 'info', text: done }); }
+    catch (e) { setMsg({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+  const cals = ncal.calendars ?? [];
+  // 체크는 바로 바뀌고(저장은 뒤에서), 실패하면 서버 값으로 돌아간다
+  const [hide, setHide] = useState<string[] | null>(null);
+  const shownHide = hide ?? cals.filter(c => c.hidden).map(c => c.href);
+  const toggleCal = (href: string) => {
+    const next = shownHide.includes(href) ? shownHide.filter(h => h !== href) : [...shownHide, href];
+    setHide(next);
+    void save({ hidden: next }, '보일 캘린더를 바꿨어요.').finally(() => setHide(null));
+  };
+  return (
+    <section className="card step" aria-labelledby="ncal-title">
+      <h2 id="ncal-title" className="step-title">네이버 일정 겹쳐 보기{ncal.connected && <span className="step-sub">일정 {ncal.events.length}개</span>}</h2>
+      <div className="ai-row">
+        <span className="small">{ncal.account} · {ncal.connected ? '켜짐' : '꺼짐'}</span>
+        {ncal.connected
+          ? <button type="button" className="btn small ghost" onClick={() => { void save({ enabled: false }, '네이버 일정을 껐어요.'); }} disabled={busy}>끄기</button>
+          : <button type="button" className="btn small" onClick={() => { void save({ enabled: true }, '켰어요. 네이버 일정이 달력에 초록색으로 겹쳐 보여요.'); }} disabled={busy}>{busy ? '확인하는 중…' : '네이버 일정 켜기'}</button>}
+      </div>
+      {ncal.connected && cals.length > 0 && (
+        <fieldset className="ncal-list" disabled={busy}>
+          <legend className="small">보일 캘린더</legend>
+          {cals.map(c => (
+            <label key={c.href} className="small"><input type="checkbox" checked={!shownHide.includes(c.href)} onChange={() => toggleCal(c.href)} /> {c.name}</label>
+          ))}
+        </fieldset>
+      )}
+      {ncal.error && <p className="error small" role="alert" style={{ margin: 0 }}>{ncal.error}</p>}
+      {msg && <p className={msg.kind === 'error' ? 'error small' : 'muted small'} role={msg.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{msg.text}</p>}
+      <p className="muted small" style={{ margin: 0 }}>읽기만 해요(네이버 캘린더는 바꾸지 않아요). 메일과 같은 네이버 계정의 애플리케이션 비밀번호로 읽고, 일정은 저장하지 않아요. 가족 캘린더처럼 여기서 안 보고 싶은 것은 체크를 빼 주세요.</p>
+    </section>
   );
 }

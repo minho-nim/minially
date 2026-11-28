@@ -105,7 +105,7 @@ test('AI 연결 확인: 코드·키·구글 AI 중 어디서 막혔는지 단계
   await expect(sheet.getByRole('status', { name: 'AI 연결 확인 결과' })).toContainText('연결돼 있어요. 사용자 C의 키로 gemini-3.5-flash-lite 모델이 답했어요.');
 });
 
-test('구글 캘린더에서 가져오기: iCal 비공개 주소만 받고, 다가오는 일정을 후보로 보여 주고, 고른 것만 등록(주소는 이 기기에만)', async ({ request, browser }) => {
+test('구글 캘린더 읽기 API(코드는 남김): iCal 비공개 주소만 받고 다가오는 일정을 후보로, 화면에서는 뺌(소유자 결정: 구글 일정은 미니로그에서)', async ({ request, browser }) => {
   const ICS = 'http://127.0.0.1:8897/ics/basic.ics';
   expect((await request.post('/api/google-calendar', { data: { url: ICS } })).status()).toBe(401);
   const auth = { authorization: `Bearer ${CODE_A}` };
@@ -120,19 +120,7 @@ test('구글 캘린더에서 가져오기: iCal 비공개 주소만 받고, 다�
   await page.getByRole('button', { name: '일정 등록', exact: true }).click();
   await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
   const sheet = page.getByRole('dialog', { name: '사진으로 일정 넣기' });
-  await sheet.getByLabel('구글 캘린더에서 가져오기').fill(ICS);
-  await sheet.getByRole('button', { name: '다가오는 일정 가져오기' }).click();
-  await expect(sheet.getByRole('heading', { name: '찾은 일정 2개' })).toBeVisible();
-  await expect(sheet.locator('input[value="구글 치과 예약"]')).toHaveCount(1);
-  await expect(sheet).toContainText('반복: 매주 월·수');
-  await expect(sheet).not.toContainText('사진 속 글');
-  expect(await page.evaluate(() => localStorage.getItem('minially.googleIcs'))).toBe(ICS);
-  await sheet.getByRole('button', { name: '2개 등록' }).click();
-  await expect(sheet).toHaveCount(0);
-  await expect(page.getByText('구글 치과 예약').first()).toBeVisible();
-  // 다시 열면 주소가 채워져 있다(이 기기)
-  await page.getByRole('button', { name: '일정 등록', exact: true }).click();
-  await page.getByRole('dialog', { name: '새 일정' }).getByRole('button', { name: '사진으로 일정 넣기' }).click();
-  await expect(page.getByRole('dialog', { name: '사진으로 일정 넣기' }).getByLabel('구글 캘린더에서 가져오기')).toHaveValue(ICS);
+  await expect(sheet.getByRole('button', { name: '사진 고르기' })).toBeVisible();
+  await expect(sheet.getByLabel('구글 캘린더에서 가져오기')).toHaveCount(0);
   await page.close();
 });

@@ -6,5 +6,5 @@ import { buildBrief } from '../../_brief';
 export const onRequestGet = async (ctx: HubContext) => {
   const auth = await requireSession(ctx, 'minilog');
   if (auth instanceof Response) return auth;
-  return json(await buildBrief(auth.db, auth.session.user));
+  return json(await buildBrief(auth.db, auth.session.user, Date.now(), ctx.env));
 };

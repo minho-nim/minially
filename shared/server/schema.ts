@@ -84,6 +84,10 @@ const TABLES = [
   // 아침 알림(웹 푸시) 구독: 기기(브라우저)마다 한 줄. 알림에 내용은 싣지 않는다. 같은 기기를 다른 사람이 쓰면 그 사람으로 바뀐다
   'CREATE TABLE IF NOT EXISTS minilog_push (endpoint TEXT PRIMARY KEY, user TEXT NOT NULL, p256dh TEXT NOT NULL, auth TEXT NOT NULL, last_sent_on TEXT, created_at INTEGER NOT NULL)',
   'CREATE INDEX IF NOT EXISTS minilog_push_user ON minilog_push (user)',
+  // 구글 캘린더 겹쳐 보기: 사람이 넣은 'iCal 형식의 비공개 주소'(계정마다 하나, 화면에는 가려서만 보여 줌). 일정은 저장하지 않고 볼 때마다 읽는다
+  'CREATE TABLE IF NOT EXISTS minilog_gcal (user TEXT PRIMARY KEY, url TEXT NOT NULL, updated_at INTEGER NOT NULL)',
+  // 네이버 캘린더 겹쳐 보기: 켜기 여부와 숨긴 캘린더 주소 목록만(계정은 Cloudflare 비밀값, 일정은 저장하지 않음)
+  'CREATE TABLE IF NOT EXISTS minilog_ncal (user TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 0, hidden TEXT, updated_at INTEGER NOT NULL)',
   'CREATE TABLE IF NOT EXISTS minilog_mail_cursor (user TEXT NOT NULL, account TEXT NOT NULL, uid_validity INTEGER NOT NULL DEFAULT 0, last_uid INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user, account))',
 ];
 // 이미 만들어진 표에 나중에 더한 칸(운영 DB는 CREATE 문을 고쳐도 칸이 생기지 않는다). 있으면 건너뛴다.
