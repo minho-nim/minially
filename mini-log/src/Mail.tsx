@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../shared/client/api';
 import { Help } from './Help';
 import { SafeMailHtml } from './MailHtml';
@@ -29,6 +29,10 @@ const shortDay = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10
 const isWaiting = (m: MailItem) => !!m.needs_reply && m.kind !== 'other' && (m.status === 'new' || m.status === 'drafted');
 const inFolder = (m: MailItem, f: Folder) => (f === 'all' ? true : f === 'sent' ? m.status === 'sent' : f === 'waiting' ? isWaiting(m) : m.kind !== 'other' && m.kind !== 'outgoing');
 const empty = (): MailDoc => [{ type: 'p', runs: [] }];
+/** 목록 칸 폭(넓은 화면에서 끌어서 조절, 이 기기에 기억) */
+const LIST_W = { min: 240, max: 560, def: 340, key: 'minilog.mail.listWidth' };
+const clampW = (n: number) => Math.min(LIST_W.max, Math.max(LIST_W.min, Math.round(n)));
+const savedW = () => { try { const n = Number(localStorage.getItem(LIST_W.key)); return n ? clampW(n) : LIST_W.def; } catch { return LIST_W.def; } };
 
 /** 협찬 화면에서 만든 메일 초안(정산 확인·게시 보고): 새 메일 쓰기에 채우기만 하고 보내기는 사람이 */
 export interface MailSeed { to: string; subject: string; text: string }
@@ -36,6 +40,16 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
   const [data, setData] = useState<MailData | null>(null);
   const [folder, setFolder] = useState<Folder>('sponsor');
   const [open, setOpen] = useState<FullMail | null>(null);
+  const [listW, setListW] = useState(savedW);
+  const appRef = useRef<HTMLDivElement>(null);
+  const keepW = (n: number) => { const w = clampW(n); setListW(w); try { localStorage.setItem(LIST_W.key, String(w)); } catch { /* 기억만 못 함 */ } };
+  function dragStart(e: React.PointerEvent<HTMLDivElement>) {
+    const left = appRef.current?.getBoundingClientRect().left ?? 0;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => setListW(clampW(ev.clientX - left));
+    const up = (ev: PointerEvent) => { keepW(ev.clientX - left); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   const [compose, setCompose] = useState<{ to: string; subject: string; doc: MailDoc; from?: Provider } | null>(null);
   useEffect(() => {
     if (!seed) return;
@@ -141,7 +155,7 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
       )}
       {data?.error && <p className="error small" role="alert" style={{ margin: 0 }}>{data.error}</p>}
 
-      <div className={`mail-app${reading ? ' is-reading' : ''}`}>
+      <div ref={appRef} className={`mail-app${reading ? ' is-reading' : ''}`} style={{ ['--mail-list' as string]: `${listW}px` }}>
         <aside className="mail-side card" aria-label="메일 목록">
           <div className="mail-folders" role="tablist" aria-label="메일함">
             {FOLDERS.map(([key, label]) => {
@@ -170,6 +184,10 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
           {data && list.length === 0 && <p className="muted small" style={{ margin: 4 }}>{data.connected ? '이 메일함은 비어 있어요.' : '메일을 연결하면 여기에 모여요.'}</p>}
         </aside>
 
+        <div className="mail-resize" role="separator" aria-orientation="vertical" aria-label="메일 목록 폭" tabIndex={0}
+          aria-valuemin={LIST_W.min} aria-valuemax={LIST_W.max} aria-valuenow={listW} title="끌어서 목록 폭 조절(두 번 누르면 처음 폭)"
+          onPointerDown={dragStart} onDoubleClick={() => keepW(LIST_W.def)}
+          onKeyDown={e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); keepW(listW + (e.key === 'ArrowRight' ? 20 : -20)); } }} />
         <section className="mail-read card" aria-label={compose ? '새 메일 쓰기' : '메일 읽기'}>
           {reading && <button className="btn ghost back mail-back" onClick={() => { setOpen(null); setCompose(null); setReply(null); }}>← 메일 목록</button>}
           {!reading && <p className="muted small" style={{ margin: 0 }}>왼쪽에서 메일을 고르거나 '새 메일'을 눌러 주세요.</p>}

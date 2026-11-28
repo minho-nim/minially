@@ -160,3 +160,32 @@ test('내 이름 바꾸기: 미니로그 설정에서 바꾸면 인사말에도 
   await expect(page.getByRole('heading', { name: /좋은 하루예요, 민호님/ })).toBeVisible();
   await call(page, '/api/me', 'PUT', { name: '사용자 C' }); // 다른 시험을 위해 되돌림
 });
+
+test('메일 화면 폭 조절: 끌거나 ←→로 목록 폭을 바꾸고 이 기기에 기억, 휴대폰에서는 손잡이 없음', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await login(page, CODE_C);
+  await page.goto('/#mail');
+  const handle = page.getByRole('separator', { name: '메일 목록 폭' });
+  await expect(handle).toHaveAttribute('aria-valuenow', '340');
+  await handle.focus();
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(handle).toHaveAttribute('aria-valuenow', '380');
+  const list = page.getByRole('complementary', { name: '메일 목록' });
+  expect(Math.round((await list.boundingBox())!.width)).toBe(380);
+  // 끌어서 줄이기
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 40);
+  await page.mouse.down();
+  await page.mouse.move(box.x - 80, box.y + 40, { steps: 5 });
+  await page.mouse.up();
+  const dragged = Number(await handle.getAttribute('aria-valuenow'));
+  expect(dragged).toBeGreaterThan(280); expect(dragged).toBeLessThan(320);
+  await page.reload();
+  await expect(page.getByRole('separator', { name: '메일 목록 폭' })).toHaveAttribute('aria-valuenow', String(dragged));
+  await page.getByRole('separator', { name: '메일 목록 폭' }).dblclick(); // 두 번 누르면 처음 폭
+  await expect(page.getByRole('separator', { name: '메일 목록 폭' })).toHaveAttribute('aria-valuenow', '340');
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(page.getByRole('separator', { name: '메일 목록 폭' })).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});

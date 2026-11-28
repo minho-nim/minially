@@ -123,10 +123,12 @@ select.input { appearance: auto; }
 .brand-past { grid-column: 1 / -1; display: grid; gap: 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
 .brand-past ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .brand-past li { display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }
-.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 6px; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 6px; }
 .board-col { scroll-snap-align: start; min-width: 0; display: grid; align-content: start; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-2, color-mix(in srgb, var(--text) 4%, transparent)); border: 1px dashed transparent; }
 .board-col.drop { border-color: var(--app); background: color-mix(in srgb, var(--app) 10%, transparent); }
-.board-head { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.85rem; }
+.board-head { margin: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 6px; font-size: 0.85rem; }
+.board-head .badge { white-space: nowrap; }
+.board-head .muted { white-space: nowrap; }
 .board-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .board-card { display: grid; gap: 4px; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: grab; }
 .board-open { display: grid; gap: 2px; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
@@ -545,7 +547,11 @@ select.input { appearance: auto; }
 
 /* 메일 */
 .nav-badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--danger, #D0574B); color: #fff; font-size: 0.72rem; font-weight: 800; line-height: 18px; text-align: center; }
-.mail-app { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.mail-app { display: grid; grid-template-columns: var(--mail-list, 340px) 12px minmax(0, 1fr); align-items: stretch; }
+.mail-app > .mail-side, .mail-app > .mail-read { align-self: start; }
+.mail-resize { cursor: col-resize; touch-action: none; position: relative; border-radius: 6px; }
+.mail-resize::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 5px; width: 2px; border-radius: 2px; background: var(--line); }
+.mail-resize:hover::after, .mail-resize:focus-visible::after { background: var(--app); }
 .mail-side { display: grid; gap: 8px; padding: 10px; min-width: 0; }
 .mail-read { display: grid; gap: 10px; min-width: 0; min-height: 320px; }
 .mail-back { display: none; justify-self: start; }
@@ -588,6 +594,7 @@ select.input { appearance: auto; }
 .badge-ok { padding: 1px 8px; border-radius: 999px; background: var(--sig-soft); font-weight: 700; }
 @media (max-width: 839px) {
   .mail-app { grid-template-columns: minmax(0, 1fr); }
+  .mail-resize { display: none; }
   .mail-app.is-reading .mail-side { display: none; }
   .mail-app:not(.is-reading) .mail-read { display: none; }
   .mail-back { display: inline-flex; }
