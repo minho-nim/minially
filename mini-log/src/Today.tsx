@@ -15,15 +15,26 @@ interface MailRow { id: string; from_name: string; from_addr: string; subject: s
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8))}`;
 
-export function TodayBoard({ name, drafts, onOpenDraft, onCreate, onGo }: {
-  name: string; drafts: TodayDraft[]; onOpenDraft: (id: string) => void; onCreate: () => void; onGo: (t: Target | 'ideas') => void;
+// 같은 창 안에서만 기억(로그아웃·새로고침하면 비워짐). 계정이 바뀌면 비운다
+const memo: { user: string; brief: Brief | null; camps: Campaign[]; mail: { mails: MailRow[]; accounts?: { provider: string }[] } | null; gcal: { connected: boolean; events: ExtEvent[] } | null; ncal: { available: boolean; connected: boolean; events: ExtEvent[] } | null } =
+  { user: '', brief: null, camps: [], mail: null, gcal: null, ncal: null };
+
+export function TodayBoard({ user, name, drafts, onOpenDraft, onCreate, onGo }: {
+  user: string; name: string; drafts: TodayDraft[]; onOpenDraft: (id: string) => void; onCreate: () => void; onGo: (t: Target | 'ideas') => void;
 }) {
   const source = useSource();
-  const [brief, setBrief] = useState<Brief | null>(null);
-  const [camps, setCamps] = useState<Campaign[]>([]);
-  const [mail, setMail] = useState<{ mails: MailRow[]; accounts?: { provider: string }[] } | null>(null);
-  const [gcal, setGcal] = useState<{ connected: boolean; events: ExtEvent[] } | null>(null);
-  const [ncal, setNcal] = useState<{ available: boolean; connected: boolean; events: ExtEvent[] } | null>(null);
+  if (memo.user !== user) Object.assign(memo, { user, brief: null, camps: [], mail: null, gcal: null, ncal: null });
+  // 마지막으로 읽은 값을 먼저 보여 주고(다시 열 때 깜빡임 없이) 뒤에서 새로 읽는다
+  const [brief, setBriefS] = useState<Brief | null>(memo.brief);
+  const [camps, setCampsS] = useState<Campaign[]>(memo.camps);
+  const [mail, setMailS] = useState<{ mails: MailRow[]; accounts?: { provider: string }[] } | null>(memo.mail);
+  const [gcal, setGcalS] = useState<{ connected: boolean; events: ExtEvent[] } | null>(memo.gcal);
+  const [ncal, setNcalS] = useState<{ available: boolean; connected: boolean; events: ExtEvent[] } | null>(memo.ncal);
+  const setBrief = (v: Brief) => { memo.brief = v; setBriefS(v); };
+  const setCamps = (v: Campaign[]) => { memo.camps = v; setCampsS(v); };
+  const setMail = (v: { mails: MailRow[]; accounts?: { provider: string }[] }) => { memo.mail = v; setMailS(v); };
+  const setGcal = (v: { connected: boolean; events: ExtEvent[] }) => { memo.gcal = v; setGcalS(v); };
+  const setNcal = (v: { available: boolean; connected: boolean; events: ExtEvent[] }) => { memo.ncal = v; setNcalS(v); };
   useEffect(() => {
     let alive = true;
     const keep = <T,>(set: (v: T) => void) => (v: T) => { if (alive) set(v); };
@@ -81,11 +92,16 @@ export function TodayBoard({ name, drafts, onOpenDraft, onCreate, onGo }: {
   return (
     <div className="today" aria-label="오늘 보드">
       <SourceSwitch note={source === 'naver' ? '네이버 일정·메일만' : '구글 일정·Gmail만'} />
-      <div className="today-grid">
-        {brief === null ? <Skeleton rows={3} label="오늘 할 일을 불러오는 중…" /> : <BriefCard name={name} data={brief} onGo={t => onGo(t === 'drafts' ? 'calendar' : t)} drafts={drafts} onOpenDraft={onOpenDraft} onCreate={onCreate} onIdeas={() => onGo('ideas')} />}
+      {brief === null ? <Skeleton rows={3} label="오늘 할 일을 불러오는 중…" /> : <BriefCard hero name={name} data={brief} onGo={t => onGo(t === 'drafts' ? 'calendar' : t)} drafts={drafts} onOpenDraft={onOpenDraft} onCreate={onCreate} onIdeas={() => onGo('ideas')}>
         <div className="today-side">
           <section className="card step" aria-labelledby="t-week">
             <div className="row-between"><h2 id="t-week" className="step-title">다가오는 7일</h2><button type="button" className="link-btn small" onClick={() => onGo('calendar')}>캘린더 →</button></div>
+            <div className="week-strip" aria-hidden="true">
+              {Array.from({ length: 7 }, (_, i) => addDays(today, i)).map(d => {
+                const kinds = [...new Set(week.filter(w => w.day === d).map(w => w.cls))];
+                return <span key={d} className={d === today ? 'on' : ''}><b>{['일', '월', '화', '수', '목', '금', '토'][new Date(`${d}T00:00:00Z`).getUTCDay()]}</b>{Number(d.slice(8))}<i>{kinds.map(k => <em key={k} className={`wd-${k}`} />)}</i></span>;
+              })}
+            </div>
             {week.length === 0 ? <p className="muted small" style={{ margin: 0 }}>일주일 안에 잡힌 일이 없어요.</p> : (
               <ul className="today-list">
                 {week.map((w, i) => <li key={i}><button type="button" onClick={w.go}><span className="today-day">{md(w.day)}</span><span className="today-t">{w.label}</span><span className={`today-tag t-${w.cls}`}>{w.tag}</span></button></li>)}
@@ -101,7 +117,7 @@ export function TodayBoard({ name, drafts, onOpenDraft, onCreate, onGo }: {
             )}
           </section>
         </div>
-      </div>
+      </BriefCard>}
 
       {flows.length > 0 && (
         <section className="card step" aria-labelledby="t-flow">

@@ -166,3 +166,12 @@ test('오늘 보드: 다가오는 7일·답장할 메일·진행 흐름·요약�
   await call(page, `/api/campaigns/${camp}`, 'DELETE');
   await call(page, `/api/drafts/${draft}`, 'DELETE');
 });
+
+test('아침 알림은 설정에서 켜기/끄기 스위치 하나로, 관리자용 키 만들기는 접어 둔다', async ({ page }) => {
+  await login(page, CODE_C);
+  await page.goto('/#settings');
+  const sw = page.getByRole('switch', { name: '이 기기 아침 알림' });
+  await expect(sw).toBeVisible();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText('알림 키 만들기(관리자)')).toBeHidden(); // 키가 있으면 관리자 칸은 없다
+});

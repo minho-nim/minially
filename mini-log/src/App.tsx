@@ -284,7 +284,7 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
             </div>
           ))}
         </nav>
-        {phone && view === 'drafts' && !selected && <TodayBoard name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
+        {phone && view === 'drafts' && !selected && <TodayBoard user={me.user} name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
@@ -370,7 +370,7 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (
             <div className="stack">
-            {!phone && <TodayBoard name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
+            {!phone && <TodayBoard user={me.user} name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
             {(drafts?.length === 0 || !me.gemini.connected) && <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
