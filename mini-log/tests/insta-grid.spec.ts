@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
-import { login, pngBytes } from './helpers';
+import { login, pngBytes, useMonthView } from './helpers';
 
 const kst = (days = 0) => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10);
 
@@ -18,6 +18,7 @@ test('격자 순서: 늦은 게시 예정이 왼쪽 위, 그다음 최근 게시
 
 test('인스타 격자: 첫 사진이 표지로 보이고, 두 칸을 누르면 게시일을 맞바꾼다', async ({ page }) => {
   await login(page, CODE_C);
+  await useMonthView(page);
   const made = await page.evaluate(async ([first, second, png]) => {
     const one = (await (await fetch('/api/drafts', { method: 'POST', body: JSON.stringify({ planned_on: first }) })).json()).draft;
     await fetch(`/api/drafts/${one.id}`, { method: 'PUT', body: JSON.stringify({ title: '격자 첫 원고' }) });
@@ -57,6 +58,7 @@ test('인스타 격자: 첫 사진이 표지로 보이고, 두 칸을 누르면 
   // 다른 사람은 내 표지를 못 본다
   const other = await page.context().browser()!.newPage();
   await login(other, CODE_D);
+  await useMonthView(other);
   expect(await other.evaluate(async ids => (await (await fetch(`/api/photos/covers?ids=${ids.join(',')}`)).json()).covers, [made.one, made.two])).toEqual({});
   await other.close();
 

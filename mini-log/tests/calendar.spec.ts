@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
-import { login } from './helpers';
+import { login, useMonthView } from './helpers';
 
 const kst = (days = 0) => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10);
 
 test('캘린더에 게시 예정·협찬 마감이 보이고, 날짜를 골라 원고를 만들 수 있다', async ({ page }) => {
   await login(page, CODE_C);
+  await useMonthView(page);
   const target = kst(2);
   // 협찬 마감(같은 날)
   await page.evaluate(async d => { await fetch('/api/campaigns', { method: 'POST', body: JSON.stringify({ brand: '캘린더카페', deadline: d }) }); }, target);
@@ -46,9 +47,11 @@ test('캘린더에 게시 예정·협찬 마감이 보이고, 날짜를 골라 �
 test('캘린더는 본인 원고·협찬만 보인다', async ({ browser }) => {
   const c = await browser.newPage();
   await login(c, CODE_C);
+  await useMonthView(c);
   await c.evaluate(async d => { await fetch('/api/drafts', { method: 'POST', body: JSON.stringify({ planned_on: d }) }); }, kst(1));
   const d = await browser.newPage();
   await login(d, CODE_D);
+  await useMonthView(d);
   await d.getByRole('button', { name: '캘린더', exact: true }).click();
   await expect(d.locator('.cal-chip')).toHaveCount(0);
   await c.evaluate(async () => { for (const x of (await (await fetch('/api/drafts')).json()).drafts) await fetch(`/api/drafts/${x.id}`, { method: 'DELETE' }); });

@@ -3,6 +3,7 @@ import { api } from '../../shared/client/api';
 import { Help } from './Help';
 import { SafeMailHtml } from './MailHtml';
 import { MailEditor } from './MailEditor';
+import { showUndo } from './UndoToast';
 import { docFromText, docToHtml, docToText, type MailDoc } from '../functions/_mailDoc';
 
 // 메일: 네이버·Gmail에서 15분마다 받은 메일을 한 메일함에 모아 메일 앱처럼(왼쪽 목록·오른쪽 읽기) 보고, 서식 있는 답장·새 메일을 쓴다.
@@ -94,6 +95,21 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
       setMessage(r.error ? { kind: 'error', text: r.error } : { kind: 'info', text: r.added ? `새 메일 ${r.added}통을 받았어요.` : '새 메일이 없어요.' });
     } catch (e) { fail(e, '메일을 받지 못했어요.'); }
     finally { setBusy(null); }
+  }
+
+  /** 미니로그 메일함에서만 지우기(원래 메일함은 그대로), 10분 안에 되돌리기 */
+  async function removeMail() {
+    if (!open) return;
+    const id = open.id, subject = open.subject || '(제목 없음)';
+    try {
+      await api(`/api/mail/${id}`, { method: 'DELETE' });
+      setOpen(null); setReply(null);
+      apply(await api<MailData>('/api/mail'));
+      showUndo(`'${subject.slice(0, 20)}' 메일을 지웠어요`, async () => {
+        await api(`/api/trash/${id}/restore`, { method: 'POST', body: {} });
+        apply(await api<MailData>('/api/mail'));
+      });
+    } catch (e) { fail(e, '지우지 못했어요.'); }
   }
 
   async function act(kind: 'save' | 'done' | 'draft' | 'send') {
@@ -238,7 +254,10 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
                 {open.kind === 'outgoing' ? <SafeMailHtml html={docToHtml(open.reply_doc ?? docFromText(open.reply_body))} />
                   : open.body_html && !plain ? <SafeMailHtml html={open.body_html} /> : <p className="mail-body">{open.snippet}</p>}
               </div>
-              {open.body_html && open.kind !== 'outgoing' && <button type="button" className="link-btn small" style={{ justifySelf: 'start' }} onClick={() => setPlain(p => !p)}>{plain ? '원래 모양으로 보기' : '글만 보기'}</button>}
+              <div className="ai-row">
+                {open.body_html && open.kind !== 'outgoing' && <button type="button" className="link-btn small" onClick={() => setPlain(p => !p)}>{plain ? '원래 모양으로 보기' : '글만 보기'}</button>}
+                <button type="button" className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={() => { void removeMail(); }} disabled={busy !== null} title="네이버·Gmail 메일함은 그대로예요">미니로그에서 지우기</button>
+              </div>
 
               {canReply && reply && open.status !== 'done' && (
                 <div className="mail-reply">

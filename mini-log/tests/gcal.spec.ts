@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
-import { login } from './helpers';
+import { login, useMonthView } from './helpers';
 import { expandIcs } from '../../shared/server/googleIcs';
 
 const ICS = 'http://127.0.0.1:8898/ics/basic.ics';
@@ -19,6 +19,7 @@ test('반복 일정 펼치기: 매주 요일·격주·매일·매달을 기간 �
 test('구글 캘린더 겹쳐 보기: 비공개 주소만 받고, 계정에 저장해 달력에 회색으로, 남은 못 보고, 끊을 수 있다', async ({ page, browser, request }) => {
   expect((await request.get('/api/calendar/google')).status()).toBe(401);
   await login(page, CODE_C);
+  await useMonthView(page);
   const put = (url: string) => page.evaluate(async u => (await fetch('/api/calendar/google', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: u }) })).status, url);
   for (const bad of ['https://evil.example/basic.ics', 'http://127.0.0.1:8899/ics/basic.ics', 'https://calendar.google.com/calendar/u/0/r']) expect(await put(bad)).toBe(400);
 
@@ -44,6 +45,7 @@ test('구글 캘린더 겹쳐 보기: 비공개 주소만 받고, 계정에 저�
   const other = await browser.newContext({ baseURL: test.info().project.use.baseURL });
   const d = await other.newPage();
   await login(d, CODE_D);
+  await useMonthView(d);
   expect(await d.evaluate(async () => (await (await fetch('/api/calendar/google')).json()).connected)).toBe(false);
   await other.close();
 

@@ -179,6 +179,29 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
     return () => window.removeEventListener('popstate', onPop);
   }, []);
   const [creating, setCreating] = useState(false);
+  // 원고 여러 개 골라 지우기(시험으로 만든 원고 정리 등). 10분 안에 한 번에 되돌릴 수 있다
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState(false);
+  async function removePicked() {
+    const ids = [...picked];
+    if (!ids.length) return;
+    setRemoving(true);
+    const done: string[] = [];
+    try {
+      for (const id of ids) { await api(`/api/drafts/${id}`, { method: 'DELETE' }); done.push(id); }
+    } catch (error) { setListError(error instanceof Error ? error.message : '일부 원고를 지우지 못했어요.'); }
+    finally {
+      setRemoving(false);
+      setDrafts(list => list?.filter(d => !done.includes(d.id)) ?? null);
+      if (selectedId && done.includes(selectedId)) setSelectedId(null);
+      setPicked(new Set()); setPicking(false);
+      if (done.length) showUndo(`원고 ${done.length}개를 지웠어요`, async () => {
+        for (const id of done) await api(`/api/trash/${id}/restore`, { method: 'POST', body: {} });
+        await refresh();
+      });
+    }
+  }
   // 협찬 화면에서 만든 메일 초안을 메일 화면 '새 메일'로 넘긴다
   const [mailSeed, setMailSeed] = useState<ComposeSeed | null>(null);
 
@@ -271,8 +294,24 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
         )}
         {drafts && drafts.length > 0 && <WeekRhythm drafts={drafts} />}
         {drafts && drafts.length > 0 && (
+          <div className="pick-bar">
+            {!picking ? <button type="button" className="btn ghost small" onClick={() => { setPicking(true); setPicked(new Set()); }}>여러 개 지우기</button> : (
+              <>
+                <button type="button" className="btn ghost small" onClick={() => setPicked(p => (p.size === drafts.length ? new Set() : new Set(drafts.map(d => d.id))))}>{picked.size === drafts.length ? '모두 풀기' : '모두 고르기'}</button>
+                <button type="button" className="btn small danger" disabled={!picked.size || removing} onClick={() => { void removePicked(); }}>{removing ? '지우는 중…' : `${picked.size}개 지우기`}</button>
+                <button type="button" className="btn ghost small" onClick={() => { setPicking(false); setPicked(new Set()); }}>취소</button>
+              </>
+            )}
+          </div>
+        )}
+        {drafts && drafts.length > 0 && (
           <nav className="list" aria-label="원고">
-            {drafts.map(d => (
+            {drafts.map(d => picking ? (
+              <label key={d.id} className={`pick-row${picked.has(d.id) ? ' on' : ''}`}>
+                <input type="checkbox" checked={picked.has(d.id)} onChange={() => setPicked(p => { const n = new Set(p); if (n.has(d.id)) n.delete(d.id); else n.add(d.id); return n; })} />
+                <span><span className="t">{d.title.trim() || '제목 없는 원고'}</span><span className="m">{STATUS_LABEL[d.status]} · {dateLabel(d.updated_at)}</span></span>
+              </label>
+            ) : (
               <button key={d.id} aria-current={d.id === selectedId} onClick={() => { setSelectedId(d.id); setView('drafts'); }}>
                 <span className="t">{d.title.trim() || '제목 없는 원고'}</span>
                 <span className="m">{STATUS_LABEL[d.status]}{d.photo_count ? ` · 사진 ${d.photo_count}` : ''} · {dateLabel(d.updated_at)}</span>

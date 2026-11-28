@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
-import { login } from './helpers';
+import { login, useMonthView } from './helpers';
 import { naverCalendars, naverEvents, naverCalAccount } from '../../shared/server/naverCaldav';
 
 const BASE = 'http://127.0.0.1:8898/caldav';
@@ -27,6 +27,7 @@ test('네이버 CalDAV 읽기: 캘린더 목록·기간 일정, 비밀번호가 
 test('네이버 일정 겹쳐 보기: 켜고, 초록 칩, 보이기 토글, 가족 캘린더 숨기기, 아침 브리핑 오늘 일정, 남은 못 켬', async ({ page, browser, request }) => {
   expect((await request.get('/api/calendar/naver')).status()).toBe(401);
   await login(page, CODE_C);
+  await useMonthView(page);
   const call = (method: string, body?: unknown) => page.evaluate(async ([m, b]) => {
     const r = await fetch('/api/calendar/naver', { method: m as string, headers: { 'content-type': 'application/json' }, body: b === undefined ? undefined : JSON.stringify(b) });
     return { status: r.status, data: await r.json().catch(() => null) };
@@ -75,6 +76,7 @@ test('네이버 일정 겹쳐 보기: 켜고, 초록 칩, 보이기 토글, 가�
   // D는 네이버 계정이 없어서 카드도 없고 켤 수도 없다
   const other = await browser.newPage();
   await login(other, CODE_D);
+  await useMonthView(other);
   const d = await other.evaluate(async () => {
     const g = await (await fetch('/api/calendar/naver')).json();
     const p = (await fetch('/api/calendar/naver', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: true }) })).status;

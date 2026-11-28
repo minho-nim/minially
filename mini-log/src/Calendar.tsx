@@ -15,6 +15,10 @@ interface NaverCal { available: boolean; connected: boolean; account?: string; c
 const KIND_LABEL: Record<Kind, string> = { planned: '게시 예정', published: '게시 완료', deadline: '협찬 마감', google: '구글 일정', naver: '네이버 일정' };
 // 보이기 토글은 이 기기에만 기억한다(못 읽어도 다 보임)
 const HIDE_KEY = 'minilog.calendar.hidden';
+const VIEW_KEY = 'minilog.calendar.view', GRID_KEY = 'minilog.calendar.grid';
+const readKey = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const writeKey = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* 기억만 못 함 */ } };
+const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const readHidden = (): Kind[] => { try { const v = JSON.parse(localStorage.getItem(HIDE_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((k): k is Kind => k in KIND_LABEL) : []; } catch { return []; } };
 
 const kstDate = (ms: number) => new Date(ms + 9 * 3600000).toISOString().slice(0, 10);
@@ -52,6 +56,12 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
   const loadNcal = () => api<NaverCal>('/api/calendar/naver').then(setNcal).catch(() => setNcal({ available: false, connected: false, events: [], error: '네이버 캘린더를 불러오지 못했어요.' }));
   useEffect(() => { void loadNcal(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [hidden, setHidden] = useState<Kind[]>(readHidden);
+  // 보기: '한눈에'(할 일 목록, 기본) / '달력'. 인스타 격자는 접어 두고 펼치면 이 기기에 기억
+  const [view, setViewState] = useState<'agenda' | 'month'>(() => (readKey(VIEW_KEY) === 'month' ? 'month' : 'agenda'));
+  const setView = (v: 'agenda' | 'month') => { setViewState(v); writeKey(VIEW_KEY, v); };
+  const [gridOpen, setGridOpen] = useState(() => readKey(GRID_KEY) === 'open');
+  /** 달을 넘기면 고른 날도 그 달로(오늘이 있으면 오늘, 아니면 1일): 달과 아래 목록이 어긋나지 않게 */
+  const goMonth = (next: string) => { setMonth(next); setSelected(today.startsWith(next) ? today : `${next}-01`); };
   const toggleKind = (k: Kind) => setHidden(h => {
     const next = h.includes(k) ? h.filter(x => x !== k) : [...h, k];
     try { localStorage.setItem(HIDE_KEY, JSON.stringify(next)); } catch { /* 기억만 못 함 */ }
@@ -107,12 +117,16 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
           <button className="btn ghost back" onClick={onBack}>← 목록</button>
           <h1 id="cal-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>캘린더</h1>
         </div>
-        <div className="actions cal-nav">
-          <button className="btn" onClick={() => setMonth(shiftMonth(month, -1))} aria-label="이전 달">‹</button>
-          <span className="cal-month" aria-live="polite">{y}년 {m}월</span>
-          <button className="btn" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="다음 달">›</button>
-          <button className="btn ghost" onClick={() => { setMonth(today.slice(0, 7)); setSelected(today); }}>오늘</button>
+        <div className="style-tabs" role="tablist" aria-label="캘린더 보기">
+          <button role="tab" aria-selected={view === 'agenda'} onClick={() => setView('agenda')}>한눈에</button>
+          <button role="tab" aria-selected={view === 'month'} onClick={() => setView('month')}>달력</button>
         </div>
+        {view === 'month' && <div className="actions cal-nav">
+          <button className="btn" onClick={() => goMonth(shiftMonth(month, -1))} aria-label="이전 달">‹</button>
+          <span className="cal-month" aria-live="polite">{y}년 {m}월</span>
+          <button className="btn" onClick={() => goMonth(shiftMonth(month, 1))} aria-label="다음 달">›</button>
+          <button className="btn ghost" onClick={() => { setMonth(today.slice(0, 7)); setSelected(today); }}>오늘</button>
+        </div>}
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       <ul className="cal-legend" aria-label="표시">
@@ -122,7 +136,8 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
       </ul>
 
       {notice && <p className="muted small" role="status" style={{ margin: 0 }}>{notice}</p>}
-      <div className="cal-layout">
+      {view === 'agenda' && <Agenda byDay={byDay} today={today} unscheduled={unscheduled.length} onOpenDraft={onOpenDraft} onCreate={onCreate} onMonth={day => { setSelected(day); setMonth(day.slice(0, 7)); setView('month'); }} />}
+      {view === 'month' && <div className={`cal-layout${gridOpen ? '' : ' no-grid'}`}>
       <section className="card step cal-drawer" aria-labelledby="drawer-title">
         <h2 id="drawer-title" className="step-title">날짜 없는 원고<span className="step-sub">{unscheduled.length}개</span></h2>
         {unscheduled.length === 0 ? <p className="muted small" style={{ margin: 0 }}>모든 원고에 게시일이 있어요.</p> : (
@@ -190,8 +205,11 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
         )}
       </section>
       </div>
-      <div className="cal-side"><InstaGrid drafts={drafts} today={today} onSaved={onSaved} rhythm={rhythm} /></div>
+      <div className="cal-side">
+        <button type="button" className="btn ghost small" aria-expanded={gridOpen} onClick={() => { setGridOpen(o => { writeKey(GRID_KEY, o ? 'closed' : 'open'); return !o; }); }}>{gridOpen ? '인스타 격자 접기' : '인스타 격자 보기'}</button>
+        {gridOpen && <InstaGrid drafts={drafts} today={today} onSaved={onSaved} rhythm={rhythm} />}
       </div>
+      </div>}
       <GoogleCalendarCard gcal={gcal} onChanged={loadGcal} />
       {ncal?.available && <NaverCalendarCard ncal={ncal} onChanged={loadNcal} />}
       <CalendarFeed />
@@ -279,6 +297,59 @@ function NaverCalendarCard({ ncal, onChanged }: { ncal: NaverCal; onChanged: () 
       {ncal.error && <p className="error small" role="alert" style={{ margin: 0 }}>{ncal.error}</p>}
       {msg && <p className={msg.kind === 'error' ? 'error small' : 'muted small'} role={msg.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{msg.text}</p>}
       <p className="muted small" style={{ margin: 0 }}>읽기만 해요(네이버 캘린더는 바꾸지 않아요). 메일과 같은 네이버 계정의 애플리케이션 비밀번호로 읽고, 일정은 저장하지 않아요. 가족 캘린더처럼 여기서 안 보고 싶은 것은 체크를 빼 주세요.</p>
+    </section>
+  );
+}
+
+/** 한눈에: 놓친 것 · 오늘 · 이번 주 · 다음 주 · 그 뒤(30일까지)를 한 목록으로. 원고는 바로 열고, 빈 날 없이 일정 있는 날만 */
+function Agenda({ byDay, today, unscheduled, onOpenDraft, onCreate, onMonth }: {
+  byDay: Map<string, Item[]>; today: string; unscheduled: number; onOpenDraft: (id: string) => void; onCreate: (date: string) => void; onMonth: (day: string) => void;
+}) {
+  const dow = new Date(`${today}T00:00:00Z`).getUTCDay();
+  const weekEnd = addDays(today, 6 - dow), nextEnd = addDays(weekEnd, 7), until = addDays(today, 30);
+  // 놓친 것: 지난 7일 안의 게시 예정(아직 안 올림)·협찬 마감
+  const missed: [string, Item[]][] = [];
+  for (let i = 7; i >= 1; i--) {
+    const d = addDays(today, -i);
+    const list = (byDay.get(d) ?? []).filter(it => it.kind === 'planned' || it.kind === 'deadline');
+    if (list.length) missed.push([d, list]);
+  }
+  const days = (from: string, to: string) => {
+    const out: [string, Item[]][] = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) { const list = byDay.get(d); if (list?.length) out.push([d, list]); }
+    return out;
+  };
+  const groups: { key: string; title: string; rows: [string, Item[]][]; late?: boolean }[] = [
+    { key: 'missed', title: '놓친 것', rows: missed, late: true },
+    { key: 'today', title: '오늘', rows: days(today, today) },
+    { key: 'week', title: '이번 주', rows: today < weekEnd ? days(addDays(today, 1), weekEnd) : [] },
+    { key: 'next', title: '다음 주', rows: days(addDays(weekEnd, 1), nextEnd) },
+    { key: 'later', title: '그 뒤(30일까지)', rows: days(addDays(nextEnd, 1), until) },
+  ];
+  const total = groups.reduce((n, g) => n + g.rows.reduce((m, [, l]) => m + l.length, 0), 0);
+  const label = (d: string) => new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', weekday: 'short', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
+  return (
+    <section className="card step agenda" aria-labelledby="agenda-title">
+      <div className="row-between">
+        <h2 id="agenda-title" className="step-title">할 일 한눈에<span className="step-sub">{total}개{unscheduled ? ` · 날짜 없는 원고 ${unscheduled}개` : ''}</span></h2>
+        <button className="btn primary" onClick={() => onCreate(today)}>오늘 게시할 원고 만들기</button>
+      </div>
+      {total === 0 && <p className="muted small" style={{ margin: 0 }}>앞으로 30일 안에 잡힌 일이 없어요. 글감에서 다음 글을 골라 볼까요?</p>}
+      {groups.filter(g => g.rows.length).map(g => (
+        <div key={g.key} className={`agenda-group${g.late ? ' late' : ''}`} role="group" aria-label={g.title}>
+          <h3 className="agenda-head">{g.title}</h3>
+          <ul className="cal-list">
+            {g.rows.flatMap(([d, list]) => list.map(item => (
+              <li key={`${d}-${item.id}`}>
+                <button type="button" className="agenda-date" onClick={() => onMonth(d)} aria-label={`${label(d)} 달력에서 보기`}>{label(d)}</button>
+                <i className={`k-${item.kind}`} aria-hidden="true" />
+                <span className="c-main"><b>{item.label}</b><span className="muted small">{item.sub}</span></span>
+                {item.draftId && <button className="btn ghost small" onClick={() => onOpenDraft(item.draftId!)}>원고 열기</button>}
+              </li>
+            )))}
+          </ul>
+        </div>
+      ))}
     </section>
   );
 }

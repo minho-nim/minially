@@ -46,8 +46,8 @@ export async function trashPhoto(db: D1Database, user: UserName, id: string, now
   return true;
 }
 
-/** 한 줄짜리(협찬 기록·해시태그 묶음)를 휴지통으로. 표 이름은 정해 둔 것만 */
-const ROW_TABLES = { campaign: 'minilog_campaigns', tagset: 'minilog_tag_sets' } as const;
+/** 한 줄짜리(협찬 기록·해시태그 묶음·메일)를 휴지통으로. 표 이름은 정해 둔 것만 */
+const ROW_TABLES = { campaign: 'minilog_campaigns', tagset: 'minilog_tag_sets', mail: 'minilog_mails' } as const;
 export type RowKind = keyof typeof ROW_TABLES;
 export async function trashRow(db: D1Database, user: UserName, kind: RowKind, id: string, now = Date.now()) {
   const table = ROW_TABLES[kind];
