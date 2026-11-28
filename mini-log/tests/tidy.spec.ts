@@ -139,3 +139,30 @@ test('보는 계정(전체·네이버·구글): 메일을 계정별로 거르고
   await page.getByRole('group', { name: '보는 계정' }).getByRole('button', { name: '전체' }).click();
   for (const m of (await call(page, '/api/mail')).data.mails as { id: string; subject: string }[]) if (m.subject.startsWith('source ')) await call(page, `/api/mail/${m.id}`, 'DELETE');
 });
+
+test('오늘 보드: 다가오는 7일·답장할 메일·진행 흐름·요약이 한 화면에, 누르면 그 화면으로', async ({ page }) => {
+  await login(page, CODE_C);
+  const draft = (await call(page, '/api/drafts', 'POST', {})).data.draft.id;
+  await call(page, `/api/drafts/${draft}`, 'PUT', { title: '오늘보드 원고', planned_on: kst(2), experience: '다녀옴', body: '본문' });
+  const camp = (await call(page, '/api/campaigns', 'POST', { brand: '오늘보드카페', status: 'posted', amount: 40000, deadline: kst(3) })).data.campaign.id;
+  await page.reload();
+  const board = page.getByLabel('오늘 보드');
+  const week = board.getByRole('region', { name: '다가오는 7일' });
+  await expect(week).toContainText('오늘보드 원고 게시');
+  await expect(week).toContainText('오늘보드카페 마감');
+  const flow = board.getByRole('region', { name: /진행 흐름/ });
+  const campRow = flow.locator('.flow-row', { hasText: '오늘보드카페' });
+  await expect(campRow.getByRole('button', { name: '입금 확인 ▶' })).toBeVisible();
+  const draftRow = flow.locator('.flow-row', { hasText: '오늘보드 원고' });
+  await expect(draftRow.getByRole('button', { name: '점검·승인 ▶' })).toBeVisible();
+  await expect(board.getByRole('region', { name: '받을 돈' })).toContainText('40,000원');
+  await expect(board.getByRole('region', { name: '연결 계정' })).toContainText('네이버 메일 ✓');
+  // 진행 흐름에서 지금 단계를 누르면 그 화면으로
+  await draftRow.getByRole('button', { name: '점검·승인 ▶' }).click();
+  await expect(page.getByLabel('제목', { exact: true })).toHaveValue('오늘보드 원고');
+  await page.goto('/');
+  await page.getByLabel('오늘 보드').locator('.flow-row', { hasText: '오늘보드카페' }).getByRole('button', { name: '입금 확인 ▶' }).click();
+  await expect(page.getByRole('heading', { name: '협찬·수익' })).toBeVisible();
+  await call(page, `/api/campaigns/${camp}`, 'DELETE');
+  await call(page, `/api/drafts/${draft}`, 'DELETE');
+});

@@ -5,7 +5,8 @@ import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
 import { FirstSteps } from './FirstSteps';
-import { BriefCard, PushCard, usePhone } from './Brief';
+import { PushCard, usePhone } from './Brief';
+import { TodayBoard } from './Today';
 import { setUiPrefs, type UiPrefs } from './uiPrefs';
 import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { BodyEditor } from './BodyEditor';
@@ -283,7 +284,7 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
             </div>
           ))}
         </nav>
-        {phone && view === 'drafts' && !selected && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onIdeas={() => go('ideas')} />}
+        {phone && view === 'drafts' && !selected && <TodayBoard name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
@@ -369,15 +370,15 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (
             <div className="stack">
-            {!phone && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onIdeas={() => go('ideas')} />}
-            <div className="card empty">
+            {!phone && <TodayBoard name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
+            {(drafts?.length === 0 || !me.gemini.connected) && <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
               <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
               {!me.gemini.connected && <p className="error">Gemini 키가 아직 연결되지 않아 AI 초안은 만들 수 없어요. 원고 저장은 할 수 있어요.</p>}
               {drafts?.length === 0 && <FirstSteps onNew={() => { void create(); }} />}
-            </div>
+            </div>}
             </div>
           )}
         </Suspense>

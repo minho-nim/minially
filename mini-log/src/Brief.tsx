@@ -4,7 +4,7 @@ import { api } from '../../shared/client/api';
 // 아침 브리핑 카드(첫 화면)와 아침 알림 켜기(설정). 할 일은 서버가 규칙으로 고른다(AI 없음).
 type Kind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post' | 'event';
 interface BriefItem { kind: Kind; title: string; sub: string; target: 'campaigns' | 'mail' | 'drafts' | 'calendar' }
-interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events?: number } }
+export interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events?: number } }
 const won = (n: number) => (n >= 10000 ? `${Math.round(n / 1000) / 10}만` : n.toLocaleString('ko-KR'));
 const dayLabel = (d: string) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
 
@@ -24,9 +24,10 @@ export function usePhone() {
 
 /** 급한 일이 없을 때도 '지금 할 일' 하나를 버튼으로: 쓰던 원고 이어 쓰기 → 없으면 새 원고·글감 */
 interface DraftLite { id: string; title: string; status: string; updated_at: number }
-export function BriefCard({ name, onGo, drafts = [], onOpenDraft, onCreate, onIdeas }: { name: string; onGo: (target: BriefItem['target']) => void; drafts?: DraftLite[]; onOpenDraft?: (id: string) => void; onCreate?: () => void; onIdeas?: () => void }) {
-  const [brief, setBrief] = useState<Brief | null>(null);
-  useEffect(() => { let alive = true; api<Brief>('/api/brief').then(b => { if (alive) setBrief(b); }).catch(() => { /* 카드만 안 보임 */ }); return () => { alive = false; }; }, []);
+export function BriefCard({ name, onGo, drafts = [], onOpenDraft, onCreate, onIdeas, data }: { name: string; onGo: (target: BriefItem['target']) => void; drafts?: DraftLite[]; onOpenDraft?: (id: string) => void; onCreate?: () => void; onIdeas?: () => void; /** 이미 읽어 온 브리핑(오늘 보드가 함께 쓴다). 없으면 직접 읽는다 */ data?: Brief | null }) {
+  const [own, setBrief] = useState<Brief | null>(null);
+  useEffect(() => { if (data !== undefined) return; let alive = true; api<Brief>('/api/brief').then(b => { if (alive) setBrief(b); }).catch(() => { /* 카드만 안 보임 */ }); return () => { alive = false; }; }, [data]);
+  const brief = data !== undefined ? data : own;
   if (!brief) return null;
   const top = brief.items.slice(0, 3);
   const c = brief.counts;
