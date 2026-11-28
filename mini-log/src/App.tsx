@@ -34,7 +34,7 @@ import type { Idea } from './Ideas';
 import { BackupCard } from './Backup';
 import { AccountsCard } from './Accounts';
 import { applyTheme, type Theme } from '../../shared/client/theme';
-import { CampaignsView, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
+import { CampaignsView, type ComposeSeed, dDay, STATUS_LABEL as CAMPAIGN_STATUS, won, type Status as CampaignStatus } from './Campaigns';
 // 처음 화면에 안 쓰는 큰 화면은 열 때 불러온다(첫 화면 파일을 가볍게)
 const ThumbnailMaker = lazy(() => import('./Thumbnail').then(m => ({ default: m.ThumbnailMaker })));
 const CardNews = lazy(() => import('./CardNews').then(m => ({ default: m.CardNews })));
@@ -179,6 +179,8 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
   const [creating, setCreating] = useState(false);
+  // 협찬 화면에서 만든 메일 초안을 메일 화면 '새 메일'로 넘긴다
+  const [mailSeed, setMailSeed] = useState<ComposeSeed | null>(null);
 
   const refresh = useCallback(async () => {
     try { const data = await api<{ drafts: Draft[]; more?: boolean; next_before?: string | null }>('/api/drafts'); setDrafts(data.drafts); setOlderCursor(data.more ? data.next_before ?? null : null); setListError(''); }
@@ -307,7 +309,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         <Suspense fallback={<Skeleton rows={4} label="화면을 불러오는 중…" />}>
         {view === 'proposal' ? <ProposalView name={me.name} onBack={() => setView('campaigns')} />
         : view === 'report' ? <ReportView user={me.name} onBack={() => setView('drafts')} />
-        : view === 'mail' ? <MailView onBack={() => setView('drafts')} onCampaigns={() => setView('campaigns')} onWaiting={setMailWaiting} />
+        : view === 'mail' ? <MailView onBack={() => setView('drafts')} onCampaigns={() => setView('campaigns')} onWaiting={setMailWaiting} seed={mailSeed} onSeedUsed={() => setMailSeed(null)} />
         : view === 'ideas' ? <IdeasView onBack={() => setView('drafts')} onUse={draftFromIdea} onPlanned={made => setDrafts(list => [...made, ...(list ?? [])])} />
         : view === 'style' ? <StylesView onBack={() => setView('drafts')} />
         : null}
@@ -323,7 +325,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} onSaved={list => list.forEach(onSaved)} />
         : view === 'settings' ? <SettingsView onBack={() => setView('drafts')} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
-        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
+        : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onCompose={seed => { setMailSeed(seed); setView('mail'); }} onDraftsChanged={() => { void refresh(); }} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (

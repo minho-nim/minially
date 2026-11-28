@@ -5,8 +5,9 @@
 import type { D1Database, HubEnv } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 import { todayExternal } from './_extCal';
+import { PAYMENT_DAYS } from './_sponsorFlow';
 
-export type BriefKind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post' | 'event';
+export type BriefKind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post' | 'event' | 'payment';
 export interface BriefItem { kind: BriefKind; title: string; sub: string; target: string; rank: number }
 export interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events: number } }
 
@@ -21,8 +22,8 @@ const cut = (s: string, n = 30) => (s.length > n ? `${s.slice(0, n - 1)}…` : s
 export async function buildBrief(db: D1Database, user: UserName, now = Date.now(), env?: HubEnv): Promise<Brief> {
   const today = kstToday(now);
   const items: BriefItem[] = [];
-  const camps = (await db.prepare("SELECT id, brand, title, status, deadline, apply_by, amount, suggest FROM minilog_campaigns WHERE user = ? AND status NOT IN ('paid', 'cancelled') LIMIT 500")
-    .bind(user).all<{ id: string; brand: string; title: string; status: string; deadline: string | null; apply_by: string | null; amount: number; suggest: string | null }>()).results;
+  const camps = (await db.prepare("SELECT id, brand, title, status, deadline, apply_by, amount, suggest, COALESCE(posted_on, date((updated_at + 32400000) / 1000, 'unixepoch')) AS posted_on FROM minilog_campaigns WHERE user = ? AND status NOT IN ('paid', 'cancelled') LIMIT 500")
+    .bind(user).all<{ id: string; brand: string; title: string; status: string; deadline: string | null; apply_by: string | null; amount: number; suggest: string | null; posted_on: string | null }>()).results;
   for (const c of camps) {
     const name = cut(c.brand || c.title || '협찬', 20);
     if (c.deadline && ['proposed', 'in_progress'].includes(c.status)) {
@@ -32,6 +33,11 @@ export async function buildBrief(db: D1Database, user: UserName, now = Date.now(
     if (c.apply_by && c.status === 'interested') {
       const n = daysBetween(today, c.apply_by);
       if (n >= 0 && n <= 3) items.push({ kind: 'apply', title: `${name} 체험단 신청`, sub: `신청 마감 ${dday(n)}`, target: 'campaigns', rank: 12 + n });
+    }
+    // 게시하고 14일이 지나도 정산이 안 됐으면 입금 확인(게시일을 모르는 예전 기록은 마지막으로 고친 날 기준)
+    if (c.status === 'posted' && c.posted_on) {
+      const n = daysBetween(c.posted_on, today);
+      if (n >= PAYMENT_DAYS) items.push({ kind: 'payment', title: `${name} 입금 확인`, sub: `게시 ${n}일 지남` /* 알림에 금액은 싣지 않는다 */, target: 'campaigns', rank: 25 });
     }
     if (c.suggest) {
       let reason = '';

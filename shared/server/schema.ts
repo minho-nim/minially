@@ -103,6 +103,7 @@ const COLUMNS: [table: string, column: string, type: string][] = [
   ['minilog_mails', 'body_html', 'TEXT'], // 받은 메일 HTML 원문(300KB까지, 화면이 허용한 모양으로만 다시 그림)
   ['minilog_mails', 'reply_doc', 'TEXT'], // 서식 있는 답장(JSON 문서, _mailDoc.ts)
   ['minilog_mails', 'to_addr', 'TEXT'], // 내가 새로 쓴 메일의 받는 사람
+  ['minilog_campaigns', 'posted_on', 'TEXT'], // 게시 완료로 바꾼 날 YYYY-MM-DD(정산 확인 알림)
   ['minilog_campaigns', 'suggest', 'TEXT'], // 메일로 본 단계 이동 제안(JSON {status, reason}). 사람이 '옮기기'를 눌러야 바뀜
   ['minilog_mails', 'reply_options', 'TEXT'], // 답장 세 안(짧게·정중·조건 협의, JSON). 사람이 하나 골라 고쳐 보낸다
   ['minilog_mails', 'account', 'TEXT'], // 받은·보낸 계정(naver·gmail, 비어 있으면 naver)

@@ -18,6 +18,8 @@ export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
   deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null; pitch: PitchLog | null; suggest?: { status: Status; reason: string } | null;
   source_url: string; apply_by: string | null; created_at: number; updated_at: number;
+  /** 게시 완료로 바꾼 날(정산 확인 알림) */
+  posted_on?: string | null;
 }
 /** 먼저 제안한 기록(제안 화면의 '보낸 걸로 기록') */
 export interface PitchLog { on: string; via: 'mail' | 'dm'; reply: 'waiting' | 'yes' | 'no' }
@@ -43,10 +45,17 @@ export function dDay(deadline: string) {
 }
 
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
-const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null };
+const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null, posted_on: null };
 
-export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared = null }: {
+/** 메일 초안(정산 확인·게시 보고): 새 메일 쓰기에 채워 주고, 보내기는 사람이 메일 화면에서 */
+export interface ComposeSeed { to: string; subject: string; text: string }
+export const PAYMENT_DAYS = 14;
+
+export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared = null, onCompose, onDraftsChanged }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
+  onCompose?: (seed: ComposeSeed) => void;
+  /** 진행 중이 되며 원고를 새로 준비했을 때(원고 목록 다시 읽기) */
+  onDraftsChanged?: () => void;
   /** 휴대폰 공유로 받은 공고(있으면 '관심' 새 협찬으로 연다) */
   shared?: Shared | null;
 }) {
@@ -127,14 +136,28 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
     setBusy(true);
     try {
       const body = { ...form, amount: Number(amount || 0) };
-      const { campaign } = editing.id
-        ? await api<{ campaign: Campaign }>(`/api/campaigns/${editing.id}`, { method: 'PUT', body })
-        : await api<{ campaign: Campaign }>('/api/campaigns', { body });
+      const { campaign, prepared_draft } = editing.id
+        ? await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${editing.id}`, { method: 'PUT', body })
+        : await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>('/api/campaigns', { body });
       setItems(list => (editing.id ? (list ?? []).map(c => (c.id === campaign.id ? campaign : c)) : [campaign, ...(list ?? [])]));
       setEditing(null);
-      setMessage({ kind: 'info', text: '저장했어요.' });
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: `저장했어요.${preparedText(prepared_draft)}` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '저장하지 못했어요.' }); }
     finally { setBusy(false); }
+  }
+
+  /** 진행 중이 되며 서버가 원고를 준비했으면 알려 주고 원고 목록을 다시 읽는다 */
+  const preparedText = (p: { planned_on: string | null } | null | undefined) =>
+    p ? ` 가이드·필수 해시태그를 넣은 빈 원고를 ${p.planned_on ? `${Number(p.planned_on.slice(5, 7))}/${Number(p.planned_on.slice(8))} 게시 예정으로 ` : ''}준비했어요.` : '';
+  const afterSave = (p: { planned_on: string | null } | null | undefined) => { if (p) onDraftsChanged?.(); };
+
+  /** 정산 확인·게시 보고 메일 초안을 받아 메일 화면 '새 메일'에 채운다(보내지 않음) */
+  async function mailDraft(c: Campaign, kind: 'payment' | 'report') {
+    try {
+      const seed = await api<ComposeSeed>(`/api/campaigns/${c.id}/mail`, { body: { kind } });
+      onCompose?.(seed);
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '메일 초안을 만들지 못했어요.' }); }
   }
 
   /** 목록에서 바로 다음 단계로(관심 → 신청함 → 선정). 선정되면 진행 중 목록으로 옮겨 간다. */
@@ -142,9 +165,10 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
     const next = NEXT[c.status];
     if (!next) return;
     try {
-      const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status: next[0] } });
+      const { campaign, prepared_draft } = await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status: next[0] } });
       setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
-      setMessage({ kind: 'info', text: next[0] === 'in_progress' ? `${c.brand}: 선정! 진행 중으로 옮겼어요. 리뷰 마감일을 적어 두세요.` : `${c.brand}: 신청함으로 바꿨어요.` });
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: next[0] === 'in_progress' ? `${c.brand}: 선정! 진행 중으로 옮겼어요.${preparedText(prepared_draft) || ' 리뷰 마감일을 적어 두세요.'}` : `${c.brand}: 신청함으로 바꿨어요.` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
@@ -152,9 +176,10 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
   async function decide(c: Campaign, accept: boolean) {
     if (!c.suggest) return;
     try {
-      const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: accept ? { status: c.suggest.status } : { suggest: null } });
+      const { campaign, prepared_draft } = await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: accept ? { status: c.suggest.status } : { suggest: null } });
       setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
-      setMessage({ kind: 'info', text: accept ? `${c.brand}: ${STATUS_LABEL[c.suggest.status]}(으)로 옮겼어요.` : `${c.brand}: 제안을 지웠어요. 단계는 그대로예요.` });
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: accept ? `${c.brand}: ${STATUS_LABEL[c.suggest.status]}(으)로 옮겼어요.${preparedText(prepared_draft)}` : `${c.brand}: 제안을 지웠어요. 단계는 그대로예요.` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
@@ -371,6 +396,11 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
                 {NEXT[c.status] && <button className="btn small" onClick={() => { void advance(c); }}>{NEXT[c.status]![1]}</button>}
                 {c.source_url && /^https:\/\//.test(c.source_url) && <a className="btn ghost small" href={c.source_url} target="_blank" rel="noopener noreferrer">공고 열기</a>}
                 {c.draft_id && <button className="btn ghost small" onClick={() => onOpenDraft(c.draft_id!)}>원고 열기</button>}
+                {onCompose && c.kind === 'sponsor' && c.status === 'posted' && (() => {
+                  const n = c.posted_on ? daysSince(c.posted_on) : 0;
+                  return <button className={`btn small${n >= PAYMENT_DAYS ? ' primary' : ' ghost'}`} onClick={() => { void mailDraft(c, 'payment'); }}>{n >= PAYMENT_DAYS ? `게시 ${n}일, 입금 확인 메일` : '입금 확인 메일'}</button>;
+                })()}
+                {onCompose && c.kind === 'sponsor' && (c.status === 'posted' || c.status === 'paid') && <button className="btn ghost small" onClick={() => { void mailDraft(c, 'report'); }}>게시 보고 메일</button>}
               </li>
             ))}
           </ul>

@@ -30,11 +30,18 @@ const isWaiting = (m: MailItem) => !!m.needs_reply && m.kind !== 'other' && (m.s
 const inFolder = (m: MailItem, f: Folder) => (f === 'all' ? true : f === 'sent' ? m.status === 'sent' : f === 'waiting' ? isWaiting(m) : m.kind !== 'other' && m.kind !== 'outgoing');
 const empty = (): MailDoc => [{ type: 'p', runs: [] }];
 
-export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => void; onCampaigns: () => void; onWaiting: (n: number) => void }) {
+/** 협찬 화면에서 만든 메일 초안(정산 확인·게시 보고): 새 메일 쓰기에 채우기만 하고 보내기는 사람이 */
+export interface MailSeed { to: string; subject: string; text: string }
+export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUsed }: { onBack: () => void; onCampaigns: () => void; onWaiting: (n: number) => void; seed?: MailSeed | null; onSeedUsed?: () => void }) {
   const [data, setData] = useState<MailData | null>(null);
   const [folder, setFolder] = useState<Folder>('sponsor');
   const [open, setOpen] = useState<FullMail | null>(null);
   const [compose, setCompose] = useState<{ to: string; subject: string; doc: MailDoc; from?: Provider } | null>(null);
+  useEffect(() => {
+    if (!seed) return;
+    setCompose({ to: seed.to, subject: seed.subject, doc: docFromText(seed.text) });
+    onSeedUsed?.();
+  }, [seed]); // eslint-disable-line react-hooks/exhaustive-deps
   const [reply, setReply] = useState<{ subject: string; doc: MailDoc; dirty: boolean; style?: ReplyStyle } | null>(null);
   const [plain, setPlain] = useState(false);
   const [confirm, setConfirm] = useState(false);
