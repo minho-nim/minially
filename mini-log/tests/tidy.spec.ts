@@ -196,3 +196,25 @@ test('메일 옆 협찬 카드: 위에 단계 요약, 협찬 메일을 열면 �
     for (const m of (await (await fetch('/api/mail')).json()).mails) if (/딜카드 시험/.test(m.subject)) await fetch(`/api/mail/${m.id}`, { method: 'DELETE' });
   });
 });
+
+test('원고 화면 좌우 폭 조절: 가운데 손잡이를 끌거나 ←→로 오른쪽 칸 폭을 바꾸고 기억', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await login(page, CODE_D);
+  const id = (await call(page, '/api/drafts', 'POST', {})).data.draft.id;
+  await page.goto(`/#draft/${id}`); await page.reload();
+  const handle = page.getByRole('separator', { name: '오른쪽 칸 폭' });
+  await expect(handle).toHaveAttribute('aria-valuenow', '400');
+  await handle.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(handle).toHaveAttribute('aria-valuenow', '420'); // 왼쪽으로 = 오른쪽 칸이 넓어짐
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + 6, box.y + 100); await page.mouse.down();
+  await page.mouse.move(box.x - 100, box.y + 100, { steps: 5 }); await page.mouse.up();
+  const w = Number(await handle.getAttribute('aria-valuenow'));
+  expect(w).toBeGreaterThan(500);
+  await page.reload();
+  await expect(page.getByRole('separator', { name: '오른쪽 칸 폭' })).toHaveAttribute('aria-valuenow', String(w));
+  await page.getByRole('separator', { name: '오른쪽 칸 폭' }).dblclick();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await call(page, `/api/drafts/${id}`, 'DELETE');
+});

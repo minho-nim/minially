@@ -808,11 +808,18 @@ select.input { appearance: auto; }
 .editor-cols { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); align-items: start; }
 .editor-main, .editor-side { display: grid; gap: var(--gap); align-content: start; min-width: 0; }
 .side-jump { display: none; }
+.ed-resize { display: none; }
 .focus-toggle { display: none !important; }
 .jump-target { display: block; scroll-margin-top: 56px; }
 #ed-write, #ed-publish { scroll-margin-top: 12px; }
 @media (min-width: 1200px) {
-  .editor-cols { grid-template-columns: minmax(0, 1fr) minmax(340px, 420px); }
+  .editor-cols { grid-template-columns: minmax(0, 1fr) 12px var(--side-w, 400px); column-gap: 0; }
+  .editor-cols > .editor-main { margin-right: 6px; }
+  .editor-cols > .editor-side { margin-left: 6px; }
+  .ed-resize { display: block; align-self: stretch; cursor: col-resize; touch-action: none; position: relative; border-radius: 6px; min-height: 200px; }
+  .ed-resize::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 5px; width: 2px; border-radius: 2px; background: var(--line); }
+  .ed-resize:hover::after, .ed-resize:focus-visible::after { background: var(--app); }
+  .editor-cols.focus .ed-resize { display: none; }
   .editor-side { position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 12px 0; }
   .side-jump { display: flex; gap: 6px; position: sticky; top: 0; z-index: 2; padding: 2px 0 6px; background: var(--bg); }
   .focus-toggle { display: inline-flex !important; }

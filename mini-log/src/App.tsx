@@ -433,6 +433,8 @@ function readRoute(): { view: View; draftId: string | null } {
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
 type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style' | 'mail' | 'settings';
+const SIDE_W = { min: 300, max: 680, def: 400, key: 'minilog.editor.sideWidth' };
+const clampSide = (n: number) => Math.min(SIDE_W.max, Math.max(SIDE_W.min, Math.round(n)));
 const VIEW_LABEL: Record<Exclude<View, 'proposal'>, string> = { drafts: '원고', ideas: '글감', style: '문체', calendar: '캘린더', campaigns: '협찬', mail: '메일', dashboard: '대시보드', report: '월간보고', blog: '블로그', structure: '구조', settings: '설정' };
 type MenuView = Exclude<View, 'proposal' | 'structure' | 'settings'>;
 // 메뉴 묶음 4개(휴대폰 아래 탭과 같음). 구조는 '블로그' 안에서 바꿔 보고, 설정은 맨 아래 따로
@@ -1161,6 +1163,18 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
     } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '지우지 못했어요.' }); }
   }
 
+  // 쓰기 | 점검·올리기 사이 폭(넓은 화면에서 끌어서, 이 기기에 기억)
+  const colsRef = useRef<HTMLDivElement>(null);
+  const [sideW, setSideW] = useState(() => { try { const n = Number(localStorage.getItem(SIDE_W.key)); return n ? clampSide(n) : SIDE_W.def; } catch { return SIDE_W.def; } });
+  const keepSideW = (n: number) => { const w = clampSide(n); setSideW(w); try { localStorage.setItem(SIDE_W.key, String(w)); } catch { /* 기억만 못 함 */ } };
+  function sideDrag(e: React.PointerEvent<HTMLDivElement>) {
+    const right = colsRef.current?.getBoundingClientRect().right ?? window.innerWidth;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => setSideW(clampSide(right - ev.clientX));
+    const up = (ev: PointerEvent) => { keepSideW(right - ev.clientX); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+
   const saveLabel = { saved: '저장됨', dirty: '저장 대기', saving: '저장 중…', failed: '저장 실패' }[save];
 
   // 지금 단계의 메인 버튼 하나만 진하게: 본문이 비면 AI 초안, 쓰는 중이면 원고 승인, 승인·게시 뒤엔 한 번에 복사
@@ -1213,7 +1227,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
       </nav>
 
       {focus && <button type="button" className="side-handle" onClick={toggleFocus} aria-label="옆 칸 펴기">⟨ 점검·올리기</button>}
-      <div className={`editor-cols${focus ? ' focus' : ''}`}>
+      <div ref={colsRef} className={`editor-cols${focus ? ' focus' : ''}`} style={{ ['--side-w' as string]: `${sideW}px` }}>
       <div className="editor-main" id="ed-write">
       <section className="card step" aria-labelledby="s1">
         <h2 id="s1" className="step-title"><span className="n">1</span>사진<span className="step-sub">{photos ? `${photos.length}/20장` : ''}</span></h2>
@@ -1338,6 +1352,10 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
       </section>
 
       </div>
+      <div className="ed-resize" role="separator" aria-orientation="vertical" aria-label="오른쪽 칸 폭" tabIndex={0}
+        aria-valuemin={SIDE_W.min} aria-valuemax={SIDE_W.max} aria-valuenow={sideW} title="끌어서 좌우 폭 조절(두 번 누르면 처음 폭)"
+        onPointerDown={sideDrag} onDoubleClick={() => keepSideW(SIDE_W.def)}
+        onKeyDown={e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); keepSideW(sideW + (e.key === 'ArrowLeft' ? 20 : -20)); } }} />
       <aside className="editor-side" aria-label="점검·미리보기·올리기">
       <nav className="side-jump" aria-label="옆 칸 바로가기">
         <button type="button" className="btn small ghost side-fold" onClick={toggleFocus} aria-label="옆 칸 접기">접기 ⟩</button>
