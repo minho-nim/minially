@@ -678,6 +678,12 @@ select.input { appearance: auto; }
 .brief-next { display: grid; gap: 10px; }
 .brief .brief-go { background: #fff; color: #2B2233; border-color: #fff; font-weight: 700; }
 .brief .brief-alt { color: inherit; border-color: color-mix(in srgb, currentColor 40%, transparent); }
+.source-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.source-switch button { min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.source-switch button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--ink-text); }
+.source-switch .src-naver[aria-pressed="true"] { background: #03A94F; border-color: #03A94F; color: #fff; }
+.source-switch .src-google[aria-pressed="true"] { background: #2F6FD6; border-color: #2F6FD6; color: #fff; }
+@media (max-width: 599px) { .source-switch button { min-height: 40px; } }
 .pick-bar { display: flex; flex-wrap: wrap; gap: 4px; }
 .pick-bar .btn { padding: 0 8px; font-size: 0.8rem; }
 .pick-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }

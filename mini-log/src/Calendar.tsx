@@ -3,6 +3,7 @@ import { api } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { CalendarFeed } from './CalendarFeed';
 import { InstaGrid } from './InstaGrid';
+import { SourceSwitch, useSource } from './source';
 import { STATUS_LABEL as CAMPAIGN_STATUS, todayKst, type Campaign } from './Campaigns';
 
 // 콘텐츠 캘린더: 게시 예정 원고·게시 완료 원고·협찬 마감을 한 달 달력에(모두 본인 것, 날짜는 한국 시간)
@@ -56,6 +57,9 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
   const loadNcal = () => api<NaverCal>('/api/calendar/naver').then(setNcal).catch(() => setNcal({ available: false, connected: false, events: [], error: '네이버 캘린더를 불러오지 못했어요.' }));
   useEffect(() => { void loadNcal(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [hidden, setHidden] = useState<Kind[]>(readHidden);
+  // 보는 계정: 네이버면 구글 일정을, 구글이면 네이버 일정을 뺀다(내 원고·협찬은 늘 보임)
+  const source = useSource();
+  const off = (k: Kind) => hidden.includes(k) || (source === 'naver' && k === 'google') || (source === 'google' && k === 'naver');
   // 보기: '한눈에'(할 일 목록, 기본) / '달력'. 인스타 격자는 접어 두고 펼치면 이 기기에 기억
   const [view, setViewState] = useState<'agenda' | 'month'>(() => (readKey(VIEW_KEY) === 'month' ? 'month' : 'agenda'));
   const setView = (v: 'agenda' | 'month') => { setViewState(v); writeKey(VIEW_KEY, v); };
@@ -86,7 +90,7 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
 
   const byDay = useMemo(() => {
     const map = new Map<string, Item[]>();
-    const add = (day: string, item: Item) => { if (!hidden.includes(item.kind)) map.set(day, [...(map.get(day) ?? []), item]); };
+    const add = (day: string, item: Item) => { if (!off(item.kind)) map.set(day, [...(map.get(day) ?? []), item]); };
     for (const d of drafts) {
       const title = d.title.trim() || '제목 없는 원고';
       if (d.status === 'published' && d.published_at) add(kstDate(d.published_at), { kind: 'published', id: `p${d.id}`, label: title, sub: '게시 완료', draftId: d.id });
@@ -101,8 +105,8 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
     (gcal?.events ?? []).forEach((e, i) => add(e.day, { kind: 'google', id: `g${i}`, label: e.title, sub: ['구글 캘린더', e.start ? `${e.start}${e.end ? `~${e.end}` : ''}` : '종일', e.location].filter(Boolean).join(' · ') }));
     (ncal?.events ?? []).forEach((e, i) => add(e.day, { kind: 'naver', id: `n${i}`, label: e.title, sub: [`네이버 캘린더${e.calendar ? `(${e.calendar})` : ''}`, e.start ? `${e.start}${e.end ? `~${e.end}` : ''}` : '종일', e.location].filter(Boolean).join(' · ') }));
     return map;
-  }, [drafts, campaigns, gcal, ncal, hidden]);
-  const kinds: Kind[] = ['planned', 'published', 'deadline', ...(gcal?.connected ? ['google' as const] : []), ...(ncal?.connected ? ['naver' as const] : [])];
+  }, [drafts, campaigns, gcal, ncal, hidden, source]); // eslint-disable-line react-hooks/exhaustive-deps
+  const kinds: Kind[] = ['planned', 'published', 'deadline', ...(gcal?.connected && source !== 'naver' ? ['google' as const] : []), ...(ncal?.connected && source !== 'google' ? ['naver' as const] : [])];
 
   const days = monthDays(month);
   const items = byDay.get(selected) ?? [];
@@ -135,6 +139,7 @@ export function CalendarView<D extends CalendarDraft>({ drafts, onBack, onOpenDr
         ))}
       </ul>
 
+      <SourceSwitch note={source === 'naver' ? '네이버 일정만(내 원고·협찬은 늘 보여요)' : '구글 일정만(내 원고·협찬은 늘 보여요)'} />
       {notice && <p className="muted small" role="status" style={{ margin: 0 }}>{notice}</p>}
       {view === 'agenda' && <Agenda byDay={byDay} today={today} unscheduled={unscheduled.length} onOpenDraft={onOpenDraft} onCreate={onCreate} onMonth={day => { setSelected(day); setMonth(day.slice(0, 7)); setView('month'); }} />}
       {view === 'month' && <div className={`cal-layout${gridOpen ? '' : ' no-grid'}`}>

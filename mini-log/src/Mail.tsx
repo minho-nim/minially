@@ -4,6 +4,7 @@ import { Help } from './Help';
 import { SafeMailHtml } from './MailHtml';
 import { MailEditor } from './MailEditor';
 import { showUndo } from './UndoToast';
+import { mailInSource, SourceSwitch, useSource } from './source';
 import { docFromText, docToHtml, docToText, type MailDoc } from '../functions/_mailDoc';
 
 // 메일: 네이버·Gmail에서 15분마다 받은 메일을 한 메일함에 모아 메일 앱처럼(왼쪽 목록·오른쪽 읽기) 보고, 서식 있는 답장·새 메일을 쓴다.
@@ -138,7 +139,8 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
     finally { setBusy(null); setConfirm(false); }
   }
 
-  const list = (data?.mails ?? []).filter(m => inFolder(m, folder));
+  const source = useSource();
+  const list = (data?.mails ?? []).filter(m => inFolder(m, folder) && mailInSource(m.account, source));
   // 계정이 둘 이상이면 메일마다 어느 계정인지 표시한다
   const multi = (data?.accounts?.length ?? 0) > 1;
   const reading = !!open || !!compose;
@@ -171,6 +173,7 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
       )}
       {data?.error && <p className="error small" role="alert" style={{ margin: 0 }}>{data.error}</p>}
 
+      <SourceSwitch note={source === 'naver' ? '네이버 메일만 보여요' : 'Gmail만 보여요'} />
       <div ref={appRef} className={`mail-app${reading ? ' is-reading' : ''}`} style={{ ['--mail-list' as string]: `${listW}px` }}>
         <aside className="mail-side card" aria-label="메일 목록">
           <div className="mail-folders" role="tablist" aria-label="메일함">

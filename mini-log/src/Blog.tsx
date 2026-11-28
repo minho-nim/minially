@@ -15,6 +15,8 @@ const syncText = (r: Synced) => `글 ${r.total}개(새로 ${r.added}개)를 가�
 type Sort = 'recent' | 'views' | 'likes';
 const num = (n: number | null) => (n === null ? '—' : formatNumber(n));
 /** 블로그 키 → 보여 줄 이름·플랫폼·주소(네이버: 아이디, 티스토리: 'tistory:이름') */
+import { SourceSwitch, useSource } from './source';
+
 export function blogInfo(key: string) {
   if (key.startsWith('tistory:')) { const name = key.slice(8); return { name, platform: '티스토리', home: `https://${name}.tistory.com` }; }
   return { name: key, platform: '네이버', home: `https://blog.naver.com/${key}` };
@@ -34,6 +36,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
   const [blogId, setBlogId] = useState('');
   const [sort, setSort] = useState<Sort>('recent');
   const [only, setOnly] = useState<string>('all');
+  const source = useSource();
   const [busy, setBusy] = useState<'save' | 'sync' | 'stats' | null>(null);
   const [editing, setEditing] = useState<{ key: string; views: string; likes: string; comments: string } | null>(null);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
@@ -43,11 +46,12 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
   }, []);
 
   const posts = useMemo(() => {
-    const list = (blog?.posts ?? []).filter(p => only === 'all' || p.blog_id === only);
+    // 보는 계정: 네이버면 네이버 블로그 글만, 구글이면(구글 블로그 연결은 없음) 비움
+    const list = (blog?.posts ?? []).filter(p => (only === 'all' || p.blog_id === only) && (source === 'all' || (source === 'naver' && !p.blog_id.startsWith('tistory:'))));
     if (sort === 'views') list.sort((a, b) => (b.views ?? -1) - (a.views ?? -1));
     if (sort === 'likes') list.sort((a, b) => (b.likes ?? -1) - (a.likes ?? -1));
     return list;
-  }, [blog, sort, only]);
+  }, [blog, sort, only, source]);
   const withStats = (blog?.posts ?? []).filter(p => p.views !== null);
   const top = [...withStats].sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).slice(0, 3);
 
@@ -114,6 +118,7 @@ export function BlogView({ onBack, onOpenDraft }: { onBack: () => void; onOpenDr
       </div>
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
 
+      <SourceSwitch note={source === 'naver' ? '네이버 블로그 글만 보여요' : '구글 계정에 연결된 블로그는 없어요. 블로그 글은 전체·네이버에서 봐요'} />
       <section className="card step" aria-labelledby="link-title">
         <h2 id="link-title" className="step-title">블로그 연결(네이버·티스토리)<span className="step-sub">{blog?.blogs.length ?? 0}/5개</span></h2>
         <Help short={<>네이버 아이디나 티스토리 주소를 적어요(공개 RSS만, 로그인 없음).</>}>네이버는 blog.naver.com/<b>아이디</b>, 티스토리는 <b>이름</b>.tistory.com 주소를 적어요. 블로그가 여러 개면 하나씩 더하면 돼요. 공개 RSS로 최근 글 목록만 가져오고, 로그인하거나 비밀번호를 받지 않아요.</Help>

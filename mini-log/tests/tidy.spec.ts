@@ -111,3 +111,31 @@ test('다음 할 일: 원고 화면 진행 막대가 끝난 단계에 ✓, 다�
   await expect(steps).toContainText('다 끝났어요');
   await call(page, `/api/drafts/${id}`, 'DELETE');
 });
+
+test('보는 계정(전체·네이버·구글): 메일을 계정별로 거르고, 한 화면에서 고르면 캘린더·블로그도 같이, 기본은 전체', async ({ page, request }) => {
+  await login(page, CODE_C);
+  const raw = (from: string, subject: string, id: string) => [`From: ${from}`, `Subject: ${subject}`, `Message-ID: ${id}`, 'Content-Type: text/plain; charset=UTF-8', '', '본문', ''].join('\r\n');
+  await request.post('http://127.0.0.1:8905/inbox', { data: { raw: raw('네이버쪽 <n@src.kr>', 'source naver mail', '<sn1@src.kr>') } });
+  await request.post('http://127.0.0.1:8915/inbox', { data: { raw: raw('구글쪽 <g@src.kr>', 'source gmail mail', '<sg1@src.kr>') } });
+  await page.evaluate(async () => { await fetch('/api/mail/sync', { method: 'POST', body: '{}' }); });
+  await page.goto('/#mail');
+  await page.getByRole('tab', { name: '전체' }).click();
+  const sw = page.getByRole('group', { name: '보는 계정' });
+  await expect(sw.getByRole('button', { name: '전체' })).toHaveAttribute('aria-pressed', 'true');
+  const rows = page.getByRole('complementary', { name: '메일 목록' });
+  await expect(rows).toContainText('source naver mail');
+  await expect(rows).toContainText('source gmail mail');
+  await sw.getByRole('button', { name: '네이버' }).click();
+  await expect(rows).toContainText('source naver mail');
+  await expect(rows).not.toContainText('source gmail mail');
+  await sw.getByRole('button', { name: '구글' }).click();
+  await expect(rows).toContainText('source gmail mail');
+  await expect(rows).not.toContainText('source naver mail');
+  // 다른 화면도 같은 계정, 새로고침해도 기억
+  await page.goto('/#calendar');
+  await page.reload();
+  await expect(page.getByRole('group', { name: '보는 계정' }).getByRole('button', { name: '구글' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('group', { name: '보는 계정' })).toContainText('구글 일정만');
+  await page.getByRole('group', { name: '보는 계정' }).getByRole('button', { name: '전체' }).click();
+  for (const m of (await call(page, '/api/mail')).data.mails as { id: string; subject: string }[]) if (m.subject.startsWith('source ')) await call(page, `/api/mail/${m.id}`, 'DELETE');
+});
