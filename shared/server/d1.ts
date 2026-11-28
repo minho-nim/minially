@@ -47,6 +47,8 @@ export interface HubEnv {
   VAPID_PRIVATE_KEY?: string;
   /** 시험용: 이 출처의 푸시 주소를 받는다(운영에는 넣지 않음) */
   PUSH_TEST_ORIGIN?: string;
+  /** 시험용: 이 출처의 .ics 주소를 구글 캘린더 주소처럼 받는다(운영에는 넣지 않음) */
+  GOOGLE_ICS_TEST_ORIGIN?: string;
   /** 메일 자동 받기 예약 작업(GitHub Actions)이 보내는 토큰 */
   MAIL_CRON_TOKEN?: string;
   /** 시험용: 가짜 메일 서버 "127.0.0.1:포트"(IMAP=포트, SMTP=포트+1) */

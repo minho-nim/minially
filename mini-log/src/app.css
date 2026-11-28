@@ -188,6 +188,8 @@ select.input { appearance: auto; }
 .k-planned { background: var(--app); }
 .k-published { background: var(--ok); }
 .k-deadline { background: #C8322A; }
+.k-google { background: #8A8F98; }
+.cal-chip.k-google { background: color-mix(in srgb, #8A8F98 18%, transparent); color: var(--text); }
 .cal { padding: 8px; display: grid; gap: 4px; }
 .cal-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal-head span { text-align: center; font-size: 0.8125rem; font-weight: 700; color: var(--muted); padding: 4px 0; }
