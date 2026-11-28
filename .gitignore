@@ -17,3 +17,4 @@ coverage/
 minially/desktop/renderer/
 desktop-dist/
 minially/desktop/build/
+*.tsbuildinfo
