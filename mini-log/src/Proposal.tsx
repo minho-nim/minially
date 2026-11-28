@@ -3,7 +3,7 @@ import { Skeleton } from './Skeleton';
 import { api, formatNumber } from '../../shared/client/api';
 import { Tomong } from './Tomong';
 import { blogInfo } from './Blog';
-import { bullets, defaultDm, defaultMail, EMPTY_PITCH, instagramDmHref, mailtoHref, priceLine, type Pitch, type ProposalForm, type ProposalStats } from './proposalKit';
+import { statsAge, bullets, defaultDm, defaultMail, EMPTY_PITCH, instagramDmHref, mailtoHref, priceLine, type Pitch, type ProposalForm, type ProposalStats } from './proposalKit';
 
 // 협찬 제안(먼저 연락하기): ① 어디에 제안할지 ② 메시지(기본 글 → 고치기 → AI 다듬기 → 메일 앱·인스타) ③ 제안서 PDF.
 // 내 소개(제안서 내용)는 한 번 써 두면 되니 접어 두고, 업체마다 바뀌는 것만 앞에 둔다.
@@ -260,6 +260,13 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
               </div>
             )}
             <div className={preview === 'doc' ? 'stack' : 'print-only'} style={{ gap: 8 }}>
+              {(() => {
+                // 숫자는 열 때마다 최근 기록으로 다시 계산한다. 조회수 기록이 30일 넘게 묵었으면 새로 올리라고 알린다
+                const age = statsAge(stats.stats_on);
+                return age !== null && age > 30
+                  ? <p className="error small no-print" role="status" style={{ margin: 0 }}>조회수 기록이 {age}일 전 것이에요. 블로그 화면에서 통계 캡처를 새로 올리면 제안서 숫자도 바로 바뀌어요.</p>
+                  : null;
+              })()}
               <div className="row-between no-print">
                 <p className="muted small" style={{ margin: 0 }}>인쇄 창에서 <b>"PDF로 저장"</b>을 고르세요(A4 한 장).</p>
                 <button className="btn primary small" onClick={() => window.print()}>PDF 만들기</button>
@@ -284,7 +291,7 @@ export function ProposalView({ name, onBack }: { name: string; onBack: () => voi
                 {form.cases && <div className="pd-sec"><h4>진행 사례</h4><ul>{bullets(form.cases).map(l => <li key={l}>{l}</li>)}</ul></div>}
                 {price && <div className="pd-sec"><h4>진행 비용</h4><p>{price}</p></div>}
                 <footer className="pd-foot">{name}{form.contact_email ? ` · ${form.contact_email}` : ''}{form.contact_extra ? ` · ${form.contact_extra}` : ''}</footer>
-                <p className="pd-note">조회수는 블로그 통계 기록(글 {stats.with_stats}개) 기준이에요.</p>
+                <p className="pd-note">조회수는 블로그 통계 기록(글 {stats.with_stats}개{stats.stats_on ? `, ${stats.stats_on.replace(/-/g, '.')} 기준` : ''})이에요.</p>
               </div>
             </div>
           </section>

@@ -4,6 +4,7 @@ import { login } from './helpers';
 import { checkDraft, qualityCheck } from '../src/DraftCheck';
 import { replyPrompt } from '../functions/_mailRules';
 import { historyText } from '../functions/_sponsorFlow';
+import { statsAge } from '../src/proposalKit';
 
 const kst = (days: number) => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10);
 const call = (page: Page, path: string, method = 'GET', body?: unknown) => page.evaluate(async ([p, m, b]) => {
@@ -134,4 +135,28 @@ test('업체별 기록: 같은 업체와 했던 협찬을 편집 칸에 보이�
   await expect(page.getByRole('group', { name: '이 업체와 지난 협찬' })).toContainText('26.07 · 여름 체험 · 40,000원 · 정산 완료');
 
   for (const id of [old.id, now.id]) await call(page, `/api/campaigns/${id}`, 'DELETE');
+});
+
+test('제안서 숫자 기준일: 조회수 기록의 가장 최근 날을 돌려주고, 며칠 묵었는지 센다', async ({ page }) => {
+  expect(statsAge('2026-10-01', '2026-11-28')).toBe(58);
+  expect(statsAge(null)).toBeNull();
+  await login(page, CODE_C);
+  const stats = (await call(page, '/api/proposal')).data.stats;
+  expect('stats_on' in stats).toBe(true);
+  if (stats.stats_on !== null) expect(stats.stats_on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('내 이름 바꾸기: 미니로그 설정에서 바꾸면 인사말에도 보이고(미니허브와 같은 값), 잘못된 이름은 거절', async ({ page, request }) => {
+  expect((await request.put('/api/me', { data: { name: '해커' } })).status()).toBe(401);
+  await login(page, CODE_C);
+  for (const bad of ['', '   ', '<b>이름</b>', '가'.repeat(21)]) expect((await call(page, '/api/me', 'PUT', { name: bad })).status).toBe(400);
+  await page.goto('/#settings');
+  const card = page.getByRole('region', { name: '내 이름' });
+  await card.getByLabel('화면에 보일 이름').fill('민호');
+  await card.getByRole('button', { name: '이름 바꾸기' }).click();
+  await expect(card).toContainText('이름을 바꿨어요');
+  expect((await call(page, '/api/me')).data.name).toBe('민호');
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /좋은 하루예요, 민호님/ })).toBeVisible();
+  await call(page, '/api/me', 'PUT', { name: '사용자 C' }); // 다른 시험을 위해 되돌림
 });

@@ -106,7 +106,7 @@ export default function App() {
       </main>
     );
   }
-  return <Workspace me={state.me} onLogout={() => setState({ kind: 'login' })} />;
+  return <Workspace me={state.me} onLogout={() => setState({ kind: 'login' })} onRenamed={name => setState({ kind: 'ready', me: { ...state.me, name } })} />;
 }
 
 function Login({ onDone }: { onDone: () => void }) {
@@ -150,7 +150,7 @@ function Login({ onDone }: { onDone: () => void }) {
 
 const dateLabel = (ms: number) => new Intl.DateTimeFormat('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(ms);
 
-function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
+function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; onRenamed: (name: string) => void }) {
   const [drafts, setDrafts] = useState<Draft[] | null>(null);
   const [listError, setListError] = useState('');
   // 원고는 최근 200개씩: 더 오래된 원고가 남았으면 목록 끝에 '이전 원고 더 보기'
@@ -323,7 +323,7 @@ function Workspace({ me, onLogout }: { me: Me; onLogout: () => void }) {
         : view === 'structure' ? <StructureView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'blog' ? <BlogView onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} />
         : view === 'calendar' ? <CalendarView drafts={drafts ?? []} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={date => { void create(date); }} onSaved={list => list.forEach(onSaved)} />
-        : view === 'settings' ? <SettingsView onBack={() => setView('drafts')} />
+        : view === 'settings' ? <SettingsView name={me.name} onRenamed={onRenamed} onBack={() => setView('drafts')} />
         : view === 'dashboard' ? <DashboardView onBack={() => setView('drafts')} onOpen={id => { setSelectedId(id); setView('drafts'); }} onCampaigns={() => setView('campaigns')} />
         : view === 'campaigns' ? <CampaignsView drafts={drafts ?? []} onCompose={seed => { setMailSeed(seed); setView('mail'); }} onDraftsChanged={() => { void refresh(); }} onProposal={() => setView('proposal')} onBack={() => setView('drafts')} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} shared={shared} />
         : selected
@@ -520,7 +520,35 @@ function DashboardView({ onBack, onOpen, onCampaigns }: { onBack: () => void; on
 }
 
 // 설정: 내 계정(공개 아이디·바깥 서비스 연결 상태)과 데이터 백업. 대시보드에는 숫자만 둔다.
-function SettingsView({ onBack }: { onBack: () => void }) {
+/** 내 이름: 화면에 보이는 이름(미니허브와 같은 값). 로그인 코드와는 상관없다 */
+function NameCard({ name, onRenamed }: { name: string; onRenamed: (name: string) => void }) {
+  const [value, setValue] = useState(name);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true); setMsg(null);
+    try {
+      const { name: saved } = await api<{ name: string }>('/api/me', { method: 'PUT', body: { name: value } });
+      onRenamed(saved); setValue(saved);
+      setMsg({ kind: 'info', text: '이름을 바꿨어요. 미니허브에도 같은 이름으로 보여요.' });
+    } catch (err) { setMsg({ kind: 'error', text: err instanceof Error ? err.message : '바꾸지 못했어요.' }); }
+    finally { setBusy(false); }
+  }
+  return (
+    <section className="card step" aria-labelledby="name-title">
+      <h2 id="name-title" className="step-title">내 이름</h2>
+      <form className="ai-row" onSubmit={e => { void save(e); }}>
+        <input id="my-name" className="input" aria-label="화면에 보일 이름" value={value} maxLength={20} autoComplete="nickname" onChange={e => setValue(e.target.value)} style={{ flex: '1 1 200px' }} />
+        <button className="btn" type="submit" disabled={busy || !value.trim() || value.trim() === name}>{busy ? '바꾸는 중…' : '이름 바꾸기'}</button>
+      </form>
+      <p className="muted small" style={{ margin: 0 }}>인사말·메뉴·제안서에 보이는 이름이에요(1~20자). 로그인 코드는 그대로예요.</p>
+      {msg && <p className={msg.kind === 'error' ? 'error small' : 'muted small'} role={msg.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{msg.text}</p>}
+    </section>
+  );
+}
+
+function SettingsView({ name, onRenamed, onBack }: { name: string; onRenamed: (name: string) => void; onBack: () => void }) {
   return (
     <article className="stack" aria-labelledby="settings-title">
       <div className="editor-head">
@@ -529,6 +557,7 @@ function SettingsView({ onBack }: { onBack: () => void }) {
           <h1 id="settings-title" style={{ margin: 0, fontSize: '1.3rem', letterSpacing: '-0.02em' }}>설정</h1>
         </div>
       </div>
+      <NameCard name={name} onRenamed={onRenamed} />
       <PushCard />
       <AccountsCard />
       <BackupCard />
