@@ -21,6 +21,8 @@ interface Props {
   onClose: () => void; onAdd: (list: Schedule[], rules: RecurrenceRule[]) => Promise<void>;
 }
 const DAY_NAMES = '일월화수목금토';
+/** 구글 캘린더 가져오기: 소유자 결정(2026-11-28)으로 미니어리 화면에서는 뺌(구글 일정은 미니로그에서 봄). 코드는 남겨 둠 */
+const SHOW_GOOGLE_IMPORT = false;
 const MAX_PHOTOS = 3;
 
 const field = 'min-w-0 rounded-lg border border-app-line bg-white px-2 text-sm text-app-ink';
@@ -166,13 +168,13 @@ export function PhotoScheduleSheet({ open, file, text, categories, schedules, re
           <div className="flex items-center gap-2 text-xs text-app-muted" aria-hidden="true"><span className="h-px flex-1 bg-app-line" />또는<span className="h-px flex-1 bg-app-line" /></div>
           <p className="text-sm text-app-ink">예약 문자·공지·포스터 사진을 고르면(3장까지) 날짜와 시간을 찾아 일정 후보로 보여 줘요. 고른 것만 등록돼요.</p>
           {pickButton}
-          <div className="flex items-center gap-2 text-xs text-app-muted" aria-hidden="true"><span className="h-px flex-1 bg-app-line" />또는<span className="h-px flex-1 bg-app-line" /></div>
+          {SHOW_GOOGLE_IMPORT && <><div className="flex items-center gap-2 text-xs text-app-muted" aria-hidden="true"><span className="h-px flex-1 bg-app-line" />또는<span className="h-px flex-1 bg-app-line" /></div>
           <form className="space-y-2" onSubmit={e => { e.preventDefault(); readGoogle(); }}>
             <label htmlFor="google-ics" className="block text-sm font-semibold text-app-ink"><CalendarDays className="mr-1 inline h-4 w-4" aria-hidden="true" />구글 캘린더에서 가져오기</label>
             <input id="google-ics" type="url" inputMode="url" autoComplete="off" spellCheck={false} value={googleUrl} onChange={e => setGoogleUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="min-h-11 w-full rounded-xl border border-app-line bg-white px-3 text-base text-app-ink placeholder:text-app-muted sm:text-sm" />
             <button type="submit" disabled={!googleUrl.trim()} className="min-h-11 rounded-xl border border-app-accent bg-app-soft px-4 text-sm font-semibold text-app-accent-ink disabled:opacity-50">다가오는 일정 가져오기</button>
             <p className="text-xs text-app-muted">구글 캘린더 → 설정 → 내 캘린더 → 캘린더 통합의 ‘iCal 형식의 비공개 주소’를 붙여 넣어요. 앞으로 90일 일정만 읽고, 고른 것만 등록돼요. 주소는 이 기기에만 기억하고(남에게 알려 주지 마세요) 서버에 저장하지 않아요.</p>
-          </form>
+          </form></>}
           <p className="rounded-xl bg-app-soft p-3 text-xs text-app-ink">사진은 구글 무료 AI(Gemini)로 읽어요. 무료 AI에 보낸 내용은 구글 서비스 개선에 쓰일 수 있어요. 개인정보가 있는 문자는 사진 대신 글을 복사해 위에 붙여넣어 주세요.</p>
           {checkBox}
         </div>}
