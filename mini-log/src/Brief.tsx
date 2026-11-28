@@ -22,7 +22,9 @@ export function usePhone() {
   return phone;
 }
 
-export function BriefCard({ name, onGo }: { name: string; onGo: (target: BriefItem['target']) => void }) {
+/** 급한 일이 없을 때도 '지금 할 일' 하나를 버튼으로: 쓰던 원고 이어 쓰기 → 없으면 새 원고·글감 */
+interface DraftLite { id: string; title: string; status: string; updated_at: number }
+export function BriefCard({ name, onGo, drafts = [], onOpenDraft, onCreate, onIdeas }: { name: string; onGo: (target: BriefItem['target']) => void; drafts?: DraftLite[]; onOpenDraft?: (id: string) => void; onCreate?: () => void; onIdeas?: () => void }) {
   const [brief, setBrief] = useState<Brief | null>(null);
   useEffect(() => { let alive = true; api<Brief>('/api/brief').then(b => { if (alive) setBrief(b); }).catch(() => { /* 카드만 안 보임 */ }); return () => { alive = false; }; }, []);
   if (!brief) return null;
@@ -44,15 +46,28 @@ export function BriefCard({ name, onGo }: { name: string; onGo: (target: BriefIt
                 </li>
               ))}
             </ol>
-          ) : <p className="small" style={{ margin: 0 }}>마감·답장·오늘 올릴 원고가 없어요. 글감에서 다음 글을 골라 볼까요?</p>}
+          ) : (() => {
+            const writing = [...drafts].filter(d => d.status !== 'published').sort((a, b) => b.updated_at - a.updated_at)[0];
+            return (
+              <div className="brief-next">
+                <p className="small" style={{ margin: 0 }}>{writing ? '마감·답장은 없어요. 쓰던 원고를 이어서 마무리해 볼까요?' : '마감·답장·쓰던 원고가 없어요. 새 글을 시작해 볼까요?'}</p>
+                <div className="ai-row">
+                  {writing && onOpenDraft && <button type="button" className="btn small brief-go" onClick={() => onOpenDraft(writing.id)}>‘{(writing.title.trim() || '제목 없는 원고').slice(0, 18)}’ 이어 쓰기 →</button>}
+                  {!writing && onCreate && <button type="button" className="btn small brief-go" onClick={onCreate}>첫 글 쓰기 →</button>}
+                  {onIdeas && <button type="button" className="btn small ghost brief-alt" onClick={onIdeas}>글감에서 고르기</button>}
+                </div>
+              </div>
+            );
+          })()}
           {brief.items.length > 3 && <p className="small brief-more">그 밖에 {brief.items.length - 3}개 더 있어요</p>}
         </div>
-        <div className="brief-kpis" aria-label="숫자 요약">
+        {/* 숫자가 모두 0이면 숨긴다(할 일에 눈이 가게) */}
+        {(c.posted_week || c.receivable || c.waiting || c.suggest) ? <div className="brief-kpis" aria-label="숫자 요약">
           <div><span className="muted small">이번 주 게시</span><b>{c.posted_week}</b></div>
           <div><span className="muted small">받을 금액</span><b>{c.receivable ? `${won(c.receivable)}원` : '0원'}</b></div>
           <div><span className="muted small">답장 기다림</span><b>{c.waiting}</b></div>
           <div><span className="muted small">단계 확인</span><b>{c.suggest}</b></div>
-        </div>
+        </div> : null}
       </div>
     </section>
   );

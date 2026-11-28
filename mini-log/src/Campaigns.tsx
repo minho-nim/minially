@@ -18,6 +18,8 @@ export interface Campaign {
   id: string; kind: Kind; brand: string; title: string; provided: string; amount: number;
   deadline: string | null; status: Status; paid_on: string | null; draft_id: string | null; memo: string; guide: Guide | null; pitch: PitchLog | null; suggest?: { status: Status; reason: string } | null;
   source_url: string; apply_by: string | null; created_at: number; updated_at: number;
+  /** 게시 완료로 바꾼 날(정산 확인 알림) */
+  posted_on?: string | null;
 }
 /** 먼저 제안한 기록(제안 화면의 '보낸 걸로 기록') */
 export interface PitchLog { on: string; via: 'mail' | 'dm'; reply: 'waiting' | 'yes' | 'no' }
@@ -31,8 +33,39 @@ const OPEN: Status[] = ['proposed', 'in_progress', 'posted'];
 const WISH: Status[] = ['interested', 'applied'];
 /** 다음 단계로 한 번에: 관심 → 신청함 → 선정(진행 중) */
 const NEXT: Partial<Record<Status, [Status, string]>> = { interested: ['applied', '신청했어요'], applied: ['in_progress', '선정됐어요'] };
-type Filter = 'open' | 'wish' | 'paid' | 'cancelled' | 'all' | 'brand';
-const FILTERS: [Filter, string][] = [['open', '진행 중'], ['wish', '관심·신청'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체'], ['brand', '업체별']];
+interface BrandPast { id: string; title: string; amount: number; status: string; on: string | null; draft_id: string | null; views: number | null }
+/** 같은 업체와 했던 협찬(게시·정산까지): 원고료·날짜·조회수. 업체 이름을 적고 0.5초 뒤에 찾는다 */
+function BrandPastBox({ brand, except, onOpenDraft }: { brand: string; except: string | null; onOpenDraft: (id: string) => void }) {
+  const [past, setPast] = useState<BrandPast[]>([]);
+  useEffect(() => {
+    const b = brand.trim();
+    if (b.length < 2) { setPast([]); return; }
+    let alive = true;
+    const t = setTimeout(() => {
+      api<{ past: BrandPast[] }>(`/api/campaigns/history?brand=${encodeURIComponent(b)}${except ? `&except=${except}` : ''}`).then(d => { if (alive) setPast(d.past); }).catch(() => { if (alive) setPast([]); });
+    }, 500);
+    return () => { alive = false; clearTimeout(t); };
+  }, [brand, except]);
+  if (!past.length) return null;
+  return (
+    <div className="brand-past" role="group" aria-label="이 업체와 지난 협찬">
+      <b className="small">이 업체와 지난 협찬 {past.length}건</b>
+      <ul>
+        {past.map(p => (
+          <li key={p.id} className="small">
+            <span>{p.on ? p.on.slice(2, 7).replace('-', '.') : '—'} · {p.title || '협찬'} · {p.amount ? won(p.amount) : '원고료 없음'} · {p.status === 'paid' ? '정산 완료' : '게시 완료'}{p.views !== null ? ` · 조회 ${formatNumber(p.views)}` : ''}</span>
+            {p.draft_id && <button type="button" className="btn ghost small" onClick={() => onOpenDraft(p.draft_id!)}>원고</button>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** 단계판(칸반) 칸 순서. 취소는 칸에 두지 않고 목록의 '취소'에서 본다 */
+const BOARD: Status[] = ['interested', 'applied', 'proposed', 'in_progress', 'posted', 'paid'];
+type Filter = 'open' | 'wish' | 'paid' | 'cancelled' | 'all' | 'brand' | 'board';
+const FILTERS: [Filter, string][] = [['board', '단계판'], ['open', '진행 중'], ['wish', '관심·신청'], ['paid', '정산 완료'], ['cancelled', '취소'], ['all', '전체'], ['brand', '업체별']];
 
 export const won = (n: number) => `${formatNumber(n)}원`;
 /** 한국 날짜(YYYY-MM-DD) */
@@ -43,17 +76,26 @@ export function dDay(deadline: string) {
 }
 
 type Form = Omit<Campaign, 'id' | 'created_at' | 'updated_at' | 'amount'> & { amount: string };
-const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null };
+const EMPTY: Form = { kind: 'sponsor', brand: '', title: '', provided: '', amount: '', deadline: null, status: 'proposed', paid_on: null, draft_id: null, memo: '', guide: null, pitch: null, source_url: '', apply_by: null, posted_on: null };
 
-export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared = null }: {
+/** 메일 초안(정산 확인·게시 보고): 새 메일 쓰기에 채워 주고, 보내기는 사람이 메일 화면에서 */
+export interface ComposeSeed { to: string; subject: string; text: string }
+export const PAYMENT_DAYS = 14;
+
+export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared = null, onCompose, onDraftsChanged }: {
   drafts: { id: string; title: string }[]; onBack: () => void; onOpenDraft: (id: string) => void; onProposal: () => void;
+  onCompose?: (seed: ComposeSeed) => void;
+  /** 진행 중이 되며 원고를 새로 준비했을 때(원고 목록 다시 읽기) */
+  onDraftsChanged?: () => void;
   /** 휴대폰 공유로 받은 공고(있으면 '관심' 새 협찬으로 연다) */
   shared?: Shared | null;
 }) {
   const [items, setItems] = useState<Campaign[] | null>(null);
   const [moreHidden, setMoreHidden] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [filter, setFilter] = useState<Filter>('open');
+  // 단계판으로 보던 기기는 다음에도 단계판으로(이 기기에만 기억)
+  const [filter, setFilterState] = useState<Filter>(() => { try { return localStorage.getItem('minilog.campaigns.view') === 'board' ? 'board' : 'open'; } catch { return 'open'; } });
+  const setFilter = (f: Filter) => { setFilterState(f); try { localStorage.setItem('minilog.campaigns.view', f === 'board' ? 'board' : 'list'); } catch { /* 기억만 못 함 */ } };
   const [editing, setEditing] = useState<{ id: string | null; form: Form } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'error' | 'info'; text: string } | null>(null);
@@ -127,14 +169,39 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
     setBusy(true);
     try {
       const body = { ...form, amount: Number(amount || 0) };
-      const { campaign } = editing.id
-        ? await api<{ campaign: Campaign }>(`/api/campaigns/${editing.id}`, { method: 'PUT', body })
-        : await api<{ campaign: Campaign }>('/api/campaigns', { body });
+      const { campaign, prepared_draft } = editing.id
+        ? await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${editing.id}`, { method: 'PUT', body })
+        : await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>('/api/campaigns', { body });
       setItems(list => (editing.id ? (list ?? []).map(c => (c.id === campaign.id ? campaign : c)) : [campaign, ...(list ?? [])]));
       setEditing(null);
-      setMessage({ kind: 'info', text: '저장했어요.' });
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: `저장했어요.${preparedText(prepared_draft)}` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '저장하지 못했어요.' }); }
     finally { setBusy(false); }
+  }
+
+  /** 진행 중이 되며 서버가 원고를 준비했으면 알려 주고 원고 목록을 다시 읽는다 */
+  const preparedText = (p: { planned_on: string | null } | null | undefined) =>
+    p ? ` 가이드·필수 해시태그를 넣은 빈 원고를 ${p.planned_on ? `${Number(p.planned_on.slice(5, 7))}/${Number(p.planned_on.slice(8))} 게시 예정으로 ` : ''}준비했어요.` : '';
+  const afterSave = (p: { planned_on: string | null } | null | undefined) => { if (p) onDraftsChanged?.(); };
+
+  /** 정산 확인·게시 보고 메일 초안을 받아 메일 화면 '새 메일'에 채운다(보내지 않음) */
+  async function mailDraft(c: Campaign, kind: 'payment' | 'report') {
+    try {
+      const seed = await api<ComposeSeed>(`/api/campaigns/${c.id}/mail`, { body: { kind } });
+      onCompose?.(seed);
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '메일 초안을 만들지 못했어요.' }); }
+  }
+
+  /** 단계판에서 칸 옮기기(버튼·끌어 놓기). 진행 중으로 오면 원고 준비 알림 */
+  async function move(c: Campaign, status: Status) {
+    if (c.status === status) return;
+    try {
+      const { campaign, prepared_draft } = await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status } });
+      setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: `${c.brand}: ${STATUS_LABEL[status]}(으)로 옮겼어요.${preparedText(prepared_draft)}` });
+    } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '옮기지 못했어요.' }); }
   }
 
   /** 목록에서 바로 다음 단계로(관심 → 신청함 → 선정). 선정되면 진행 중 목록으로 옮겨 간다. */
@@ -142,9 +209,10 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
     const next = NEXT[c.status];
     if (!next) return;
     try {
-      const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status: next[0] } });
+      const { campaign, prepared_draft } = await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: { status: next[0] } });
       setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
-      setMessage({ kind: 'info', text: next[0] === 'in_progress' ? `${c.brand}: 선정! 진행 중으로 옮겼어요. 리뷰 마감일을 적어 두세요.` : `${c.brand}: 신청함으로 바꿨어요.` });
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: next[0] === 'in_progress' ? `${c.brand}: 선정! 진행 중으로 옮겼어요.${preparedText(prepared_draft) || ' 리뷰 마감일을 적어 두세요.'}` : `${c.brand}: 신청함으로 바꿨어요.` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
@@ -152,9 +220,10 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
   async function decide(c: Campaign, accept: boolean) {
     if (!c.suggest) return;
     try {
-      const { campaign } = await api<{ campaign: Campaign }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: accept ? { status: c.suggest.status } : { suggest: null } });
+      const { campaign, prepared_draft } = await api<{ campaign: Campaign; prepared_draft?: { planned_on: string | null } | null }>(`/api/campaigns/${c.id}`, { method: 'PUT', body: accept ? { status: c.suggest.status } : { suggest: null } });
       setItems(list => (list ?? []).map(x => (x.id === campaign.id ? campaign : x)));
-      setMessage({ kind: 'info', text: accept ? `${c.brand}: ${STATUS_LABEL[c.suggest.status]}(으)로 옮겼어요.` : `${c.brand}: 제안을 지웠어요. 단계는 그대로예요.` });
+      afterSave(prepared_draft);
+      setMessage({ kind: 'info', text: accept ? `${c.brand}: ${STATUS_LABEL[c.suggest.status]}(으)로 옮겼어요.${preparedText(prepared_draft)}` : `${c.brand}: 제안을 지웠어요. 단계는 그대로예요.` });
     } catch (e) { setMessage({ kind: 'error', text: e instanceof Error ? e.message : '바꾸지 못했어요.' }); }
   }
 
@@ -236,6 +305,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
             <div className="field">
               <label htmlFor="c-brand">{editing.form.kind === 'sponsor' ? '업체' : '어디서(선택)'}</label>
               <input id="c-brand" className="input" value={editing.form.brand} maxLength={60} placeholder={editing.form.kind === 'ad' ? '예: 애드포스트' : '예: ○○카페'} onChange={e => set({ brand: e.target.value })} />
+              {editing.form.kind === 'sponsor' && <BrandPastBox brand={editing.form.brand} except={editing.id} onOpenDraft={onOpenDraft} />}
             </div>
             <div className="field">
               <label htmlFor="c-title">캠페인 이름(선택)</label>
@@ -331,14 +401,15 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
               ))}
             </ul>
           ))}
-        {items && filter !== 'brand' && shown.length === 0 && (
+        {items && filter === 'board' && <Board items={items} onMove={(c, st) => { void move(c, st); }} onOpen={startEdit} />}
+        {items && filter !== 'brand' && filter !== 'board' && shown.length === 0 && (
           filter === 'open' ? <EmptyState title="진행 중인 협찬이 없어요" desc="받은 제안·마감·금액을 한곳에서 챙겨요. 마감일은 캘린더에도 떠요." action={{ label: '첫 협찬 적기', onClick: () => startNew('sponsor') }}
             example={<div className="campaign-example"><b>성수과일당 · 겨울 타르트 체험단</b><span className="muted small">제안 받음 · 마감 12/20 · 50,000원</span></div>} />
           : filter === 'wish' ? <EmptyState title="관심 있는 체험단이 없어요" desc="공고를 새 협찬으로 담고 상태를 '관심'으로 두면, 신청 마감일이 달력에도 떠요." action={{ label: '첫 협찬 적기', onClick: () => startNew('sponsor') }} />
           : <EmptyState title="기록이 없어요" />
         )}
         {moreHidden && <p className="muted small" style={{ margin: 0 }}>협찬이 많아 끝난 것 중 오래된 일부는 목록과 CSV에서 빠졌어요(대시보드 합계·월간 보고는 전체 기준).</p>}
-        {filter !== 'brand' && shown.length > 0 && (
+        {filter !== 'brand' && filter !== 'board' && shown.length > 0 && (
           <ul className="campaigns">
             {shown.map(c => (
               <li key={c.id}>
@@ -371,12 +442,61 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
                 {NEXT[c.status] && <button className="btn small" onClick={() => { void advance(c); }}>{NEXT[c.status]![1]}</button>}
                 {c.source_url && /^https:\/\//.test(c.source_url) && <a className="btn ghost small" href={c.source_url} target="_blank" rel="noopener noreferrer">공고 열기</a>}
                 {c.draft_id && <button className="btn ghost small" onClick={() => onOpenDraft(c.draft_id!)}>원고 열기</button>}
+                {onCompose && c.kind === 'sponsor' && c.status === 'posted' && (() => {
+                  const n = c.posted_on ? daysSince(c.posted_on) : 0;
+                  return <button className={`btn small${n >= PAYMENT_DAYS ? ' primary' : ' ghost'}`} onClick={() => { void mailDraft(c, 'payment'); }}>{n >= PAYMENT_DAYS ? `게시 ${n}일, 입금 확인 메일` : '입금 확인 메일'}</button>;
+                })()}
+                {onCompose && c.kind === 'sponsor' && (c.status === 'posted' || c.status === 'paid') && <button className="btn ghost small" onClick={() => { void mailDraft(c, 'report'); }}>게시 보고 메일</button>}
               </li>
             ))}
           </ul>
         )}
       </section>
     </article>
+  );
+}
+
+/** 단계판(칸반): 관심 → 신청 → 제안 → 진행 → 게시 → 정산 칸. 카드를 끌어 놓거나 ‹ › 버튼으로 옮긴다(키보드·휴대폰은 버튼).
+ *  정산 칸은 최근 것 8개만(오래된 것은 '정산 완료' 목록에서) */
+function Board({ items, onMove, onOpen }: { items: Campaign[]; onMove: (c: Campaign, status: Status) => void; onOpen: (c: Campaign) => void }) {
+  const [over, setOver] = useState<Status | null>(null);
+  const sponsor = items.filter(c => c.kind === 'sponsor');
+  const DRAG = 'application/x-minilog-campaign';
+  return (
+    <div className="board" aria-label="협찬 단계판">
+      {BOARD.map((st, i) => {
+        const col = sponsor.filter(c => c.status === st);
+        const list = st === 'paid' ? [...col].sort((a, b) => (b.paid_on ?? '').localeCompare(a.paid_on ?? '')).slice(0, 8) : col;
+        const sum = col.reduce((n, c) => n + c.amount, 0);
+        return (
+          <section key={st} className={`board-col${over === st ? ' drop' : ''}`} aria-label={`${STATUS_LABEL[st]} ${col.length}건`}
+            onDragOver={e => { if (e.dataTransfer.types.includes(DRAG)) { e.preventDefault(); setOver(st); } }}
+            onDragLeave={() => setOver(o => (o === st ? null : o))}
+            onDrop={e => { e.preventDefault(); setOver(null); const c = sponsor.find(x => x.id === e.dataTransfer.getData(DRAG)); if (c) onMove(c, st); }}>
+            <h3 className="board-head"><span className={`badge s-${st}`}>{STATUS_LABEL[st]}</span><span className="muted small">{col.length}건{sum ? ` · ${won(sum)}` : ''}</span></h3>
+            {list.length === 0 ? <p className="muted small board-empty">여기로 끌어 놓기</p> : (
+              <ul>
+                {list.map(c => {
+                  const due = st === 'interested' || st === 'applied' ? c.apply_by : OPEN.includes(st) ? c.deadline : null;
+                  return (
+                    <li key={c.id} className="board-card" draggable onDragStart={e => { e.dataTransfer.setData(DRAG, c.id); e.dataTransfer.effectAllowed = 'move'; }}>
+                      <button type="button" className="board-open" onClick={() => onOpen(c)} aria-label={`${c.brand} 고치기`}>
+                        <b>{c.brand}</b>{c.title && <span className="muted small">{c.title}</span>}
+                        <span className="small">{c.amount ? won(c.amount) : '금액 —'}{due && <span className={`dday${dDay(due).includes('지남') ? ' late' : ''}`}> · {dDay(due)}</span>}{c.suggest && ' · 📩 제안'}</span>
+                      </button>
+                      <span className="board-move">
+                        <button type="button" className="btn ghost small" disabled={i === 0} onClick={() => onMove(c, BOARD[i - 1])} aria-label={`${c.brand} ${i > 0 ? STATUS_LABEL[BOARD[i - 1]] : ''}(으)로`}>‹</button>
+                        <button type="button" className="btn ghost small" disabled={i === BOARD.length - 1} onClick={() => onMove(c, BOARD[i + 1])} aria-label={`${c.brand} ${i < BOARD.length - 1 ? STATUS_LABEL[BOARD[i + 1]] : ''}(으)로`}>›</button>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+    </div>
   );
 }
 

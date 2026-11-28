@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../shared/client/api';
 import { Help } from './Help';
 import { SafeMailHtml } from './MailHtml';
 import { MailEditor } from './MailEditor';
+import { showUndo } from './UndoToast';
+import { mailInSource, SourceSwitch, useSource } from './source';
 import { docFromText, docToHtml, docToText, type MailDoc } from '../functions/_mailDoc';
 
 // 메일: 네이버·Gmail에서 15분마다 받은 메일을 한 메일함에 모아 메일 앱처럼(왼쪽 목록·오른쪽 읽기) 보고, 서식 있는 답장·새 메일을 쓴다.
@@ -29,12 +31,33 @@ const shortDay = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10
 const isWaiting = (m: MailItem) => !!m.needs_reply && m.kind !== 'other' && (m.status === 'new' || m.status === 'drafted');
 const inFolder = (m: MailItem, f: Folder) => (f === 'all' ? true : f === 'sent' ? m.status === 'sent' : f === 'waiting' ? isWaiting(m) : m.kind !== 'other' && m.kind !== 'outgoing');
 const empty = (): MailDoc => [{ type: 'p', runs: [] }];
+/** 목록 칸 폭(넓은 화면에서 끌어서 조절, 이 기기에 기억) */
+const LIST_W = { min: 240, max: 560, def: 340, key: 'minilog.mail.listWidth' };
+const clampW = (n: number) => Math.min(LIST_W.max, Math.max(LIST_W.min, Math.round(n)));
+const savedW = () => { try { const n = Number(localStorage.getItem(LIST_W.key)); return n ? clampW(n) : LIST_W.def; } catch { return LIST_W.def; } };
 
-export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => void; onCampaigns: () => void; onWaiting: (n: number) => void }) {
+/** 협찬 화면에서 만든 메일 초안(정산 확인·게시 보고): 새 메일 쓰기에 채우기만 하고 보내기는 사람이 */
+export interface MailSeed { to: string; subject: string; text: string }
+export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUsed }: { onBack: () => void; onCampaigns: () => void; onWaiting: (n: number) => void; seed?: MailSeed | null; onSeedUsed?: () => void }) {
   const [data, setData] = useState<MailData | null>(null);
   const [folder, setFolder] = useState<Folder>('sponsor');
   const [open, setOpen] = useState<FullMail | null>(null);
+  const [listW, setListW] = useState(savedW);
+  const appRef = useRef<HTMLDivElement>(null);
+  const keepW = (n: number) => { const w = clampW(n); setListW(w); try { localStorage.setItem(LIST_W.key, String(w)); } catch { /* 기억만 못 함 */ } };
+  function dragStart(e: React.PointerEvent<HTMLDivElement>) {
+    const left = appRef.current?.getBoundingClientRect().left ?? 0;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => setListW(clampW(ev.clientX - left));
+    const up = (ev: PointerEvent) => { keepW(ev.clientX - left); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
   const [compose, setCompose] = useState<{ to: string; subject: string; doc: MailDoc; from?: Provider } | null>(null);
+  useEffect(() => {
+    if (!seed) return;
+    setCompose({ to: seed.to, subject: seed.subject, doc: docFromText(seed.text) });
+    onSeedUsed?.();
+  }, [seed]); // eslint-disable-line react-hooks/exhaustive-deps
   const [reply, setReply] = useState<{ subject: string; doc: MailDoc; dirty: boolean; style?: ReplyStyle } | null>(null);
   const [plain, setPlain] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -75,6 +98,21 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
     finally { setBusy(null); }
   }
 
+  /** 미니로그 메일함에서만 지우기(원래 메일함은 그대로), 10분 안에 되돌리기 */
+  async function removeMail() {
+    if (!open) return;
+    const id = open.id, subject = open.subject || '(제목 없음)';
+    try {
+      await api(`/api/mail/${id}`, { method: 'DELETE' });
+      setOpen(null); setReply(null);
+      apply(await api<MailData>('/api/mail'));
+      showUndo(`'${subject.slice(0, 20)}' 메일을 지웠어요`, async () => {
+        await api(`/api/trash/${id}/restore`, { method: 'POST', body: {} });
+        apply(await api<MailData>('/api/mail'));
+      });
+    } catch (e) { fail(e, '지우지 못했어요.'); }
+  }
+
   async function act(kind: 'save' | 'done' | 'draft' | 'send') {
     if (!open || !reply) return;
     setBusy(kind); setMessage(null);
@@ -101,7 +139,8 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
     finally { setBusy(null); setConfirm(false); }
   }
 
-  const list = (data?.mails ?? []).filter(m => inFolder(m, folder));
+  const source = useSource();
+  const list = (data?.mails ?? []).filter(m => inFolder(m, folder) && mailInSource(m.account, source));
   // 계정이 둘 이상이면 메일마다 어느 계정인지 표시한다
   const multi = (data?.accounts?.length ?? 0) > 1;
   const reading = !!open || !!compose;
@@ -134,7 +173,8 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
       )}
       {data?.error && <p className="error small" role="alert" style={{ margin: 0 }}>{data.error}</p>}
 
-      <div className={`mail-app${reading ? ' is-reading' : ''}`}>
+      <SourceSwitch note={source === 'naver' ? '네이버 메일만 보여요' : 'Gmail만 보여요'} />
+      <div ref={appRef} className={`mail-app${reading ? ' is-reading' : ''}`} style={{ ['--mail-list' as string]: `${listW}px` }}>
         <aside className="mail-side card" aria-label="메일 목록">
           <div className="mail-folders" role="tablist" aria-label="메일함">
             {FOLDERS.map(([key, label]) => {
@@ -163,6 +203,10 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
           {data && list.length === 0 && <p className="muted small" style={{ margin: 4 }}>{data.connected ? '이 메일함은 비어 있어요.' : '메일을 연결하면 여기에 모여요.'}</p>}
         </aside>
 
+        <div className="mail-resize" role="separator" aria-orientation="vertical" aria-label="메일 목록 폭" tabIndex={0}
+          aria-valuemin={LIST_W.min} aria-valuemax={LIST_W.max} aria-valuenow={listW} title="끌어서 목록 폭 조절(두 번 누르면 처음 폭)"
+          onPointerDown={dragStart} onDoubleClick={() => keepW(LIST_W.def)}
+          onKeyDown={e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); keepW(listW + (e.key === 'ArrowRight' ? 20 : -20)); } }} />
         <section className="mail-read card" aria-label={compose ? '새 메일 쓰기' : '메일 읽기'}>
           {reading && <button className="btn ghost back mail-back" onClick={() => { setOpen(null); setCompose(null); setReply(null); }}>← 메일 목록</button>}
           {!reading && <p className="muted small" style={{ margin: 0 }}>왼쪽에서 메일을 고르거나 '새 메일'을 눌러 주세요.</p>}
@@ -213,7 +257,10 @@ export function MailView({ onBack, onCampaigns, onWaiting }: { onBack: () => voi
                 {open.kind === 'outgoing' ? <SafeMailHtml html={docToHtml(open.reply_doc ?? docFromText(open.reply_body))} />
                   : open.body_html && !plain ? <SafeMailHtml html={open.body_html} /> : <p className="mail-body">{open.snippet}</p>}
               </div>
-              {open.body_html && open.kind !== 'outgoing' && <button type="button" className="link-btn small" style={{ justifySelf: 'start' }} onClick={() => setPlain(p => !p)}>{plain ? '원래 모양으로 보기' : '글만 보기'}</button>}
+              <div className="ai-row">
+                {open.body_html && open.kind !== 'outgoing' && <button type="button" className="link-btn small" onClick={() => setPlain(p => !p)}>{plain ? '원래 모양으로 보기' : '글만 보기'}</button>}
+                <button type="button" className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={() => { void removeMail(); }} disabled={busy !== null} title="네이버·Gmail 메일함은 그대로예요">미니로그에서 지우기</button>
+              </div>
 
               {canReply && reply && open.status !== 'done' && (
                 <div className="mail-reply">

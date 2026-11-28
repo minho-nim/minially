@@ -1,7 +1,7 @@
-import { json, type HubContext } from '../../../shared/server/d1';
-import { renewCookie, sessionFor } from '../../../shared/server/auth';
+import { json, readJson, type HubContext } from '../../../shared/server/d1';
+import { renewCookie, requireSession, sessionFor } from '../../../shared/server/auth';
 import { ensureHubSchema } from '../../../shared/server/schema';
-import { profiles } from '../../../shared/server/profile';
+import { cleanName, profiles, saveProfile } from '../../../shared/server/profile';
 import { geminiStatus } from '../../../shared/server/usage';
 import { getUiPrefs } from '../../../shared/server/writing';
 
@@ -16,4 +16,14 @@ export const onRequestGet = async ({ request, env }: HubContext) => {
   // 화면 설정(밑줄 끄기·첫 안내 다 봄)도 함께: 화면이 따로 읽지 않아 로그아웃과 겹친 요청이 401을 받지 않는다
   const ui = await getUiPrefs(env.DB, session.user);
   return json({ user: session.user, name: mine.name, theme: mine.theme, gemini: geminiStatus(env, session.user), ui }, 200, cookie ? { 'set-cookie': cookie } : {});
+};
+
+// PUT { name }: 화면에 보일 내 이름 바꾸기(미니허브 설정과 같은 값). 본인 것만, 같은 출처만
+export const onRequestPut = async (ctx: HubContext) => {
+  const auth = await requireSession(ctx, 'minilog');
+  if (auth instanceof Response) return auth;
+  const name = cleanName((await readJson(ctx.request))?.name);
+  if (!name) return json({ error: '이름은 1~20자로 적어 주세요(< > 는 쓸 수 없어요).' }, 400);
+  const saved = await saveProfile(auth.db, auth.session.user, { name });
+  return json({ name: saved.name });
 };

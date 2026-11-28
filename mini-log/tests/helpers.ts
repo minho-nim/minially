@@ -24,3 +24,8 @@ export async function login(page: Page, code: string) {
   await page.getByRole('button', { name: '로그인' }).click();
   await expect(page.getByRole('button', { name: '새 원고' })).toBeVisible();
 }
+
+/** 캘린더를 예전처럼 '달력' 보기·인스타 격자 펼침으로(캘린더 기본은 '한눈에'). 이 기기 기억 값을 미리 넣는다 */
+export async function useMonthView(page: Page) {
+  await page.evaluate(() => { localStorage.setItem('minilog.calendar.view', 'month'); localStorage.setItem('minilog.calendar.grid', 'open'); });
+}

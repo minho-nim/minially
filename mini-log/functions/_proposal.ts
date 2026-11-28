@@ -40,6 +40,8 @@ export interface ProposalStats {
   blogs: string[]; posts_total: number; posts_per_month: number; avg_views: number | null; with_stats: number;
   top: { title: string; url: string; views: number; likes: number | null }[];
   tags: string[]; sponsor_done: number; brands: string[];
+  /** 조회수 기록 중 가장 최근 날(YYYY-MM-DD). 오래되면 화면이 새로 불러오라고 알려 준다 */
+  stats_on: string | null;
 }
 
 /** 제안서에 넣을 실제 숫자: 최근 90일 월평균 게시, 숫자 있는 글의 평균 조회수, 조회수 TOP 3, 자주 쓴 태그, 끝낸 협찬 수·업체 */
@@ -57,6 +59,7 @@ export async function proposalStats(db: D1Database, user: UserName, now = Date.n
     posts_per_month: Math.round((recent / 3) * 10) / 10,
     avg_views: withViews.length ? Math.round(withViews.reduce((n, p) => n + (p.views ?? 0), 0) / withViews.length) : null,
     with_stats: withViews.length,
+    stats_on: withViews.reduce<string | null>((m, p) => (p.stats_on && (!m || p.stats_on > m) ? p.stats_on : m), null),
     top: [...withViews].sort((a, b) => (b.views ?? 0) - (a.views ?? 0)).slice(0, 3).map(p => ({ title: p.title, url: p.url, views: p.views ?? 0, likes: p.likes })),
     tags: [...tagCount].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([t]) => t),
     sponsor_done: done.length,

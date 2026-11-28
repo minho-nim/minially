@@ -7,7 +7,12 @@ export interface ProposalStats {
   blogs: string[]; posts_total: number; posts_per_month: number; avg_views: number | null; with_stats: number;
   top: { title: string; url: string; views: number; likes: number | null }[];
   tags: string[]; sponsor_done: number; brands: string[];
+  /** 조회수 기록 중 가장 최근 날 */
+  stats_on?: string | null;
 }
+/** 조회수 기록이 며칠 전 것인지(없으면 null) */
+export const statsAge = (on: string | null | undefined, today = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10)) =>
+  on ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${on}T00:00:00Z`)) / 86400000) : null;
 
 /** 끝 글자 받침에 따라 '을/를'(한글이 아니면 '을(를)') */
 export function eulReul(word: string) {

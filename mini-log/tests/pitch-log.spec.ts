@@ -39,5 +39,6 @@ test('제안 보낸 걸로 기록 → 협찬에 답장 기다림 → 답장 바�
   await expect(page.getByRole('list', { name: '업체별' })).toContainText('1건 · 진행 중 1');
   // 잘못된 기록은 거절
   expect(await page.evaluate(async id => (await fetch(`/api/campaigns/${id}`, { method: 'PUT', body: JSON.stringify({ pitch: { on: '2026-13-01', via: 'mail' } }) })).status, list[0].id)).toBe(400);
-  await page.evaluate(async () => { for (const c of (await (await fetch('/api/campaigns')).json()).campaigns) await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' }); });
+  // 진행 중으로 옮길 때 준비된 원고도 함께 지운다(다른 시험이 D의 원고 수를 센다)
+  await page.evaluate(async () => { for (const c of (await (await fetch('/api/campaigns')).json()).campaigns) { await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' }); if (c.draft_id) await fetch(`/api/drafts/${c.draft_id}`, { method: 'DELETE' }); } });
 });

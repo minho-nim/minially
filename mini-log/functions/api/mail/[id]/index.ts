@@ -2,6 +2,7 @@ import { json, readJson, type HubContext } from '../../../../../shared/server/d1
 import { requireSession } from '../../../../../shared/server/auth';
 import { getMail, saveReply } from '../../../_mail';
 import { docFromText, readMailDoc } from '../../../_mailDoc';
+import { trashRow, TRASH_MS } from '../../../_trash';
 
 // GET: 메일 한 통(받은 HTML 원문·서식 답장) · PUT { reply_subject?, reply_doc? | reply_body?, status?: 'done' | 'drafted' }: 답장 저장·처리 완료(보낸 메일은 못 고침)
 export const onRequestGet = async (ctx: HubContext) => {
@@ -34,4 +35,14 @@ export const onRequestPut = async (ctx: HubContext) => {
   if (body.status !== undefined && body.status !== 'done' && body.status !== 'drafted') return json({ error: '상태가 올바르지 않아요.' }, 400);
   await saveReply(db, user, id, subject, doc, (body.status as 'done' | 'drafted' | undefined) ?? (mail.status === 'done' ? 'done' : 'drafted'));
   return json({ mail: await getMail(db, user, id) });
+};
+
+// DELETE: 미니로그 메일함에서만 지우기(네이버·Gmail 원래 메일함은 그대로). 10분 안에 되돌릴 수 있게 휴지통으로. 본인 것만
+// 이미 받은 메일 번호 뒤부터 받으므로 지운 메일이 다음 받기에서 다시 들어오지 않는다
+export const onRequestDelete = async (ctx: HubContext) => {
+  const auth = await requireSession(ctx, 'minilog');
+  if (auth instanceof Response) return auth;
+  const id = String(ctx.params?.id ?? '');
+  if (!/^[0-9a-f-]{36}$/.test(id) || !(await trashRow(auth.db, auth.session.user, 'mail', id))) return json({ error: '메일을 찾지 못했어요.' }, 404);
+  return json({ ok: true, undo_ms: TRASH_MS });
 };

@@ -7,6 +7,8 @@
 .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 12px; padding: 16px 12px; border-right: 1px solid var(--line); background: var(--surface); }
 .side .brand { padding: 0 6px; }
 .list { display: grid; gap: 2px; overflow-y: auto; align-content: start; margin: 0 -4px; padding: 0 4px; }
+/* 옆 칸이 낮으면 원고 목록이 '설정' 아래로 넘치지 않고 그 안에서 스크롤 */
+.side .list { flex: 1 1 0; min-height: 96px; grid-auto-rows: max-content; }
 .list button {
   display: grid; gap: 2px; text-align: left; width: 100%; min-height: 52px; padding: 8px 10px;
   border: 0; border-radius: 8px; background: transparent; cursor: pointer;
@@ -120,6 +122,22 @@ select.input { appearance: auto; }
 .views button { font-size: 0.875rem; }
 .kpis.three { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.brand-past { grid-column: 1 / -1; display: grid; gap: 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.brand-past ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.brand-past li { display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 6px; }
+.board-col { scroll-snap-align: start; min-width: 0; display: grid; align-content: start; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-2, color-mix(in srgb, var(--text) 4%, transparent)); border: 1px dashed transparent; }
+.board-col.drop { border-color: var(--app); background: color-mix(in srgb, var(--app) 10%, transparent); }
+.board-head { margin: 0; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 6px; font-size: 0.85rem; }
+.board-head .badge { white-space: nowrap; }
+.board-head .muted { white-space: nowrap; }
+.board-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.board-card { display: grid; gap: 4px; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: grab; }
+.board-open { display: grid; gap: 2px; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+.board-move { display: flex; justify-content: space-between; }
+.board-move .btn { min-width: 36px; min-height: 32px; }
+.board-empty { margin: 0; padding: 10px 4px; text-align: center; }
+@media (max-width: 599px) { .board { grid-auto-columns: minmax(78%, 1fr); } .board-move .btn { min-width: 44px; min-height: 44px; } }
 .campaigns { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .campaigns li { display: flex; align-items: center; gap: 6px; }
 .campaign { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); text-align: left; cursor: pointer; }
@@ -176,6 +194,8 @@ select.input { appearance: auto; }
   .m-chips button[aria-current="true"] { background: var(--ink); border-color: var(--ink); color: var(--ink-text); font-weight: 700; }
   .m-chips .m-gear, .m-gear-alone { margin-left: auto; width: 44px; min-height: 44px; padding: 0; justify-content: center; border: 0; background: transparent; color: var(--muted); }
   .m-gear-alone { display: inline-flex; align-items: center; position: fixed; top: 6px; right: 6px; z-index: 25; border-radius: 12px; cursor: pointer; }
+  /* 오른쪽 위 고정 톱니가 화면 머리줄 버튼(캘린더 보기 탭·새 협찬 등)을 가리지 않게 */
+  .editor-head { padding-right: 52px; }
   .m-fab { display: inline-flex; align-items: center; justify-content: center; position: fixed; right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 31; width: 56px; height: 56px; border: 0; border-radius: 18px; background: var(--ink); color: var(--ink-text); box-shadow: 0 6px 16px rgba(43, 34, 51, 0.28); cursor: pointer; }
   .m-fab:disabled { opacity: 0.6; }
   .undo-toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important; }
@@ -531,7 +551,11 @@ select.input { appearance: auto; }
 
 /* 메일 */
 .nav-badge { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--danger, #D0574B); color: #fff; font-size: 0.72rem; font-weight: 800; line-height: 18px; text-align: center; }
-.mail-app { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.mail-app { display: grid; grid-template-columns: var(--mail-list, 340px) 12px minmax(0, 1fr); align-items: stretch; }
+.mail-app > .mail-side, .mail-app > .mail-read { align-self: start; }
+.mail-resize { cursor: col-resize; touch-action: none; position: relative; border-radius: 6px; }
+.mail-resize::after { content: ''; position: absolute; top: 12px; bottom: 12px; left: 5px; width: 2px; border-radius: 2px; background: var(--line); }
+.mail-resize:hover::after, .mail-resize:focus-visible::after { background: var(--app); }
 .mail-side { display: grid; gap: 8px; padding: 10px; min-width: 0; }
 .mail-read { display: grid; gap: 10px; min-width: 0; min-height: 320px; }
 .mail-back { display: none; justify-self: start; }
@@ -574,6 +598,7 @@ select.input { appearance: auto; }
 .badge-ok { padding: 1px 8px; border-radius: 999px; background: var(--sig-soft); font-weight: 700; }
 @media (max-width: 839px) {
   .mail-app { grid-template-columns: minmax(0, 1fr); }
+  .mail-resize { display: none; }
   .mail-app.is-reading .mail-side { display: none; }
   .mail-app:not(.is-reading) .mail-read { display: none; }
   .mail-back { display: inline-flex; }
@@ -641,6 +666,40 @@ select.input { appearance: auto; }
 .lessons li { overflow-wrap: anywhere; }
 
 /* 캘린더 3단: 날짜 없는 원고 서랍 | 달력 | 인스타 격자 (폭에 따라 2단·1단) */
+.ed-steps { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.ed-steps ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ed-steps li button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px 0 4px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.ed-step-n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: var(--surface-2); font-size: 0.78rem; font-weight: 800; }
+.ed-steps li.done button { color: var(--text); }
+.ed-steps li.done .ed-step-n { background: var(--ok, #24704A); color: #fff; }
+.ed-steps li.now button { background: var(--app-soft); color: var(--text); }
+.ed-steps li.now .ed-step-n { background: var(--app); color: #2B2233; }
+@media (max-width: 599px) { .ed-steps li button { padding: 0 6px 0 2px; font-size: 0.8rem; } .ed-next { width: 100%; justify-content: center; min-height: 44px; } }
+.brief-next { display: grid; gap: 10px; }
+.brief .brief-go { background: #fff; color: #2B2233; border-color: #fff; font-weight: 700; }
+.brief .brief-alt { color: inherit; border-color: color-mix(in srgb, currentColor 40%, transparent); }
+.source-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.source-switch button { min-height: 34px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+.source-switch button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--ink-text); }
+.source-switch .src-naver[aria-pressed="true"] { background: #03A94F; border-color: #03A94F; color: #fff; }
+.source-switch .src-google[aria-pressed="true"] { background: #2F6FD6; border-color: #2F6FD6; color: #fff; }
+@media (max-width: 599px) { .source-switch button { min-height: 40px; } }
+.pick-bar { display: flex; flex-wrap: wrap; gap: 4px; }
+.pick-bar .btn { padding: 0 8px; font-size: 0.8rem; }
+.pick-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+.pick-row input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+.pick-row > span { display: grid; min-width: 0; }
+.pick-row.on { background: var(--app-soft); }
+.btn.danger { background: #C8322A; border-color: #C8322A; color: #fff; }
+.btn.danger:disabled { opacity: 0.5; }
+.agenda { gap: 12px; }
+.agenda-group { display: grid; gap: 6px; }
+.agenda-head { margin: 0; font-size: 0.9rem; color: var(--muted); }
+.agenda-group.late .agenda-head { color: #C8322A; }
+.agenda-date { flex: none; min-width: 74px; min-height: 32px; border: 0; background: var(--surface-2); border-radius: 8px; padding: 2px 8px; font: inherit; font-size: 0.82rem; font-weight: 700; color: var(--text); cursor: pointer; text-align: left; }
+.cal-side > .btn { justify-self: start; }
+.cal-side { display: grid; gap: 8px; align-content: start; }
+@media (min-width: 1600px) { .cal-layout.no-grid { grid-template-columns: 240px minmax(0, 1fr) auto; } }
 .cal-layout { display: grid; gap: var(--gap); grid-template-columns: minmax(0, 1fr); grid-template-areas: "cal" "drawer" "grid"; align-items: start; }
 .cal-drawer { grid-area: drawer; }
 .cal-center { grid-area: cal; display: grid; gap: var(--gap); align-content: start; min-width: 0; }
@@ -842,6 +901,7 @@ select.input { appearance: auto; }
 .brief-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .brief-head h2 { margin: 0; font-size: 1.3rem; letter-spacing: -0.02em; }
 .brief-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
+.brief-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .brief-today { background: var(--ink); color: var(--ink-text); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; align-content: start; }
 .brief-today h3 { margin: 0; font-size: 1.05rem; }
 .brief-today ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

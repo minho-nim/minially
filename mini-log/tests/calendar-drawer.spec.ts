@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CODE_C } from '../playwright.config';
-import { login } from './helpers';
+import { login, useMonthView } from './helpers';
 
 const kst = (days = 0) => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10);
 
@@ -13,6 +13,7 @@ test('격자의 빈 게시일: 게시 예정과 함께 날짜순(늦은 날이 �
 
 test('캘린더 서랍: 날짜 없는 원고를 버튼이나 끌어 놓기로 날짜에 잡고, 격자에 빈 게시일이 보인다', async ({ page }) => {
   await login(page, CODE_C);
+  await useMonthView(page);
   await page.evaluate(async () => {
     for (const t of ['서랍 원고 하나', '서랍 원고 둘']) {
       const d = (await (await fetch('/api/drafts', { method: 'POST', body: JSON.stringify({}) })).json()).draft;
