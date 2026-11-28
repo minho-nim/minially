@@ -1010,3 +1010,16 @@ select.input { appearance: auto; }
 .push-keys { display: grid; gap: 4px; }
 .push-keys .input { font-family: ui-monospace, monospace; font-size: 12px; }
 @media (max-width: 839px) { .brief-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* 설정 '글 종류': 줄마다 ↑↓ · 이름 · 보이기 · 뼈대 고치기. 숨긴 줄은 흐리게 */
+.type-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.type-list > li { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: var(--surface); }
+.type-list > li.off .type-name { color: var(--muted); }
+.type-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.type-move { display: inline-flex; gap: 2px; }
+.type-move .btn.icon { min-width: 36px; min-height: 36px; padding: 0; }
+.type-name { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
+.type-show { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.type-edit { display: grid; gap: 8px; padding: 8px 2px 4px; }
+.type-edit .field { display: grid; gap: 4px; }
+.type-row > .btn.small { margin-left: auto; }

@@ -6,6 +6,7 @@ import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
 import { FirstSteps } from './FirstSteps';
 import { PushCard, usePhone } from './Brief';
+import { orderedTypes, outlineOf, PostTypesCard, usePostTypes } from './PostTypes';
 import { TodayBoard } from './Today';
 import { setUiPrefs, type UiPrefs } from './uiPrefs';
 import { CommandPalette, openPalette, type Command } from './CommandPalette';
@@ -617,6 +618,7 @@ function SettingsView({ name, onRenamed, onBack }: { name: string; onRenamed: (n
       </div>
       <NameCard name={name} onRenamed={onRenamed} />
       <PushCard />
+      <PostTypesCard />
       <AccountsCard />
       <BackupCard />
     </article>
@@ -995,15 +997,13 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
   // 2번 칸: 문체·먼저 질문 받기는 '자세히 설정' 안에(가끔 바꾸는 것), 글 종류는 자주 쓴 3개만 먼저
   const [aiMore, setAiMore] = useState(false);
   const [allTypes, setAllTypes] = useState(false);
-  const allTypeKeys: PostType[] = (Object.keys(POST_TYPES) as PostType[]).filter(t => t !== 'none');
-  const frequent = (() => {
-    const used = Object.fromEntries(typeUse.map(u => [u.type, u.count]));
-    const base: PostType[] = ['food', 'cafe', 'sponsored'];
-    return [...allTypeKeys].sort((a, b) => (used[b] ?? 0) - (used[a] ?? 0) || Number(base.includes(b)) - Number(base.includes(a)) || allTypeKeys.indexOf(a) - allTypeKeys.indexOf(b)).slice(0, 3);
-  })();
-  const picked = fields.post_type as PostType;
-  const typesShown = allTypes ? allTypeKeys : [...frequent, ...(allTypeKeys.includes(picked) && !frequent.includes(picked) ? [picked] : [])];
-  const typesHidden = allTypeKeys.length - typesShown.length;
+  // 글 종류 버튼: 설정(계정마다)의 순서 — 기본 자주 쓴 순, 내가 정한 순이 있으면 그 순서. 숨긴 종류는 빼되 이 원고가 고른 것은 보인다
+  const typeData = usePostTypes();
+  const typeList = orderedTypes(typeData);
+  const pickedDef = typeData.types.find(t => t.key === fields.post_type);
+  const frequent = typeList.slice(0, 3);
+  const typesShown = allTypes ? [...typeList, ...(pickedDef && !typeList.includes(pickedDef) ? [pickedDef] : [])] : [...frequent, ...(pickedDef && !frequent.includes(pickedDef) ? [pickedDef] : [])];
+  const typesHidden = Math.max(0, typeList.length - typesShown.length);
   // 원고 편집 2단(Buffer 작성 화면처럼): 쓰는 칸 옆에 점검·미리보기·올리기. '집중'을 누르면 옆 칸을 접는다(기기에 기억)
   const [focus, setFocus] = useState(() => { try { return localStorage.getItem('minilog.focus') === '1'; } catch { return false; } });
   const toggleFocus = () => setFocus(f => { try { localStorage.setItem('minilog.focus', f ? '0' : '1'); } catch { /* 기억 못 해도 됨 */ } return !f; });
@@ -1267,15 +1267,15 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
         {/* 글 종류: 자주 쓴 3개(+ 고른 것)만 먼저, 나머지는 '+N개'로 */}
         <div className="type-pick" role="group" aria-label="글 종류">
           {typesShown.map(t => (
-            <button key={t} type="button" className="chip-btn" aria-pressed={fields.post_type === t} onClick={() => {
-              const next = fields.post_type === t ? 'none' : t;
+            <button key={t.key} type="button" className="chip-btn" aria-pressed={fields.post_type === t.key} onClick={() => {
+              const next = fields.post_type === t.key ? 'none' : t.key;
               const patch: Partial<Fields> = { post_type: next };
               // 경험 칸이 비었거나 이전 뼈대만 있으면 새 뼈대로 바꾼다(직접 쓴 글은 건드리지 않음)
-              const prev = isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
-              if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineText(next);
+              const prev = pickedDef ? outlineOf(pickedDef) : isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
+              if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineOf(t);
               if (next === 'none' && fields.experience.trim() === prev.trim()) patch.experience = '';
               change(patch);
-            }}>{POST_TYPES[t].label}</button>
+            }}>{t.label}</button>
           ))}
           {!allTypes && typesHidden > 0 && <button type="button" className="chip-btn more" onClick={() => setAllTypes(true)} aria-label={`글 종류 ${typesHidden}개 더 보기`}>+ {typesHidden}개</button>}
         </div>

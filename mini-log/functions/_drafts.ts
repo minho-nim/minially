@@ -1,4 +1,5 @@
 import { isPostType } from './_postTypes';
+import { isCustomKey } from './_typeSettings';
 // 미니로그 원고 저장(D1 minilog_drafts). 모든 쿼리는 로그인한 사용자(user) 조건을 붙여 남의 원고를 못 보게 한다.
 import type { D1Database } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
@@ -69,7 +70,7 @@ export function readPatch(body: Record<string, unknown>): Patch | string {
     else return '게시 예정일 형식이 올바르지 않아요.';
   }
   if (body.post_type !== undefined) {
-    if (!isPostType(body.post_type)) return '글 종류가 올바르지 않아요.';
+    if (!isPostType(body.post_type) && !isCustomKey(body.post_type)) return '글 종류가 올바르지 않아요.';
     patch.post_type = body.post_type;
   }
   if (body.style_id !== undefined) {

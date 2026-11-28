@@ -71,3 +71,10 @@ export function readOutlineAnswer(text: string): { outline: string[]; guide: str
   if (a < 0 || b <= a) return null;
   try { const v = JSON.parse(text.slice(a, b + 1)); const outline = lines(v.outline).map(x => x.slice(0, 20)); return outline.length ? { outline, guide: line(v.guide, 120) } : null; } catch { return null; }
 }
+
+/** 글 종류별 원고 수(기본 + 내가 만든 종류). '자주 쓴 순' 정렬용 */
+export async function typeCounts(db: D1Database, user: UserName): Promise<{ type: string; count: number }[]> {
+  const rows = (await db.prepare("SELECT post_type AS type, COUNT(*) AS count FROM minilog_drafts WHERE user = ? AND post_type IS NOT NULL AND post_type != 'none' GROUP BY post_type ORDER BY count DESC, post_type LIMIT 50")
+    .bind(user).all<{ type: string; count: number }>()).results;
+  return rows.filter(r => (BUILTIN as string[]).includes(r.type) || isCustomKey(r.type));
+}
