@@ -15,7 +15,7 @@ export const HANDLE_FIELDS = [
 export const CONNECTIONS = [
   { name: '네이버 블로그', state: '공개 RSS로 글 목록만', note: '네이버가 글쓰기 API를 닫아 로그인 연결·자동 게시는 하지 않아요' },
   { name: '인스타그램·스레드', state: '연결 안 함', note: 'Meta 개발자 앱·비즈니스(크리에이터) 계정이 있어야 숫자를 받아 올 수 있어요' },
-  { name: '메일(Gmail)', state: '연결 안 함', note: 'Google 로그인 연결(OAuth) 키가 있어야 메일을 받아 올 수 있어요' },
+  { name: '메일(네이버·Gmail)·네이버 캘린더', state: '앱 비밀번호로 연결', note: '위 \'메일·캘린더 연결\'에서 직접 연결해요(로그인 연결 OAuth는 쓰지 않음)' },
 ];
 
 export function AccountsList({ account }: { account: AccountSummary }) {

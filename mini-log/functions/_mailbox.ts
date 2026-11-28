@@ -115,6 +115,17 @@ export async function fetchNew(env: HubEnv, account: MailAccount, lastUid: numbe
   } finally { await c.close(); }
 }
 
+/** 연결 시험: 로그인만 해 보고 끊는다(메일은 읽지 않음). 틀리면 MailError */
+export async function testLogin(env: HubEnv, account: MailAccount) {
+  const s = servers(env, account.provider);
+  const c = new Conn(connect(s.imap, { secureTransport: s.tls ? 'on' : 'off' }), Date.now() + 15000);
+  try {
+    if (!/^\* (OK|PREAUTH)/.test(await c.line())) throw new MailError('메일 서버가 응답하지 않아요.');
+    await command(c, 'a1', `LOGIN ${quote(account.address)} ${quote(account.password)}`);
+    try { await command(c, 'z', 'LOGOUT'); } catch { /* 끝 인사는 실패해도 된다 */ }
+  } finally { await c.close(); }
+}
+
 const b64 = (s: string) => { let out = ''; for (const b of enc.encode(s)) out += String.fromCharCode(b); return btoa(out); };
 
 async function reply(c: Conn, want: string) {

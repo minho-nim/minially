@@ -6,6 +6,7 @@ import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
 import { FirstSteps } from './FirstSteps';
 import { PushCard, usePhone } from './Brief';
+import { ConnectCard } from './Connect';
 import { orderedTypes, outlineOf, PostTypesCard, usePostTypes } from './PostTypes';
 import { TodayBoard } from './Today';
 import { setUiPrefs, type UiPrefs } from './uiPrefs';
@@ -617,6 +618,7 @@ function SettingsView({ name, onRenamed, onBack }: { name: string; onRenamed: (n
         </div>
       </div>
       <NameCard name={name} onRenamed={onRenamed} />
+      <ConnectCard />
       <PushCard />
       <PostTypesCard />
       <AccountsCard />

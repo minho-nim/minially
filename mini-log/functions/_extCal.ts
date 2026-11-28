@@ -1,5 +1,6 @@
 // 미니로그 캘린더에 겹쳐 보는 바깥 일정(구글 iCal·네이버 CalDAV, 읽기만). 일정은 저장하지 않고 볼 때마다 읽는다.
 import type { D1Database, HubEnv } from '../../shared/server/d1';
+import { withSaved } from './_creds';
 import type { UserName } from '../../shared/server/auth';
 import { cleanIcsUrl, expandIcs, fetchIcs, parseIcs } from '../../shared/server/googleIcs';
 import { CalDavError, naverCalAccount, naverCalendars, naverEvents, type NaverCalendar } from '../../shared/server/naverCaldav';
@@ -19,6 +20,7 @@ export async function googleEvents(env: HubEnv, db: D1Database, user: UserName, 
 
 /** 네이버: 켜 둔 사람만. 숨긴 캘린더는 빼고 */
 export async function naverState(env: HubEnv, db: D1Database, user: UserName) {
+  env = await withSaved(env, db, user); // 화면에서 연결한 네이버 계정이 먼저
   const acc = naverCalAccount(env, user);
   const row = await db.prepare('SELECT enabled, hidden FROM minilog_ncal WHERE user = ?').bind(user).first<{ enabled: number; hidden: string | null }>();
   let hidden: string[] = [];

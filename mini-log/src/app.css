@@ -1023,3 +1023,50 @@ select.input { appearance: auto; }
 .type-edit { display: grid; gap: 8px; padding: 8px 2px 4px; }
 .type-edit .field { display: grid; gap: 4px; }
 .type-row > .btn.small { margin-left: auto; }
+
+/* 메일·캘린더 연결(설정) + 연결 창: 단계 표시 · 본문 · 아래 버튼(자리 고정) */
+.connect-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.connect-list > li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.connect-list .muted { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.conn-actions { display: inline-flex; gap: 6px; margin-left: auto; }
+.conn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); flex: none; }
+.conn-dot.on { background: var(--ok); }
+.ok-text { color: var(--ok); font-weight: 600; }
+.wiz-backdrop { position: fixed; inset: 0; z-index: 60; background: rgb(30 20 10 / 0.38); display: grid; place-items: center; padding: 16px; }
+.wiz { position: relative; width: min(860px, 100%); height: min(600px, calc(100dvh - 32px)); display: grid; grid-template-rows: auto 1fr auto; gap: 14px; padding: 20px; overflow: hidden; }
+.wiz:focus { outline: none; }
+.wiz-steps { list-style: none; margin: 0; padding: 0 40px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.wiz-steps li { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2, #f3ece6); color: var(--muted); font-size: 0.85rem; font-weight: 600; }
+.wiz-steps li .n { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid currentColor; font-size: 0.7rem; }
+.wiz-steps li.now { background: var(--app); color: #fff; }
+.wiz-steps li.done { background: color-mix(in srgb, var(--ok) 14%, transparent); color: var(--ok); }
+.wiz-close { position: absolute; top: 12px; right: 12px; min-width: 40px; }
+.wiz-body { overflow: auto; min-height: 260px; }
+.wiz-body h2 { margin: 0 0 12px; font-size: 1.2rem; letter-spacing: -0.02em; }
+.wiz-pick { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.wiz-choice { display: grid; gap: 4px; text-align: left; padding: 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.wiz-choice.on { border-color: var(--app); background: var(--app-soft); }
+.wiz-follow { display: grid; grid-template-columns: 1fr 240px; gap: 20px; align-items: start; }
+.wiz-howto { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.wiz-howto li { display: grid; gap: 2px; }
+.wiz-howto .link-btn { display: flex; gap: 8px; align-items: flex-start; text-align: left; color: var(--muted); font-weight: 500; }
+.wiz-howto li.now .link-btn { color: var(--text); font-weight: 700; }
+.wiz-howto .n { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--app-soft); color: var(--text); font-size: 0.8rem; font-weight: 800; }
+.wiz-howto li.now .n { background: var(--app); color: #fff; }
+.wiz-howto li > .muted { padding-left: 32px; }
+.phone-sketch { border: 6px solid var(--text); border-radius: 26px; padding: 14px 12px; min-height: 280px; display: grid; align-content: start; gap: 8px; background: var(--surface); }
+.ps-title { font-size: 0.8rem; font-weight: 700; }
+.ps-line { height: 8px; border-radius: 4px; background: var(--line); }
+.ps-line.short { width: 60%; }
+.ps-mark { border: 2px solid var(--app); background: var(--app-soft); border-radius: 8px; padding: 6px 8px; font-size: 0.8rem; font-weight: 700; overflow-wrap: anywhere; }
+.wiz-paste { display: grid; gap: 10px; max-width: 460px; }
+.wiz-paste .field { display: grid; gap: 4px; }
+.wiz-foot { display: flex; justify-content: space-between; gap: 10px; }
+.wiz-foot .btn { min-height: 44px; }
+@media (max-width: 640px) {
+  .wiz { padding: 16px; }
+  .wiz-follow { grid-template-columns: 1fr; }
+  .phone-sketch { min-height: 0; max-width: 260px; }
+}
+.wiz-foot .btn.primary { min-width: 200px; }
+.wiz-howto .link-btn { text-decoration: none; }
