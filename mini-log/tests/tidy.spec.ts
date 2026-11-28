@@ -175,3 +175,24 @@ test('아침 알림은 설정에서 켜기/끄기 스위치 하나로, 관리자
   await expect(sw).toHaveAttribute('aria-checked', 'false');
   await expect(page.getByText('알림 키 만들기(관리자)')).toBeHidden(); // 키가 있으면 관리자 칸은 없다
 });
+
+test('메일 옆 협찬 카드: 위에 단계 요약, 협찬 메일을 열면 오른쪽에 그 협찬(단계·대화·가이드), 수락하면 진행 중으로', async ({ page, request }) => {
+  await login(page, CODE_C);
+  await request.post('http://127.0.0.1:8905/inbox', { data: { raw: ['From: 메일빵집 <deal@bread.kr>', `Subject: =?UTF-8?B?${Buffer.from('[협찬 제안] 딜카드 시험').toString('base64')}?=`, 'Message-ID: <deal1@bread.kr>', 'Content-Type: text/plain; charset=UTF-8', '', '체험 제안드려요. 원고료 5만 원.', ''].join('\r\n') } });
+  await page.evaluate(async () => { await fetch('/api/mail/sync', { method: 'POST', body: '{}' }); });
+  await page.goto('/#mail');
+  await expect(page.getByRole('group', { name: '협찬 단계 요약' })).toContainText('연락·제안');
+  await page.getByRole('tab', { name: '전체' }).click();
+  await page.getByRole('button', { name: /딜카드 시험/ }).first().click();
+  const card = page.getByRole('complementary', { name: '메일빵집 협찬' });
+  await expect(card.getByRole('list', { name: '협찬 단계' }).locator('[aria-current="step"]')).toHaveText('제안');
+  await expect(card.getByRole('tab', { name: /대화/ })).toBeVisible();
+  await card.getByRole('button', { name: '수락 → 진행 중(원고 준비)' }).click();
+  await expect(page.getByText(/메일빵집: 진행 중\(으\)로 옮겼어요/)).toBeVisible();
+  await expect(card.getByRole('list', { name: '협찬 단계' }).locator('[aria-current="step"]')).toHaveText('진행');
+  // 정리: 협찬·준비된 원고·메일
+  await page.evaluate(async () => {
+    for (const c of (await (await fetch('/api/campaigns')).json()).campaigns) if (c.brand === '메일빵집') { await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' }); if (c.draft_id) await fetch(`/api/drafts/${c.draft_id}`, { method: 'DELETE' }); }
+    for (const m of (await (await fetch('/api/mail')).json()).mails) if (/딜카드 시험/.test(m.subject)) await fetch(`/api/mail/${m.id}`, { method: 'DELETE' });
+  });
+});

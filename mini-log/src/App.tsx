@@ -166,6 +166,9 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
   // 답장 기다리는 메일 수(메뉴 '메일' 옆 숫자). 켤 때 한 번, 메일 화면에서 바뀌면 다시
   const [mailWaiting, setMailWaiting] = useState(0);
   useEffect(() => { api<{ waiting: number }>('/api/mail').then(d => setMailWaiting(d.waiting)).catch(() => { /* 메일이 없어도 앱은 쓴다 */ }); }, []);
+  // 메뉴 빨간 숫자: 오늘 할 일 전체 · 그중 협찬 쪽(마감·신청·단계 확인·입금 확인)
+  const [todo, setTodo] = useState<{ all: number; deal: number }>({ all: 0, deal: 0 });
+  useEffect(() => { api<{ items: { target: string }[] }>('/api/brief').then(b => setTodo({ all: b.items.length, deal: b.items.filter(i => i.target === 'campaigns').length })).catch(() => {}); }, []);
   useEffect(() => { if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash); }, []);
   // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
   const firstRoute = useRef(true);
@@ -270,15 +273,19 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
         <button className="btn primary new-draft" onClick={() => { void create(); }} disabled={creating} aria-busy={creating}><NavIcon name="plus" size={16} />{creating ? '만드는 중…' : '새 원고'}</button>
         <button type="button" className="side-search" onClick={openPalette}><span>빠른 찾기</span><kbd aria-hidden="true">Ctrl K</kbd></button>
         <nav className="views" aria-label="미니로그 메뉴">
-          {/* 시안 A: 묶음 이름은 위에 작게, 메뉴는 한 줄에 하나(아이콘 + 이름), 지금 화면은 주황 띠 */}
+          {/* 하는 일 순서: 오늘(첫 화면) → 만들기 → 일정·협찬 → 분석. 처리할 것이 있으면 빨간 숫자 */}
+          <button type="button" className="nav-today" aria-current={view === 'drafts' && !selected} onClick={() => { setSelectedId(null); go('drafts'); }}>
+            <NavIcon name="today" />오늘{todo.all > 0 && <span className="nav-badge" aria-label={`오늘 할 일 ${todo.all}개`}>{todo.all}</span>}
+          </button>
           {SIDE_SECTIONS.map(section => (
             <div key={section.label} className="view-group" role="group" aria-label={section.label}>
               <span className="view-group-label" aria-hidden="true">{section.label}</span>
               {section.keys.map(key => (
-                <button key={key} type="button" aria-current={menuKeyOf(view) === key && (key !== 'drafts' || !selected)} onClick={() => go(key)}>
+                <button key={key} type="button" aria-current={menuKeyOf(view) === key && (key !== 'drafts' || !!selected)} onClick={() => go(key)}>
                   <NavIcon name={key} />{VIEW_LABEL[key]}
                   {key === 'drafts' && drafts && drafts.length > 0 && <span className="nav-count" aria-hidden="true">{drafts.length}</span>}
                   {key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}
+                  {key === 'campaigns' && todo.deal > 0 && <span className="nav-badge" aria-label={`협찬 할 일 ${todo.deal}개`}>{todo.deal}</span>}
                 </button>
               ))}
             </div>
@@ -339,6 +346,15 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
         </div>
       </aside>
       <main className="main">
+        {/* 위 막대(넓은 화면): 찾기·화면 이동과 빠른 추가 */}
+        {!phone && !selected && (
+          <div className="top-bar">
+            <button type="button" className="top-search" onClick={openPalette}><NavIcon name="search" size={16} /><span>원고·화면 찾기, 바로 이동</span><kbd aria-hidden="true">Ctrl K</kbd></button>
+            <button type="button" className="btn small" onClick={() => { void create(); }} disabled={creating}>+ 원고</button>
+            <button type="button" className="btn small" onClick={() => go('campaigns')}>+ 협찬</button>
+            <button type="button" className="btn small" onClick={() => go('calendar')}>+ 일정</button>
+          </div>
+        )}
         {sharePhotos && drafts && <SharedPhotos drafts={drafts} onClose={() => setSharePhotos(false)} onUpload={async (draftId, files, progress) => {
           let id = draftId;
           if (!id) { const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: {} }); setDrafts(list => [draft, ...(list ?? [])]); id = draft.id; }

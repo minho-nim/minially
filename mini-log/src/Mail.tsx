@@ -5,6 +5,8 @@ import { SafeMailHtml } from './MailHtml';
 import { MailEditor } from './MailEditor';
 import { showUndo } from './UndoToast';
 import { mailInSource, SourceSwitch, useSource } from './source';
+import { DealCard, DealStrip } from './DealCard';
+import type { Campaign } from './Campaigns';
 import { docFromText, docToHtml, docToText, type MailDoc } from '../functions/_mailDoc';
 
 // 메일: 네이버·Gmail에서 15분마다 받은 메일을 한 메일함에 모아 메일 앱처럼(왼쪽 목록·오른쪽 읽기) 보고, 서식 있는 답장·새 메일을 쓴다.
@@ -67,6 +69,9 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
   const apply = (d: MailData) => { setData(d); onWaiting(d.waiting); };
 
   useEffect(() => { api<MailData>('/api/mail').then(apply).catch(e => fail(e, '메일을 불러오지 못했어요.')); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 협찬 단계 요약과 메일 옆 협찬 카드에 쓴다(못 읽어도 메일은 그대로)
+  const [camps, setCamps] = useState<Campaign[]>([]);
+  useEffect(() => { api<{ campaigns: Campaign[] }>('/api/campaigns').then(d => setCamps(d.campaigns)).catch(() => {}); }, []);
 
   const upsert = (mail: MailItem) => setData(d => {
     if (!d) return d;
@@ -144,6 +149,7 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
   // 계정이 둘 이상이면 메일마다 어느 계정인지 표시한다
   const multi = (data?.accounts?.length ?? 0) > 1;
   const reading = !!open || !!compose;
+  const deal = open?.campaign_id ? camps.find(c => c.id === open.campaign_id) ?? null : null;
   const canReply = open && open.kind !== 'outgoing' && open.kind !== 'other' && open.status !== 'sent';
   return (
     <article className="stack" aria-labelledby="mail-title">
@@ -174,7 +180,8 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
       {data?.error && <p className="error small" role="alert" style={{ margin: 0 }}>{data.error}</p>}
 
       <SourceSwitch note={source === 'naver' ? '네이버 메일만 보여요' : 'Gmail만 보여요'} />
-      <div ref={appRef} className={`mail-app${reading ? ' is-reading' : ''}`} style={{ ['--mail-list' as string]: `${listW}px` }}>
+      {camps.length > 0 && <DealStrip campaigns={camps} onCampaigns={onCampaigns} />}
+      <div ref={appRef} className={`mail-app${reading ? ' is-reading' : ''}${deal ? ' has-deal' : ''}`} style={{ ['--mail-list' as string]: `${listW}px` }}>
         <aside className="mail-side card" aria-label="메일 목록">
           <div className="mail-folders" role="tablist" aria-label="메일함">
             {FOLDERS.map(([key, label]) => {
@@ -305,6 +312,8 @@ export function MailView({ onBack, onCampaigns, onWaiting, seed = null, onSeedUs
             </div>
           )}
         </section>
+        {deal && <DealCard key={deal.id} campaign={deal} mails={data?.mails ?? []} onCampaigns={onCampaigns}
+          onChanged={(c, note) => { setCamps(list => list.map(x => (x.id === c.id ? c : x))); setMessage({ kind: 'info', text: note }); }} />}
       </div>
     </article>
   );
