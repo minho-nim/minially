@@ -1252,7 +1252,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
         {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지, 나머지는 사진 메모로)' : ''}.</p>}
         <div className="field">
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>직접 겪은 내용만 적어요(언제·어디서·무엇·어땠는지). AI는 여기 적힌 것만 써요.</label>
-          <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
+          <textarea id="experience" className="textarea experience-input" rows={8} value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
         </div>
         {emptyOutline(fields.experience).length > 0 && (
           <p className="muted small" data-empty-outline style={{ margin: 0 }}>아직 비어 있는 항목: {emptyOutline(fields.experience).join(' · ')} — 비워 두면 AI가 [작성자 확인 필요]로 남겨요.</p>
