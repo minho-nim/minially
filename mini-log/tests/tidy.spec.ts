@@ -139,3 +139,82 @@ test('보는 계정(전체·네이버·구글): 메일을 계정별로 거르고
   await page.getByRole('group', { name: '보는 계정' }).getByRole('button', { name: '전체' }).click();
   for (const m of (await call(page, '/api/mail')).data.mails as { id: string; subject: string }[]) if (m.subject.startsWith('source ')) await call(page, `/api/mail/${m.id}`, 'DELETE');
 });
+
+test('오늘 보드: 다가오는 7일·답장할 메일·진행 흐름·요약이 한 화면에, 누르면 그 화면으로', async ({ page }) => {
+  await login(page, CODE_C);
+  const draft = (await call(page, '/api/drafts', 'POST', {})).data.draft.id;
+  await call(page, `/api/drafts/${draft}`, 'PUT', { title: '오늘보드 원고', planned_on: kst(2), experience: '다녀옴', body: '본문' });
+  const camp = (await call(page, '/api/campaigns', 'POST', { brand: '오늘보드카페', status: 'posted', amount: 40000, deadline: kst(3) })).data.campaign.id;
+  await page.reload();
+  const board = page.getByLabel('오늘 보드');
+  const week = board.getByRole('region', { name: '다가오는 7일' });
+  await expect(week).toContainText('오늘보드 원고 게시');
+  await expect(week).toContainText('오늘보드카페 마감');
+  const flow = board.getByRole('region', { name: /진행 흐름/ });
+  const campRow = flow.locator('.flow-row', { hasText: '오늘보드카페' });
+  await expect(campRow.getByRole('button', { name: '입금 확인 ▶' })).toBeVisible();
+  const draftRow = flow.locator('.flow-row', { hasText: '오늘보드 원고' });
+  await expect(draftRow.getByRole('button', { name: '점검·승인 ▶' })).toBeVisible();
+  await expect(board.getByRole('region', { name: '받을 돈' })).toContainText('40,000원');
+  await expect(board.getByRole('region', { name: '연결 계정' })).toContainText('네이버 메일 ✓');
+  // 진행 흐름에서 지금 단계를 누르면 그 화면으로
+  await draftRow.getByRole('button', { name: '점검·승인 ▶' }).click();
+  await expect(page.getByLabel('제목', { exact: true })).toHaveValue('오늘보드 원고');
+  await page.goto('/');
+  await page.getByLabel('오늘 보드').locator('.flow-row', { hasText: '오늘보드카페' }).getByRole('button', { name: '입금 확인 ▶' }).click();
+  await expect(page.getByRole('heading', { name: '협찬·수익' })).toBeVisible();
+  await call(page, `/api/campaigns/${camp}`, 'DELETE');
+  await call(page, `/api/drafts/${draft}`, 'DELETE');
+});
+
+test('아침 알림은 설정에서 켜기/끄기 스위치 하나로, 관리자용 키 만들기는 접어 둔다', async ({ page }) => {
+  await login(page, CODE_C);
+  await page.goto('/#settings');
+  const sw = page.getByRole('switch', { name: '이 기기 아침 알림' });
+  await expect(sw).toBeVisible();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText('알림 키 만들기(관리자)')).toBeHidden(); // 키가 있으면 관리자 칸은 없다
+});
+
+test('메일 옆 협찬 카드: 위에 단계 요약, 협찬 메일을 열면 오른쪽에 그 협찬(단계·대화·가이드), 수락하면 진행 중으로', async ({ page, request }) => {
+  await login(page, CODE_C);
+  await request.post('http://127.0.0.1:8905/inbox', { data: { raw: ['From: 메일빵집 <deal@bread.kr>', `Subject: =?UTF-8?B?${Buffer.from('[협찬 제안] 딜카드 시험').toString('base64')}?=`, 'Message-ID: <deal1@bread.kr>', 'Content-Type: text/plain; charset=UTF-8', '', '체험 제안드려요. 원고료 5만 원.', ''].join('\r\n') } });
+  await page.evaluate(async () => { await fetch('/api/mail/sync', { method: 'POST', body: '{}' }); });
+  await page.goto('/#mail');
+  await expect(page.getByRole('group', { name: '협찬 단계 요약' })).toContainText('연락·제안');
+  await page.getByRole('tab', { name: '전체' }).click();
+  await page.getByRole('button', { name: /딜카드 시험/ }).first().click();
+  const card = page.getByRole('complementary', { name: '메일빵집 협찬' });
+  await expect(card.getByRole('list', { name: '협찬 단계' }).locator('[aria-current="step"]')).toHaveText('제안');
+  await expect(card.getByRole('tab', { name: /대화/ })).toBeVisible();
+  await card.getByRole('button', { name: '수락 → 진행 중(원고 준비)' }).click();
+  await expect(page.getByText(/메일빵집: 진행 중\(으\)로 옮겼어요/)).toBeVisible();
+  await expect(card.getByRole('list', { name: '협찬 단계' }).locator('[aria-current="step"]')).toHaveText('진행');
+  // 정리: 협찬·준비된 원고·메일
+  await page.evaluate(async () => {
+    for (const c of (await (await fetch('/api/campaigns')).json()).campaigns) if (c.brand === '메일빵집') { await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' }); if (c.draft_id) await fetch(`/api/drafts/${c.draft_id}`, { method: 'DELETE' }); }
+    for (const m of (await (await fetch('/api/mail')).json()).mails) if (/딜카드 시험/.test(m.subject)) await fetch(`/api/mail/${m.id}`, { method: 'DELETE' });
+  });
+});
+
+test('원고 화면 좌우 폭 조절: 가운데 손잡이를 끌거나 ←→로 오른쪽 칸 폭을 바꾸고 기억', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await login(page, CODE_D);
+  const id = (await call(page, '/api/drafts', 'POST', {})).data.draft.id;
+  await page.goto(`/#draft/${id}`); await page.reload();
+  const handle = page.getByRole('separator', { name: '오른쪽 칸 폭' });
+  await expect(handle).toHaveAttribute('aria-valuenow', '400');
+  await handle.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(handle).toHaveAttribute('aria-valuenow', '420'); // 왼쪽으로 = 오른쪽 칸이 넓어짐
+  const box = (await handle.boundingBox())!;
+  await page.mouse.move(box.x + 6, box.y + 100); await page.mouse.down();
+  await page.mouse.move(box.x - 100, box.y + 100, { steps: 5 }); await page.mouse.up();
+  const w = Number(await handle.getAttribute('aria-valuenow'));
+  expect(w).toBeGreaterThan(500);
+  await page.reload();
+  await expect(page.getByRole('separator', { name: '오른쪽 칸 폭' })).toHaveAttribute('aria-valuenow', String(w));
+  await page.getByRole('separator', { name: '오른쪽 칸 폭' }).dblclick();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await call(page, `/api/drafts/${id}`, 'DELETE');
+});

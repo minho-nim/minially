@@ -83,6 +83,10 @@ createServer((req, res) => {
     if (prompt.includes('RATE-LIMIT')) return send(429, { error: { message: 'Resource has been exhausted (e.g. check quota). per minute' } });
     if (prompt.includes('QUOTA-OVER')) return send(429, { error: { message: 'You exceeded your current quota. limit: 0 per day' } });
     const ok = text => send(200, { candidates: [{ content: { parts: [{ text: JSON.stringify(text) }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 45, totalTokenCount: 165 } });
+    if (prompt.includes('<글종류>')) {
+      const label = prompt.match(/<글종류>([^<]*)<\/글종류>\s*$/)?.[1] ?? '';
+      return ok({ outline: [`${label} 이름·위치`, '간 날짜·누구와', '좋았던 점', '아쉬운 점', '다시 할지'], guide: `${label}: 정보 → 경험 → 총평 순서` });
+    }
     if (prompt.includes('블로거의 메일함을 정리하는')) {
       // 제목 낱말로 종류를 정한다: 협찬 제안 → offer, 선정 → notice, 답장 → pitch_reply, 그 밖 → other
       const mails = [...prompt.matchAll(/<메일 id="([^"]+)">\n보낸 사람: .*\n제목: (.*)\n/g)].map(m => {

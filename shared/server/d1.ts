@@ -46,6 +46,8 @@ export interface HubEnv {
   /** Gmail 연결: "주소@gmail.com:앱 비밀번호"(Cloudflare 비밀값에만, 2단계 인증 필요) */
   GMAIL_MAIL_C?: string;
   GMAIL_MAIL_D?: string;
+  /** 화면에서 직접 연결한 메일·캘린더 앱 비밀번호를 암호화하는 키(32바이트 base64). Cloudflare 비밀값에만 */
+  CRED_KEY?: string;
   /** 아침 알림(웹 푸시) VAPID 키: 공개 키(65바이트)·비밀 키(32바이트) base64url. Cloudflare 비밀값에만 */
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;

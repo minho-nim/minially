@@ -155,6 +155,14 @@ function Ring({ done, total }: { done: number; total: number }) {
   );
 }
 
+/** 점검 항목을 고칠 칸으로 이동(해시태그·사진·제목·본문) */
+function goFix(label: string) {
+  const id = /해시태그/.test(label) ? 'tags' : /사진/.test(label) && !/자리/.test(label) ? 's1' : /제목/.test(label) && !/비슷한/.test(label) ? 'title' : 'body';
+  const el = document.getElementById(id);
+  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) el.focus({ preventScroll: true });
+}
+
 export function DraftCheck({ draftId, title, body, hashtags, photos, postType, sources, otherTitles = [] }: { draftId: string; title: string; body: string; hashtags: string[]; photos: number; postType?: string; sources?: string; otherTitles?: string[] }) {
   const [guide, setGuide] = useState<{ brand: string; guide: Guide } | null>(null);
   // 가이드가 없어도 협찬에 연결된 원고면 광고 표시 문구를 본다
@@ -181,6 +189,7 @@ export function DraftCheck({ draftId, title, body, hashtags, photos, postType, s
         <Ring done={done} total={items.length} />
         <div style={{ minWidth: 0 }}>
           <h2 id="d-check" className="step-title" style={{ margin: 0 }}>원고 점검</h2>
+          <p className="check-left" style={{ margin: 0 }}>{items.length - done ? <>남은 할 일 <b>{items.length - done}개</b> / {items.length}개</> : <>다 지켰어요 · {items.length}개</>}</p>
           <p className="muted small" style={{ margin: 0 }}>{guide ? `${guide.brand} 가이드 기준` : '기본 점검(협찬에 원고를 연결하면 가이드도 봐요)'}</p>
         </div>
         <button type="button" className="btn ghost small" style={{ marginLeft: 'auto' }} onClick={() => setShowAll(v => !v)}>{showAll ? '못 지킨 것만' : '전체 보기'}</button>
@@ -191,9 +200,9 @@ export function DraftCheck({ draftId, title, body, hashtags, photos, postType, s
           <ul className="check-list">
             {shown.map((i, n) => (
               <li key={n} className={i.ok ? 'ok' : 'no'}>
-                <span aria-hidden="true">{i.ok ? '✓' : '!'}</span>
-                <span>{i.label}</span>
-                {!i.ok && i.hint && <span className="muted small check-hint">{i.hint}</span>}
+                <span className="check-box" aria-hidden="true">{i.ok ? '✓' : ''}</span>
+                <span className="check-main"><span id={`ck-${n}`}>{i.label}</span>{!i.ok && i.hint && <span className="muted small check-hint">{i.hint}</span>}</span>
+                {!i.ok && <button type="button" className="btn ghost small check-go" onClick={() => goFix(i.label)} aria-describedby={`ck-${n}`}>고치기</button>}
               </li>
             ))}
           </ul>

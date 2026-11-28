@@ -5,7 +5,10 @@ import { shrinkPhoto } from './shrinkPhoto';
 import { DraftCheck } from './DraftCheck';
 import { NavIcon } from './NavIcon';
 import { FirstSteps } from './FirstSteps';
-import { BriefCard, PushCard, usePhone } from './Brief';
+import { PushCard, usePhone } from './Brief';
+import { ConnectCard } from './Connect';
+import { orderedTypes, outlineOf, PostTypesCard, usePostTypes } from './PostTypes';
+import { TodayBoard } from './Today';
 import { setUiPrefs, type UiPrefs } from './uiPrefs';
 import { CommandPalette, openPalette, type Command } from './CommandPalette';
 import { BodyEditor } from './BodyEditor';
@@ -165,6 +168,9 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
   // 답장 기다리는 메일 수(메뉴 '메일' 옆 숫자). 켤 때 한 번, 메일 화면에서 바뀌면 다시
   const [mailWaiting, setMailWaiting] = useState(0);
   useEffect(() => { api<{ waiting: number }>('/api/mail').then(d => setMailWaiting(d.waiting)).catch(() => { /* 메일이 없어도 앱은 쓴다 */ }); }, []);
+  // 메뉴 빨간 숫자: 오늘 할 일 전체 · 그중 협찬 쪽(마감·신청·단계 확인·입금 확인)
+  const [todo, setTodo] = useState<{ all: number; deal: number }>({ all: 0, deal: 0 });
+  useEffect(() => { api<{ items: { target: string }[] }>('/api/brief').then(b => setTodo({ all: b.items.length, deal: b.items.filter(i => i.target === 'campaigns').length })).catch(() => {}); }, []);
   useEffect(() => { if (window.location.search) window.history.replaceState(null, '', window.location.pathname + window.location.hash); }, []);
   // 지금 탭·원고를 주소(#ideas, #draft/아이디)에 남긴다: 새로고침해도 그대로, 휴대폰 뒤로 가기는 이전 화면으로
   const firstRoute = useRef(true);
@@ -265,25 +271,29 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
       <UndoToast />
       <CommandPalette commands={commands} />
       <aside className="side" aria-label="원고 목록">
-        <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
+        <div className="brand"><a className="brand-home" href="/" aria-label="미니로그 첫 화면으로(새로고침)"><Signature kind="minilog" word="log" size={17} tomong={32} /></a></div>
         <button className="btn primary new-draft" onClick={() => { void create(); }} disabled={creating} aria-busy={creating}><NavIcon name="plus" size={16} />{creating ? '만드는 중…' : '새 원고'}</button>
         <button type="button" className="side-search" onClick={openPalette}><span>빠른 찾기</span><kbd aria-hidden="true">Ctrl K</kbd></button>
         <nav className="views" aria-label="미니로그 메뉴">
-          {/* 시안 A: 묶음 이름은 위에 작게, 메뉴는 한 줄에 하나(아이콘 + 이름), 지금 화면은 주황 띠 */}
+          {/* 하는 일 순서: 오늘(첫 화면) → 만들기 → 일정·협찬 → 분석. 처리할 것이 있으면 빨간 숫자 */}
+          <button type="button" className="nav-today" aria-current={view === 'drafts' && !selected} onClick={() => { setSelectedId(null); go('drafts'); }}>
+            <NavIcon name="today" />오늘{todo.all > 0 && <span className="nav-badge" aria-label={`오늘 할 일 ${todo.all}개`}>{todo.all}</span>}
+          </button>
           {SIDE_SECTIONS.map(section => (
             <div key={section.label} className="view-group" role="group" aria-label={section.label}>
               <span className="view-group-label" aria-hidden="true">{section.label}</span>
               {section.keys.map(key => (
-                <button key={key} type="button" aria-current={menuKeyOf(view) === key && (key !== 'drafts' || !selected)} onClick={() => go(key)}>
+                <button key={key} type="button" aria-current={menuKeyOf(view) === key && (key !== 'drafts' || !!selected)} onClick={() => go(key)}>
                   <NavIcon name={key} />{VIEW_LABEL[key]}
                   {key === 'drafts' && drafts && drafts.length > 0 && <span className="nav-count" aria-hidden="true">{drafts.length}</span>}
                   {key === 'mail' && mailWaiting > 0 && <span className="nav-badge" aria-label={`답장 기다리는 메일 ${mailWaiting}통`}>{mailWaiting}</span>}
+                  {key === 'campaigns' && todo.deal > 0 && <span className="nav-badge" aria-label={`협찬 할 일 ${todo.deal}개`}>{todo.deal}</span>}
                 </button>
               ))}
             </div>
           ))}
         </nav>
-        {phone && view === 'drafts' && !selected && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onIdeas={() => go('ideas')} />}
+        {phone && view === 'drafts' && !selected && <TodayBoard user={me.user} name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
@@ -338,6 +348,15 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
         </div>
       </aside>
       <main className="main">
+        {/* 위 막대(넓은 화면): 찾기·화면 이동과 빠른 추가 */}
+        {!phone && !selected && (
+          <div className="top-bar">
+            <button type="button" className="top-search" onClick={openPalette}><NavIcon name="search" size={16} /><span>원고·화면 찾기, 바로 이동</span><kbd aria-hidden="true">Ctrl K</kbd></button>
+            <button type="button" className="btn small" onClick={() => { void create(); }} disabled={creating}>+ 원고</button>
+            <button type="button" className="btn small" onClick={() => go('campaigns')}>+ 협찬</button>
+            <button type="button" className="btn small" onClick={() => go('calendar')}>+ 일정</button>
+          </div>
+        )}
         {sharePhotos && drafts && <SharedPhotos drafts={drafts} onClose={() => setSharePhotos(false)} onUpload={async (draftId, files, progress) => {
           let id = draftId;
           if (!id) { const { draft } = await api<{ draft: Draft }>('/api/drafts', { method: 'POST', body: {} }); setDrafts(list => [draft, ...(list ?? [])]); id = draft.id; }
@@ -369,15 +388,15 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (
             <div className="stack">
-            {!phone && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onIdeas={() => go('ideas')} />}
-            <div className="card empty">
+            {!phone && <TodayBoard user={me.user} name={me.name} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onGo={t => go(t)} />}
+            {(drafts?.length === 0 || !me.gemini.connected) && <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
               <p className="hand empty-line">오늘은 어떤 이야기를 써 볼까요?</p>
               <p className="muted small" style={{ margin: 0 }}>왼쪽에서 원고를 고르거나 새 원고를 만드세요.</p>
               {!me.gemini.connected && <p className="error">Gemini 키가 아직 연결되지 않아 AI 초안은 만들 수 없어요. 원고 저장은 할 수 있어요.</p>}
               {drafts?.length === 0 && <FirstSteps onNew={() => { void create(); }} />}
-            </div>
+            </div>}
             </div>
           )}
         </Suspense>
@@ -416,6 +435,8 @@ function readRoute(): { view: View; draftId: string | null } {
 const routeHash = (view: View, draftId: string | null) => (view === 'drafts' ? (draftId ? `#draft/${draftId}` : '#drafts') : `#${view}`);
 
 type View = 'drafts' | 'proposal' | 'report' | 'ideas' | 'calendar' | 'dashboard' | 'campaigns' | 'blog' | 'structure' | 'style' | 'mail' | 'settings';
+const SIDE_W = { min: 300, max: 680, def: 400, key: 'minilog.editor.sideWidth' };
+const clampSide = (n: number) => Math.min(SIDE_W.max, Math.max(SIDE_W.min, Math.round(n)));
 const VIEW_LABEL: Record<Exclude<View, 'proposal'>, string> = { drafts: '원고', ideas: '글감', style: '문체', calendar: '캘린더', campaigns: '협찬', mail: '메일', dashboard: '대시보드', report: '월간보고', blog: '블로그', structure: '구조', settings: '설정' };
 type MenuView = Exclude<View, 'proposal' | 'structure' | 'settings'>;
 // 메뉴 묶음 4개(휴대폰 아래 탭과 같음). 구조는 '블로그' 안에서 바꿔 보고, 설정은 맨 아래 따로
@@ -597,7 +618,9 @@ function SettingsView({ name, onRenamed, onBack }: { name: string; onRenamed: (n
         </div>
       </div>
       <NameCard name={name} onRenamed={onRenamed} />
+      <ConnectCard />
       <PushCard />
+      <PostTypesCard />
       <AccountsCard />
       <BackupCard />
     </article>
@@ -976,15 +999,13 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
   // 2번 칸: 문체·먼저 질문 받기는 '자세히 설정' 안에(가끔 바꾸는 것), 글 종류는 자주 쓴 3개만 먼저
   const [aiMore, setAiMore] = useState(false);
   const [allTypes, setAllTypes] = useState(false);
-  const allTypeKeys: PostType[] = (Object.keys(POST_TYPES) as PostType[]).filter(t => t !== 'none');
-  const frequent = (() => {
-    const used = Object.fromEntries(typeUse.map(u => [u.type, u.count]));
-    const base: PostType[] = ['food', 'cafe', 'sponsored'];
-    return [...allTypeKeys].sort((a, b) => (used[b] ?? 0) - (used[a] ?? 0) || Number(base.includes(b)) - Number(base.includes(a)) || allTypeKeys.indexOf(a) - allTypeKeys.indexOf(b)).slice(0, 3);
-  })();
-  const picked = fields.post_type as PostType;
-  const typesShown = allTypes ? allTypeKeys : [...frequent, ...(allTypeKeys.includes(picked) && !frequent.includes(picked) ? [picked] : [])];
-  const typesHidden = allTypeKeys.length - typesShown.length;
+  // 글 종류 버튼: 설정(계정마다)의 순서 — 기본 자주 쓴 순, 내가 정한 순이 있으면 그 순서. 숨긴 종류는 빼되 이 원고가 고른 것은 보인다
+  const typeData = usePostTypes();
+  const typeList = orderedTypes(typeData);
+  const pickedDef = typeData.types.find(t => t.key === fields.post_type);
+  const frequent = typeList.slice(0, 3);
+  const typesShown = allTypes ? [...typeList, ...(pickedDef && !typeList.includes(pickedDef) ? [pickedDef] : [])] : [...frequent, ...(pickedDef && !frequent.includes(pickedDef) ? [pickedDef] : [])];
+  const typesHidden = Math.max(0, typeList.length - typesShown.length);
   // 원고 편집 2단(Buffer 작성 화면처럼): 쓰는 칸 옆에 점검·미리보기·올리기. '집중'을 누르면 옆 칸을 접는다(기기에 기억)
   const [focus, setFocus] = useState(() => { try { return localStorage.getItem('minilog.focus') === '1'; } catch { return false; } });
   const toggleFocus = () => setFocus(f => { try { localStorage.setItem('minilog.focus', f ? '0' : '1'); } catch { /* 기억 못 해도 됨 */ } return !f; });
@@ -1144,6 +1165,18 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
     } catch (error) { setMessage({ kind: 'error', text: error instanceof Error ? error.message : '지우지 못했어요.' }); }
   }
 
+  // 쓰기 | 점검·올리기 사이 폭(넓은 화면에서 끌어서, 이 기기에 기억)
+  const colsRef = useRef<HTMLDivElement>(null);
+  const [sideW, setSideW] = useState(() => { try { const n = Number(localStorage.getItem(SIDE_W.key)); return n ? clampSide(n) : SIDE_W.def; } catch { return SIDE_W.def; } });
+  const keepSideW = (n: number) => { const w = clampSide(n); setSideW(w); try { localStorage.setItem(SIDE_W.key, String(w)); } catch { /* 기억만 못 함 */ } };
+  function sideDrag(e: React.PointerEvent<HTMLDivElement>) {
+    const right = colsRef.current?.getBoundingClientRect().right ?? window.innerWidth;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const move = (ev: PointerEvent) => setSideW(clampSide(right - ev.clientX));
+    const up = (ev: PointerEvent) => { keepSideW(right - ev.clientX); window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+  }
+
   const saveLabel = { saved: '저장됨', dirty: '저장 대기', saving: '저장 중…', failed: '저장 실패' }[save];
 
   // 지금 단계의 메인 버튼 하나만 진하게: 본문이 비면 AI 초안, 쓰는 중이면 원고 승인, 승인·게시 뒤엔 한 번에 복사
@@ -1196,7 +1229,7 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
       </nav>
 
       {focus && <button type="button" className="side-handle" onClick={toggleFocus} aria-label="옆 칸 펴기">⟨ 점검·올리기</button>}
-      <div className={`editor-cols${focus ? ' focus' : ''}`}>
+      <div ref={colsRef} className={`editor-cols${focus ? ' focus' : ''}`} style={{ ['--side-w' as string]: `${sideW}px` }}>
       <div className="editor-main" id="ed-write">
       <section className="card step" aria-labelledby="s1">
         <h2 id="s1" className="step-title"><span className="n">1</span>사진<span className="step-sub">{photos ? `${photos.length}/20장` : ''}</span></h2>
@@ -1236,22 +1269,22 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
         {/* 글 종류: 자주 쓴 3개(+ 고른 것)만 먼저, 나머지는 '+N개'로 */}
         <div className="type-pick" role="group" aria-label="글 종류">
           {typesShown.map(t => (
-            <button key={t} type="button" className="chip-btn" aria-pressed={fields.post_type === t} onClick={() => {
-              const next = fields.post_type === t ? 'none' : t;
+            <button key={t.key} type="button" className="chip-btn" aria-pressed={fields.post_type === t.key} onClick={() => {
+              const next = fields.post_type === t.key ? 'none' : t.key;
               const patch: Partial<Fields> = { post_type: next };
               // 경험 칸이 비었거나 이전 뼈대만 있으면 새 뼈대로 바꾼다(직접 쓴 글은 건드리지 않음)
-              const prev = isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
-              if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineText(next);
+              const prev = pickedDef ? outlineOf(pickedDef) : isPostTypeKey(fields.post_type) ? outlineText(fields.post_type) : '';
+              if (next !== 'none' && (!fields.experience.trim() || fields.experience.trim() === prev.trim())) patch.experience = outlineOf(t);
               if (next === 'none' && fields.experience.trim() === prev.trim()) patch.experience = '';
               change(patch);
-            }}>{POST_TYPES[t].label}</button>
+            }}>{t.label}</button>
           ))}
           {!allTypes && typesHidden > 0 && <button type="button" className="chip-btn more" onClick={() => setAllTypes(true)} aria-label={`글 종류 ${typesHidden}개 더 보기`}>+ {typesHidden}개</button>}
         </div>
         {photos && photos.length > 0 && <p className="muted small" style={{ margin: 0 }}>AI가 사진 {Math.min(photos.length, 8)}장도 함께 보고 써요{photos.length > 8 ? '(앞의 8장까지, 나머지는 사진 메모로)' : ''}.</p>}
         <div className="field">
           <label htmlFor="experience" className="small muted" style={{ fontWeight: 500 }}>직접 겪은 내용만 적어요(언제·어디서·무엇·어땠는지). AI는 여기 적힌 것만 써요.</label>
-          <textarea id="experience" className="textarea" value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
+          <textarea id="experience" className="textarea experience-input" rows={8} value={fields.experience} maxLength={5000} onChange={e => change({ experience: e.target.value })} />
         </div>
         {emptyOutline(fields.experience).length > 0 && (
           <p className="muted small" data-empty-outline style={{ margin: 0 }}>아직 비어 있는 항목: {emptyOutline(fields.experience).join(' · ')} — 비워 두면 AI가 [작성자 확인 필요]로 남겨요.</p>
@@ -1321,6 +1354,10 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
       </section>
 
       </div>
+      <div className="ed-resize" role="separator" aria-orientation="vertical" aria-label="오른쪽 칸 폭" tabIndex={0}
+        aria-valuemin={SIDE_W.min} aria-valuemax={SIDE_W.max} aria-valuenow={sideW} title="끌어서 좌우 폭 조절(두 번 누르면 처음 폭)"
+        onPointerDown={sideDrag} onDoubleClick={() => keepSideW(SIDE_W.def)}
+        onKeyDown={e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); keepSideW(sideW + (e.key === 'ArrowLeft' ? 20 : -20)); } }} />
       <aside className="editor-side" aria-label="점검·미리보기·올리기">
       <nav className="side-jump" aria-label="옆 칸 바로가기">
         <button type="button" className="btn small ghost side-fold" onClick={toggleFocus} aria-label="옆 칸 접기">접기 ⟩</button>

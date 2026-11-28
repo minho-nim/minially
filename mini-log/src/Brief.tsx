@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../../shared/client/api';
 
 // 아침 브리핑 카드(첫 화면)와 아침 알림 켜기(설정). 할 일은 서버가 규칙으로 고른다(AI 없음).
 type Kind = 'deadline' | 'apply' | 'reply' | 'suggest' | 'post' | 'event';
 interface BriefItem { kind: Kind; title: string; sub: string; target: 'campaigns' | 'mail' | 'drafts' | 'calendar' }
-interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events?: number } }
+export interface Brief { today: string; items: BriefItem[]; counts: { posted_week: number; receivable: number; waiting: number; suggest: number; events?: number } }
 const won = (n: number) => (n >= 10000 ? `${Math.round(n / 1000) / 10}만` : n.toLocaleString('ko-KR'));
 const dayLabel = (d: string) => new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
 
@@ -24,12 +24,66 @@ export function usePhone() {
 
 /** 급한 일이 없을 때도 '지금 할 일' 하나를 버튼으로: 쓰던 원고 이어 쓰기 → 없으면 새 원고·글감 */
 interface DraftLite { id: string; title: string; status: string; updated_at: number }
-export function BriefCard({ name, onGo, drafts = [], onOpenDraft, onCreate, onIdeas }: { name: string; onGo: (target: BriefItem['target']) => void; drafts?: DraftLite[]; onOpenDraft?: (id: string) => void; onCreate?: () => void; onIdeas?: () => void }) {
-  const [brief, setBrief] = useState<Brief | null>(null);
-  useEffect(() => { let alive = true; api<Brief>('/api/brief').then(b => { if (alive) setBrief(b); }).catch(() => { /* 카드만 안 보임 */ }); return () => { alive = false; }; }, []);
+export function BriefCard({ name, onGo, drafts = [], onOpenDraft, onCreate, onIdeas, data, hero = false, children }: { name: string; onGo: (target: BriefItem['target']) => void; drafts?: DraftLite[]; onOpenDraft?: (id: string) => void; onCreate?: () => void; onIdeas?: () => void; /** 이미 읽어 온 브리핑(오늘 보드가 함께 쓴다). 없으면 직접 읽는다 */ data?: Brief | null; /** 오늘 보드: 가장 급한 일 하나를 크게, 나머지는 '그다음 할 일'로 */ hero?: boolean; /** 오늘 보드: '그다음 할 일' 옆에 둘 칸 */ children?: ReactNode }) {
+  const [own, setBrief] = useState<Brief | null>(null);
+  useEffect(() => { if (data !== undefined) return; let alive = true; api<Brief>('/api/brief').then(b => { if (alive) setBrief(b); }).catch(() => { /* 카드만 안 보임 */ }); return () => { alive = false; }; }, [data]);
+  const brief = data !== undefined ? data : own;
   if (!brief) return null;
   const top = brief.items.slice(0, 3);
   const c = brief.counts;
+  const writing = [...drafts].filter(d => d.status !== 'published').sort((a, b) => b.updated_at - a.updated_at)[0];
+  const kpis = (
+    <div className="brief-kpis" aria-label="숫자 요약">
+      <div><span className="muted small">이번 주 게시</span><b>{c.posted_week}</b></div>
+      <div><span className="muted small">받을 금액</span><b>{c.receivable ? `${won(c.receivable)}원` : '0원'}</b></div>
+      <div><span className="muted small">답장 기다림</span><b>{c.waiting}</b></div>
+      <div><span className="muted small">단계 확인</span><b>{c.suggest}</b></div>
+    </div>
+  );
+  if (hero) {
+    const [first, ...rest] = brief.items;
+    return (
+      <section className="brief brief-hero-mode" aria-labelledby="brief-title">
+        <div className="brief-head"><h2 id="brief-title">좋은 하루예요{name ? `, ${name}님` : ''}</h2><span className="muted small">{dayLabel(brief.today)}</span></div>
+        <div className="brief-hero">
+          {first ? (
+            <>
+              <div className="brief-hero-t"><span className="small">오늘 할 일 {brief.items.length}개 중 1번째</span><b>{first.title}</b><span className="small">{first.sub}</span></div>
+              <button type="button" className="btn brief-hero-go" onClick={() => onGo(first.target)} aria-label={`열기: ${first.title}`}>바로 하기 →</button>
+            </>
+          ) : (
+            <>
+              <div className="brief-hero-t"><span className="small">오늘 급한 일은 없어요</span><b>{writing ? `‘${(writing.title.trim() || '제목 없는 원고').slice(0, 24)}’ 마무리하기` : '새 글 시작하기'}</b><span className="small">{writing ? '마감·답장은 없어요. 쓰던 원고를 이어서 마무리해 볼까요?' : '마감·답장·쓰던 원고가 없어요.'}</span></div>
+              <div className="ai-row">
+                {writing && onOpenDraft && <button type="button" className="btn brief-hero-go" onClick={() => onOpenDraft(writing.id)}>‘{(writing.title.trim() || '제목 없는 원고').slice(0, 18)}’ 이어 쓰기 →</button>}
+                {!writing && onCreate && <button type="button" className="btn brief-hero-go" onClick={onCreate}>첫 글 쓰기 →</button>}
+                {onIdeas && <button type="button" className="btn ghost" onClick={onIdeas}>글감에서 고르기</button>}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="today-grid">
+          <section className="card step" aria-labelledby="brief-next-title">
+            <h3 id="brief-next-title" className="step-title">그다음 할 일<span className="step-sub">{rest.length}개</span></h3>
+            {rest.length === 0 ? <p className="muted small" style={{ margin: 0 }}>{first ? '이것만 하면 오늘 급한 일은 끝이에요.' : '급한 일이 생기면 여기에 순서대로 보여요.'}</p> : (
+              <ol className="brief-list">
+                {rest.slice(0, 5).map((it, i) => (
+                  <li key={`${it.kind}-${i}`}>
+                    <span className="brief-n" aria-hidden="true">{i + 2}</span>
+                    <span className="brief-t">{it.title}<small>{it.sub}</small></span>
+                    <button type="button" className="btn small" onClick={() => onGo(it.target)} aria-label={`열기: ${it.title}`}>열기</button>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {rest.length > 5 && <p className="muted small" style={{ margin: 0 }}>그 밖에 {rest.length - 5}개 더 있어요</p>}
+          </section>
+          {children}
+        </div>
+        {kpis}
+      </section>
+    );
+  }
   return (
     <section className="brief" aria-labelledby="brief-title">
       <div className="brief-head"><h2 id="brief-title">좋은 하루예요{name ? `, ${name}님` : ''}</h2><span className="muted small">{dayLabel(brief.today)}</span></div>
@@ -120,13 +174,21 @@ export function PushCard() {
     setMade({ pub: bytesToB64(pub), priv: jwk.d ?? '' });
   }
 
+  const ready = supported && !!info?.public_key;
   return (
     <section className="card step" aria-labelledby="push-title">
-      <h2 id="push-title" className="step-title">아침 알림</h2>
-      <p className="small" style={{ margin: 0 }}>매일 아침 8시 30분쯤, 할 일(마감·답장·오늘 올릴 원고·오늘 일정)이 있으면 이 기기로 한 번 알려요. 알림에는 할 일 제목만 보이고 메일 내용·금액은 넣지 않아요.</p>
-      {!supported ? <p className="muted small" style={{ margin: 0 }}>이 브라우저는 알림을 받을 수 없어요. 아이폰은 사파리에서 '홈 화면에 추가'로 미니로그를 설치한 뒤 그 앱에서 켜 주세요.</p>
-        : info && !info.public_key ? (
-          <div className="stack" style={{ gap: 6 }}>
+      <div className="row-between">
+        <h2 id="push-title" className="step-title">아침 알림</h2>
+        {/* 켜기/끄기 스위치 하나. 이 기기 기준 */}
+        <button type="button" role="switch" aria-checked={!!on} aria-label="이 기기 아침 알림" className={`switch${on ? ' on' : ''}`} disabled={busy || !ready || on === null}
+          onClick={() => { void (on ? disable() : enable()); }}><span className="switch-knob" aria-hidden="true" /><span className="switch-t">{on ? '켜짐' : '꺼짐'}</span></button>
+      </div>
+      <p className="small" style={{ margin: 0 }}>매일 아침 8시 30분쯤, 할 일(마감·답장·오늘 올릴 원고·오늘 일정)이 있으면 이 기기로 한 번 알려요. 알림에는 할 일 제목만 보이고 메일 내용·금액은 넣지 않아요.{info ? ` 알림 켠 기기 ${info.devices}대.` : ''}</p>
+      {!supported && <p className="muted small" style={{ margin: 0 }}>이 브라우저는 알림을 받을 수 없어요. 아이폰은 사파리에서 '홈 화면에 추가'로 미니로그를 설치한 뒤 그 앱에서 켜 주세요.</p>}
+      {supported && info && !info.public_key && (
+        <details className="small">
+          <summary>아직 켤 수 없어요 · 관리자용</summary>
+          <div className="stack" style={{ gap: 6, marginTop: 6 }}>
             <p className="muted small" style={{ margin: 0 }}>알림 키가 아직 없어요. 관리자가 아래에서 키를 만들어 Cloudflare(mini-log → 설정 → 변수와 비밀)에 비밀로 넣으면 켤 수 있어요.</p>
             {!made ? <button type="button" className="btn small" onClick={() => { void makeKeys(); }} style={{ justifySelf: 'start' }}>알림 키 만들기(관리자)</button> : (
               <div className="push-keys" aria-label="새 알림 키">
@@ -136,13 +198,8 @@ export function PushCard() {
               </div>
             )}
           </div>
-        ) : (
-          <div className="ai-row">
-            {on ? <button type="button" className="btn" onClick={() => { void disable(); }} disabled={busy}>이 기기 알림 끄기</button>
-              : <button type="button" className="btn primary" onClick={() => { void enable(); }} disabled={busy || !info}>이 기기에서 아침 알림 켜기</button>}
-            <span className="muted small">{on ? '이 기기는 켜져 있어요' : '이 기기는 꺼져 있어요'}{info ? ` · 알림 켠 기기 ${info.devices}대` : ''}</span>
-          </div>
-        )}
+        </details>
+      )}
       {msg && <p className={msg.kind === 'error' ? 'error small' : 'muted small'} role={msg.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{msg.text}</p>}
     </section>
   );

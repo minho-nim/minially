@@ -9,6 +9,7 @@ import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readOption
 export type { Mail } from './_mailRules';
 import { buildMail, parseMail } from './_mime';
 import { docFromText, docToHtml, docToText, readMailDoc, type MailDoc } from './_mailDoc';
+import { withSaved } from './_creds';
 import { MailError, PROVIDER_LABEL, fetchNew, mailAccountOf, mailAccounts, sendMail, type MailAccount, type Provider } from './_mailbox';
 
 async function linkCampaign(db: D1Database, user: UserName, j: Judgement, subject: string): Promise<string | null> {
@@ -89,6 +90,7 @@ async function fetchAccount(db: D1Database, env: HubEnv, user: UserName, account
 
 /** 새 메일 받기(연결된 계정 모두) → 분류 → 협찬 담기 → 답장 초안. 같은 사람 것이 동시에 두 번 돌지 않게 잠근다 */
 export async function syncMail(db: D1Database, env: HubEnv, user: UserName): Promise<{ added: number; skipped?: 'no_account' | 'busy'; error?: string }> {
+  env = await withSaved(env, db, user); // 화면에서 연결한 계정이 먼저
   const accounts = mailAccounts(env, user);
   if (!accounts.length) return { added: 0, skipped: 'no_account' };
   const now = Date.now();
@@ -154,6 +156,7 @@ export async function saveReply(db: D1Database, user: UserName, id: string, subj
 
 /** 사람이 '보내기'를 눌렀을 때: 저장된 답장을 내 계정으로 보낸다 */
 export async function sendReply(db: D1Database, env: HubEnv, user: UserName, id: string): Promise<true | string> {
+  env = await withSaved(env, db, user);
   const mail = await getMail(db, user, id);
   if (!mail) return '메일을 찾지 못했어요.';
   // 답장은 그 메일을 받은 계정으로 보낸다
@@ -171,6 +174,7 @@ export async function sendReply(db: D1Database, env: HubEnv, user: UserName, id:
 
 /** 새 메일 보내기(협찬 제안 등): 사람이 '보내기 확정'을 눌렀을 때만. 보낸 메일은 '보낸 메일'에 남긴다 */
 export async function sendNew(db: D1Database, env: HubEnv, user: UserName, to: string, subject: string, doc: MailDoc, from?: Provider): Promise<FullMail | string> {
+  env = await withSaved(env, db, user);
   const account = from ? mailAccountOf(env, user, from) : mailAccounts(env, user)[0] ?? null;
   if (!account) return from ? `${PROVIDER_LABEL[from]} 메일이 연결되지 않았어요.` : '메일이 아직 연결되지 않았어요.';
   const text = docToText(doc);
