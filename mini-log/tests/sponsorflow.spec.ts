@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
 import { login } from './helpers';
 import { checkDraft, qualityCheck } from '../src/DraftCheck';
+import { replyPrompt } from '../functions/_mailRules';
+import { historyText } from '../functions/_sponsorFlow';
 
 const kst = (days: number) => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10);
 const call = (page: Page, path: string, method = 'GET', body?: unknown) => page.evaluate(async ([p, m, b]) => {
@@ -105,4 +107,31 @@ test('협찬 글 점검: 광고 표시는 제목이나 앞부분에, 가이드 �
   const avoid = (body: string) => checkDraft({ title: 't', body, hashtags: [], photos: 0 }, guide).find(i => i.label === "쓰지 말 것 '스타벅스'")?.ok;
   expect(avoid('근처 스타 벅스보다 좋아요')).toBe(false);
   expect(avoid('조용하고 좋아요')).toBe(true);
+});
+
+test('업체별 기록: 같은 업체와 했던 협찬을 편집 칸에 보이고, 조건 협의 답장 안에는 참고 자료로만 넘긴다', async ({ page, browser }) => {
+  // 답장 프롬프트: 지난 협찬은 태그로 감싼 자료, 금액을 정하지 않는다는 규칙
+  const withPast = replyPrompt('서명', [{ id: 'm1', from: 'a <a@b.kr>', subject: '제안', text: '본문', kind: 'offer', history: historyText([{ id: 'x', title: '여름 체험', amount: 40000, status: 'paid', on: '2026-07-10', draft_id: null, views: 1234 }]) }]);
+  expect(withPast).toContain('<지난 협찬>\n2026-07 여름 체험 · 원고료 40,000원 · 정산 완료 · 조회 1,234\n</지난 협찬>');
+  expect(withPast).toContain('금액·조건을 정하거나 약속하지 않는다');
+  expect(replyPrompt('서명', [{ id: 'm1', from: 'a', subject: 's', text: 't', kind: 'offer' }])).not.toContain('<지난 협찬>\n');
+
+  await login(page, CODE_C);
+  const old = (await call(page, '/api/campaigns', 'POST', { brand: '기록빵집', title: '여름 체험', status: 'paid', amount: 40000, paid_on: '2026-07-20' })).data.campaign;
+  const now = (await call(page, '/api/campaigns', 'POST', { brand: '기록빵집 성수점', title: '겨울 체험', status: 'proposed' })).data.campaign;
+  const past = (await call(page, `/api/campaigns/history?brand=${encodeURIComponent('기록빵집 성수점')}&except=${now.id}`)).data.past;
+  expect(past).toEqual([expect.objectContaining({ id: old.id, title: '여름 체험', amount: 40000, status: 'paid', on: '2026-07-20' })]);
+  expect((await call(page, '/api/campaigns/history?brand=x')).data.past).toEqual([]);
+  const other = await browser.newPage();
+  await login(other, CODE_D);
+  expect((await call(other, `/api/campaigns/history?brand=${encodeURIComponent('기록빵집')}`)).data.past).toEqual([]); // 남의 기록은 안 보임
+  await other.close();
+
+  // 화면: 고치는 칸에 지난 협찬
+  await page.goto('/#campaigns');
+  await page.getByRole('tab', { name: '진행 중' }).click();
+  await page.getByRole('button', { name: '기록빵집 성수점 겨울 체험 고치기' }).click();
+  await expect(page.getByRole('group', { name: '이 업체와 지난 협찬' })).toContainText('26.07 · 여름 체험 · 40,000원 · 정산 완료');
+
+  for (const id of [old.id, now.id]) await call(page, `/api/campaigns/${id}`, 'DELETE');
 });

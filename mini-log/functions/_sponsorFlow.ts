@@ -4,6 +4,7 @@ import type { D1Database } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 import { createDraft, updateDraft } from './_drafts';
 import { updateCampaign, type Campaign } from './_campaigns';
+import { sameBrand } from './_mailRules';
 
 export const PAYMENT_DAYS = 14; // 게시 뒤 이만큼 지나도 정산이 안 되면 브리핑에 '입금 확인'
 const DAY = 86400000;
@@ -65,3 +66,16 @@ export async function sponsorMail(db: D1Database, user: UserName, c: Campaign, k
       '', '수정할 부분이 있으면 편하게 말씀해 주세요. 좋은 기회 주셔서 감사합니다. 다음에도 함께할 수 있으면 좋겠어요.', ...bye].join('\n').replace(/\n{3,}/g, '\n\n').trim(),
   };
 }
+
+export interface BrandPast { id: string; title: string; amount: number; status: string; on: string | null; draft_id: string | null; views: number | null }
+/** 같은 업체(이름이 겹치는)와 했던 협찬(게시·정산까지 간 것), 최근 순 5개. 연결 원고 조회수는 기록이 있을 때만 */
+export async function brandHistory(db: D1Database, user: UserName, brand: string, exceptId = ''): Promise<BrandPast[]> {
+  const rows = (await db.prepare(`SELECT c.id, c.brand, c.title, c.amount, c.status, COALESCE(c.paid_on, c.posted_on, c.deadline) AS on_day, c.draft_id,
+      (SELECT MAX(p.views) FROM minilog_posts p WHERE p.user = c.user AND p.draft_id = c.draft_id) AS views
+    FROM minilog_campaigns c WHERE c.user = ? AND c.kind = 'sponsor' AND c.status IN ('posted', 'paid') ORDER BY COALESCE(c.paid_on, c.posted_on, c.deadline) DESC LIMIT 200`)
+    .bind(user).all<{ id: string; brand: string; title: string; amount: number; status: string; on_day: string | null; draft_id: string | null; views: number | null }>()).results;
+  return rows.filter(r => r.id !== exceptId && sameBrand(r.brand, brand)).slice(0, 5)
+    .map(r => ({ id: r.id, title: r.title, amount: r.amount, status: r.status, on: r.on_day, draft_id: r.draft_id, views: r.views }));
+}
+/** AI에 넘기는 지난 협찬 요약(숫자는 기록 그대로) */
+export const historyText = (past: BrandPast[]) => past.slice(0, 3).map(p => `${p.on ? p.on.slice(0, 7) : '날짜 모름'} ${p.title || '협찬'} · 원고료 ${p.amount ? won(p.amount) : '없음'} · ${p.status === 'paid' ? '정산 완료' : '게시 완료'}${p.views !== null ? ` · 조회 ${p.views.toLocaleString('ko-KR')}` : ''}`).join('\n');

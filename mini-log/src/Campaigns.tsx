@@ -33,6 +33,35 @@ const OPEN: Status[] = ['proposed', 'in_progress', 'posted'];
 const WISH: Status[] = ['interested', 'applied'];
 /** 다음 단계로 한 번에: 관심 → 신청함 → 선정(진행 중) */
 const NEXT: Partial<Record<Status, [Status, string]>> = { interested: ['applied', '신청했어요'], applied: ['in_progress', '선정됐어요'] };
+interface BrandPast { id: string; title: string; amount: number; status: string; on: string | null; draft_id: string | null; views: number | null }
+/** 같은 업체와 했던 협찬(게시·정산까지): 원고료·날짜·조회수. 업체 이름을 적고 0.5초 뒤에 찾는다 */
+function BrandPastBox({ brand, except, onOpenDraft }: { brand: string; except: string | null; onOpenDraft: (id: string) => void }) {
+  const [past, setPast] = useState<BrandPast[]>([]);
+  useEffect(() => {
+    const b = brand.trim();
+    if (b.length < 2) { setPast([]); return; }
+    let alive = true;
+    const t = setTimeout(() => {
+      api<{ past: BrandPast[] }>(`/api/campaigns/history?brand=${encodeURIComponent(b)}${except ? `&except=${except}` : ''}`).then(d => { if (alive) setPast(d.past); }).catch(() => { if (alive) setPast([]); });
+    }, 500);
+    return () => { alive = false; clearTimeout(t); };
+  }, [brand, except]);
+  if (!past.length) return null;
+  return (
+    <div className="brand-past" role="group" aria-label="이 업체와 지난 협찬">
+      <b className="small">이 업체와 지난 협찬 {past.length}건</b>
+      <ul>
+        {past.map(p => (
+          <li key={p.id} className="small">
+            <span>{p.on ? p.on.slice(2, 7).replace('-', '.') : '—'} · {p.title || '협찬'} · {p.amount ? won(p.amount) : '원고료 없음'} · {p.status === 'paid' ? '정산 완료' : '게시 완료'}{p.views !== null ? ` · 조회 ${formatNumber(p.views)}` : ''}</span>
+            {p.draft_id && <button type="button" className="btn ghost small" onClick={() => onOpenDraft(p.draft_id!)}>원고</button>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** 단계판(칸반) 칸 순서. 취소는 칸에 두지 않고 목록의 '취소'에서 본다 */
 const BOARD: Status[] = ['interested', 'applied', 'proposed', 'in_progress', 'posted', 'paid'];
 type Filter = 'open' | 'wish' | 'paid' | 'cancelled' | 'all' | 'brand' | 'board';
@@ -276,6 +305,7 @@ export function CampaignsView({ drafts, onBack, onOpenDraft, onProposal, shared 
             <div className="field">
               <label htmlFor="c-brand">{editing.form.kind === 'sponsor' ? '업체' : '어디서(선택)'}</label>
               <input id="c-brand" className="input" value={editing.form.brand} maxLength={60} placeholder={editing.form.kind === 'ad' ? '예: 애드포스트' : '예: ○○카페'} onChange={e => set({ brand: e.target.value })} />
+              {editing.form.kind === 'sponsor' && <BrandPastBox brand={editing.form.brand} except={editing.id} onOpenDraft={onOpenDraft} />}
             </div>
             <div className="field">
               <label htmlFor="c-title">캠페인 이름(선택)</label>

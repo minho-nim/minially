@@ -4,6 +4,7 @@ import type { D1Database, HubEnv } from '../../shared/server/d1';
 import type { UserName } from '../../shared/server/auth';
 import { AiError, LIGHT_MODEL, callGemini } from '../../shared/server/ai';
 import { createCampaign, listCampaigns, suggestStatus, updateCampaign } from './_campaigns';
+import { brandHistory, historyText } from './_sponsorFlow';
 import { COLUMNS, KEEP_DAYS, LOCK_MS, classifyPrompt, readJudgements, readOptions, readReplies, replyPrompt, sameBrand, str, type Judgement, type Mail, type MailKind, type ReplyOption } from './_mailRules';
 export type { Mail } from './_mailRules';
 import { buildMail, parseMail } from './_mime';
@@ -45,7 +46,7 @@ async function signatureOf(db: D1Database, user: UserName) {
 export async function draftReplies(db: D1Database, env: HubEnv, user: UserName, mails: Mail[]) {
   if (!mails.length) return 0;
   const { text } = await callGemini({ env, db, user, app: 'minilog', task: 'mail_reply', json: true,
-    prompt: replyPrompt(await signatureOf(db, user), mails.map(m => ({ id: m.id, from: `${m.from_name} <${m.from_addr}>`, subject: m.subject, text: m.snippet, kind: m.kind }))) });
+    prompt: replyPrompt(await signatureOf(db, user), await Promise.all(mails.map(async m => ({ id: m.id, from: `${m.from_name} <${m.from_addr}>`, subject: m.subject, text: m.snippet, kind: m.kind, history: m.brand ? historyText(await brandHistory(db, user, m.brand)) : '' })))) });
   const replies = readReplies(text, mails.map(m => m.id));
   for (const r of replies) {
     const subject = r.subject || `Re: ${mails.find(m => m.id === r.id)?.subject ?? ''}`;

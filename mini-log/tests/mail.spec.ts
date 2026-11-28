@@ -99,8 +99,8 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
 
   // 화면: 메뉴 숫자, 메일 앱처럼 목록 → 읽기, 서식 있는 답장을 고쳐 보내기(확인 한 번 더)
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /^메일/ })).toContainText('2');
-  await page.getByRole('button', { name: /^메일/ }).click();
+  await expect(page.getByRole('button', { name: /^메일(\s|$)/ })).toContainText('2');
+  await page.getByRole('button', { name: /^메일(\s|$)/ }).click();
   const rows = page.getByRole('complementary', { name: '메일 목록' });
   await expect(rows.getByRole('button', { name: /이번 주 소식/ })).toHaveCount(0); // 기타는 '협찬 관련'에 안 보인다
   await rows.getByRole('button', { name: /\[협찬 제안\] 겨울 신메뉴 체험/ }).click();
@@ -137,7 +137,7 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   expect(parseMail(sent[0].data).text).toBe('안녕하세요, 제안 감사합니다.\n12월 둘째 주에 방문할게요.');
   const htmlPart = Buffer.from(sent[0].data.split('Content-Type: text/html; charset=UTF-8')[1].split('\r\n\r\n')[1].split('--minilog')[0].replace(/\s/g, ''), 'base64').toString('utf8');
   expect(htmlPart).toContain('<b>안녕하세요, 제안 감사합니다.</b>');
-  await expect(page.getByRole('navigation', { name: '미니로그 메뉴' }).getByRole('button', { name: /^메일/ })).toContainText('1');
+  await expect(page.getByRole('navigation', { name: '미니로그 메뉴' }).getByRole('button', { name: /^메일(\s|$)/ })).toContainText('1');
 
   // 다시 받아도 겹치지 않는다, 보낸 답장은 다시 못 보낸다
   const again = await page.evaluate(async () => (await fetch('/api/mail/sync', { method: 'POST', body: '{}' })).json());
@@ -157,9 +157,14 @@ test('메일 자동 처리: 받기 → 분류·협찬 담기 → 답장 초안 �
   expect(d).toMatchObject({ list: { connected: false, mails: [], waiting: 0 }, sync: 409, send: 404, edit: 404 }); // 남의 메일은 '없음'
   await other.close();
 
-  // 다른 시험(협찬 합계 등)에 영향이 없게 만든 협찬을 지운다
-  await page.evaluate(async ids => { for (const id of ids) await fetch(`/api/campaigns/${id}`, { method: 'DELETE' }); },
-    campaigns.filter(c => ['메일빵집', '메일구름카페', '메일달빛상점'].includes(c.brand)).map(c => c.id));
+  // 다른 시험(협찬 합계 등)에 영향이 없게 만든 협찬과, 진행 중으로 옮길 때 준비된 원고를 지운다
+  await page.evaluate(async brands => {
+    for (const c of (await (await fetch('/api/campaigns')).json()).campaigns as { id: string; brand: string; draft_id: string | null }[]) {
+      if (!brands.includes(c.brand)) continue;
+      await fetch(`/api/campaigns/${c.id}`, { method: 'DELETE' });
+      if (c.draft_id) await fetch(`/api/drafts/${c.draft_id}`, { method: 'DELETE' });
+    }
+  }, ['메일빵집', '메일구름카페', '메일달빛상점']);
 });
 
 test('메일 쓰기 문서: 정해진 모양만 받고, HTML은 서버가 이스케이프해 만든다', async () => {
@@ -189,7 +194,7 @@ test('받은 HTML 메일은 원래 모양으로 보되 스크립트·바깥 이�
   await page.evaluate(async () => { await fetch('/api/mail/sync', { method: 'POST', body: '{}' }); });
   const blocked: string[] = [];
   page.on('request', r => { if (r.url().includes('tracker.example')) blocked.push(r.url()); });
-  await page.getByRole('button', { name: /^메일/ }).click();
+  await page.getByRole('button', { name: /^메일(\s|$)/ }).click();
   await page.getByRole('tab', { name: '전체' }).click();
   await page.getByRole('complementary', { name: '메일 목록' }).getByRole('button', { name: /HTML 안내 메일/ }).click();
   const reader = page.getByRole('region', { name: '메일 읽기' });
@@ -247,7 +252,7 @@ test('네이버·Gmail을 한 메일함에: 같은 번호도 겹치지 않고, �
   expect(synced.accounts).toEqual([{ provider: 'naver', address: 'c-***@naver.com' }, { provider: 'gmail', address: 'c-***@gmail.com' }]);
 
   // 화면: 계정 표시, Gmail로 받은 메일의 답장은 Gmail로 나간다
-  await page.getByRole('button', { name: /^메일/ }).click();
+  await page.getByRole('button', { name: /^메일(\s|$)/ }).click();
   const rows = page.getByRole('complementary', { name: '메일 목록' });
   await expect(rows.getByRole('button', { name: /Gmail로 온 제안/ })).toContainText('Gmail');
   await expect(rows.getByRole('button', { name: /네이버로 온 제안/ })).toContainText('네이버');

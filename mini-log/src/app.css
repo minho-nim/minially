@@ -120,6 +120,9 @@ select.input { appearance: auto; }
 .views button { font-size: 0.875rem; }
 .kpis.three { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.brand-past { grid-column: 1 / -1; display: grid; gap: 4px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+.brand-past ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.brand-past li { display: flex; align-items: center; justify-content: space-between; gap: 8px; overflow-wrap: anywhere; }
 .board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 6px; }
 .board-col { scroll-snap-align: start; min-width: 0; display: grid; align-content: start; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-2, color-mix(in srgb, var(--text) 4%, transparent)); border: 1px dashed transparent; }
 .board-col.drop { border-color: var(--app); background: color-mix(in srgb, var(--app) 10%, transparent); }
