@@ -283,7 +283,7 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
             </div>
           ))}
         </nav>
-        {phone && view === 'drafts' && !selected && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} />}
+        {phone && view === 'drafts' && !selected && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onIdeas={() => go('ideas')} />}
         {listError && <p className="error" role="alert">{listError}</p>}
         {drafts === null && !listError && <Skeleton rows={4} compact label="원고 목록을 불러오는 중…" />}
         {drafts?.length === 0 && (
@@ -369,7 +369,7 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
           ? <Editor key={selected.id} draft={selected} gemini={me.gemini.connected} otherTitles={(drafts ?? []).filter(d => d.id !== selected.id && d.title.trim()).map(d => d.title)} onSaved={onSaved} onCopied={copy => setDrafts(list => [copy, ...(list ?? [])])} onPhotoCount={onPhotoCount} onDeleted={onDeleted} onRestored={d => { setDrafts(list => [d, ...(list ?? []).filter(x => x.id !== d.id)]); setSelectedId(d.id); setView('drafts'); }} onBack={() => setSelectedId(null)} />
           : (
             <div className="stack">
-            {!phone && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} />}
+            {!phone && <BriefCard name={me.name} onGo={t => go(t === 'drafts' ? 'calendar' : t)} drafts={drafts ?? []} onOpenDraft={id => { setSelectedId(id); setView('drafts'); }} onCreate={() => { void create(); }} onIdeas={() => go('ideas')} />}
             <div className="card empty">
               <Tomong kind="minilog" size={104} pose="wave" />
               <h1 style={{ margin: 0, fontSize: '1.35rem', letterSpacing: '-0.02em' }}>사진과 경험으로 블로그 원고 만들기</h1>
@@ -1148,6 +1148,15 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
 
   // 지금 단계의 메인 버튼 하나만 진하게: 본문이 비면 AI 초안, 쓰는 중이면 원고 승인, 승인·게시 뒤엔 한 번에 복사
   const stage: 'write' | 'approve' | 'post' = !fields.body.trim() ? 'write' : fields.status === 'draft' ? 'approve' : 'post';
+  // 진행 막대: 화면만 봐도 다음에 할 일을 알 수 있게 단계마다 끝났는지 보이고, 다음 단계 하나만 진한 버튼(누르면 그 칸으로)
+  const steps: { key: string; label: string; done: boolean; target: string; action: string; optional?: boolean }[] = [
+    { key: 'photo', label: '사진', done: (photos?.length ?? 0) > 0, target: 's1', action: '사진 올리기', optional: true },
+    { key: 'exp', label: '경험', done: !!fields.experience.trim(), target: 's2', action: '겪은 일 적기' },
+    { key: 'body', label: '초안', done: !!fields.body.trim(), target: 's3', action: 'AI 초안 만들기(또는 직접 쓰기)' },
+    { key: 'check', label: '점검·승인', done: fields.status !== 'draft', target: 'ed-check', action: '점검 보고 승인하기' },
+    { key: 'post', label: '올리기', done: fields.status === 'published', target: 'ed-publish', action: '복사해서 블로그에 올리고 게시 완료 표시' },
+  ];
+  const nextStep = steps.find(st => !st.done && !st.optional) ?? null;
   return (
     <article className="stack" aria-label="원고 편집">
       <div className="editor-head">
@@ -1171,6 +1180,20 @@ function Editor({ draft, gemini, onSaved, onCopied, onPhotoCount, onDeleted, onR
       </div>
 
       {message && <p className={message.kind === 'error' ? 'error' : 'muted small'} role={message.kind === 'error' ? 'alert' : 'status'} style={{ margin: 0 }}>{message.text}</p>}
+
+      <nav className="ed-steps" aria-label="원고 진행 단계">
+        <ol>
+          {steps.map((st, i) => (
+            <li key={st.key} className={st.done ? 'done' : st === nextStep ? 'now' : ''}>
+              <button type="button" onClick={() => jump(st.target)} aria-current={st === nextStep ? 'step' : undefined}>
+                <span className="ed-step-n" aria-hidden="true">{st.done ? '✓' : i + 1}</span>{st.label}{st.optional && !st.done ? '(선택)' : ''}
+              </button>
+            </li>
+          ))}
+        </ol>
+        {nextStep ? <button type="button" className="btn primary small ed-next" onClick={() => jump(nextStep.target)}>다음: {nextStep.action} →</button>
+          : <span className="small muted">다 끝났어요. 7일 뒤 대시보드에서 돌아보기를 적어 주세요.</span>}
+      </nav>
 
       {focus && <button type="button" className="side-handle" onClick={toggleFocus} aria-label="옆 칸 펴기">⟨ 점검·올리기</button>}
       <div className={`editor-cols${focus ? ' focus' : ''}`}>

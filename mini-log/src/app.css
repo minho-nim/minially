@@ -666,6 +666,18 @@ select.input { appearance: auto; }
 .lessons li { overflow-wrap: anywhere; }
 
 /* 캘린더 3단: 날짜 없는 원고 서랍 | 달력 | 인스타 격자 (폭에 따라 2단·1단) */
+.ed-steps { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 10px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.ed-steps ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.ed-steps li button { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px 0 4px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.ed-step-n { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: var(--surface-2); font-size: 0.78rem; font-weight: 800; }
+.ed-steps li.done button { color: var(--text); }
+.ed-steps li.done .ed-step-n { background: var(--ok, #24704A); color: #fff; }
+.ed-steps li.now button { background: var(--app-soft); color: var(--text); }
+.ed-steps li.now .ed-step-n { background: var(--app); color: #2B2233; }
+@media (max-width: 599px) { .ed-steps li button { padding: 0 6px 0 2px; font-size: 0.8rem; } .ed-next { width: 100%; justify-content: center; min-height: 44px; } }
+.brief-next { display: grid; gap: 10px; }
+.brief .brief-go { background: #fff; color: #2B2233; border-color: #fff; font-weight: 700; }
+.brief .brief-alt { color: inherit; border-color: color-mix(in srgb, currentColor 40%, transparent); }
 .pick-bar { display: flex; flex-wrap: wrap; gap: 4px; }
 .pick-bar .btn { padding: 0 8px; font-size: 0.8rem; }
 .pick-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
@@ -883,6 +895,7 @@ select.input { appearance: auto; }
 .brief-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .brief-head h2 { margin: 0; font-size: 1.3rem; letter-spacing: -0.02em; }
 .brief-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 12px; }
+.brief-grid:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .brief-today { background: var(--ink); color: var(--ink-text); border-radius: var(--radius); padding: 16px; display: grid; gap: 10px; align-content: start; }
 .brief-today h3 { margin: 0; font-size: 1.05rem; }
 .brief-today ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }

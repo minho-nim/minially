@@ -89,3 +89,25 @@ test('메일은 미니로그에서만 지우고 10분 안에 되돌리고, 남�
   await expect.poll(async () => (await call(page, '/api/mail')).data.mails.some((m: { id: string }) => m.id === mail.id)).toBe(true);
   await call(page, `/api/mail/${mail.id}`, 'DELETE');
 });
+
+test('다음 할 일: 원고 화면 진행 막대가 끝난 단계에 ✓, 다음 단계 하나를 버튼으로, 첫 화면은 쓰던 원고 이어 쓰기', async ({ page }) => {
+  await login(page, CODE_D);
+  const id = (await call(page, '/api/drafts', 'POST', {})).data.draft.id;
+  await call(page, `/api/drafts/${id}`, 'PUT', { title: '다음할일 시험 원고' });
+  await page.reload();
+  // 첫 화면: 급한 일이 없으면 쓰던 원고 이어 쓰기
+  const brief = page.getByRole('region', { name: /좋은 하루예요/ });
+  await brief.getByRole('button', { name: /‘다음할일 시험 원고’ 이어 쓰기/ }).click();
+  const steps = page.getByRole('navigation', { name: '원고 진행 단계' });
+  await expect(steps.getByRole('button', { name: /경험/ })).toHaveAttribute('aria-current', 'step');
+  await expect(steps.getByRole('button', { name: /다음: 겪은 일 적기/ })).toBeVisible();
+  // 경험·본문을 채우면 다음은 점검·승인
+  await call(page, `/api/drafts/${id}`, 'PUT', { experience: '토요일 오전에 다녀옴', body: '소금빵이 맛있었어요.' });
+  await page.reload();
+  await expect(steps.getByRole('button', { name: /점검·승인/ })).toHaveAttribute('aria-current', 'step');
+  await expect(steps.locator('li.done')).toHaveCount(2); // 경험·초안(사진은 선택)
+  await call(page, `/api/drafts/${id}`, 'PUT', { status: 'published', published_url: 'https://blog.naver.com/x/1' });
+  await page.reload();
+  await expect(steps).toContainText('다 끝났어요');
+  await call(page, `/api/drafts/${id}`, 'DELETE');
+});
