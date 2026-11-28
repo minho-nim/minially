@@ -53,7 +53,7 @@ export function BriefCard({ name, onGo, drafts = [], onOpenDraft, onCreate, onId
                 <p className="small" style={{ margin: 0 }}>{writing ? '마감·답장은 없어요. 쓰던 원고를 이어서 마무리해 볼까요?' : '마감·답장·쓰던 원고가 없어요. 새 글을 시작해 볼까요?'}</p>
                 <div className="ai-row">
                   {writing && onOpenDraft && <button type="button" className="btn small brief-go" onClick={() => onOpenDraft(writing.id)}>‘{(writing.title.trim() || '제목 없는 원고').slice(0, 18)}’ 이어 쓰기 →</button>}
-                  {!writing && onCreate && <button type="button" className="btn small brief-go" onClick={onCreate}>새 원고 쓰기 →</button>}
+                  {!writing && onCreate && <button type="button" className="btn small brief-go" onClick={onCreate}>첫 글 쓰기 →</button>}
                   {onIdeas && <button type="button" className="btn small ghost brief-alt" onClick={onIdeas}>글감에서 고르기</button>}
                 </div>
               </div>
