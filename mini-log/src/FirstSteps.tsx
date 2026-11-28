@@ -23,12 +23,14 @@ export function FirstSteps({ onNew }: { onNew: () => void }) {
       </ol>
       <h2 id="fs-title" className="fs-title">{s.title}</h2>
       <p className="fs-body small">{s.body}</p>
+      {step === 0 && <button type="button" className="btn primary fs-start" onClick={onNew}>첫 원고 시작하기</button>}
+      {/* 단계를 넘겨도 버튼 자리는 그대로: 왼쪽 이전 · 가운데 건너뛰기 · 오른쪽 다음(마지막은 다 봤어요) */}
       <div className="fs-actions">
-        {step === 0 && <button type="button" className="btn primary" onClick={onNew}>첫 원고 시작하기</button>}
+        <button type="button" className="btn ghost" onClick={() => setStep(step - 1)} disabled={step === 0} style={{ visibility: step === 0 ? 'hidden' : 'visible' }}>← 이전</button>
+        <button type="button" className="btn ghost" onClick={done} style={{ visibility: step < STEPS.length - 1 ? 'visible' : 'hidden' }}>건너뛰기</button>
         {step < STEPS.length - 1
-          ? <button type="button" className={`btn${step === 0 ? ' ghost' : ' primary'}`} onClick={() => setStep(step + 1)}>다음 안내</button>
+          ? <button type="button" className="btn primary" onClick={() => setStep(step + 1)}>다음 안내</button>
           : <button type="button" className="btn primary" onClick={done}>다 봤어요</button>}
-        {step < STEPS.length - 1 && <button type="button" className="btn ghost" onClick={done}>건너뛰기</button>}
       </div>
     </section>
   );

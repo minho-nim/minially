@@ -266,7 +266,7 @@ function Workspace({ me, onLogout, onRenamed }: { me: Me; onLogout: () => void; 
       <UndoToast />
       <CommandPalette commands={commands} />
       <aside className="side" aria-label="원고 목록">
-        <div className="brand"><Signature kind="minilog" word="log" size={17} tomong={32} /></div>
+        <div className="brand"><a className="brand-home" href="/" aria-label="미니로그 첫 화면으로(새로고침)"><Signature kind="minilog" word="log" size={17} tomong={32} /></a></div>
         <button className="btn primary new-draft" onClick={() => { void create(); }} disabled={creating} aria-busy={creating}><NavIcon name="plus" size={16} />{creating ? '만드는 중…' : '새 원고'}</button>
         <button type="button" className="side-search" onClick={openPalette}><span>빠른 찾기</span><kbd aria-hidden="true">Ctrl K</kbd></button>
         <nav className="views" aria-label="미니로그 메뉴">
