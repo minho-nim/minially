@@ -120,6 +120,17 @@ select.input { appearance: auto; }
 .views button { font-size: 0.875rem; }
 .kpis.three { grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 6px; }
+.board-col { scroll-snap-align: start; min-width: 0; display: grid; align-content: start; gap: 6px; padding: 8px; border-radius: 14px; background: var(--surface-2, color-mix(in srgb, var(--text) 4%, transparent)); border: 1px dashed transparent; }
+.board-col.drop { border-color: var(--app); background: color-mix(in srgb, var(--app) 10%, transparent); }
+.board-head { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 0.85rem; }
+.board-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.board-card { display: grid; gap: 4px; padding: 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: grab; }
+.board-open { display: grid; gap: 2px; text-align: left; background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; min-width: 0; overflow-wrap: anywhere; }
+.board-move { display: flex; justify-content: space-between; }
+.board-move .btn { min-width: 36px; min-height: 32px; }
+.board-empty { margin: 0; padding: 10px 4px; text-align: center; }
+@media (max-width: 599px) { .board { grid-auto-columns: minmax(78%, 1fr); } .board-move .btn { min-width: 44px; min-height: 44px; } }
 .campaigns { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .campaigns li { display: flex; align-items: center; gap: 6px; }
 .campaign { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); text-align: left; cursor: pointer; }

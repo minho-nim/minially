@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { CODE_C, CODE_D } from '../playwright.config';
 import { login } from './helpers';
+import { checkDraft, qualityCheck } from '../src/DraftCheck';
 
 const kst = (days: number) => new Date(Date.now() + 9 * 3600000 + days * 86400000).toISOString().slice(0, 10);
 const call = (page: Page, path: string, method = 'GET', body?: unknown) => page.evaluate(async ([p, m, b]) => {
@@ -62,4 +63,46 @@ test('정산 챙기기: 게시 14일이 지나면 브리핑에 입금 확인, �
   await expect(compose).toContainText('50,000원');
 
   await call(page, `/api/campaigns/${c.id}`, 'DELETE');
+});
+
+test('협찬 단계판: 칸마다 건수·금액, ‹ › 버튼과 끌어 놓기로 옮기고, 진행 중으로 오면 원고 준비, 단계판 보기를 기억', async ({ page }) => {
+  await login(page, CODE_C);
+  const c = (await call(page, '/api/campaigns', 'POST', { brand: '단계판상점', status: 'applied', amount: 30000, deadline: kst(9) })).data.campaign;
+  await page.goto('/#campaigns');
+  await page.getByRole('tab', { name: '단계판' }).click();
+  const board = page.getByLabel('협찬 단계판');
+  const col = (name: string) => board.getByRole('region', { name: new RegExp(`^${name} \\d+건$`) });
+  await expect(col('신청함').getByRole('button', { name: '단계판상점 고치기' })).toBeVisible();
+  // 버튼으로 다음 칸(제안 받음)
+  await col('신청함').getByRole('button', { name: '단계판상점 제안 받음(으)로' }).click();
+  await expect(col('제안 받음').getByRole('button', { name: '단계판상점 고치기' })).toBeVisible();
+  // 끌어 놓기로 진행 중 → 원고 준비 알림
+  await col('제안 받음').locator('.board-card', { hasText: '단계판상점' }).dragTo(col('진행 중'));
+  await expect(col('진행 중').getByRole('button', { name: '단계판상점 고치기' })).toBeVisible();
+  await expect(page.getByText(/단계판상점: 진행 중\(으\)로 옮겼어요\. 가이드·필수 해시태그를 넣은 빈 원고를/)).toBeVisible();
+  // 다시 열어도 단계판
+  await page.reload();
+  await expect(page.getByLabel('협찬 단계판')).toBeVisible();
+  // 휴대폰 폭: 화면 전체는 옆으로 넘치지 않는다(단계판 안에서만 옆으로 넘김)
+  await page.setViewportSize({ width: 390, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  await page.getByRole('tab', { name: '진행 중' }).click(); // 다른 시험을 위해 목록 보기로 되돌림
+
+  const draftId = (await call(page, '/api/campaigns')).data.campaigns.find((x: { id: string }) => x.id === c.id).draft_id;
+  await call(page, `/api/campaigns/${c.id}`, 'DELETE');
+  if (draftId) await call(page, `/api/drafts/${draftId}`, 'DELETE');
+});
+
+test('협찬 글 점검: 광고 표시는 제목이나 앞부분에, 가이드 금지 표현, 가이드 없어도 협찬 연결이면 표시 문구를 본다', () => {
+  const ad = (body: string, title = '성수 카페 후기', extra: { sponsored?: boolean; postType?: string } = { sponsored: true }) =>
+    qualityCheck({ title, body, hashtags: [], photos: 0, ...extra }, null).find(i => i.label === '광고·협찬 표시 문구');
+  expect(ad('업체로부터 제공받아 솔직하게 썼어요. 맛있었어요.')?.ok).toBe(true);
+  const late = ad(`${'맛있어요. '.repeat(80)}업체로부터 제공받아 작성했어요.`);
+  expect(late).toMatchObject({ ok: false, hint: expect.stringContaining('뒤쪽에만 있어요') });
+  expect(ad('맛있어요.', '[협찬] 성수 카페 후기')?.ok).toBe(true); // 제목에 있으면 통과
+  expect(ad('맛있어요.', '성수 카페', {})).toBeUndefined(); // 협찬 연결도 글 종류도 아니면 안 봄
+  const guide = { keywords: [], hashtags: [], min_photos: null, min_chars: null, links: [], visit_on: null, notes: '', avoid: ['스타벅스'] };
+  const avoid = (body: string) => checkDraft({ title: 't', body, hashtags: [], photos: 0 }, guide).find(i => i.label === "쓰지 말 것 '스타벅스'")?.ok;
+  expect(avoid('근처 스타 벅스보다 좋아요')).toBe(false);
+  expect(avoid('조용하고 좋아요')).toBe(true);
 });

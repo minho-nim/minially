@@ -9,7 +9,7 @@ export type Kind = (typeof KINDS)[number];
 export type Status = (typeof STATUSES)[number];
 
 /** 체험단 가이드 정리(업체 가이드에서 뽑은 조건). 원고 점검과 캘린더(방문일)에 쓴다. */
-export interface Guide { keywords: string[]; hashtags: string[]; min_photos: number | null; min_chars: number | null; links: string[]; visit_on: string | null; notes: string }
+export interface Guide { keywords: string[]; hashtags: string[]; min_photos: number | null; min_chars: number | null; links: string[]; visit_on: string | null; notes: string; /** 쓰면 안 되는 말(경쟁사 이름·금지 표현) */ avoid?: string[] }
 /** 먼저 제안한 기록: 보낸 날, 보낸 곳, 답장(기다림·좋다고 함·거절) */
 export interface Pitch { on: string; via: 'mail' | 'dm'; reply: 'waiting' | 'yes' | 'no' }
 export interface Campaign {
@@ -53,8 +53,9 @@ export function cleanGuide(v: unknown): Guide | null {
     links: Array.isArray(g.links) ? g.links.filter((x): x is string => typeof x === 'string' && /^https:\/\/\S+$/.test(x) && x.length <= 500).slice(0, 5) : [],
     visit_on: typeof g.visit_on === 'string' && validDate(g.visit_on) ? g.visit_on : null,
     notes: typeof g.notes === 'string' ? g.notes.trim().slice(0, 1000) : '',
+    avoid: words(g.avoid, 10, 40),
   };
-  return guide.keywords.length || guide.hashtags.length || guide.min_photos || guide.min_chars || guide.links.length || guide.visit_on || guide.notes ? guide : null;
+  return guide.keywords.length || guide.hashtags.length || guide.min_photos || guide.min_chars || guide.links.length || guide.visit_on || guide.notes || guide.avoid?.length ? guide : null;
 }
 const LIMITS = { brand: 60, title: 100, provided: 500, memo: 1000, amount: 10_000_000_000 };
 

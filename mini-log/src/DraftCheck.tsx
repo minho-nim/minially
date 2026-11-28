@@ -19,6 +19,7 @@ export function checkDraft(d: { title: string; body: string; hashtags: string[];
     if (guide.min_photos) items.push({ label: `사진 ${guide.min_photos}장 이상`, ok: d.photos >= guide.min_photos, hint: `지금 ${d.photos}장` });
     if (guide.min_chars) items.push({ label: `${guide.min_chars.toLocaleString('ko-KR')}자 이상(공백 빼고)`, ok: chars >= guide.min_chars, hint: `지금 ${chars.toLocaleString('ko-KR')}자` });
     for (const link of guide.links) items.push({ label: '링크 넣기', ok: d.body.includes(link), hint: link });
+    for (const w of guide.avoid ?? []) items.push({ label: `쓰지 말 것 '${w}'`, ok: !all.includes(norm(w)), hint: '가이드에서 쓰지 말라고 한 말이에요' });
   }
   // 가이드가 없어도 보는 기본 점검
   const first = guide?.keywords[0];
@@ -33,6 +34,8 @@ export function checkDraft(d: { title: string; body: string; hashtags: string[];
 // AI 글에 흔한 상투 표현(내 말투가 아닌 티가 나는 곳). 두 개 넘게 나오면 알려 준다.
 export const CLICHES = ['결론적으로', '다양한', '소중한 시간', '특별한 경험', '완벽한', '에 대해 알아보', '마무리하며', '도움이 되셨', '많은 분들', '한마디로', '그야말로', '매력적인', '잊지 못할', '꼭 한번', '강력 추천'];
 const AD_WORDS = /제공받|협찬|광고|원고료|소정의|지원받/;
+/** 표시 문구를 찾는 본문 앞부분 길이(글자) */
+const AD_FRONT = 300;
 export const MONEY_PROMISE = /수익\s*보장|원금\s*보장|무조건\s*(수익|돈)|100%\s*수익|확정\s*수익|손실\s*없/;
 const count = (text: string, word: string) => (word ? text.split(word).length - 1 : 0);
 
@@ -40,7 +43,7 @@ const count = (text: string, word: string) => (word ? text.split(word).length - 
  * 작성 품질 점검(앱 기준). 네이버 공식 점수나 노출 보장이 아니라, 읽기 쉽고 빠뜨린 게 없는지 보는 체크리스트다.
  * keyword는 가이드 첫 키워드 → 첫 해시태그 순으로 쓴다.
  */
-export function qualityCheck(d: { title: string; body: string; hashtags: string[]; photos: number; postType?: string }, guide: Guide | null): CheckItem[] {
+export function qualityCheck(d: { title: string; body: string; hashtags: string[]; photos: number; postType?: string; sponsored?: boolean }, guide: Guide | null): CheckItem[] {
   const items: CheckItem[] = [];
   const keyword = guide?.keywords[0] ?? d.hashtags[0] ?? '';
   const flat = norm(d.body);
@@ -76,7 +79,11 @@ export function qualityCheck(d: { title: string; body: string; hashtags: string[
   // 후기 글은 칭찬만 있으면 광고처럼 읽힌다: 아쉬운 점 한 줄
   if (['food', 'cafe', 'product', 'beauty', 'fashion', 'sponsored'].includes(d.postType ?? '') && bodyChars(d.body) >= 200)
     items.push({ label: '아쉬운 점 한 줄(후기 글)', ok: /아쉬|단점|불편|별로|흠이라면/.test(d.body), hint: '예) 웨이팅이 길었어요, 주차가 불편했어요' });
-  if (d.postType === 'sponsored' || guide) items.push({ label: '광고·협찬 표시 문구', ok: AD_WORDS.test(d.body), hint: '예) 업체로부터 제품을 제공받아 솔직하게 작성했어요' });
+  // 공정위 추천·보증 심사지침: 경제적 대가 표시는 제목이나 게시물 첫 부분에(뒤에만 있으면 알려 준다)
+  if (d.postType === 'sponsored' || guide || d.sponsored) {
+    const front = AD_WORDS.test(d.title) || AD_WORDS.test(d.body.slice(0, AD_FRONT));
+    items.push({ label: '광고·협찬 표시 문구', ok: front, hint: AD_WORDS.test(d.body) ? '뒤쪽에만 있어요. 제목이나 본문 첫 부분으로 옮겨 주세요(공정위 지침)' : '제목이나 본문 첫 부분에 넣어 주세요. 예) 업체로부터 제품을 제공받아 솔직하게 작성했어요' });
+  }
   if (MONEY_PROMISE.test(d.body)) items.push({ label: '수익·원금 보장 표현 없음', ok: false, hint: '금융 글에 보장 표현은 쓰면 안 돼요' });
   const unsure = count(d.body, '[작성자 확인 필요]');
   if (unsure) items.push({ label: "'[작성자 확인 필요]' 모두 고치기", ok: false, hint: `${unsure}곳 남음` });
@@ -150,16 +157,18 @@ function Ring({ done, total }: { done: number; total: number }) {
 
 export function DraftCheck({ draftId, title, body, hashtags, photos, postType, sources, otherTitles = [] }: { draftId: string; title: string; body: string; hashtags: string[]; photos: number; postType?: string; sources?: string; otherTitles?: string[] }) {
   const [guide, setGuide] = useState<{ brand: string; guide: Guide } | null>(null);
+  // 가이드가 없어도 협찬에 연결된 원고면 광고 표시 문구를 본다
+  const [sponsored, setSponsored] = useState(false);
   const [showAll, setShowAll] = useState(false);
   useEffect(() => {
     let alive = true;
     api<{ campaigns: { brand: string; draft_id: string | null; guide: Guide | null }[] }>('/api/campaigns')
-      .then(d => { const c = d.campaigns.find(x => x.draft_id === draftId && x.guide); if (alive) setGuide(c?.guide ? { brand: c.brand, guide: c.guide } : null); })
+      .then(d => { const c = d.campaigns.find(x => x.draft_id === draftId && x.guide); if (alive) { setGuide(c?.guide ? { brand: c.brand, guide: c.guide } : null); setSponsored(d.campaigns.some(x => x.draft_id === draftId)); } })
       .catch(() => { /* 점검은 가이드 없이도 된다 */ });
     return () => { alive = false; };
   }, [draftId]);
   const basic = checkDraft({ title, body, hashtags, photos }, guide?.guide ?? null);
-  const quality = qualityCheck({ title, body, hashtags, photos, postType }, guide?.guide ?? null);
+  const quality = qualityCheck({ title, body, hashtags, photos, postType, sponsored }, guide?.guide ?? null);
   const twin = title.trim() ? similarTitle(title, otherTitles) : null;
   const briefing = briefingCheck({ body, postType }, guide?.guide.keywords[0] ?? hashtags[0] ?? '');
   const items = [...basic, ...quality, ...briefing, ...(title.trim() && otherTitles.length ? [{ label: '비슷한 제목의 다른 원고 없음(재탕 방지)', ok: !twin, hint: twin ? `‘${twin}’과 많이 겹쳐요. 다른 관점이나 새 정보로 바꿔 주세요` : '' }] : [])];

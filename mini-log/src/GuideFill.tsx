@@ -6,6 +6,8 @@ import { shrinkPhoto } from './shrinkPhoto';
 export interface Guide {
   keywords: string[]; hashtags: string[]; min_photos: number | null; min_chars: number | null;
   links: string[]; visit_on: string | null; notes: string;
+  /** 쓰면 안 되는 말 */
+  avoid?: string[];
 }
 export interface GuideResult { brand: string; title: string; provided: string; amount: number; deadline: string | null; apply_by?: string | null; guide: Guide | null }
 
@@ -67,6 +69,7 @@ export function GuideChips({ guide }: { guide: Guide }) {
   const items: string[] = [
     ...guide.keywords.map(k => `🔑 ${k}`),
     ...guide.hashtags.map(h => `#${h}`),
+    ...(guide.avoid ?? []).map(w => `🚫 ${w}`),
     ...(guide.min_photos ? [`📷 사진 ${guide.min_photos}장 이상`] : []),
     ...(guide.min_chars ? [`✍️ ${guide.min_chars.toLocaleString('ko-KR')}자 이상`] : []),
     ...(guide.visit_on ? [`📅 방문 ${guide.visit_on}`] : []),
