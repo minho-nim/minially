@@ -6,7 +6,7 @@ import { POST_TYPES, type PostType } from './_postTypes';
 
 export interface TypeDef { key: string; label: string; outline: string[]; guide: string; custom: boolean; hidden: boolean }
 export interface TypeSettings { order: string[] | null; custom: { key: string; label: string; outline: string[]; guide: string }[]; outlines: Record<string, string[]>; hidden: string[] }
-const BUILTIN = (Object.keys(POST_TYPES) as PostType[]).filter(k => k !== 'none');
+const BUILTIN = (Object.keys(POST_TYPES) as PostType[]).filter((k): k is Exclude<PostType, 'none'> => k !== 'none');
 export const isCustomKey = (v: unknown): v is string => typeof v === 'string' && /^c_[a-z0-9]{6}$/.test(v);
 const line = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, ' ').trim().slice(0, max) : '');
 const lines = (v: unknown) => (Array.isArray(v) ? v.map(x => line(x, 60)).filter(Boolean).slice(0, 15) : []);
@@ -22,7 +22,7 @@ export function cleanSettings(v: unknown): TypeSettings | string {
   if (custom.some(c => !c.key || !c.label)) return '새 글 종류는 이름(20자까지)을 적어 주세요.';
   const keys = new Set<string>([...BUILTIN, ...custom.map(c => c.key)]);
   const outlines: Record<string, string[]> = {};
-  if (s.outlines && typeof s.outlines === 'object') for (const [k, val] of Object.entries(s.outlines as Record<string, unknown>)) if (BUILTIN.includes(k as PostType)) outlines[k] = lines(val);
+  if (s.outlines && typeof s.outlines === 'object') for (const [k, val] of Object.entries(s.outlines as Record<string, unknown>)) if ((BUILTIN as string[]).includes(k)) outlines[k] = lines(val);
   const order = Array.isArray(s.order) ? [...new Set(s.order.filter((k): k is string => typeof k === 'string' && keys.has(k)))] : null;
   const hidden = Array.isArray(s.hidden) ? [...new Set(s.hidden.filter((k): k is string => typeof k === 'string' && keys.has(k)))] : [];
   return { order: order && order.length ? order : null, custom, outlines, hidden };
